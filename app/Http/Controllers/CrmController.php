@@ -1,0 +1,716 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class CrmController extends Controller
+{
+    /**
+     * Get current logged in user details based on active session role.
+     */
+    public static function getCurrentUser(Request $request): array
+    {
+        $role = $request->session()->get('user_role', 'sales');
+
+        $usersByRole = [
+            'sales' => [
+                'name' => 'Aurel Calista',
+                'role' => 'Sales',
+                'role_label' => 'Sales Inbound',
+                'email' => 'aurel.calista@cic.ac.id',
+                'avatar' => 'AC',
+                'dashboard_route' => 'dashboard.sales',
+            ],
+            'cs' => [
+                'name' => 'Dina Marlina',
+                'role' => 'CS',
+                'role_label' => 'Customer Service',
+                'email' => 'dina.cs@cic.ac.id',
+                'avatar' => 'DM',
+                'dashboard_route' => 'dashboard.cs',
+            ],
+            'spv' => [
+                'name' => 'Hendra Setiawan, S.Kom',
+                'role' => 'Supervisor',
+                'role_label' => 'Supervisor Marketing',
+                'email' => 'hendra.spv@cic.ac.id',
+                'avatar' => 'HS',
+                'dashboard_route' => 'dashboard.spv',
+            ],
+            'hm' => [
+                'name' => 'Dr. Rahmat Hidayat, M.M',
+                'role' => 'Head Marketing',
+                'role_label' => 'Head Marketing',
+                'email' => 'head.marketing@cic.ac.id',
+                'avatar' => 'RH',
+                'dashboard_route' => 'dashboard.hm',
+            ],
+            'admin' => [
+                'name' => 'Administrator UCIC',
+                'role' => 'Admin',
+                'role_label' => 'Super Administrator',
+                'email' => 'admin@cic.ac.id',
+                'avatar' => 'AD',
+                'dashboard_route' => 'dashboard.admin',
+            ],
+        ];
+
+        return $usersByRole[$role] ?? $usersByRole['sales'];
+    }
+
+    /**
+     * Get mock prospect dataset.
+     */
+    private function getProspects(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'name' => 'SMK Negeri 1 Cirebon',
+                'type' => 'Sekolah',
+                'category' => 'SMK',
+                'pic' => 'Drs. H. Bambang Sutrisno, M.Pd (Kepala Sekolah)',
+                'pic_phone' => '08122334455',
+                'whatsapp' => '08122334455',
+                'status' => 'Interested',
+                'stage_number' => 2,
+                'takeover_sales' => 'Aurel Calista',
+                'takeover_cs' => 'Dina Marlina',
+                'active_takeover' => 'Sales — Aurel Calista',
+                'takeover_time' => '10 Sep 2026, 09:30',
+                'owner' => 'Aurel Calista',
+                'last_activity' => '2 jam lalu',
+                'last_contact' => '10 Sep 2026, 14:00',
+                'next_follow_up' => '12 Sep 2026, 10:00',
+                'created_at' => '01 Sep 2026',
+                'potential' => '120 Siswa Kelas XII (Jurusan TKJ & RPL) tertarik beasiswa & program D3/S1 AI & Software',
+                'ai_training' => 'Bersedia Training AI/Robotics Oktober 2026',
+                'notes' => 'Pihak sekolah mengundang UCIC untuk presentasi di aula saat workshop teknologi.',
+                'timeline' => [
+                    ['user' => 'Aurel Calista', 'role' => 'Sales', 'title' => 'Follow Up via WhatsApp', 'time' => '11 Sep 2026, 09:30', 'notes' => 'Konfirmasi jadwal audiensi dengan guru BK & Kepala Sekolah untuk tanggal 16 Sep.'],
+                    ['user' => 'Dina Marlina', 'role' => 'CS', 'title' => 'Takeover CS ke Sales', 'time' => '10 Sep 2026, 14:15', 'notes' => 'Prospek meminta proposal resmi beasiswa sekolah, dilimpahkan ke tim Sales lapangan.'],
+                    ['user' => 'System', 'role' => 'System', 'title' => 'Status Berubah Menjadi Interested', 'time' => '05 Sep 2026, 11:20', 'notes' => 'Respon positif terhadap program UCIC AI Campus.'],
+                    ['user' => 'Aurel Calista', 'role' => 'Sales', 'title' => 'Prospek Dibuat', 'time' => '01 Sep 2026, 08:30', 'notes' => 'Inbound kontak melalui kampanye EduFair Cirebon.'],
+                ],
+            ],
+            [
+                'id' => 2,
+                'name' => 'PT Surya Digital Nusantara',
+                'type' => 'Corporate',
+                'category' => 'Corporate',
+                'pic' => 'Maya Kartika, S.Psi (HRD Manager)',
+                'pic_phone' => '08139988776',
+                'whatsapp' => '08139988776',
+                'status' => 'Follow Up',
+                'stage_number' => 3,
+                'takeover_sales' => 'Rizky Pratama',
+                'takeover_cs' => 'Rini Anggraini',
+                'active_takeover' => 'Sales — Rizky Pratama',
+                'takeover_time' => '09 Sep 2026, 11:00',
+                'owner' => 'Rizky Pratama',
+                'last_activity' => '4 jam lalu',
+                'last_contact' => '10 Sep 2026, 16:30',
+                'next_follow_up' => '11 Sep 2026, 13:30',
+                'created_at' => '28 Aug 2026',
+                'potential' => 'Program Kelas Karyawan S1 Informatika & S2 Manajemen Bisnis untuk 25 staf IT',
+                'ai_training' => 'Tertarik Corporate In-house AI Upskilling',
+                'notes' => 'HRD meminta penawaran skema cicilan khusus corporate UCIC.',
+                'timeline' => [
+                    ['user' => 'Rizky Pratama', 'role' => 'Sales', 'title' => 'Follow Up Telepon', 'time' => '10 Sep 2026, 16:30', 'notes' => 'Mengirimkan simulasi skema kelas karyawan.'],
+                    ['user' => 'Rizky Pratama', 'role' => 'Sales', 'title' => 'Kunjungan Corporate', 'time' => '08 Sep 2026, 14:00', 'notes' => 'Meeting dengan Direktur HRD di Kawasan Industri Cirebon.'],
+                ],
+            ],
+            [
+                'id' => 3,
+                'name' => 'SMA Negeri 2 Majalengka',
+                'type' => 'Sekolah',
+                'category' => 'SMA',
+                'pic' => 'Ibu Nenden Kurniawati (Koordinator BK)',
+                'pic_phone' => '08176543210',
+                'whatsapp' => '08176543210',
+                'status' => 'Beli Formulir',
+                'stage_number' => 4,
+                'takeover_sales' => 'Aurel Calista',
+                'takeover_cs' => 'Dina Marlina',
+                'active_takeover' => 'CS — Dina Marlina',
+                'takeover_time' => '11 Sep 2026, 08:00',
+                'owner' => 'Aurel Calista',
+                'last_activity' => '30 menit lalu',
+                'last_contact' => '11 Sep 2026, 09:15',
+                'next_follow_up' => '13 Sep 2026, 09:00',
+                'created_at' => '15 Aug 2026',
+                'potential' => '35 Siswa mendaftar jalur PMDK Formulir UCIC 2026/2027',
+                'ai_training' => 'Workshop AI for Education',
+                'notes' => 'Guru BK mengkoordinasikan pembelian formulir kolektif tahap 1.',
+                'timeline' => [
+                    ['user' => 'Dina Marlina', 'role' => 'CS', 'title' => 'Verifikasi Pembelian Formulir', 'time' => '11 Sep 2026, 09:15', 'notes' => 'Formulir online terbit untuk 35 siswa gelombang 1.'],
+                ],
+            ],
+            [
+                'id' => 4,
+                'name' => 'Faris Akbar (Mandiri S1 Bisnis)',
+                'type' => 'Individu',
+                'category' => 'Mahasiswa Baru',
+                'pic' => 'Faris Akbar',
+                'pic_phone' => '08218877665',
+                'whatsapp' => '08218877665',
+                'status' => 'Pembayaran Termin 1',
+                'stage_number' => 5,
+                'takeover_sales' => 'Budi Santoso',
+                'takeover_cs' => 'Dina Marlina',
+                'active_takeover' => 'CS — Dina Marlina',
+                'takeover_time' => '10 Sep 2026, 15:30',
+                'owner' => 'Budi Santoso',
+                'last_activity' => '1 hari lalu',
+                'last_contact' => '10 Sep 2026, 15:30',
+                'next_follow_up' => '15 Sep 2026, 10:00',
+                'created_at' => '10 Aug 2026',
+                'potential' => 'Prodi Bisnis Digital S1, Pembayaran Termin 1 Lunas',
+                'ai_training' => '-',
+                'notes' => 'Menunggu verifikasi KRS dan orientasi mahasiswa baru.',
+                'timeline' => [
+                    ['user' => 'Dina Marlina', 'role' => 'CS', 'title' => 'Pembayaran Termin 1 Diterima', 'time' => '10 Sep 2026, 15:30', 'notes' => 'Bukti transfer termin 1 tervalidasi di sistem keuangan.'],
+                ],
+            ],
+            [
+                'id' => 5,
+                'name' => 'SMK Bina Informatika Indramayu',
+                'type' => 'Sekolah',
+                'category' => 'SMK',
+                'pic' => 'Pak Hendra Gunawan, S.Kom',
+                'pic_phone' => '08191234567',
+                'whatsapp' => '08191234567',
+                'status' => 'Closing',
+                'stage_number' => 6,
+                'takeover_sales' => 'Aurel Calista',
+                'takeover_cs' => 'Rini Anggraini',
+                'active_takeover' => 'Sales — Aurel Calista',
+                'takeover_time' => '08 Sep 2026, 10:00',
+                'owner' => 'Aurel Calista',
+                'last_activity' => '2 hari lalu',
+                'last_contact' => '09 Sep 2026, 11:00',
+                'next_follow_up' => '20 Sep 2026, 09:00',
+                'created_at' => '01 Aug 2026',
+                'potential' => 'MoU Kemitraan Kampus + 48 Siswa Closing Registrasi Ulang Gelombang 1',
+                'ai_training' => 'Program Kolaborasi Lab AI UCIC',
+                'notes' => 'MoU ditandatangani Rektor UCIC dan Kepala Sekolah SMK Bina Informatika.',
+                'timeline' => [
+                    ['user' => 'Aurel Calista', 'role' => 'Sales', 'title' => 'Penandatanganan MoU & Closing', 'time' => '08 Sep 2026, 10:00', 'notes' => '48 mahasiswa baru resmi terdaftar dengan beasiswa prestasi.'],
+                ],
+            ],
+            [
+                'id' => 6,
+                'name' => 'SMA IT Al-Hikmah Kuningan',
+                'type' => 'Sekolah',
+                'category' => 'SMA',
+                'pic' => 'Ustadz Ahmad Fauzi',
+                'pic_phone' => '08521122334',
+                'whatsapp' => '08521122334',
+                'status' => 'Cold Lead',
+                'stage_number' => 1,
+                'takeover_sales' => 'Rizky Pratama',
+                'takeover_cs' => 'Dina Marlina',
+                'active_takeover' => 'Sales — Rizky Pratama',
+                'takeover_time' => '07 Sep 2026, 08:30',
+                'owner' => 'Rizky Pratama',
+                'last_activity' => '3 hari lalu',
+                'last_contact' => '07 Sep 2026, 08:30',
+                'next_follow_up' => '14 Sep 2026, 09:30',
+                'created_at' => '05 Sep 2026',
+                'potential' => 'Database 80 Siswa Kelas XII IPA/IPS',
+                'ai_training' => 'Belum dijadwalkan',
+                'notes' => 'Materi pengenalan kampus UCIC telah dikirim via email sekolah.',
+                'timeline' => [
+                    ['user' => 'Rizky Pratama', 'role' => 'Sales', 'title' => 'Input Cold Lead Baru', 'time' => '05 Sep 2026, 09:00', 'notes' => 'Data diperoleh dari roadshow kuningan.'],
+                ],
+            ],
+            [
+                'id' => 7,
+                'name' => 'CV Mandiri Logistik Prima',
+                'type' => 'Corporate',
+                'category' => 'Corporate',
+                'pic' => 'Bpk. Hendro Sasongko',
+                'pic_phone' => '08129911223',
+                'whatsapp' => '08129911223',
+                'status' => 'Lost',
+                'stage_number' => 0,
+                'takeover_sales' => 'Budi Santoso',
+                'takeover_cs' => 'Rini Anggraini',
+                'active_takeover' => 'Sales — Budi Santoso',
+                'takeover_time' => '02 Sep 2026, 14:00',
+                'owner' => 'Budi Santoso',
+                'last_activity' => '5 hari lalu',
+                'last_contact' => '06 Sep 2026, 10:00',
+                'next_follow_up' => '-',
+                'created_at' => '12 Aug 2026',
+                'potential' => 'Program Magang & Rekrutmen',
+                'ai_training' => '-',
+                'notes' => 'Perusahaan sedang moratorium budget pelatihan untuk semester ini. Tetap dicatat sebagai arsip prospek.',
+                'timeline' => [
+                    ['user' => 'Budi Santoso', 'role' => 'Sales', 'title' => 'Status Berubah Menjadi Lost', 'time' => '06 Sep 2026, 10:00', 'notes' => 'Alasan: Alokasi anggaran internal perusahaan dialihkan ke divisi lain.'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Get mock team performance data.
+     */
+    private function getTeamPerformance(): array
+    {
+        return [
+            [
+                'rank' => 1,
+                'name' => 'Aurel Calista',
+                'role' => 'Senior Sales Executive',
+                'avatar' => 'AC',
+                'target' => 50,
+                'prospects' => 42,
+                'follow_up' => 58,
+                'closing' => 36,
+                'lost' => 3,
+                'achievement' => 72,
+                'trend' => '+14% vs bulan lalu',
+                'status' => 'On Track',
+            ],
+            [
+                'rank' => 2,
+                'name' => 'Rizky Pratama',
+                'role' => 'Sales Representative',
+                'avatar' => 'RP',
+                'target' => 45,
+                'prospects' => 38,
+                'follow_up' => 49,
+                'closing' => 28,
+                'lost' => 4,
+                'achievement' => 62,
+                'trend' => '+8% vs bulan lalu',
+                'status' => 'Good',
+            ],
+            [
+                'rank' => 3,
+                'name' => 'Budi Santoso',
+                'role' => 'Sales Representative',
+                'avatar' => 'BS',
+                'target' => 45,
+                'prospects' => 31,
+                'follow_up' => 39,
+                'closing' => 22,
+                'lost' => 5,
+                'achievement' => 48,
+                'trend' => '+2% vs bulan lalu',
+                'status' => 'Needs Attention',
+            ],
+            [
+                'rank' => 4,
+                'name' => 'Siti Nurhaliza',
+                'role' => 'Junior Sales',
+                'avatar' => 'SN',
+                'target' => 40,
+                'prospects' => 25,
+                'follow_up' => 32,
+                'closing' => 18,
+                'lost' => 2,
+                'achievement' => 45,
+                'trend' => '+10% vs bulan lalu',
+                'status' => 'Developing',
+            ],
+        ];
+    }
+
+    /**
+     * Get mock visits data (Sekolah & Corporate).
+     */
+    private function getVisits(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'name' => 'SMK Negeri 1 Cirebon',
+                'type' => 'Sekolah',
+                'category' => 'SMK',
+                'pic' => 'Drs. H. Bambang Sutrisno, M.Pd (Kepala Sekolah)',
+                'sales' => 'Aurel Calista',
+                'date' => '10 Sep 2026',
+                'time' => '09:00 - 11:30 WIB',
+                'address' => 'Jl. Perjuangan No. 12, Sunyaragi, Kota Cirebon',
+                'potential' => '120 Siswa Kelas XII (TKJ & RPL)',
+                'ai_training' => 'Bersedia Training AI/Robotics Oktober 2026',
+                'photo' => 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
+                'notes' => 'Pertemuan dihadiri Kepala Sekolah, Waka Kurikulum, dan Guru BK. Sangat antusias dengan beasiswa UCIC.',
+            ],
+            [
+                'id' => 2,
+                'name' => 'PT Surya Digital Nusantara',
+                'type' => 'Corporate',
+                'category' => 'Corporate',
+                'pic' => 'Maya Kartika, S.Psi (HRD Manager)',
+                'sales' => 'Rizky Pratama',
+                'date' => '08 Sep 2026',
+                'time' => '14:00 - 15:45 WIB',
+                'address' => 'Kawasan Industri Surya Megah Blok C-4, Cirebon',
+                'potential' => 'Kelas Karyawan S1/S2 untuk 25 staf IT & Potensi CSR',
+                'ai_training' => 'In-house AI Workshop',
+                'photo' => 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&auto=format&fit=crop&q=80',
+                'notes' => 'Diskusi skema kemitraan korporasi & benefit pendaftaran rombongan beasiswa karyawan.',
+            ],
+            [
+                'id' => 3,
+                'name' => 'SMA Negeri 2 Majalengka',
+                'type' => 'Sekolah',
+                'category' => 'SMA',
+                'pic' => 'Ibu Nenden Kurniawati (Koordinator BK)',
+                'sales' => 'Aurel Calista',
+                'date' => '04 Sep 2026',
+                'time' => '10:00 - 12:00 WIB',
+                'address' => 'Jl. Ahmad Yani No. 88, Majalengka',
+                'potential' => '35 Siswa Jalur PMDK',
+                'ai_training' => 'Workshop AI for Teachers',
+                'photo' => 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=80',
+                'notes' => 'Kunjungan tindak lanjut pengantaran brosur & form pendaftaran fisik gelombang 1.',
+            ],
+        ];
+    }
+
+    /**
+     * Get mock system users dataset (for Admin).
+     */
+    private function getSystemUsers(): array
+    {
+        return [
+            ['id' => 1, 'name' => 'Aurel Calista', 'email' => 'aurel.calista@cic.ac.id', 'role' => 'Sales', 'phone' => '081298765432', 'status' => 'Aktif', 'target' => 50, 'last_login' => '10 menit lalu', 'avatar' => 'AC'],
+            ['id' => 2, 'name' => 'Rizky Pratama', 'email' => 'rizky.pratama@cic.ac.id', 'role' => 'Sales', 'phone' => '081377889900', 'status' => 'Aktif', 'target' => 45, 'last_login' => '1 jam lalu', 'avatar' => 'RP'],
+            ['id' => 3, 'name' => 'Budi Santoso', 'email' => 'budi.santoso@cic.ac.id', 'role' => 'Sales', 'phone' => '081544332211', 'status' => 'Aktif', 'target' => 45, 'last_login' => '3 jam lalu', 'avatar' => 'BS'],
+            ['id' => 4, 'name' => 'Dina Marlina', 'email' => 'dina.cs@cic.ac.id', 'role' => 'CS', 'phone' => '082199887766', 'status' => 'Aktif', 'target' => 0, 'last_login' => '5 menit lalu', 'avatar' => 'DM'],
+            ['id' => 5, 'name' => 'Rini Anggraini', 'email' => 'rini.cs@cic.ac.id', 'role' => 'CS', 'phone' => '081911223344', 'status' => 'Aktif', 'target' => 0, 'last_login' => 'Kemarin', 'avatar' => 'RA'],
+            ['id' => 6, 'name' => 'Hendra Setiawan, S.Kom', 'email' => 'hendra.spv@cic.ac.id', 'role' => 'Supervisor', 'phone' => '085277889911', 'status' => 'Aktif', 'target' => 180, 'last_login' => '20 menit lalu', 'avatar' => 'HS'],
+            ['id' => 7, 'name' => 'Dr. Rahmat Hidayat, M.M', 'email' => 'head.marketing@cic.ac.id', 'role' => 'Head Marketing', 'phone' => '081122334455', 'status' => 'Aktif', 'target' => 500, 'last_login' => '2 jam lalu', 'avatar' => 'RH'],
+            ['id' => 8, 'name' => 'Administrator UCIC', 'email' => 'admin@cic.ac.id', 'role' => 'Admin', 'phone' => '081234567890', 'status' => 'Aktif', 'target' => 0, 'last_login' => 'Sekarang', 'avatar' => 'AD'],
+        ];
+    }
+
+    /**
+     * Get mock master data (Study Programs & Lead Categories).
+     */
+    private function getMasterData(): array
+    {
+        return [
+            'prodi' => [
+                ['id' => 1, 'faculty' => 'Fakultas Teknologi Informasi (FTI)', 'code' => 'TI-S1', 'name' => 'S1 Teknik Informatika (Konsentrasi AI & Software)', 'quota' => 150, 'registered' => 92, 'tuition' => 'Rp 4.500.000 / semester'],
+                ['id' => 2, 'faculty' => 'Fakultas Teknologi Informasi (FTI)', 'code' => 'SI-S1', 'name' => 'S1 Sistem Informasi (Enterprise ERP & Big Data)', 'quota' => 100, 'registered' => 64, 'tuition' => 'Rp 4.250.000 / semester'],
+                ['id' => 3, 'faculty' => 'Fakultas Teknologi Informasi (FTI)', 'code' => 'DKV-S1', 'name' => 'S1 Desain Komunikasi Visual (UI/UX & Creative Tech)', 'quota' => 80, 'registered' => 52, 'tuition' => 'Rp 4.500.000 / semester'],
+                ['id' => 4, 'faculty' => 'Fakultas Ekonomi & Bisnis (FEB)', 'code' => 'BD-S1', 'name' => 'S1 Bisnis Digital & E-Commerce', 'quota' => 120, 'registered' => 78, 'tuition' => 'Rp 4.000.000 / semester'],
+                ['id' => 5, 'faculty' => 'Fakultas Ekonomi & Bisnis (FEB)', 'code' => 'MN-S1', 'name' => 'S1 Manajemen Bisnis (Reguler & Karyawan)', 'quota' => 100, 'registered' => 68, 'tuition' => 'Rp 3.850.000 / semester'],
+                ['id' => 6, 'faculty' => 'Pascasarjana', 'code' => 'MM-S2', 'name' => 'S2 Magister Manajemen (Corporate Class)', 'quota' => 50, 'registered' => 28, 'tuition' => 'Rp 7.500.000 / semester'],
+            ],
+            'categories' => [
+                ['id' => 1, 'name' => 'Sekolah (SMA/SMK/MA)', 'description' => 'Kerjasama audiensi, seminar edukasi, dan roadshow sekolah', 'leads_count' => 86],
+                ['id' => 2, 'name' => 'Corporate / Perusahaan', 'description' => 'Kemitraan industri, kelas karyawan, dan program CSR', 'leads_count' => 34],
+                ['id' => 3, 'name' => 'Individu / Siswa Langsung', 'description' => 'Pendaftaran mandiri inbound via iklan digital & website', 'leads_count' => 122],
+                ['id' => 4, 'name' => 'Jalur Beasiswa Khusus', 'description' => 'Beasiswa Prestasi, Beasiswa Tahfidz, dan Beasiswa Mitra AI', 'leads_count' => 48],
+            ],
+            'batches' => [
+                ['id' => 1, 'name' => 'Gelombang 1 (Early Bird / PMDK)', 'period' => '01 Jun 2026 - 31 Agu 2026', 'discount' => 'Potongan 50% DPP + Free Formulir', 'status' => 'Selesai'],
+                ['id' => 2, 'name' => 'Gelombang 2 (Reguler & Beasiswa AI)', 'period' => '01 Sep 2026 - 31 Okt 2026', 'discount' => 'Potongan 25% DPP', 'status' => 'Aktif'],
+                ['id' => 3, 'name' => 'Gelombang 3 (Last Call / Penutupan)', 'period' => '01 Nov 2026 - 15 Des 2026', 'discount' => 'Reguler Standard', 'status' => 'Akan Datang'],
+            ],
+        ];
+    }
+
+    /**
+     * Get mock audit logs dataset.
+     */
+    private function getAuditLogs(): array
+    {
+        return [
+            ['id' => 101, 'user' => 'Aurel Calista', 'role' => 'Sales', 'action' => 'Update Status Prospek', 'target' => 'SMK Negeri 1 Cirebon', 'detail' => 'Status diubah dari Cold Lead menjadi Interested', 'ip' => '180.252.164.12', 'time' => '11 Sep 2026, 09:30:14'],
+            ['id' => 102, 'user' => 'Dina Marlina', 'role' => 'CS', 'action' => 'Takeover Penugasan', 'target' => 'SMA Negeri 2 Majalengka', 'detail' => 'Pelimpahan prospek dari Sales ke CS untuk verifikasi formulir', 'ip' => '180.252.164.88', 'time' => '11 Sep 2026, 08:45:22'],
+            ['id' => 103, 'user' => 'Administrator UCIC', 'role' => 'Admin', 'action' => 'Update WhatsApp Gateway', 'target' => 'Sistem Integrasi', 'detail' => 'Perpanjangan sesi koneksi WhatsApp Gateway Node-01', 'ip' => '10.10.1.5', 'time' => '11 Sep 2026, 08:00:00'],
+            ['id' => 104, 'user' => 'Rizky Pratama', 'role' => 'Sales', 'action' => 'Input Laporan Kunjungan', 'target' => 'PT Surya Digital Nusantara', 'detail' => 'Upload 1 foto dokumentasi meeting corporate', 'ip' => '114.122.34.19', 'time' => '10 Sep 2026, 16:30:05'],
+            ['id' => 105, 'user' => 'Hendra Setiawan', 'role' => 'Supervisor', 'action' => 'Export Laporan Rekap', 'target' => 'Laporan Periode Agustus', 'detail' => 'Download file CSV rekapitulasi data 312 prospek', 'ip' => '180.252.164.10', 'time' => '10 Sep 2026, 15:10:40'],
+            ['id' => 106, 'user' => 'Dr. Rahmat Hidayat', 'role' => 'Head Marketing', 'action' => 'Konfigurasi Kuota', 'target' => 'Gelombang 2 PMDK', 'detail' => 'Penambahan kuota beasiswa AI sebanyak 50 kursi', 'ip' => '180.252.164.02', 'time' => '09 Sep 2026, 11:20:18'],
+        ];
+    }
+
+    /**
+     * Login page view.
+     */
+    public function login(): View
+    {
+        return view('auth.login');
+    }
+
+    /**
+     * Dashboard Sales.
+     */
+    public function dashboardSales(Request $request): View
+    {
+        $request->session()->put('user_role', 'sales');
+        $prospects = $this->getProspects();
+        $recentProspects = array_slice($prospects, 0, 5);
+
+        $stats = [
+            'total_prospek' => 142,
+            'active_prospek' => 86,
+            'follow_up' => 34,
+            'closing' => 36,
+            'lost' => 6,
+            'target_bulan_ini' => 50,
+            'realisasi_closing' => 36,
+            'percentage' => 72,
+            'sisa_target' => 14,
+        ];
+
+        $pipelineStages = [
+            ['name' => 'Cold Lead', 'count' => 24, 'color' => 'badge-cold-lead'],
+            ['name' => 'Interested', 'count' => 38, 'color' => 'badge-interested'],
+            ['name' => 'Follow Up', 'count' => 34, 'color' => 'badge-follow-up'],
+            ['name' => 'Beli Formulir', 'count' => 18, 'color' => 'badge-beli-formulir'],
+            ['name' => 'Pembayaran Termin 1', 'count' => 12, 'color' => 'badge-pembayaran-termin-1'],
+            ['name' => 'Closing', 'count' => 36, 'color' => 'badge-closing'],
+        ];
+
+        return view('sales.dashboard', compact('stats', 'pipelineStages', 'recentProspects'));
+    }
+
+    /**
+     * Dashboard CS.
+     */
+    public function dashboardCs(Request $request): View
+    {
+        $request->session()->put('user_role', 'cs');
+        $prospects = $this->getProspects();
+        $stats = [
+            'total_prospek' => 184,
+            'takeover_cs' => 52,
+            'follow_up_today' => 16,
+            'follow_up_pending' => 7,
+            'closing' => 45,
+            'lost' => 8,
+        ];
+
+        $followUpsToday = array_slice($prospects, 0, 4);
+
+        return view('cs.dashboard', compact('stats', 'followUpsToday'));
+    }
+
+    /**
+     * Dashboard SPV.
+     */
+    public function dashboardSpv(Request $request): View
+    {
+        $request->session()->put('user_role', 'spv');
+        $stats = [
+            'total_sales' => 8,
+            'total_prospek' => 312,
+            'total_follow_up' => 178,
+            'total_closing' => 104,
+            'total_lost' => 14,
+        ];
+
+        $team = $this->getTeamPerformance();
+
+        return view('spv.dashboard', compact('stats', 'team'));
+    }
+
+    /**
+     * Dashboard Head Marketing (HM).
+     */
+    public function dashboardHm(Request $request): View
+    {
+        $request->session()->put('user_role', 'hm');
+        $stats = [
+            'total_prospek' => 485,
+            'active_prospek' => 290,
+            'closing' => 142,
+            'lost' => 21,
+            'conversion_rate' => 29.3,
+            'total_sales' => 8,
+            'total_cs' => 4,
+        ];
+
+        $team = $this->getTeamPerformance();
+
+        $pipelineStages = [
+            ['name' => 'Cold Lead', 'count' => 84, 'pct' => 17],
+            ['name' => 'Interested', 'count' => 126, 'pct' => 26],
+            ['name' => 'Follow Up', 'count' => 98, 'pct' => 20],
+            ['name' => 'Beli Formulir', 'count' => 54, 'pct' => 11],
+            ['name' => 'Pembayaran Termin 1', 'count' => 32, 'pct' => 7],
+            ['name' => 'Closing', 'count' => 142, 'pct' => 29],
+        ];
+
+        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages'));
+    }
+
+    /**
+     * Dashboard Admin (Overview System, Gateway, Users, Audit).
+     */
+    public function dashboardAdmin(Request $request): View
+    {
+        $request->session()->put('user_role', 'admin');
+        $systemStats = [
+            'total_users' => 8,
+            'active_sessions' => 6,
+            'total_prospects' => 485,
+            'wa_gateway_status' => 'Terhubung (Online)',
+            'storage_used' => '1.2 GB / 20 GB',
+            'api_uptime' => '99.98%',
+        ];
+
+        $users = $this->getSystemUsers();
+        $auditLogs = array_slice($this->getAuditLogs(), 0, 5);
+        $masterData = $this->getMasterData();
+
+        return view('admin.dashboard', compact('systemStats', 'users', 'auditLogs', 'masterData'));
+    }
+
+    /**
+     * Admin: User & Team Management.
+     */
+    public function adminUsers(): View
+    {
+        $users = $this->getSystemUsers();
+
+        return view('admin.users.index', compact('users'));
+    }
+
+    /**
+     * Admin: Master Data (Prodi, Kategori, Gelombang).
+     */
+    public function adminMasterData(): View
+    {
+        $masterData = $this->getMasterData();
+
+        return view('admin.master-data.index', compact('masterData'));
+    }
+
+    /**
+     * Admin: Audit Logs.
+     */
+    public function adminAuditLogs(): View
+    {
+        $logs = $this->getAuditLogs();
+
+        return view('admin.audit-logs.index', compact('logs'));
+    }
+
+    /**
+     * Admin: System Settings & Integrations.
+     */
+    public function adminSettings(): View
+    {
+        return view('admin.settings.index');
+    }
+
+    /**
+     * Daftar Prospek.
+     */
+    public function prospekIndex(Request $request): View
+    {
+        $prospects = $this->getProspects();
+
+        return view('prospek.index', compact('prospects'));
+    }
+
+    /**
+     * Detail Prospek.
+     */
+    public function prospekShow(int $id): View
+    {
+        $prospects = $this->getProspects();
+        $prospect = collect($prospects)->firstWhere('id', $id) ?? $prospects[0];
+
+        $allStages = [
+            ['name' => 'Cold Lead', 'number' => 1],
+            ['name' => 'Interested', 'number' => 2],
+            ['name' => 'Follow Up', 'number' => 3],
+            ['name' => 'Beli Formulir', 'number' => 4],
+            ['name' => 'Pembayaran Termin 1', 'number' => 5],
+            ['name' => 'Closing', 'number' => 6],
+        ];
+
+        return view('prospek.show', compact('prospect', 'allStages'));
+    }
+
+    /**
+     * Halaman Kunjungan.
+     */
+    public function kunjunganIndex(): View
+    {
+        $visits = $this->getVisits();
+
+        return view('kunjungan.index', compact('visits'));
+    }
+
+    /**
+     * Halaman Follow Up.
+     */
+    public function followUpIndex(): View
+    {
+        $prospects = $this->getProspects();
+
+        return view('follow-up.index', compact('prospects'));
+    }
+
+    /**
+     * Halaman Pipeline Board.
+     */
+    public function pipelineIndex(): View
+    {
+        $prospects = $this->getProspects();
+
+        return view('pipeline.index', compact('prospects'));
+    }
+
+    /**
+     * Halaman Target & Performa.
+     */
+    public function performaIndex(): View
+    {
+        $team = $this->getTeamPerformance();
+        $summary = [
+            'target' => 180,
+            'realisasi' => 104,
+            'achievement' => 58,
+            'sisa_target' => 76,
+        ];
+
+        return view('performa.index', compact('team', 'summary'));
+    }
+
+    /**
+     * Halaman Laporan.
+     */
+    public function laporanIndex(): View
+    {
+        $prospects = $this->getProspects();
+        $summary = [
+            'total_prospek' => 485,
+            'active' => 290,
+            'closing' => 142,
+            'lost' => 21,
+            'conversion_rate' => 29.3,
+        ];
+
+        return view('laporan.index', compact('prospects', 'summary'));
+    }
+
+    /**
+     * Halaman Profil & Akun.
+     */
+    public function profilIndex(): View
+    {
+        return view('profil.index');
+    }
+
+    /**
+     * Halaman Pengaturan.
+     */
+    public function pengaturanIndex(): View
+    {
+        return view('profil.pengaturan');
+    }
+}
