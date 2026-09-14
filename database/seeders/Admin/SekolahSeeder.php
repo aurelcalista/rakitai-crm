@@ -1,0 +1,16 @@
+<?php
+
+namespace Database\Seeders\Admin;
+
+use Illuminate\Database\Seeder;
+
+class SekolahSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        //
+    }
+}

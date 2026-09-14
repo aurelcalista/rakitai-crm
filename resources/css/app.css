@@ -1,21 +1,6 @@
-@import 'tailwindcss';
-
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../views/**/*.blade.php';
-@source '../js/**/*.js';
-
-@theme {
-    --font-sans: 'Plus Jakarta Sans', 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --color-brand-50: #eff6ff;
-    --color-brand-100: #dbeafe;
-    --color-brand-200: #bfdbfe;
-    --color-brand-500: #3b82f6;
-    --color-brand-600: #2563eb;
-    --color-brand-700: #1d4ed8;
-    --color-brand-800: #1e40af;
-    --color-brand-900: #1e3a8a;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Custom modern scrollbar */
 ::-webkit-scrollbar {

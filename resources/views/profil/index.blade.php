@@ -1,4 +1,5 @@
 @php
+    $user = $currentUser ?? \App\Http\Controllers\CrmController::getCurrentUser(request());
     $pageTitle = 'Profil & Akun Pengguna';
     $pageSubtitle = 'Pengaturan Akun & Preferensi Sistem';
 @endphp
@@ -8,59 +9,94 @@
     <div class="space-y-6 max-w-4xl mx-auto">
 
         <!-- Mobile App-Like Header & Profile Card -->
-        <div class="crm-card bg-white p-6 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-            <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-2xl flex items-center justify-center shadow-md">
-                AC
+        <div class="crm-card bg-white p-6 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left shadow-xs rounded-2xl border border-slate-200/80">
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 via-blue-600 to-indigo-600 text-white font-bold text-2xl flex items-center justify-center shadow-md shrink-0">
+                {{ $user['avatar'] }}
             </div>
             <div class="space-y-1 flex-1">
                 <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <h2 class="text-xl font-bold text-slate-900">Aurel Calista</h2>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Sales Inbound</span>
+                    <h2 class="text-xl font-bold text-slate-900">{{ $user['name'] }}</h2>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $user['role'] === 'Admin' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200' }}">
+                        {{ $user['role_label'] }}
+                    </span>
                 </div>
-                <p class="text-xs text-slate-500 font-medium">aurel.calista@cic.ac.id &bull; NIK: 202408119</p>
-                <p class="text-xs text-slate-600 pt-1">Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia</p>
+                <p class="text-xs text-slate-500 font-medium">{{ $user['email'] }} &bull; NIK: {{ $user['nik'] }}</p>
+                <p class="text-xs text-slate-600 pt-1">{{ $user['division'] }}</p>
             </div>
             <div>
-                <a href="{{ route('login') }}" class="px-4 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold text-xs border border-rose-200 transition inline-flex items-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    <span>Logout</span>
-                </a>
+                <form action="{{ route('logout') }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold text-xs border border-rose-200 transition inline-flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                        <span>Logout</span>
+                    </button>
+                </form>
             </div>
         </div>
 
         <!-- Mobile Navigation Menu Cards (Accessible on mobile) -->
-        <div class="crm-card bg-white divide-y divide-slate-100 overflow-hidden">
+        <div class="crm-card bg-white divide-y divide-slate-100 overflow-hidden shadow-xs rounded-2xl border border-slate-200/80">
             <div class="p-4 bg-slate-50/50">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Akses Cepat & Menu Aplikasi</span>
             </div>
 
-            <!-- Link: Kunjungan -->
-            <a href="{{ route('kunjungan.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            @if($user['role'] === 'Admin')
+                <!-- Link: Kelola User -->
+                <a href="{{ route('admin.users.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        </div>
+                        <div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">Kelola Pengguna CRM</div>
+                            <div class="text-[11px] text-slate-500">Manajemen akun user, role, dan hak akses</div>
+                        </div>
                     </div>
-                    <div>
-                        <div class="text-xs sm:text-sm font-bold text-slate-800">Laporan Kunjungan Lapangan</div>
-                        <div class="text-[11px] text-slate-500">Dokumentasi foto audiensi sekolah & corporate</div>
-                    </div>
-                </div>
-                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-            </a>
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </a>
 
-            <!-- Link: Laporan -->
-            <a href="{{ route('laporan.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                <!-- Link: Master Data -->
+                <a href="{{ route('admin.master-data.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                        </div>
+                        <div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">Kelola Master Data</div>
+                            <div class="text-[11px] text-slate-500">Data Sekolah, Perusahaan, Prodi, Wilayah, & Kategori</div>
+                        </div>
                     </div>
-                    <div>
-                        <div class="text-xs sm:text-sm font-bold text-slate-800">Laporan Rekapitulasi & Export</div>
-                        <div class="text-[11px] text-slate-500">Rekap data pendaftaran dan pencapaian target</div>
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </a>
+            @else
+                <!-- Link: Kunjungan -->
+                <a href="{{ route('kunjungan.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                        </div>
+                        <div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">Laporan Kunjungan Lapangan</div>
+                            <div class="text-[11px] text-slate-500">Dokumentasi foto audiensi sekolah & corporate</div>
+                        </div>
                     </div>
-                </div>
-                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-            </a>
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </a>
+
+                <!-- Link: Laporan -->
+                <a href="{{ route('laporan.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </div>
+                        <div>
+                            <div class="text-xs sm:text-sm font-bold text-slate-800">Laporan Rekapitulasi & Export</div>
+                            <div class="text-[11px] text-slate-500">Rekap data pendaftaran dan pencapaian target</div>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </a>
+            @endif
 
             <!-- Link: Pengaturan -->
             <a href="{{ route('pengaturan.index') }}" class="flex items-center justify-between p-4 hover:bg-slate-50 transition">
@@ -78,31 +114,32 @@
         </div>
 
         <!-- Personal Details Form -->
-        <div class="crm-card bg-white p-6 space-y-4">
+        <div class="crm-card bg-white p-6 space-y-4 shadow-xs rounded-2xl border border-slate-200/80">
             <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">Informasi Pribadi</h3>
             
-            <form @submit.prevent="$store.crm.showToast('Profil berhasil diperbarui!')" class="space-y-4 text-xs">
+            <form action="{{ route('profil.update') }}" method="POST" class="space-y-4 text-xs">
+                @csrf
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap</label>
-                        <input type="text" value="Aurel Calista" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap *</label>
+                        <input type="text" name="name" value="{{ old('name', $user['name']) }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Email UCIC</label>
-                        <input type="email" value="aurel.calista@cic.ac.id" readonly class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500">
+                        <input type="email" value="{{ $user['email'] }}" readonly class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 cursor-not-allowed">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp Pribadi</label>
-                        <input type="tel" value="081298765432" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200">
+                        <input type="tel" name="phone" value="{{ old('phone', $user['phone'] ?? '') }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Role / Jabatan</label>
-                        <input type="text" value="Senior Sales Executive" readonly class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500">
+                        <input type="text" value="{{ $user['role_label'] }}" readonly class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 cursor-not-allowed">
                     </div>
                 </div>
 
                 <div class="pt-3 border-t border-slate-100 flex justify-end">
-                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition">
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer">
                         Simpan Perubahan
                     </button>
                 </div>
