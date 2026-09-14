@@ -48,24 +48,25 @@
         <div class="crm-card bg-white p-6 space-y-4">
             <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">Keamanan & Password</h3>
 
-            <form @submit.prevent="$store.crm.showToast('Password berhasil diubah!')" class="space-y-4 text-xs">
+            <form action="{{ route('profil.password.update') }}" method="POST" class="space-y-4 text-xs">
+                @csrf
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="sm:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Saat Ini</label>
-                        <input type="password" placeholder="••••••••••••" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Saat Ini *</label>
+                        <input type="password" name="current_password" required placeholder="••••••••••••" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Baru</label>
-                        <input type="password" placeholder="Minimal 8 karakter" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Baru *</label>
+                        <input type="password" name="password" required placeholder="Minimal 8 karakter" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Konfirmasi Password Baru</label>
-                        <input type="password" placeholder="Ulangi password baru" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Konfirmasi Password Baru *</label>
+                        <input type="password" name="password_confirmation" required placeholder="Ulangi password baru" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
                     </div>
                 </div>
 
                 <div class="pt-3 border-t border-slate-100 flex justify-end">
-                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer">
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer">
                         Update Password
                     </button>
                 </div>
