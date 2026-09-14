@@ -9,8 +9,9 @@
     <meta name="description" content="Platform CRM Modern Marketing & Sales Inbound Universitas Catur Insan Cendekia (UCIC)">
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -24,7 +25,12 @@
     modalTambahKunjungan: false,
     selectedProspect: { name: 'SMK Negeri 1 Cirebon', status: 'Interested', id: 1, owner: 'Aurel Calista' },
     notificationOpen: false
-}">
+}
+"
+x-init="
+    @if(session('success')) setTimeout(() => $store.crm.showToast('{{ session('success') }}'), 100); @endif
+    @if(session('error')) setTimeout(() => $store.crm.showToast('{{ session('error') }}'), 100); @endif
+">
 
     <!-- Toast Notifications Container -->
     <div class="fixed top-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
@@ -143,37 +149,90 @@
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
                             </a>
                             <a 
+                                href="{{ route('admin.kunjungan.index') }}" 
+                                title="Kelola Kunjungan"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.kunjungan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.kunjungan.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Kunjungan</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.target.index') }}" 
+                                title="Kelola Target"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.target.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.target.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Target</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: DATA MASTER -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-purple-700 uppercase tracking-wider">Data Master</div>
+                        <div class="space-y-1">
+                            <a 
                                 href="{{ route('admin.master-data.index') }}" 
-                                title="Master Data CRM"
+                                title="Data Master"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.master-data.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
                                 <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.master-data.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Master Data CRM</span>
+                                <span x-show="!sidebarCollapsed">Data Master</span>
                             </a>
                             <a 
-                                href="{{ route('admin.audit-logs.index') }}" 
-                                title="Audit Logs"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                href="{{ route('admin.wilayah.index') }}" 
+                                title="Data Wilayah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.audit-logs.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Audit Logs</span>
+                                <span x-show="!sidebarCollapsed">Data Wilayah</span>
                             </a>
                             <a 
-                                href="{{ route('admin.settings.index') }}" 
-                                title="Sistem & Gateway"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.settings.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                href="{{ route('admin.sekolah.index') }}" 
+                                title="Data Sekolah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.sekolah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.settings.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.sekolah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Sistem & Gateway</span>
+                                <span x-show="!sidebarCollapsed">Data Sekolah</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.prodi.index') }}" 
+                                title="Data Prodi"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.prodi.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.prodi.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prodi</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.perusahaan.index') }}" 
+                                title="Data Perusahaan"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.perusahaan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.perusahaan.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Perusahaan</span>
                             </a>
                         </div>
                     </div>
@@ -381,8 +440,8 @@
                         </button>
                     @endif
 
-                    <!-- Notifications Dropdown -->
-                    <div class="relative" x-data="{ open: false }">
+                    <!-- Notifications Dropdown (Interactive) -->
+                    <div class="relative" x-data="{ open: false, filter: 'all' }">
                         <button 
                             @click="open = !open" 
                             class="p-2 sm:p-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 transition relative cursor-pointer"
@@ -391,30 +450,107 @@
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                            <template x-if="$store.crm.unreadCount > 0">
+                                <span class="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 ring-2 ring-white text-[9px] font-bold text-white flex items-center justify-center animate-pulse" x-text="$store.crm.unreadCount"></span>
+                            </template>
                         </button>
 
                         <div 
                             x-show="open" 
                             @click.away="open = false" 
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="opacity-0 scale-95"
-                            x-transition:enter-end="opacity-100 scale-100"
-                            class="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-40"
+                            x-cloak
+                            x-transition:enter="transition ease-out duration-150 transform"
+                            x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                            x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                            x-transition:leave="transition ease-in duration-100 transform"
+                            x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                            x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                            class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 overflow-hidden"
                         >
-                            <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                                <span class="font-bold text-xs text-slate-800">Notifikasi Terbaru</span>
-                                <span class="text-[10px] text-blue-600 font-semibold cursor-pointer">Tandai Dibaca</span>
+                            <!-- Dropdown Header -->
+                            <div class="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-xs text-slate-900">Notifikasi</span>
+                                    <template x-if="$store.crm.unreadCount > 0">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Belum Dibaca'"></span>
+                                    </template>
+                                </div>
+                                <button 
+                                    @click="$store.crm.markAllAsRead()" 
+                                    x-show="$store.crm.unreadCount > 0"
+                                    class="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition"
+                                >
+                                    Tandai Semua Dibaca
+                                </button>
                             </div>
-                            <div class="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                                <div class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer">
-                                    <p class="text-xs font-semibold text-slate-800">Follow up terjadwal: SMK N 1 Cirebon</p>
-                                    <p class="text-[11px] text-slate-500 mt-0.5">Hari ini pukul 10:00 WIB</p>
-                                </div>
-                                <div class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer">
-                                    <p class="text-xs font-semibold text-slate-800">Takeover CS masuk dari Dina</p>
-                                    <p class="text-[11px] text-slate-500 mt-0.5">SMA N 2 Majalengka beli formulir</p>
-                                </div>
+
+                            <!-- Filter Tabs -->
+                            <div class="flex border-b border-slate-100 bg-white px-2 py-1 gap-1 text-[11px]">
+                                <button 
+                                    @click="filter = 'all'" 
+                                    :class="filter === 'all' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'"
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                                >
+                                    Semua (<span x-text="$store.crm.notifications.length"></span>)
+                                </button>
+                                <button 
+                                    @click="filter = 'unread'" 
+                                    :class="filter === 'unread' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'"
+                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                                >
+                                    Belum Dibaca (<span x-text="$store.crm.unreadCount"></span>)
+                                </button>
+                            </div>
+
+                            <!-- Items List -->
+                            <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                                <template x-for="item in $store.crm.notifications.filter(n => filter === 'all' || !n.read)" :key="item.id">
+                                    <div 
+                                        @click="$store.crm.markAsRead(item.id); if(item.link) window.location.href = item.link;"
+                                        class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer flex items-start justify-between gap-3 group"
+                                        :class="!item.read ? 'bg-blue-50/40' : ''"
+                                    >
+                                        <div class="flex items-start gap-2.5 flex-1 min-w-0">
+                                            <span 
+                                                class="w-2 h-2 rounded-full mt-1.5 shrink-0" 
+                                                :class="{
+                                                    'bg-blue-600': !item.read && item.type === 'info',
+                                                    'bg-amber-500': !item.read && item.type === 'warning',
+                                                    'bg-emerald-500': !item.read && item.type === 'success',
+                                                    'bg-rose-500': !item.read && item.type === 'danger',
+                                                    'bg-transparent': item.read
+                                                }"
+                                            ></span>
+                                            <div>
+                                                <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-blue-600 transition" x-text="item.title"></p>
+                                                <p class="text-[11px] text-slate-500 mt-0.5 leading-normal" x-text="item.message"></p>
+                                                <span class="text-[10px] text-slate-400 mt-1 block" x-text="item.time"></span>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            @click.stop="$store.crm.deleteNotification(item.id)" 
+                                            class="text-slate-300 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition rounded-lg hover:bg-rose-50 cursor-pointer"
+                                            title="Hapus notifikasi"
+                                        >
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                </template>
+
+                                <template x-if="$store.crm.notifications.filter(n => filter === 'all' || !n.read).length === 0">
+                                    <div class="p-6 text-center text-slate-400 space-y-1">
+                                        <svg class="w-8 h-8 mx-auto text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                                        <p class="text-xs font-semibold text-slate-600">Tidak Ada Notifikasi</p>
+                                        <p class="text-[11px] text-slate-400">Semua pemberitahuan sudah Anda periksa.</p>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Dropdown Footer -->
+                            <div class="p-2 border-t border-slate-100 bg-slate-50/50 text-center">
+                                <a href="{{ route('admin.audit-logs.index') }}" class="text-[11px] font-bold text-slate-600 hover:text-purple-700 transition">
+                                    Lihat Log Aktivitas Sistem &rarr;
+                                </a>
                             </div>
                         </div>
                     </div>

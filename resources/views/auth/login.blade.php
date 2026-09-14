@@ -5,18 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Login - CRM Marketing & Sales Inbound UCIC</title>
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full font-sans antialiased text-slate-800 bg-slate-50" x-data="{ 
-    showPassword: false, 
-    isLoading: false, 
-    hasError: false,
-    selectedRole: 'sales',
-    email: 'aurel.calista@cic.ac.id',
-    password: '••••••••••••'
-}">
+<body class="h-full font-sans antialiased text-slate-800 bg-slate-50" x-data="{ showPassword: false, isLoading: false }">
 
     <div class="min-h-full flex">
         
@@ -41,77 +35,30 @@
                     </p>
                 </div>
 
-                <!-- Role Quick Select for Demo (Sales, CS, SPV, HM, Admin) -->
-                <div class="mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
-                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Pilih Role Akses (Demo Mode):</p>
-                    <div class="grid grid-cols-5 gap-1">
-                        <button 
-                            type="button" 
-                            @click="selectedRole = 'sales'; email = 'aurel.calista@cic.ac.id'"
-                            :class="selectedRole === 'sales' ? 'bg-blue-600 text-white shadow-xs font-bold' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-                            class="py-1.5 px-1.5 rounded-lg text-[11px] transition text-center cursor-pointer"
-                        >
-                            Sales
-                        </button>
-                        <button 
-                            type="button" 
-                            @click="selectedRole = 'cs'; email = 'dina.cs@cic.ac.id'"
-                            :class="selectedRole === 'cs' ? 'bg-blue-600 text-white shadow-xs font-bold' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-                            class="py-1.5 px-1.5 rounded-lg text-[11px] transition text-center cursor-pointer"
-                        >
-                            CS
-                        </button>
-                        <button 
-                            type="button" 
-                            @click="selectedRole = 'spv'; email = 'hendra.spv@cic.ac.id'"
-                            :class="selectedRole === 'spv' ? 'bg-blue-600 text-white shadow-xs font-bold' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-                            class="py-1.5 px-1.5 rounded-lg text-[11px] transition text-center cursor-pointer"
-                        >
-                            SPV
-                        </button>
-                        <button 
-                            type="button" 
-                            @click="selectedRole = 'hm'; email = 'head.marketing@cic.ac.id'"
-                            :class="selectedRole === 'hm' ? 'bg-blue-600 text-white shadow-xs font-bold' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'"
-                            class="py-1.5 px-1.5 rounded-lg text-[11px] transition text-center cursor-pointer"
-                        >
-                            HM
-                        </button>
-                        <button 
-                            type="button" 
-                            @click="selectedRole = 'admin'; email = 'admin@cic.ac.id'"
-                            :class="selectedRole === 'admin' ? 'bg-purple-600 text-white shadow-xs font-bold' : 'bg-white text-slate-700 border border-slate-200 hover:bg-purple-50'"
-                            class="py-1.5 px-1.5 rounded-lg text-[11px] transition text-center cursor-pointer"
-                        >
-                            Admin
-                        </button>
-                    </div>
-                </div>
 
                 <!-- Error Alert Box -->
-                <div x-show="hasError" x-cloak class="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                @if ($errors->any() || session('status'))
+                <div class="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                     <svg class="w-4 h-4 shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Email atau password yang Anda masukkan tidak sesuai.</span>
+                    <span>{{ $errors->first() ?: session('status') }}</span>
                 </div>
+                @endif
 
                 <!-- Login Form -->
-                <form @submit.prevent="
-                    isLoading = true; 
-                    setTimeout(() => { 
-                        isLoading = false; 
-                        window.location.href = (selectedRole === 'admin' ? '/dashboard/admin' : '/dashboard/' + selectedRole); 
-                    }, 500)
-                " class="space-y-4">
+                <form method="POST" action="{{ route('login') }}" class="space-y-4" @submit="isLoading = true">
+                    @csrf
                     
                     <div>
                         <label for="email" class="block text-xs font-semibold text-slate-700 mb-1">Email / Username</label>
                         <input 
                             id="email" 
+                            name="email"
                             type="email" 
-                            x-model="email"
+                            value="{{ old('email') }}"
                             required 
+                            autocomplete="email"
                             class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                             placeholder="nama@cic.ac.id"
                         >
@@ -122,9 +69,10 @@
                         <div class="relative">
                             <input 
                                 id="password" 
+                                name="password"
                                 :type="showPassword ? 'text' : 'password'" 
-                                x-model="password"
                                 required 
+                                autocomplete="current-password"
                                 class="w-full text-xs sm:text-sm px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                                 placeholder="Masukkan password"
                             >
