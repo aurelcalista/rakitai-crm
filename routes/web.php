@@ -17,12 +17,12 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
     // Unified Role Dashboard entry
     Route::get('/dashboard', function () {
-        $role = session('user_role', 'sales');
+        $role = auth()->check() ? strtolower(auth()->user()->role) : session('user_role', 'sales');
 
         return redirect()->route('dashboard.' . $role);
     })->name('dashboard');
