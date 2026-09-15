@@ -572,18 +572,19 @@
                     </button>
                 </div>
 
-                <form @submit.prevent="modalTambahProspek = false; $store.crm.showToast('Prospek baru berhasil ditambahkan!')" class="mt-5 space-y-6">
+                <form action="{{ route('prospek.store') }}" method="POST" class="mt-5 space-y-6">
+                    @csrf
                     <!-- Section: INFORMASI DASAR -->
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Prospek (Sekolah / Instansi / Individu) *</label>
-                                <input type="text" required placeholder="Contoh: SMA Negeri 1 Cirebon" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <input type="text" name="name" required placeholder="Contoh: SMA Negeri 1 Cirebon" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe Prospek *</label>
-                                <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <select name="type" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="Sekolah">Sekolah (SMA/SMK/MA)</option>
                                     <option value="Corporate">Corporate / Perusahaan</option>
                                     <option value="Individu">Individu / Siswa Langsung</option>
@@ -591,7 +592,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
-                                <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="Cold Lead">Cold Lead</option>
                                     <option value="Interested" selected>Interested</option>
                                     <option value="Follow Up">Follow Up</option>
@@ -599,11 +600,11 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Kontak / Nama PIC *</label>
-                                <input type="text" required placeholder="Contoh: Bpk. Bambang (Guru BK)" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <input type="text" name="pic" required placeholder="Contoh: Bpk. Bambang (Guru BK)" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
-                                <input type="tel" required placeholder="081234567890" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <input type="tel" name="whatsapp" required placeholder="081234567890" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                         </div>
                     </div>
@@ -612,19 +613,26 @@
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md inline-block mb-3">2. Takeover Penugasan</h4>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            @php
+                                $salesList = \App\Models\User::where('role', 'Sales')->get();
+                                $csList = \App\Models\User::where('role', 'CS')->get();
+                            @endphp
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Takeover by Sales</label>
-                                <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="Aurel Calista">Aurel Calista</option>
-                                    <option value="Rizky Pratama">Rizky Pratama</option>
-                                    <option value="Budi Santoso">Budi Santoso</option>
+                                <select name="sales_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Sales --</option>
+                                    @foreach($salesList as $s)
+                                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Takeover by CS</label>
-                                <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="Dina Marlina">Dina Marlina</option>
-                                    <option value="Rini Anggraini">Rini Anggraini</option>
+                                <select name="cs_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih CS --</option>
+                                    @foreach($csList as $c)
+                                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
@@ -636,11 +644,11 @@
                         <div class="space-y-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Deskripsi Potensi Prospek</label>
-                                <input type="text" placeholder="Contoh: 100 Siswa Jurusan RPL & TKJ potensi beasiswa UCIC" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <input type="text" name="potential" placeholder="Contoh: 100 Siswa Jurusan RPL & TKJ potensi beasiswa UCIC" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
-                                <textarea rows="2" placeholder="Catatan awal hasil perbincangan atau sumber prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
+                                <textarea name="notes" rows="2" placeholder="Catatan awal hasil perbincangan atau sumber prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
                             </div>
                         </div>
                     </div>
@@ -676,10 +684,12 @@
                     </button>
                 </div>
 
-                <form @submit.prevent="modalFollowUp = false; $store.crm.showToast('Follow-up berhasil disimpan!')" class="mt-4 space-y-4">
+                <form action="{{ route('follow-up.store') }}" method="POST" class="mt-4 space-y-4">
+                    @csrf
+                    <input type="hidden" name="prospek_id" :value="selectedProspect.id">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Hasil Follow Up *</label>
-                        <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                        <select name="hasil" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                             <option value="Tertarik & Minta Brosur/Proposal">Tertarik & Minta Brosur/Proposal</option>
                             <option value="Jadwalkan Kunjungan/Audiensi">Jadwalkan Kunjungan/Audiensi</option>
                             <option value="Beli Formulir PMDK">Beli Formulir PMDK</option>
@@ -690,17 +700,17 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Follow Up *</label>
-                        <textarea rows="3" required placeholder="Tuliskan hasil diskusi, pertanyaan prospek, atau kesepakatan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
+                        <textarea name="catatan" rows="3" required placeholder="Tuliskan hasil diskusi, pertanyaan prospek, atau kesepakatan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Next Follow Up</label>
-                            <input type="date" value="{{ date('Y-m-d', strtotime('+3 days')) }}" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            <input name="next_follow_up" type="date" value="{{ date('Y-m-d', strtotime('+3 days')) }}" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status</label>
-                            <select class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                            <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                 <option value="Interested">Interested</option>
                                 <option value="Follow Up" selected>Follow Up</option>
                                 <option value="Beli Formulir">Beli Formulir</option>

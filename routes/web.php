@@ -36,11 +36,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
 // CRM Core Modules
 Route::get('/prospek', [CrmController::class, 'prospekIndex'])->name('prospek.index');
+Route::post('/prospek', [CrmController::class, 'prospekStore'])->name('prospek.store');
 Route::get('/prospek/{id}', [CrmController::class, 'prospekShow'])->name('prospek.show');
+Route::put('/prospek/{id}', [CrmController::class, 'prospekUpdate'])->name('prospek.update');
+Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
 
 Route::get('/kunjungan', [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
+Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');
+
 Route::get('/follow-up', [CrmController::class, 'followUpIndex'])->name('follow-up.index');
+Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');
+
 Route::get('/pipeline', [CrmController::class, 'pipelineIndex'])->name('pipeline.index');
+Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateStatus'])->name('pipeline.update-status');
 
 // Performance & Reports
 Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
