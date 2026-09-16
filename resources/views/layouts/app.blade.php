@@ -13,6 +13,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         [x-cloak] { display: none !important; }
     </style>
@@ -75,23 +78,24 @@ x-init="
             class="hidden md:flex flex-col flex-shrink-0 bg-white border-r border-slate-200/80 transition-all duration-300 ease-in-out fixed inset-y-0 left-0 z-30 shadow-xs"
         >
             <!-- Brand Header -->
-            <div class="h-18 sm:h-20 flex items-center border-b border-slate-100 transition-all duration-300" :class="sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-5'">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3.5 overflow-hidden" title="UCIC CRM - {{ $currentUser['role'] }}">
+            <div class="h-18 sm:h-20 flex items-center border-b border-slate-100 transition-all duration-300" :class="sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-4 sm:px-5'">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 min-w-0" title="UCIC CRM - {{ $currentUser['role_label'] }}">
                     <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0 tracking-wider">
                         U
                     </div>
-                    <div x-show="!sidebarCollapsed" class="transition-opacity duration-200 truncate">
-                        <div class="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                            UCIC CRM
-                            <span class="px-1.5 py-0.5 rounded-md text-[10px] bg-blue-50 text-blue-700 font-semibold border border-blue-200">{{ $currentUser['role'] }}</span>
+                    <div x-show="!sidebarCollapsed" class="transition-opacity duration-200 min-w-0">
+                        <div class="text-sm font-bold text-slate-900 tracking-tight leading-tight">UCIC CRM</div>
+                        <div class="mt-1">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 font-semibold border border-blue-200 leading-none">
+                                {{ $currentUser['role_label'] }}
+                            </span>
                         </div>
-                        <div class="text-[11px] text-slate-500 font-medium truncate mt-0.5">Marketing & Inbound</div>
                     </div>
                 </a>
                 <button 
                     x-show="!sidebarCollapsed"
                     @click="sidebarCollapsed = true" 
-                    class="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                    class="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer shrink-0 ml-1"
                     title="Tutup Sidebar"
                 >
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -376,15 +380,15 @@ x-init="
                     <a href="{{ route('profil.index') }}" title="{{ $currentUser['name'] }} ({{ $currentUser['role_label'] }})" class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs hover:ring-2 hover:ring-blue-500/30 transition">
                         {{ $currentUser['avatar'] }}
                     </a>
-                    <div x-show="!sidebarCollapsed" class="truncate flex-1">
+                    <div x-show="!sidebarCollapsed" class="truncate flex-1 min-w-0">
                         <div class="text-xs font-bold text-slate-800 truncate">{{ $currentUser['name'] }}</div>
-                        <div class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">{{ $currentUser['role_label'] }}</div>
+                        <div class="text-[10px] text-blue-600 font-semibold truncate mt-0.5" title="{{ $currentUser['role_label'] }}">{{ $currentUser['role_label'] }}</div>
                     </div>
                     <button 
                         type="button" 
-                        onclick="document.getElementById('logout-form').submit()" 
+                        onclick="confirmLogout()" 
                         title="Logout / Ganti Akun" 
-                        class="text-slate-400 hover:text-rose-600 transition p-1 cursor-pointer" 
+                        class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition p-2 rounded-xl cursor-pointer shrink-0" 
                         :class="sidebarCollapsed ? 'rounded-lg hover:bg-rose-50' : ''"
                     >
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -414,7 +418,7 @@ x-init="
                         </div>
                         <div>
                             <span class="font-bold text-slate-900 text-sm block leading-tight">CRM UCIC</span>
-                            <span class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">{{ $currentUser['role'] }}</span>
+                            <span class="text-[10px] text-blue-600 font-semibold truncate block">{{ $currentUser['role_label'] }}</span>
                         </div>
                     </div>
 
@@ -571,7 +575,7 @@ x-init="
                         </a>
                         <div class="hidden sm:block text-left">
                             <div class="text-xs font-bold text-slate-900 leading-snug">{{ $currentUser['name'] }}</div>
-                            <div class="text-[10px] text-blue-600 font-semibold uppercase tracking-wider mt-0.5">{{ $currentUser['role_label'] }}</div>
+                            <div class="text-[10px] text-blue-600 font-semibold mt-0.5">{{ $currentUser['role_label'] }}</div>
                         </div>
                     </div>
                 </div>
@@ -1001,7 +1005,7 @@ x-init="
                         <div class="pt-2 border-t border-slate-100">
                             <button 
                                 type="button" 
-                                onclick="document.getElementById('logout-form').submit()"
+                                onclick="activeMobileSection = null; confirmLogout()"
                                 class="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50/60 hover:bg-rose-100/80 text-rose-700 transition border border-rose-100 cursor-pointer text-left"
                             >
                                 <div class="flex items-center gap-3">
@@ -1661,6 +1665,40 @@ x-init="
     <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
         @csrf
     </form>
+
+    <script>
+        // Fallback global confirmLogout function
+        if (typeof window.confirmLogout !== 'function') {
+            window.confirmLogout = function() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Konfirmasi Logout',
+                        text: 'Apakah Anda yakin ingin keluar dari sistem CRM?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#e11d48',
+                        cancelButtonColor: '#64748b',
+                        confirmButtonText: 'Ya, Logout',
+                        cancelButtonText: 'Batal',
+                        reverseButtons: true,
+                        customClass: {
+                            popup: 'rounded-2xl',
+                            confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5',
+                            cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            document.getElementById('logout-form')?.submit();
+                        }
+                    });
+                } else {
+                    if (confirm('Apakah Anda yakin ingin logout?')) {
+                        document.getElementById('logout-form')?.submit();
+                    }
+                }
+            };
+        }
+    </script>
 
 </body>
 </html>
