@@ -540,7 +540,26 @@ class CrmController extends Controller
             'total_cs' => \App\Models\User::where('role', 'CS')->count(),
         ];
 
-        $team = $this->getTeamPerformance();
+        $salesUsers = \App\Models\User::where('role', 'Sales')->get();
+        $team = $salesUsers->map(function ($s) {
+            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
+            $prospectsCount = Prospek::where('sales_id', $s->id)->count();
+            // Just for demonstration, use a default target of 50 if none exists.
+            $target = 50; 
+            $achievement = $target > 0 ? round(($closing / $target) * 100) : 0;
+            return [
+                'name' => $s->name,
+                'role' => $s->role,
+                'avatar' => substr($s->name, 0, 2),
+                'target' => $target,
+                'prospects' => $prospectsCount,
+                'closing' => $closing,
+                'achievement' => $achievement,
+            ];
+        })->sortByDesc('achievement')->values()->map(function ($member, $index) {
+            $member['rank'] = $index + 1;
+            return $member;
+        })->toArray();
 
         $stagesCount = [
             'Cold Lead' => Prospek::where('status', 'Cold Lead')->count(),
@@ -660,6 +679,7 @@ class CrmController extends Controller
                 'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
                 'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
                 'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
                 'timeline' => $p->timelines->map(function ($t) {
                     return [
                         'time' => $t->time->format('d M, H:i'),
@@ -692,17 +712,45 @@ class CrmController extends Controller
         ]);
 
         DB::transaction(function () use ($request) {
+            $ownerId = auth()->id() ?? 1;
+            $user = \App\Models\User::find($ownerId);
+            
+            $salesId = $request->sales_id ?? ($user && $user->role === 'Sales' ? $user->id : null);
+            $csId = $request->cs_id ?? ($user && $user->role === 'CS' ? $user->id : null);
+            $wilayahId = null;
+
+            if ($salesId) {
+                $sales = \App\Models\User::find($salesId);
+                if ($sales && $sales->wilayah_id) {
+                    $wilayahId = $sales->wilayah_id;
+                    if (!$csId) {
+                        $cs = \App\Models\User::where('role', 'CS')->where('wilayah_id', $wilayahId)->first();
+                        $csId = $cs ? $cs->id : null;
+                    }
+                }
+            } elseif ($csId) {
+                $cs = \App\Models\User::find($csId);
+                if ($cs && $cs->wilayah_id) {
+                    $wilayahId = $cs->wilayah_id;
+                    if (!$salesId) {
+                        $sales = \App\Models\User::where('role', 'Sales')->where('wilayah_id', $wilayahId)->first();
+                        $salesId = $sales ? $sales->id : null;
+                    }
+                }
+            }
+
             $prospek = Prospek::create([
                 'name' => $request->name,
                 'type' => $request->type,
                 'status' => $request->status,
                 'pic' => $request->pic,
                 'whatsapp' => $request->whatsapp,
-                'sales_id' => $request->sales_id,
-                'cs_id' => $request->cs_id,
+                'sales_id' => $salesId,
+                'cs_id' => $csId,
+                'wilayah_id' => $wilayahId,
                 'potential' => $request->potential,
                 'notes' => $request->notes,
-                'owner_id' => auth()->id() ?? 1,
+                'owner_id' => $ownerId,
             ]);
 
             ProspekTimeline::create([
@@ -903,7 +951,32 @@ class CrmController extends Controller
      */
     public function followUpIndex(): View
     {
-        $prospects = $this->getDbProspects();
+        $allProspects = collect($this->getDbProspects());
+        $today = now()->toDateString();
+        
+        $prospects = [
+            'today' => [],
+            'upcoming' => [],
+            'overdue' => [],
+            'done' => [],
+        ];
+
+        foreach ($allProspects as $p) {
+            if (in_array($p['status'], ['Closing', 'Lost'])) {
+                $prospects['done'][] = $p;
+            } else if ($p['next_follow_up_date']) {
+                if ($p['next_follow_up_date'] === $today) {
+                    $prospects['today'][] = $p;
+                } else if ($p['next_follow_up_date'] > $today) {
+                    $prospects['upcoming'][] = $p;
+                } else {
+                    $prospects['overdue'][] = $p;
+                }
+            } else {
+                // If no date but not done, treat as overdue or today. Let's put in today.
+                $prospects['today'][] = $p;
+            }
+        }
 
         return view('follow-up.index', compact('prospects'));
     }

@@ -27,10 +27,7 @@
         prospectsList: {{ json_encode($prospects) }},
         
         get tabProspects() {
-            if (this.activeTab === 'today') return this.prospectsList.slice(0, 3);
-            if (this.activeTab === 'upcoming') return this.prospectsList.slice(2, 5);
-            if (this.activeTab === 'overdue') return this.prospectsList.slice(5, 6);
-            return this.prospectsList.slice(3, 7);
+            return this.prospectsList[this.activeTab] || [];
         }
     }">
 
@@ -43,7 +40,7 @@
             <div>
                 <button 
                     type="button" 
-                    @click="selectedProspect = prospectsList[0]; modalFollowUp = true"
+                    @click="selectedProspect = (prospectsList.today[0] || prospectsList.upcoming[0] || prospectsList.overdue[0] || prospectsList.done[0]); if(selectedProspect) { modalFollowUp = true }"
                     class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,7 +52,7 @@
         </div>
 
         <!-- Follow-up Status Tabs -->
-        <div class="flex border-b border-slate-200 bg-white px-4 rounded-2xl border">
+        <div class="flex border-b border-slate-200 bg-white px-4 rounded-2xl border overflow-x-auto whitespace-nowrap">
             <button 
                 type="button" 
                 @click="activeTab = 'today'"
@@ -63,7 +60,7 @@
                 class="py-3.5 px-4 text-xs sm:text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
             >
                 <span>Hari Ini</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">16</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold" x-text="prospectsList.today.length"></span>
             </button>
             <button 
                 type="button" 
@@ -72,7 +69,7 @@
                 class="py-3.5 px-4 text-xs sm:text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
             >
                 <span>Upcoming</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">24</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold" x-text="prospectsList.upcoming.length"></span>
             </button>
             <button 
                 type="button" 
@@ -81,7 +78,7 @@
                 class="py-3.5 px-4 text-xs sm:text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
             >
                 <span>Overdue</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold">3</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold" x-text="prospectsList.overdue.length"></span>
             </button>
             <button 
                 type="button" 
@@ -90,12 +87,12 @@
                 class="py-3.5 px-4 text-xs sm:text-sm font-semibold transition flex items-center gap-2 cursor-pointer"
             >
                 <span>Selesai</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">58</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold" x-text="prospectsList.done.length"></span>
             </button>
         </div>
 
         <!-- Follow-up Cards List -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div x-show="tabProspects.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             <template x-for="prospect in tabProspects" :key="prospect.id">
                 <div class="crm-card bg-white p-5 space-y-4 hover:border-blue-300 transition flex flex-col justify-between">
                     <div>
@@ -148,6 +145,14 @@
                     </div>
                 </div>
             </template>
+        </div>
+
+        <div x-show="tabProspects.length === 0" x-cloak class="py-12 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 border-dashed">
+            <svg class="w-16 h-16 text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            <h3 class="text-sm font-bold text-slate-900">Tidak ada jadwal follow-up</h3>
+            <p class="text-xs text-slate-500 mt-1">Semua follow-up pada tab ini sudah diproses atau masih kosong.</p>
         </div>
 
     </div>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CrmController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 // Authentication & Landing
@@ -54,6 +55,21 @@ Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateSta
 Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
 Route::get('/laporan', [CrmController::class, 'laporanIndex'])->name('laporan.index');
 
+// Management (Head Marketing)
+Route::middleware([])->group(function () {
+    Route::get('/wilayah', [\App\Http\Controllers\WilayahController::class, 'index'])->name('wilayah.index');
+    Route::post('/wilayah', [\App\Http\Controllers\WilayahController::class, 'store'])->name('wilayah.store');
+    Route::put('/wilayah/{id}', [\App\Http\Controllers\WilayahController::class, 'update'])->name('wilayah.update');
+    Route::delete('/wilayah/{id}', [\App\Http\Controllers\WilayahController::class, 'destroy'])->name('wilayah.destroy');
+    Route::patch('/wilayah/{id}/toggle', [\App\Http\Controllers\WilayahController::class, 'toggleStatus'])->name('wilayah.toggle');
+
+    Route::get('/tim', [\App\Http\Controllers\TimController::class, 'index'])->name('tim.index');
+    Route::post('/tim', [\App\Http\Controllers\TimController::class, 'store'])->name('tim.store');
+});
+
 // Account & Profile
 Route::get('/profil', [CrmController::class, 'profilIndex'])->name('profil.index');
 Route::get('/pengaturan', [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
+
+// Notifications
+Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');

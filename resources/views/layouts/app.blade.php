@@ -186,7 +186,7 @@
                         <div class="space-y-1">
                             <a 
                                 href="{{ route('prospek.index') }}" 
-                                title="Prospek (142)"
+                                title="Prospek ({{ $globalProspekCount ?? 0 }})"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
@@ -194,7 +194,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Prospek</span>
-                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">142</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             
                             @if($currentUser['role'] !== 'CS')
@@ -213,7 +213,7 @@
 
                             <a 
                                 href="{{ route('follow-up.index') }}" 
-                                title="Follow Up (16 Hari Ini)"
+                                title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
@@ -221,10 +221,12 @@
                                     <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
+                                    @if(isset($globalFollowUpTodayCount) && $globalFollowUpTodayCount > 0)
                                     <span x-show="sidebarCollapsed" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500"></span>
+                                    @endif
                                 </div>
                                 <span x-show="!sidebarCollapsed">Follow Up</span>
-                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">16 Hari Ini</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
                             </a>
 
                             <a 
@@ -273,7 +275,39 @@
                     </div>
                 @endif
 
-                <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+                <!-- Section: MANAGEMENT (Head Marketing) -->
+                @if($currentUser['role'] === 'Head Marketing')
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100 mt-5"></div>
+                    <div class="mt-5">
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('wilayah.index') }}" 
+                                title="Kelola Wilayah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Wilayah</span>
+                            </a>
+                            <a 
+                                href="{{ route('tim.index') }}" 
+                                title="Kelola Tim"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('tim.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('tim.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Tim</span>
+                            </a>
+                        </div>
+                    </div>
+                @endif
+
+                <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100 mt-5"></div>
 
                 <!-- Section: ACCOUNT -->
                 <div>
@@ -358,17 +392,8 @@
                 <!-- Right: Quick Tools & User Profile -->
                 <div class="flex items-center gap-2.5 sm:gap-4">
 
-                    <!-- State Preview Switcher (Normal / Skeleton / Empty / Error) -->
-                    <div class="hidden xl:flex items-center gap-1 text-[11px] bg-slate-100/70 p-1 rounded-xl border border-slate-200/80">
-                        <span class="text-slate-400 font-semibold text-[10px] uppercase tracking-wider px-1.5">State:</span>
-                        <button @click="$store.crm.setState('normal')" :class="$store.crm.activeState === 'normal' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2.5 py-1 rounded-lg cursor-pointer transition text-xs">Normal</button>
-                        <button @click="$store.crm.setState('loading')" :class="$store.crm.activeState === 'loading' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2.5 py-1 rounded-lg cursor-pointer transition text-xs">Skeleton</button>
-                        <button @click="$store.crm.setState('empty')" :class="$store.crm.activeState === 'empty' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2.5 py-1 rounded-lg cursor-pointer transition text-xs">Empty</button>
-                        <button @click="$store.crm.setState('error')" :class="$store.crm.activeState === 'error' ? 'bg-white text-blue-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900'" class="px-2.5 py-1 rounded-lg cursor-pointer transition text-xs">Error</button>
-                    </div>
-
                     <!-- Search Trigger / Modal Button -->
-                    @if($currentUser['role'] !== 'Admin')
+                    @if($currentUser['role'] !== 'Admin' && $currentUser['role'] !== 'Head Marketing')
                         <button 
                             @click="modalTambahProspek = true" 
                             class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
@@ -382,7 +407,24 @@
                     @endif
 
                     <!-- Notifications Dropdown -->
-                    <div class="relative" x-data="{ open: false }">
+                    <div class="relative" x-data="{ 
+                            open: false,
+                            unreadCount: {{ isset($globalUnreadNotifications) ? $globalUnreadNotifications->count() : 0 }},
+                            markAllRead() {
+                                fetch('{{ route('notifications.markAllRead') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                        'Accept': 'application/json'
+                                    }
+                                }).then(res => {
+                                    if(res.ok) {
+                                        this.unreadCount = 0;
+                                        document.querySelectorAll('.unread-dot').forEach(el => el.classList.add('hidden'));
+                                    }
+                                });
+                            }
+                        }">
                         <button 
                             @click="open = !open" 
                             class="p-2 sm:p-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 transition relative cursor-pointer"
@@ -391,7 +433,7 @@
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                            <span x-show="unreadCount > 0" class="absolute top-2 right-2 flex items-center justify-center min-w-[14px] h-[14px] rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white px-[3px]" x-text="unreadCount"></span>
                         </button>
 
                         <div 
@@ -404,17 +446,25 @@
                         >
                             <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
                                 <span class="font-bold text-xs text-slate-800">Notifikasi Terbaru</span>
-                                <span class="text-[10px] text-blue-600 font-semibold cursor-pointer">Tandai Dibaca</span>
+                                <span x-show="unreadCount > 0" @click="markAllRead()" class="text-[10px] text-blue-600 font-semibold cursor-pointer hover:underline">Tandai Dibaca</span>
                             </div>
                             <div class="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                                <div class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer">
-                                    <p class="text-xs font-semibold text-slate-800">Follow up terjadwal: SMK N 1 Cirebon</p>
-                                    <p class="text-[11px] text-slate-500 mt-0.5">Hari ini pukul 10:00 WIB</p>
-                                </div>
-                                <div class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer">
-                                    <p class="text-xs font-semibold text-slate-800">Takeover CS masuk dari Dina</p>
-                                    <p class="text-[11px] text-slate-500 mt-0.5">SMA N 2 Majalengka beli formulir</p>
-                                </div>
+                                @if(isset($globalUnreadNotifications) && $globalUnreadNotifications->count() > 0)
+                                    @foreach($globalUnreadNotifications as $notif)
+                                    <div class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer relative">
+                                        <div class="absolute left-2 top-4 w-1.5 h-1.5 rounded-full bg-blue-500 unread-dot"></div>
+                                        <div class="pl-2">
+                                            <p class="text-xs font-semibold text-slate-800">{{ $notif->data['title'] ?? 'Notifikasi Baru' }}</p>
+                                            <p class="text-[11px] text-slate-500 mt-0.5">{{ $notif->data['message'] ?? '' }}</p>
+                                            <p class="text-[10px] text-slate-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                @else
+                                    <div class="px-4 py-6 text-center text-slate-500 text-xs">
+                                        Tidak ada notifikasi baru
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>
