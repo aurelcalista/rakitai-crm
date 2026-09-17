@@ -12,7 +12,12 @@ class Prospek extends Model
     protected $fillable = [
         'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp',
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
+<<<<<<< Updated upstream
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id',
+=======
+        'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
+        'sekolah_id', 'perusahaan_id',
+>>>>>>> Stashed changes
         'lost_reason', 'lost_note',
     ];
 
@@ -82,6 +87,16 @@ class Prospek extends Model
     public function wilayah()
     {
         return $this->belongsTo(Wilayah::class);
+    }
+
+    public function sekolah()
+    {
+        return $this->belongsTo(Sekolah::class);
+    }
+
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class);
     }
 
     public function sales()

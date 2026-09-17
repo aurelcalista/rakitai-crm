@@ -235,7 +235,7 @@
                                     <td class="py-3.5 px-4 text-right">
                                         <div class="flex items-center justify-end gap-1.5">
                                             <button 
-                                                @click="selectedProspect = {{ json_encode($prospect) }}; modalFollowUp = true"
+                                                @click='selectedProspect = @json($prospect); modalFollowUp = true'
                                                 class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-[11px] transition cursor-pointer"
                                                 title="Follow Up"
                                             >
@@ -277,7 +277,7 @@
 
                             <div class="pt-2 flex items-center gap-2">
                                 <button 
-                                    @click="selectedProspect = {{ json_encode($prospect) }}; modalFollowUp = true"
+                                    @click='selectedProspect = @json($prospect); modalFollowUp = true'
                                     class="flex-1 py-1.5 px-3 rounded-lg bg-blue-50 text-blue-700 font-semibold text-xs text-center border border-blue-200/80"
                                 >
                                     Follow Up

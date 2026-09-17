@@ -21,10 +21,19 @@ class WilayahSeeder extends Seeder
         ];
 
         foreach ($wilayahs as $w) {
-            Wilayah::updateOrCreate(
+            $parent = Wilayah::updateOrCreate(
                 ['kode' => $w['kode']],
-                $w
+                ['nama' => $w['nama'], 'level' => 'Kota/Kabupaten', 'parent_id' => null]
             );
+
+            foreach ($w['kecamatans'] as $index => $kec) {
+                // Generate a unique code for the kecamatan
+                $kodeKecamatan = $w['kode'] . '-' . ($index + 1);
+                Wilayah::updateOrCreate(
+                    ['kode' => $kodeKecamatan],
+                    ['nama' => $kec, 'level' => 'Kecamatan', 'parent_id' => $parent->id]
+                );
+            }
         }
     }
 }
