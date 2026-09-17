@@ -117,16 +117,10 @@ class ProspectController extends Controller
                 'whatsapp'     => $validated['whatsapp'],
                 'status'       => $validated['status'],
                 'stage_number' => $stageNumber,
-<<<<<<< Updated upstream
-                'potential'    => $validated['potential'],
-                'ai_training'  => $validated['ai_training'],
-                'notes'        => $validated['notes'],
-=======
                 'potential'    => $validated['potential'] ?? null,
                 'ai_training'  => $validated['ai_training'] ?? null,
                 'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
->>>>>>> Stashed changes
                 'sales_id'     => $user->id,
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,

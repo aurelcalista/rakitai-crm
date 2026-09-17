@@ -1293,6 +1293,30 @@ x-init="
                         </div>
                     </div>
 
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek</label>
+                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Sumber --</option>
+                                    @foreach($sumberProspekList as $sumber)
+                                        <option value="{{ $sumber->nama }}">{{ $sumber->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Prospek</label>
+                                @php
+                                    $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+                                @endphp
+                                <select name="category" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Kategori --</option>
+                                    @foreach($kategoriProspekList as $kategori)
+                                        <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Section: TAKEOVER -->
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md inline-block mb-3">2. Takeover Penugasan</h4>
@@ -1302,39 +1326,20 @@ x-init="
                                 $csList = \App\Models\User::where('role', 'CS')->get();
                             @endphp
                             <div>
-<<<<<<< Updated upstream
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Takeover by Sales</label>
                                 <select name="sales_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Sales --</option>
                                     @foreach($salesList as $s)
                                         <option value="{{ $s->id }}">{{ $s->name }}</option>
-=======
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek</label>
-                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="">-- Pilih Sumber --</option>
-                                    @foreach($sumberProspekList as $sumber)
-                                        <option value="{{ $sumber->nama }}">{{ $sumber->nama }}</option>
->>>>>>> Stashed changes
                                     @endforeach
                                 </select>
                             </div>
                             <div>
-<<<<<<< Updated upstream
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Takeover by CS</label>
                                 <select name="cs_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih CS --</option>
                                     @foreach($csList as $c)
                                         <option value="{{ $c->id }}">{{ $c->name }}</option>
-=======
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Prospek</label>
-                                @php
-                                    $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
-                                @endphp
-                                <select name="category" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="">-- Pilih Kategori --</option>
-                                    @foreach($kategoriProspekList as $kategori)
-                                        <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
->>>>>>> Stashed changes
                                     @endforeach
                                 </select>
                             </div>
@@ -1343,13 +1348,8 @@ x-init="
 
                     <!-- Section: DETAIL & POTENSI -->
                     <div>
-<<<<<<< Updated upstream
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">3. Detail & Potensi</h4>
                         <div class="space-y-3">
-=======
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
->>>>>>> Stashed changes
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Deskripsi Potensi Prospek</label>
                                 <input type="text" name="potential" placeholder="Contoh: 100 Siswa Jurusan RPL & TKJ potensi beasiswa UCIC" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
