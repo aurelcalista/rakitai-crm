@@ -60,4 +60,44 @@ class User extends Authenticatable
     {
         return $this->hasMany(Target::class, 'sales_id');
     }
+
+    /**
+     * Prospects where this user is the Sales handler.
+     */
+    public function prospeks()
+    {
+        return $this->hasMany(Prospek::class, 'sales_id');
+    }
+
+    /**
+     * Prospects where this user is the owner (creator).
+     */
+    public function ownedProspeks()
+    {
+        return $this->hasMany(Prospek::class, 'owner_id');
+    }
+
+    /**
+     * Follow-ups recorded by this user.
+     */
+    public function followUps()
+    {
+        return $this->hasMany(FollowUp::class, 'user_id');
+    }
+
+    /**
+     * Field visits by this Sales user.
+     */
+    public function kunjungans()
+    {
+        return $this->hasMany(Kunjungan::class, 'sales_id');
+    }
+
+    /**
+     * Helper: check if user has a specific role.
+     */
+    public function hasRole(string $role): bool
+    {
+        return strtolower($this->role) === strtolower($role);
+    }
 }

@@ -395,54 +395,51 @@ class CrmController extends Controller
     /**
      * Get mock visits data (Sekolah & Corporate).
      */
-    private function getVisits(): array
+    /**
+     * Format a Kunjungan model to the array expected by kunjungan/index.blade.php.
+     * Blade expects: id, name, type, pic, sales, date, time, address, potential, photo, notes
+     */
+    private function formatKunjunganForBlade(\App\Models\Kunjungan $k): array
     {
+        // Determine potential text based on visit type
+        $potential = '-';
+        if ($k->jenis === 'Sekolah') {
+            $potential = $k->potensi_beasiswa ?? $k->hasil ?? '-';
+        } else {
+            $parts = array_filter([
+                $k->potensi_s1 ? 'S1: ' . $k->potensi_s1 : null,
+                $k->potensi_s2 ? 'S2: ' . $k->potensi_s2 : null,
+                $k->potensi_csr ? 'CSR: ' . $k->potensi_csr : null,
+            ]);
+            $potential = count($parts) ? implode(' | ', $parts) : ($k->hasil ?? '-');
+        }
+
+        // Photo URL: use storage if available, else null (blade handles missing gracefully)
+        $photoUrl = $k->foto_path
+            ? \Illuminate\Support\Facades\Storage::url($k->foto_path)
+            : null;
+
         return [
-            [
-                'id' => 1,
-                'name' => 'SMK Negeri 1 Cirebon',
-                'type' => 'Sekolah',
-                'category' => 'SMK',
-                'pic' => 'Drs. H. Bambang Sutrisno, M.Pd (Kepala Sekolah)',
-                'sales' => 'Aurel Calista',
-                'date' => '10 Sep 2026',
-                'time' => '09:00 - 11:30 WIB',
-                'address' => 'Jl. Perjuangan No. 12, Sunyaragi, Kota Cirebon',
-                'potential' => '120 Siswa Kelas XII (TKJ & RPL)',
-                'ai_training' => 'Bersedia Training AI/Robotics Oktober 2026',
-                'photo' => 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
-                'notes' => 'Pertemuan dihadiri Kepala Sekolah, Waka Kurikulum, dan Guru BK. Sangat antusias dengan beasiswa UCIC.',
-            ],
-            [
-                'id' => 2,
-                'name' => 'PT Surya Digital Nusantara',
-                'type' => 'Corporate',
-                'category' => 'Corporate',
-                'pic' => 'Maya Kartika, S.Psi (HRD Manager)',
-                'sales' => 'Rizky Pratama',
-                'date' => '08 Sep 2026',
-                'time' => '14:00 - 15:45 WIB',
-                'address' => 'Kawasan Industri Surya Megah Blok C-4, Cirebon',
-                'potential' => 'Kelas Karyawan S1/S2 untuk 25 staf IT & Potensi CSR',
-                'ai_training' => 'In-house AI Workshop',
-                'photo' => 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&auto=format&fit=crop&q=80',
-                'notes' => 'Diskusi skema kemitraan korporasi & benefit pendaftaran rombongan beasiswa karyawan.',
-            ],
-            [
-                'id' => 3,
-                'name' => 'SMA Negeri 2 Majalengka',
-                'type' => 'Sekolah',
-                'category' => 'SMA',
-                'pic' => 'Ibu Nenden Kurniawati (Koordinator BK)',
-                'sales' => 'Aurel Calista',
-                'date' => '04 Sep 2026',
-                'time' => '10:00 - 12:00 WIB',
-                'address' => 'Jl. Ahmad Yani No. 88, Majalengka',
-                'potential' => '35 Siswa Jalur PMDK',
-                'ai_training' => 'Workshop AI for Teachers',
-                'photo' => 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=80',
-                'notes' => 'Kunjungan tindak lanjut pengantaran brosur & form pendaftaran fisik gelombang 1.',
-            ],
+            'id'        => $k->id,
+            'name'      => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
+            'type'      => $k->jenis ?? '-',
+            'pic'       => $k->pic_name ?? '-',
+            'whatsapp'  => $k->pic_whatsapp ?? '-',
+            'sales'     => $k->sales ? $k->sales->name : '-',
+            'date'      => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
+            'time'      => $k->waktu ?? '-',
+            'address'   => $k->alamat ?? '-',
+            'potential' => $potential,
+            'photo'     => $photoUrl,
+            'notes'     => $k->catatan ?? $k->hasil ?? '-',
+            // Type-specific details
+            'potensi_beasiswa'      => $k->potensi_beasiswa ?? '-',
+            'detail_beasiswa'       => $k->detail_beasiswa ?? '-',
+            'kesediaan_training_ai' => $k->kesediaan_training_ai,
+            'bidang_usaha'          => $k->bidang_usaha ?? '-',
+            'potensi_s1'            => $k->potensi_s1 ?? '-',
+            'potensi_s2'            => $k->potensi_s2 ?? '-',
+            'potensi_csr'           => $k->potensi_csr ?? '-',
         ];
     }
 
@@ -996,7 +993,16 @@ class CrmController extends Controller
      */
     public function kunjunganIndex(): View
     {
-        $visits = $this->getVisits();
+        $user = auth()->user();
+        $query = \App\Models\Kunjungan::with('sales')
+            ->orderBy('tanggal', 'desc');
+
+        // Scope to own visits if role is Sales
+        if (strtolower($user->role) === 'sales') {
+            $query->where('sales_id', $user->id);
+        }
+
+        $visits = $query->get()->map(fn ($k) => $this->formatKunjunganForBlade($k))->toArray();
 
         return view('kunjungan.index', compact('visits'));
     }
@@ -1004,23 +1010,46 @@ class CrmController extends Controller
     public function kunjunganStore(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|string',
-            'pic' => 'required|string',
-            'whatsapp' => 'required|string',
-            'notes' => 'required|string',
+            'nama_institusi' => 'required|string|max:255',
+            'jenis'          => 'required|in:Sekolah,Perusahaan',
+            'tanggal'        => 'required|date',
+            'pic_name'       => 'required|string|max:255',
+            'pic_whatsapp'   => 'required|string|max:20',
+            'catatan'        => 'nullable|string|max:2000',
+            'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
+        $user = auth()->user();
+        $fotoPath = null;
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
+            $fotoPath = $request->file('foto')->store('kunjungan', 'public');
+        }
+
         \App\Models\Kunjungan::create([
-            'nomor' => 'KNJ-' . time(),
-            'tanggal' => now(),
-            'waktu' => now()->format('H:i:s'),
-            'sales_id' => auth()->id() ?? 1,
-            'jenis' => strtolower($request->type),
-            'tujuan_kunjungan' => $request->name . ' - ' . $request->pic . ' (' . $request->whatsapp . ')',
-            'catatan' => $request->notes,
-            'hasil' => $request->potential ?? 'Visit Baru',
-            'status' => 'Selesai'
+            'nomor'            => 'KNJ-' . ($user->id ?? 1) . '-' . now()->format('YmdHis'),
+            'tanggal'          => $request->tanggal,
+            'waktu'            => now()->format('H:i:s'),
+            'sales_id'         => $user->id ?? 1,
+            'jenis'            => $request->jenis,
+            'tujuan_id'        => 0,
+            'tujuan_kunjungan' => $request->nama_institusi,
+            'hasil'            => 'Kunjungan ' . $request->jenis,
+            'catatan'          => $request->catatan,
+            'status'           => 'Selesai',
+            'nama_institusi'   => $request->nama_institusi,
+            'alamat'           => $request->alamat,
+            'pic_name'         => $request->pic_name,
+            'pic_whatsapp'     => $request->pic_whatsapp,
+            'foto_path'        => $fotoPath,
+            // School-specific
+            'potensi_beasiswa'      => $request->potensi_beasiswa,
+            'detail_beasiswa'       => $request->detail_beasiswa,
+            'kesediaan_training_ai' => $request->boolean('kesediaan_training_ai'),
+            // Corporate-specific
+            'bidang_usaha' => $request->bidang_usaha,
+            'potensi_s1'   => $request->potensi_s1,
+            'potensi_s2'   => $request->potensi_s2,
+            'potensi_csr'  => $request->potensi_csr,
         ]);
 
         return redirect()->back()->with('success', 'Kunjungan berhasil disimpan!');
