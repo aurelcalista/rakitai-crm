@@ -15,52 +15,121 @@ class CrmController extends Controller
      */
     public static function getCurrentUser(Request $request): array
     {
-        $role = $request->session()->get('user_role', 'sales');
+        if (auth()->check()) {
+            $user = auth()->user();
+            $roleKey = strtolower($user->role ?? 'sales');
+
+            $roleLabels = [
+                'admin' => 'Super Administrator',
+                'hm'    => 'Head Marketing',
+                'spv'   => 'Supervisor Marketing',
+                'cs'    => 'Customer Service',
+                'sales' => 'Sales Inbound',
+            ];
+
+            $roleNames = [
+                'admin' => 'Admin',
+                'hm'    => 'Head Marketing',
+                'spv'   => 'Supervisor',
+                'cs'    => 'CS',
+                'sales' => 'Sales',
+            ];
+
+            $name = $user->name;
+            $words = array_values(array_filter(explode(' ', trim($name))));
+            $avatar = strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+
+            return [
+                'id'              => $user->id,
+                'name'            => $name,
+                'role'            => $roleNames[$roleKey] ?? $user->role,
+                'role_label'      => $roleLabels[$roleKey] ?? $user->role,
+                'email'           => $user->email,
+                'phone'           => $user->phone ?? '081234567890',
+                'nik'             => '202408' . str_pad($user->id ?? 1, 3, '0', STR_PAD_LEFT),
+                'avatar'          => $avatar ?: 'AD',
+                'division'        => $roleKey === 'admin' 
+                    ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
+                    : 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
+                'dashboard_route' => 'dashboard.' . ($roleKey === 'spv' ? 'spv' : ($roleKey === 'hm' ? 'hm' : $roleKey)),
+                'user'            => $user,
+            ];
+        }
+
+        $role = strtolower($request->session()->get('user_role', 'sales'));
+        $customProfile = $request->session()->get('custom_profile_' . $role);
 
         $usersByRole = [
             'sales' => [
-                'name' => 'Aurel Calista',
-                'role' => 'Sales',
-                'role_label' => 'Sales Inbound',
-                'email' => 'aurel.calista@cic.ac.id',
-                'avatar' => 'AC',
+                'id'              => 1,
+                'name'            => 'Aurel Calista',
+                'role'            => 'Sales',
+                'role_label'      => 'Sales Inbound',
+                'email'           => 'aurel.calista@cic.ac.id',
+                'phone'           => '081298765432',
+                'nik'             => '202408119',
+                'avatar'          => 'AC',
+                'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.sales',
             ],
             'cs' => [
-                'name' => 'Dina Marlina',
-                'role' => 'CS',
-                'role_label' => 'Customer Service',
-                'email' => 'dina.cs@cic.ac.id',
-                'avatar' => 'DM',
+                'id'              => 4,
+                'name'            => 'Dina Marlina',
+                'role'            => 'CS',
+                'role_label'      => 'Customer Service',
+                'email'           => 'dina.cs@cic.ac.id',
+                'phone'           => '082199887766',
+                'nik'             => '202408104',
+                'avatar'          => 'DM',
+                'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.cs',
             ],
             'spv' => [
-                'name' => 'Hendra Setiawan, S.Kom',
-                'role' => 'Supervisor',
-                'role_label' => 'Supervisor Marketing',
-                'email' => 'hendra.spv@cic.ac.id',
-                'avatar' => 'HS',
+                'id'              => 6,
+                'name'            => 'Hendra Setiawan, S.Kom',
+                'role'            => 'Supervisor',
+                'role_label'      => 'Supervisor Marketing',
+                'email'           => 'hendra.spv@cic.ac.id',
+                'phone'           => '085277889911',
+                'nik'             => '202408106',
+                'avatar'          => 'HS',
+                'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.spv',
             ],
             'hm' => [
-                'name' => 'Dr. Rahmat Hidayat, M.M',
-                'role' => 'Head Marketing',
-                'role_label' => 'Head Marketing',
-                'email' => 'head.marketing@cic.ac.id',
-                'avatar' => 'RH',
+                'id'              => 7,
+                'name'            => 'Dr. Rahmat Hidayat, M.M',
+                'role'            => 'Head Marketing',
+                'role_label'      => 'Head Marketing',
+                'email'           => 'head.marketing@cic.ac.id',
+                'phone'           => '081122334455',
+                'nik'             => '202408107',
+                'avatar'          => 'RH',
+                'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.hm',
             ],
             'admin' => [
-                'name' => 'Administrator UCIC',
-                'role' => 'Admin',
-                'role_label' => 'Super Administrator',
-                'email' => 'admin@cic.ac.id',
-                'avatar' => 'AD',
+                'id'              => 8,
+                'name'            => 'Administrator UCIC',
+                'role'            => 'Admin',
+                'role_label'      => 'Super Administrator',
+                'email'           => 'admin@cic.ac.id',
+                'phone'           => '081234567890',
+                'nik'             => '202408001',
+                'avatar'          => 'AD',
+                'division'        => 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.admin',
             ],
         ];
 
-        return $usersByRole[$role] ?? $usersByRole['sales'];
+        $base = $usersByRole[$role] ?? $usersByRole['sales'];
+        if ($customProfile) {
+            $base = array_merge($base, $customProfile);
+            $words = array_values(array_filter(explode(' ', trim($base['name']))));
+            $base['avatar'] = strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+        }
+
+        return $base;
     }
 
     /**
@@ -1110,9 +1179,60 @@ class CrmController extends Controller
     /**
      * Halaman Profil & Akun.
      */
-    public function profilIndex(): View
+    public function profilIndex(Request $request): View
     {
-        return view('profil.index');
+        $currentUser = self::getCurrentUser($request);
+        return view('profil.index', compact('currentUser'));
+    }
+
+    /**
+     * Update Logged in / Active User Profile.
+     */
+    public function profilUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'name'  => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        if (auth()->check()) {
+            $user = auth()->user();
+            $user->update([
+                'name'  => $validated['name'],
+                'phone' => $validated['phone'] ?? $user->phone,
+            ]);
+        } else {
+            $role = strtolower($request->session()->get('user_role', 'sales'));
+            $request->session()->put('custom_profile_' . $role, [
+                'name'  => $validated['name'],
+                'phone' => $validated['phone'],
+            ]);
+        }
+
+        return back()->with('success', 'Profil berhasil diperbarui!');
+    }
+
+    /**
+     * Update User Password.
+     */
+    public function profilPasswordUpdate(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'password'         => 'required|confirmed',
+        ]);
+
+        if (auth()->check()) {
+            $user = auth()->user();
+            if (!\Illuminate\Support\Facades\Hash::check($request->current_password, $user->password)) {
+                return back()->withErrors(['current_password' => 'Password saat ini tidak sesuai.']);
+            }
+            $user->update([
+                'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+            ]);
+        }
+
+        return back()->with('success', 'Password berhasil diperbarui!');
     }
 
     /**
