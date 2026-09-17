@@ -41,7 +41,6 @@ class ProspekPolicy
 
     /**
      * Update prospect data fields.
-     * Only allowed for the Sales who is the active handler (sales_id matches).
      */
     public function update(User $user, Prospek $prospek): bool
     {
@@ -49,13 +48,11 @@ class ProspekPolicy
             return true;
         }
 
-        return $prospek->isHandledBySales($user);
+        return $prospek->isActiveHandler($user);
     }
 
     /**
      * Perform a follow-up on a prospect.
-     * CRITICAL: Only allowed when the Sales is the ACTIVE HANDLER (sales_id = user->id).
-     * If handler is CS, Sales CANNOT follow-up.
      */
     public function followUp(User $user, Prospek $prospek): bool
     {
@@ -63,22 +60,11 @@ class ProspekPolicy
             return true;
         }
 
-        // For CS role: only if they are the cs handler
-        if (strtolower($user->role) === 'cs') {
-            return $prospek->isHandledByCs($user);
-        }
-
-        // For Sales role: only if they are the sales handler AND prospect is not fully handled by CS only
-        if (strtolower($user->role) === 'sales') {
-            return $prospek->isHandledBySales($user);
-        }
-
-        return false;
+        return $prospek->isActiveHandler($user);
     }
 
     /**
      * Update pipeline status.
-     * Same as follow-up: only active handler can change status.
      */
     public function updateStatus(User $user, Prospek $prospek): bool
     {
@@ -86,8 +72,21 @@ class ProspekPolicy
     }
 
     /**
+     * Takeover / Assignment.
+     * Allowed if user is SPV/HM/Admin OR if user is the current active Sales handler handing over to CS.
+     */
+    public function takeover(User $user, Prospek $prospek): bool
+    {
+        if (in_array(strtolower($user->role), ['spv', 'hm', 'admin'])) {
+            return true;
+        }
+
+        // Only sales can hand over to CS, and only if they are the current active handler (i.e. not already handed over).
+        return strtolower($user->role) === 'sales' && $prospek->isActiveHandler($user) && is_null($prospek->cs_id);
+    }
+
+    /**
      * Mark prospect as Lost.
-     * Only the active Sales handler can mark as Lost.
      */
     public function markLost(User $user, Prospek $prospek): bool
     {
@@ -95,7 +94,7 @@ class ProspekPolicy
             return true;
         }
 
-        return $prospek->isHandledBySales($user);
+        return $prospek->isActiveHandler($user);
     }
 
     /**

@@ -54,8 +54,8 @@ class PipelineController extends Controller
         $prospek = Prospek::findOrFail($request->prospek_id);
         $user    = auth()->user();
 
-        // Authorization: must be the active Sales handler
-        if ($prospek->sales_id !== $user->id) {
+        // Authorization: must be the active handler
+        if ($user->cannot('updateStatus', $prospek)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda bukan handler aktif prospek ini.',

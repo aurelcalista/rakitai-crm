@@ -107,7 +107,7 @@ class ProspectController extends Controller
                 'ai_training'  => $validated['ai_training'],
                 'notes'        => $validated['notes'],
                 'sales_id'     => $user->id,
-                'cs_id'        => $csId,
+                'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,
                 'owner_id'     => $user->id,
             ]);
@@ -274,6 +274,44 @@ class ProspectController extends Controller
 
         return redirect()->route('sales.prospek.index')
             ->with('success', 'Prospek telah ditandai sebagai Lost.');
+    }
+
+    /**
+     * Handover prospect from Sales to CS.
+     */
+    public function takeover(Request $request, Prospek $prospek): RedirectResponse
+    {
+        $this->authorize('takeover', $prospek);
+
+        // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
+        $cs = \App\Models\User::where('role', 'CS')
+            ->when($prospek->wilayah_id, function ($q) use ($prospek) {
+                return $q->where('wilayah_id', $prospek->wilayah_id);
+            })
+            ->first();
+
+        if (!$cs) {
+            $cs = \App\Models\User::where('role', 'CS')->first();
+        }
+
+        if (!$cs) {
+            return redirect()->back()->withErrors(['cs_id' => 'Tidak ada user CS yang tersedia untuk menerima prospek.']);
+        }
+
+        $prospek->update([
+            'cs_id' => $cs->id,
+        ]);
+
+        ProspekTimeline::create([
+            'prospek_id'   => $prospek->id,
+            'user_id'      => auth()->id(),
+            'title'        => 'Prospek Diserahkan ke CS',
+            'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
+            'status_after'  => $prospek->status,
+            'time'          => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Prospek berhasil diserahkan ke CS ' . $cs->name);
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────────

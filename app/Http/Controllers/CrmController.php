@@ -789,10 +789,8 @@ class CrmController extends Controller
                 $sales = \App\Models\User::find($salesId);
                 if ($sales && $sales->wilayah_id) {
                     $wilayahId = $sales->wilayah_id;
-                    if (!$csId) {
-                        $cs = \App\Models\User::where('role', 'CS')->where('wilayah_id', $wilayahId)->first();
-                        $csId = $cs ? $cs->id : null;
-                    }
+                    // cs_id should only be assigned upon explicit handover, not creation
+                    $csId = null;
                 }
             } elseif ($csId) {
                 $cs = \App\Models\User::find($csId);
@@ -870,7 +868,7 @@ class CrmController extends Controller
             'stage_number' => $prospectRaw->stage_number,
             'takeover_sales' => $prospectRaw->sales ? $prospectRaw->sales->name : null,
             'takeover_cs' => $prospectRaw->cs ? $prospectRaw->cs->name : null,
-            'active_takeover' => count($activeTakeover) > 0 ? implode(' & ', $activeTakeover) : 'Belum Ada',
+            'active_takeover' => $prospectRaw->activeHandlerLabel(),
             'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
             'potential' => $prospectRaw->potential ?? '-',
@@ -907,6 +905,7 @@ class CrmController extends Controller
     public function prospekUpdate(Request $request, int $id)
     {
         $prospek = Prospek::findOrFail($id);
+        $this->authorize('update', $prospek);
         
         $request->validate([
             'status' => 'required|string',
@@ -947,14 +946,52 @@ class CrmController extends Controller
     public function prospekDestroy(int $id)
     {
         $prospek = Prospek::findOrFail($id);
+        $this->authorize('delete', $prospek);
         $prospek->delete();
         
         return redirect()->route('prospek.index')->with('success', 'Prospek berhasil dihapus!');
     }
 
+    public function prospekTakeover(int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        $this->authorize('takeover', $prospek);
+
+        // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
+        $cs = \App\Models\User::where('role', 'CS')
+            ->when($prospek->wilayah_id, function ($q) use ($prospek) {
+                return $q->where('wilayah_id', $prospek->wilayah_id);
+            })
+            ->first();
+
+        if (!$cs) {
+            $cs = \App\Models\User::where('role', 'CS')->first();
+        }
+
+        if (!$cs) {
+            return redirect()->back()->withErrors(['cs_id' => 'Tidak ada user CS yang tersedia untuk menerima prospek.']);
+        }
+
+        $prospek->update([
+            'cs_id' => $cs->id,
+        ]);
+
+        \App\Models\ProspekTimeline::create([
+            'prospek_id'   => $prospek->id,
+            'user_id'      => auth()->id(),
+            'title'        => 'Prospek Diserahkan ke CS',
+            'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
+            'status_after'  => $prospek->status,
+            'time'          => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Prospek berhasil diserahkan ke CS ' . $cs->name);
+    }
+
     public function pipelineUpdateStatus(Request $request)
     {
         $prospek = Prospek::findOrFail($request->prospek_id);
+        $this->authorize('updateStatus', $prospek);
         
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
@@ -1101,6 +1138,7 @@ class CrmController extends Controller
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);
+        $this->authorize('followUp', $prospek);
         
         // Save follow up log
         $catatan = '[' . $request->hasil . '] ' . $request->catatan;

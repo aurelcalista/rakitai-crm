@@ -58,13 +58,25 @@ class Prospek extends Model
      */
     public function activeHandlerLabel(): string
     {
-        if ($this->sales_id && $this->sales) {
-            return 'Sales — ' . $this->sales->name;
-        }
+        // If handed over to CS, CS is the active handler
         if ($this->cs_id && $this->cs) {
             return 'CS — ' . $this->cs->name;
         }
+        if ($this->sales_id && $this->sales) {
+            return 'Sales — ' . $this->sales->name;
+        }
         return 'Belum Ada';
+    }
+
+    /**
+     * Check if the user is the currently active handler.
+     */
+    public function isActiveHandler(\App\Models\User $user): bool
+    {
+        if ($this->cs_id) {
+            return $this->isHandledByCs($user);
+        }
+        return $this->isHandledBySales($user);
     }
 
     public function wilayah()

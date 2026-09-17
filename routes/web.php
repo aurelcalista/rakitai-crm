@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
             Route::put('/prospek/{prospek}',          [\App\Http\Controllers\Sales\ProspectController::class, 'update'])->name('prospek.update');
             Route::patch('/prospek/{prospek}/status', [\App\Http\Controllers\Sales\ProspectController::class, 'updateStatus'])->name('prospek.updateStatus');
             Route::patch('/prospek/{prospek}/lost',   [\App\Http\Controllers\Sales\ProspectController::class, 'markLost'])->name('prospek.markLost');
+            Route::post('/prospek/{prospek}/takeover', [\App\Http\Controllers\Sales\ProspectController::class, 'takeover'])->name('prospek.takeover');
 
             // Follow-up management
             Route::get('/follow-up',  [\App\Http\Controllers\Sales\FollowUpController::class, 'index'])->name('follow-up.index');
@@ -117,6 +118,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
     Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
     Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
+    Route::post('/prospek/{id}/takeover', [CrmController::class, 'prospekTakeover'])->name('prospek.takeover');
 
     Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
     Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');

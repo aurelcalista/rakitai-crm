@@ -85,10 +85,8 @@ class FollowUpController extends Controller
 
         $prospek = Prospek::findOrFail($validated['prospek_id']);
 
-        // Backend authorization: must be active Sales handler
-        if ($prospek->sales_id !== auth()->id()) {
-            abort(403, 'Anda bukan handler dari prospek ini sehingga tidak diizinkan membuat follow-up.');
-        }
+        // Backend authorization: must be active handler (Sales or CS)
+        $this->authorize('followUp', $prospek);
 
         $oldStatus = $prospek->status;
         $newStatus = $validated['status'];
