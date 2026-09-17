@@ -39,7 +39,6 @@ class Kunjungan extends Model
     {
         return $this->belongsTo(Perusahaan::class, 'tujuan_id');
     }
-
     public function tujuan()
     {
         if ($this->jenis === 'Sekolah') {
