@@ -28,7 +28,7 @@ class AdminUserController extends Controller
             'phone' => 'required|string|max:20',
             'role' => 'required|in:Admin,HM,SPV,Sales,CS',
             'status' => 'required|in:Aktif,Nonaktif',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => 'required|string|confirmed',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);

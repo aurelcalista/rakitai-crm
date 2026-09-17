@@ -28,8 +28,13 @@
 }
 "
 x-init="
-    @if(session('success')) setTimeout(() => $store.crm.showToast('{{ session('success') }}'), 100); @endif
-    @if(session('error')) setTimeout(() => $store.crm.showToast('{{ session('error') }}'), 100); @endif
+    @if(session('success')) setTimeout(() => $store.crm.showToast('{{ session('success') }}', 'success'), 100); @endif
+    @if(session('error')) setTimeout(() => $store.crm.showToast('{{ session('error') }}', 'error'), 100); @endif
+    @if($errors->any())
+        @foreach($errors->all() as $error)
+            setTimeout(() => $store.crm.showToast('{{ $error }}', 'error'), 100);
+        @endforeach
+    @endif
 ">
 
     <!-- Toast Notifications Container -->
@@ -46,9 +51,13 @@ x-init="
                 class="pointer-events-auto flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 shadow-lg text-sm text-slate-800"
             >
                 <div class="flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border"
+                          :class="toast.type === 'error' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'">
+                        <svg x-show="toast.type !== 'error'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <svg x-show="toast.type === 'error'" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </span>
                     <span class="font-medium text-xs sm:text-sm" x-text="toast.message"></span>

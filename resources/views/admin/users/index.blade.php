@@ -75,7 +75,6 @@
                             <th class="py-3.5 px-3">Nomor HP</th>
                             <th class="py-3.5 px-3 text-center">Status</th>
                             <th class="py-3.5 px-3">Tgl Dibuat</th>
-                            <th class="py-3.5 px-3">Login Terakhir</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -110,7 +109,6 @@
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-400 text-[11px]" x-text="user.created_at"></td>
-                                <td class="py-3.5 px-3 text-slate-400 text-[11px]" x-text="user.last_login"></td>
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
                                         <button @click="selectedUser = user; modalDetail = true" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer" title="Detail">Lihat</button>
@@ -273,7 +271,6 @@
                                 <div class="flex justify-between"><span class="text-slate-500">No. HP</span><span class="font-semibold text-slate-800" x-text="selectedUser.phone"></span></div>
                                 <div class="flex justify-between"><span class="text-slate-500">Status</span><span class="font-semibold" :class="selectedUser.status === 'Aktif' ? 'text-emerald-600' : 'text-red-600'" x-text="selectedUser.status"></span></div>
                                 <div class="flex justify-between"><span class="text-slate-500">Tgl Dibuat</span><span class="font-semibold text-slate-800" x-text="selectedUser.created_at"></span></div>
-                                <div class="flex justify-between"><span class="text-slate-500">Login Terakhir</span><span class="font-semibold text-slate-800" x-text="selectedUser.last_login"></span></div>
                             </div>
                             <div class="flex gap-2 pt-2">
                                 <button @click="modalDetail = false; modalEdit = true" class="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer">Edit User</button>
