@@ -1219,7 +1219,7 @@ x-init="
 
             <div 
                 x-show="modalTambahProspek" 
-                class="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto"
+                class="inline-block w-full max-w-4xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto"
             >
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100">
                     <div>
@@ -1231,30 +1231,54 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6">
+                <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
                     @csrf
                     <!-- Section: INFORMASI DASAR -->
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="sm:col-span-2">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Prospek (Sekolah / Instansi / Individu) *</label>
-                                <input type="text" name="name" required placeholder="Contoh: SMA Negeri 1 Cirebon" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
+                        @php
+                            $sekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
+                            $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+                            $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
+                            $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+                        @endphp
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe Prospek *</label>
-                                <select name="type" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <select name="type" x-model="prospekType" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="Sekolah">Sekolah (SMA/SMK/MA)</option>
                                     <option value="Corporate">Corporate / Perusahaan</option>
                                     <option value="Individu">Individu / Siswa Langsung</option>
                                 </select>
                             </div>
+                            <div x-show="prospekType === 'Sekolah'">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah *</label>
+                                <select name="sekolah_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white" :required="prospekType === 'Sekolah'">
+                                    <option value="">-- Pilih Sekolah --</option>
+                                    @foreach($sekolahsList as $sek)
+                                        <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div x-show="prospekType === 'Corporate'" style="display: none;">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
+                                <select name="perusahaan_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white" :required="prospekType === 'Corporate'">
+                                    <option value="">-- Pilih Perusahaan --</option>
+                                    @foreach($perusahaansList as $per)
+                                        <option value="{{ $per->id }}">{{ $per->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div x-show="prospekType === 'Individu'" style="display: none;">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Individu / Siswa *</label>
+                                <input type="text" name="name" :required="prospekType === 'Individu'" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="Cold Lead">Cold Lead</option>
-                                    <option value="Interested" selected>Interested</option>
-                                    <option value="Follow Up">Follow Up</option>
+                                    @foreach($statusProspekList as $status)
+                                        <option value="{{ $status->nama }}" {{ $status->nama == 'Interested' ? 'selected' : '' }}>{{ $status->nama }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div>
@@ -1263,7 +1287,31 @@ x-init="
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
-                                <input type="tel" name="whatsapp" required placeholder="081234567890" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <input type="tel" name="whatsapp" required placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+                        </div>
+                    </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek</label>
+                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Sumber --</option>
+                                    @foreach($sumberProspekList as $sumber)
+                                        <option value="{{ $sumber->nama }}">{{ $sumber->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Prospek</label>
+                                @php
+                                    $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+                                @endphp
+                                <select name="category" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Kategori --</option>
+                                    @foreach($kategoriProspekList as $kategori)
+                                        <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek (Opsional)</label>
@@ -1342,12 +1390,13 @@ x-init="
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Hasil Follow Up *</label>
+                            @php
+                                $statusFollowupList = \App\Models\MasterData::where('type', 'status_followup')->where('status', 'Aktif')->get();
+                            @endphp
                             <select name="hasil" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                <option value="Tertarik & Minta Brosur/Proposal">Tertarik & Minta Brosur/Proposal</option>
-                                <option value="Jadwalkan Kunjungan/Audiensi">Jadwalkan Kunjungan/Audiensi</option>
-                                <option value="Beli Formulir PMDK">Beli Formulir PMDK</option>
-                                <option value="Belum Respon / Menunggu">Belum Respon / Menunggu</option>
-                                <option value="Kurang Berminat">Kurang Berminat (Simpan Arsip)</option>
+                                @foreach($statusFollowupList as $hasil)
+                                    <option value="{{ $hasil->nama }}">{{ $hasil->nama }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -1364,13 +1413,13 @@ x-init="
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status</label>
+                            @php
+                                $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
+                            @endphp
                             <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                <option value="Interested">Interested</option>
-                                <option value="Follow Up" selected>Follow Up</option>
-                                <option value="Beli Formulir">Beli Formulir</option>
-                                <option value="Pembayaran Termin 1">Pembayaran Termin 1</option>
-                                <option value="Closing">Closing</option>
-                                <option value="Lost">Lost</option>
+                                @foreach($statusProspekList as $status)
+                                    <option value="{{ $status->nama }}" {{ $status->nama == 'Follow Up' ? 'selected' : '' }}>{{ $status->nama }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -1409,14 +1458,13 @@ x-init="
                 <form @submit.prevent="modalUpdateStatus = false; $store.crm.showToast('Status berhasil diperbarui!')" class="mt-4 space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Status Baru *</label>
+                        @php
+                            $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
+                        @endphp
                         <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                            <option value="Cold Lead">Cold Lead (Neutral/Gray)</option>
-                            <option value="Interested">Interested (Blue)</option>
-                            <option value="Follow Up">Follow Up (Yellow/Orange)</option>
-                            <option value="Beli Formulir">Beli Formulir (Purple)</option>
-                            <option value="Pembayaran Termin 1">Pembayaran Termin 1 (Indigo)</option>
-                            <option value="Closing">Closing (Green)</option>
-                            <option value="Lost">Lost (Red - Arsip Historis)</option>
+                            @foreach($statusProspekList as $status)
+                                <option value="{{ $status->nama }}">{{ $status->nama }}</option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -1448,8 +1496,56 @@ x-init="
 
             <div 
                 x-show="modalTambahKunjungan"
-                class="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto"
-                x-data="{ kunjunganType: 'sekolah', photoPreview: null }"
+                class="inline-block w-full max-w-4xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto"
+                x-data="{ 
+                    kunjunganType: 'sekolah', 
+                    photoPreview: null,
+                    selectedSekolahId: '',
+                    selectedPerusahaanId: '',
+                    sekolahPicMap: {},
+                    perusahaanPicMap: {},
+                    picName: '',
+                    picWhatsapp: ''
+                }"
+                x-init="
+                    @php
+                        $sPicMap = [];
+                        foreach(\App\Models\Prospek::where('type', 'Sekolah')->whereNotNull('sekolah_id')->orderBy('created_at', 'asc')->get() as $p) {
+                            $sPicMap[$p->sekolah_id] = ['pic' => $p->pic, 'whatsapp' => $p->whatsapp];
+                        }
+                        
+                        $pPicMap = [];
+                        foreach(\App\Models\Prospek::where('type', 'Corporate')->whereNotNull('perusahaan_id')->orderBy('created_at', 'asc')->get() as $p) {
+                            $pPicMap[$p->perusahaan_id] = ['pic' => $p->pic, 'whatsapp' => $p->whatsapp];
+                        }
+                    @endphp
+                    sekolahPicMap = {{ json_encode($sPicMap) }};
+                    perusahaanPicMap = {{ json_encode($pPicMap) }};
+                    
+                    $watch('selectedSekolahId', value => {
+                        if (kunjunganType === 'sekolah') {
+                            if (value && sekolahPicMap[value]) {
+                                picName = sekolahPicMap[value].pic;
+                                picWhatsapp = sekolahPicMap[value].whatsapp;
+                            } else {
+                                picName = '';
+                                picWhatsapp = '';
+                            }
+                        }
+                    });
+                    
+                    $watch('selectedPerusahaanId', value => {
+                        if (kunjunganType === 'corporate') {
+                            if (value && perusahaanPicMap[value]) {
+                                picName = perusahaanPicMap[value].pic;
+                                picWhatsapp = perusahaanPicMap[value].whatsapp;
+                            } else {
+                                picName = '';
+                                picWhatsapp = '';
+                            }
+                        }
+                    });
+                "
             >
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
@@ -1493,14 +1589,18 @@ x-init="
                             <!-- Section: INFORMASI SEKOLAH -->
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div class="sm:col-span-2">
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah *</label>
-                                        <input type="text" name="nama_institusi" required placeholder="Contoh: SMA Negeri 1 Cirebon" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                    </div>
-                                    <div class="sm:col-span-2">
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Alamat Sekolah</label>
-                                        <input type="text" name="alamat" placeholder="Jl. Pemuda No. 45, Cirebon" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                <div class="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Sekolah *</label>
+                                        @php
+                                            $sekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
+                                        @endphp
+                                        <select name="sekolah_id" x-model="selectedSekolahId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah'">
+                                            <option value="">-- Pilih Sekolah --</option>
+                                            @foreach($sekolahsList as $sek)
+                                                <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -1511,11 +1611,11 @@ x-init="
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nama PIC / BK *</label>
-                                        <input type="text" name="pic_name" required placeholder="Nama guru / kepala sekolah" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="text" name="pic_name" x-model="picName" required placeholder="Nama guru / kepala sekolah" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp PIC *</label>
-                                        <input type="tel" name="pic_whatsapp" required placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="tel" name="pic_whatsapp" x-model="picWhatsapp" required placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                 </div>
                             </div>
@@ -1523,7 +1623,7 @@ x-init="
                             <!-- Section: POTENSI -->
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Potensi Kerjasama</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Potensi Beasiswa</label>
                                         <input type="text" name="potensi_beasiswa" placeholder="Jumlah kuota / estimasi siswa" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
@@ -1535,7 +1635,7 @@ x-init="
                                             <option value="0">Belum Bersedia</option>
                                         </select>
                                     </div>
-                                    <div class="sm:col-span-2">
+                                    <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Potensi</label>
                                         <input type="text" name="detail_beasiswa" placeholder="Contoh: Minat tinggi pada Prodi Teknik Informatika & Bisnis Digital" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
@@ -1550,14 +1650,18 @@ x-init="
                             <!-- Section: INFORMASI PERUSAHAAN -->
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Perusahaan</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="grid grid-cols-1 gap-3">
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
-                                        <input type="text" name="nama_institusi" required placeholder="PT Contoh Solusi" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Bidang Usaha</label>
-                                        <input type="text" name="bidang_usaha" placeholder="Contoh: Logistik / IT / Manufaktur" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Perusahaan *</label>
+                                        @php
+                                            $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+                                        @endphp
+                                        <select name="perusahaan_id" x-model="selectedPerusahaanId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'corporate'">
+                                            <option value="">-- Pilih Perusahaan --</option>
+                                            @foreach($perusahaansList as $per)
+                                                <option value="{{ $per->id }}">{{ $per->nama }}</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -1568,11 +1672,11 @@ x-init="
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nama HRD / PIC *</label>
-                                        <input type="text" name="pic_name" required placeholder="Ibu Maya (HR Manager)" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="text" name="pic_name" x-model="picName" required placeholder="Ibu Maya (HR Manager)" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp HRD *</label>
-                                        <input type="tel" name="pic_whatsapp" required placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="tel" name="pic_whatsapp" x-model="picWhatsapp" required placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                 </div>
                             </div>
@@ -1639,6 +1743,14 @@ x-init="
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Kunjungan *</label>
                         <textarea name="catatan" rows="2" required placeholder="Ringkasan hasil pertemuan dan tindak lanjut..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
+                    </div>
+
+                    <!-- JADIKAN PROSPEK -->
+                    <div class="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                        <input type="checkbox" id="jadikan_prospek" name="jadikan_prospek" value="1" class="w-4 h-4 text-blue-600 bg-white border-slate-300 rounded focus:ring-blue-500">
+                        <label for="jadikan_prospek" class="text-xs sm:text-sm font-semibold text-blue-800 cursor-pointer">
+                            Sekaligus tambahkan sebagai Prospek Baru (Masuk ke antrean Follow Up)
+                        </label>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">

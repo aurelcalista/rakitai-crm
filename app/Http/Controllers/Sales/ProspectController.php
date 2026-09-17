@@ -66,13 +66,15 @@ class ProspectController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
+            'name'     => 'nullable|string|max:255',
             'type'     => 'required|in:Sekolah,Corporate,Individu',
+            'sekolah_id' => 'nullable|exists:sekolahs,id',
+            'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'category' => 'nullable|string|max:100',
             'pic'      => 'required|string|max:255',
             'pic_phone'=> 'nullable|string|max:20',
             'whatsapp' => 'required|string|max:20',
-            'status'   => 'required|in:Cold Lead,Interested,Follow Up,Beli Formulir,Pembayaran Termin 1,Closing,Lost',
+            'status'   => 'required|string|max:255',
             'potential'=> 'nullable|string|max:500',
             'ai_training' => 'nullable|string|max:255',
             'notes'    => 'nullable|string',
@@ -81,7 +83,17 @@ class ProspectController extends Controller
 
         $user = auth()->user();
 
-        DB::transaction(function () use ($validated, $user) {
+        // Resolve name from Master Data if applicable
+        $name = $validated['name'] ?? 'Prospek Baru';
+        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
+            $sekolah = Sekolah::find($validated['sekolah_id']);
+            if ($sekolah) $name = $sekolah->nama;
+        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
+            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+            if ($perusahaan) $name = $perusahaan->nama;
+        }
+
+        DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
             $csId     = null;
             $wilayahId = $user->wilayah_id;
@@ -96,17 +108,19 @@ class ProspectController extends Controller
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
 
             $prospek = Prospek::create([
-                'name'         => $validated['name'],
+                'name'         => $name,
                 'type'         => $validated['type'],
-                'category'     => $validated['category'],
+                'category'     => $validated['category'] ?? null,
+                'sekolah_id'   => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
+                'perusahaan_id'=> $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'          => $validated['pic'],
-                'pic_phone'    => $validated['pic_phone'],
+                'pic_phone'    => $validated['pic_phone'] ?? null,
                 'whatsapp'     => $validated['whatsapp'],
                 'status'       => $validated['status'],
                 'stage_number' => $stageNumber,
-                'potential'    => $validated['potential'],
-                'ai_training'  => $validated['ai_training'],
-                'notes'        => $validated['notes'],
+                'potential'    => $validated['potential'] ?? null,
+                'ai_training'  => $validated['ai_training'] ?? null,
+                'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
                 'sales_id'     => $user->id,
                 'cs_id'        => null, // Will be set during takeover
@@ -210,7 +224,7 @@ class ProspectController extends Controller
         $this->authorize('updateStatus', $prospek);
 
         $validated = $request->validate([
-            'status' => 'required|in:Cold Lead,Interested,Follow Up,Beli Formulir,Pembayaran Termin 1,Closing',
+            'status' => 'required|string|max:255',
         ]);
 
         $oldStatus = $prospek->status;

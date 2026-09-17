@@ -21,7 +21,7 @@ class AdminPerusahaanController extends Controller
             return $p;
         });
 
-        $wilayahList = Wilayah::all();
+        $wilayahList = Wilayah::whereNull('parent_id')->with('children')->get();
         $kategoriList = MasterData::where('type', 'kategori_perusahaan')->get();
 
         return view('admin.perusahaan.index', compact('perusahaan', 'wilayahList', 'kategoriList'));

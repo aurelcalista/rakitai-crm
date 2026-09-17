@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Kunjungan;
 use App\Models\Sekolah;
 use App\Models\Perusahaan;
+use App\Models\Prospek;
+use App\Models\ProspekTimeline;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -67,13 +69,15 @@ class VisitController extends Controller
 
         // Conditional rules based on jenis
         if ($request->input('jenis') === 'Sekolah') {
-            $rules['nama_institusi']    = 'required|string|max:255';
+            $rules['sekolah_id']        = 'nullable|exists:sekolahs,id';
+            $rules['nama_institusi']    = 'nullable|string|max:255';
             $rules['alamat']            = 'nullable|string|max:500';
             $rules['potensi_beasiswa']  = 'nullable|string|max:255';
             $rules['detail_beasiswa']   = 'nullable|string|max:500';
             $rules['kesediaan_training_ai'] = 'nullable|boolean';
         } else {
-            $rules['nama_institusi']  = 'required|string|max:255';
+            $rules['perusahaan_id']   = 'nullable|exists:perusahaans,id';
+            $rules['nama_institusi']  = 'nullable|string|max:255';
             $rules['alamat']          = 'nullable|string|max:500';
             $rules['bidang_usaha']    = 'nullable|string|max:255';
             $rules['potensi_s1']      = 'nullable|string|max:255';
@@ -94,19 +98,36 @@ class VisitController extends Controller
         // Generate visit number
         $nomor = 'KNJ-' . $user->id . '-' . now()->format('YmdHis');
 
+        // Determine tujuan_id and nama_institusi based on jenis and master data
+        $tujuanId = 0;
+        $namaInstitusi = $validated['nama_institusi'] ?? 'Kunjungan';
+        if ($validated['jenis'] === 'Sekolah' && $request->filled('sekolah_id')) {
+            $sekolah = Sekolah::find($request->sekolah_id);
+            if ($sekolah) {
+                $tujuanId = $sekolah->id;
+                $namaInstitusi = $sekolah->nama;
+            }
+        } elseif ($validated['jenis'] === 'Perusahaan' && $request->filled('perusahaan_id')) {
+            $perusahaan = Perusahaan::find($request->perusahaan_id);
+            if ($perusahaan) {
+                $tujuanId = $perusahaan->id;
+                $namaInstitusi = $perusahaan->nama;
+            }
+        }
+
         $kunjungan = Kunjungan::create([
             'nomor'           => $nomor,
             'tanggal'         => $validated['tanggal'],
             'waktu'           => $validated['waktu'] . ':00',
             'sales_id'        => $user->id,
             'jenis'           => $validated['jenis'],
-            'tujuan_id'       => 0, // Not tied to master sekolah/perusahaan — free form
-            'tujuan_kunjungan'=> $validated['nama_institusi'],
-            'hasil'           => 'Kunjungan ' . $validated['jenis'] . ' — ' . $validated['nama_institusi'],
+            'tujuan_id'       => $tujuanId,
+            'tujuan_kunjungan'=> $namaInstitusi,
+            'hasil'           => 'Kunjungan ' . $validated['jenis'] . ' — ' . $namaInstitusi,
             'catatan'         => $validated['catatan'] ?? null,
             'status'          => 'Selesai',
             // Detail fields
-            'nama_institusi'  => $validated['nama_institusi'],
+            'nama_institusi'  => $namaInstitusi,
             'alamat'          => $validated['alamat'] ?? null,
             'pic_name'        => $validated['pic_name'],
             'pic_whatsapp'    => $validated['pic_whatsapp'],
@@ -121,6 +142,38 @@ class VisitController extends Controller
             'potensi_s2'   => $request->input('potensi_s2'),
             'potensi_csr'  => $request->input('potensi_csr'),
         ]);
+
+        if ($request->boolean('jadikan_prospek')) {
+            $wilayahId = $user->wilayah_id;
+
+            $prospek = Prospek::create([
+                'name'         => $namaInstitusi,
+                'type'         => $validated['jenis'],
+                'category'     => null,
+                'sekolah_id'   => $validated['jenis'] === 'Sekolah' ? ($request->sekolah_id ?? null) : null,
+                'perusahaan_id'=> $validated['jenis'] === 'Perusahaan' || $validated['jenis'] === 'Corporate' ? ($request->perusahaan_id ?? null) : null,
+                'pic'          => $validated['pic_name'],
+                'whatsapp'     => $validated['pic_whatsapp'],
+                'status'       => 'Baru',
+                'stage_number' => 1,
+                'potential'    => $validated['jenis'] === 'Sekolah' ? $request->input('potensi_beasiswa') : ($request->input('potensi_s1') . ' ' . $request->input('potensi_csr')),
+                'notes'        => $validated['catatan'] ?? 'Ditambahkan otomatis dari laporan kunjungan ' . $nomor,
+                'source'       => 'Kunjungan Langsung',
+                'sales_id'     => $user->id,
+                'cs_id'        => null,
+                'wilayah_id'   => $wilayahId,
+                'owner_id'     => $user->id,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'  => $prospek->id,
+                'user_id'     => $user->id,
+                'title'       => 'Prospek Dibuat dari Kunjungan',
+                'notes'       => 'Prospek baru ditambahkan otomatis dari pelaporan kunjungan (' . $nomor . ')',
+                'status_after' => $prospek->status,
+                'time'         => now(),
+            ]);
+        }
 
         return redirect()->route('sales.kunjungan.index')
             ->with('success', 'Kunjungan berhasil disimpan!');

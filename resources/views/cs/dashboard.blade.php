@@ -141,7 +141,7 @@
                                     </svg>
                                 </a>
                                 <button 
-                                    @click="selectedProspect = {{ json_encode($prospect) }}; modalFollowUp = true"
+                                    @click='selectedProspect = @json($prospect); modalFollowUp = true'
                                     class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
                                 >
                                     Follow Up

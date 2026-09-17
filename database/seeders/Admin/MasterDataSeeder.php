@@ -21,9 +21,13 @@ class MasterDataSeeder extends Seeder
             ['type' => 'status_prospek', 'kode' => 'SP-TOLAK', 'nama' => 'Ditolak/Batal', 'deskripsi' => 'Tidak tertarik'],
 
             // Status Follow Up
-            ['type' => 'status_follow_up', 'kode' => 'FU-DIJAWAB', 'nama' => 'Dijawab', 'deskripsi' => 'Telepon/Pesan dijawab'],
-            ['type' => 'status_follow_up', 'kode' => 'FU-TIDAK-DIJAWAB', 'nama' => 'Tidak Dijawab', 'deskripsi' => 'Tidak ada respon'],
-            ['type' => 'status_follow_up', 'kode' => 'FU-DITOLAK', 'nama' => 'Ditolak', 'deskripsi' => 'Prospek menolak dihubungi'],
+            ['type' => 'status_followup', 'kode' => 'FU-DIJAWAB', 'nama' => 'Dijawab', 'deskripsi' => 'Telepon/Pesan dijawab'],
+            ['type' => 'status_followup', 'kode' => 'FU-TIDAK-DIJAWAB', 'nama' => 'Tidak Dijawab', 'deskripsi' => 'Tidak ada respon'],
+            ['type' => 'status_followup', 'kode' => 'FU-DITOLAK', 'nama' => 'Ditolak', 'deskripsi' => 'Prospek menolak dihubungi'],
+            ['type' => 'status_followup', 'kode' => 'FU-TERTARIK', 'nama' => 'Tertarik & Minta Brosur', 'deskripsi' => 'Prospek minta brosur'],
+            ['type' => 'status_followup', 'kode' => 'FU-JADWAL-KUNJUNGAN', 'nama' => 'Jadwalkan Kunjungan', 'deskripsi' => 'Kunjungan ke sekolah'],
+            ['type' => 'status_followup', 'kode' => 'FU-BELUM-RESPON', 'nama' => 'Belum Respon', 'deskripsi' => 'Belum ada balasan'],
+            ['type' => 'status_followup', 'kode' => 'FU-BELI-FORMULIR', 'nama' => 'Beli Formulir', 'deskripsi' => 'Sudah membeli form'],
 
             // Jenis Kunjungan
             ['type' => 'jenis_kunjungan', 'kode' => 'JK-PRESENTASI', 'nama' => 'Presentasi', 'deskripsi' => 'Presentasi ke siswa/guru'],
@@ -31,9 +35,9 @@ class MasterDataSeeder extends Seeder
             ['type' => 'jenis_kunjungan', 'kode' => 'JK-MOU', 'nama' => 'MoU', 'deskripsi' => 'Kerjasama/MoU'],
 
             // Kategori Prospek
-            ['type' => 'kategori_prospek', 'kode' => 'KP-HOT', 'nama' => 'Hot', 'deskripsi' => 'Sangat tertarik'],
-            ['type' => 'kategori_prospek', 'kode' => 'KP-WARM', 'nama' => 'Warm', 'deskripsi' => 'Ragu-ragu / pikir-pikir'],
-            ['type' => 'kategori_prospek', 'kode' => 'KP-COLD', 'nama' => 'Cold', 'deskripsi' => 'Kurang tertarik'],
+            ['type' => 'kategori_prospek', 'kode' => 'KP-SANGAT-BERPELUANG', 'nama' => 'Sangat Berpeluang', 'deskripsi' => 'Prospek sangat tertarik (Hot)'],
+            ['type' => 'kategori_prospek', 'kode' => 'KP-MASIH-RAGU', 'nama' => 'Masih Ragu', 'deskripsi' => 'Prospek masih pikir-pikir (Warm)'],
+            ['type' => 'kategori_prospek', 'kode' => 'KP-BELUM-TERTARIK', 'nama' => 'Belum Tertarik', 'deskripsi' => 'Prospek belum tertarik (Cold)'],
 
             // Sumber Prospek
             ['type' => 'sumber_prospek', 'kode' => 'SRC-BROSUR', 'nama' => 'Brosur', 'deskripsi' => 'Dari penyebaran brosur'],

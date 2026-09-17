@@ -11,12 +11,17 @@ class AdminWilayahController extends Controller
 {
     public function index(): View
     {
-        $wilayah = Wilayah::withCount(['sekolahs', 'perusahaans'])->latest()->get()->map(function ($item) {
-            $item->jumlah_sekolah = $item->sekolahs_count;
-            $item->jumlah_perusahaan = $item->perusahaans_count;
-            $item->kecamatan = $item->kecamatans ?? [];
-            return $item;
-        });
+        $wilayah = Wilayah::whereNull('parent_id')
+            ->with(['children'])
+            ->withCount(['sekolahs', 'perusahaans'])
+            ->latest()
+            ->get()
+            ->map(function ($item) {
+                $item->jumlah_sekolah = $item->sekolahs_count;
+                $item->jumlah_perusahaan = $item->perusahaans_count;
+                $item->kecamatan = $item->children->pluck('nama')->toArray();
+                return $item;
+            });
         
         return view('admin.wilayah.index', compact('wilayah'));
     }
@@ -33,7 +38,23 @@ class AdminWilayahController extends Controller
         $kecamatansArray = array_map('trim', explode(',', $validated['kecamatans'] ?? ''));
         $validated['kecamatans'] = array_filter($kecamatansArray);
 
-        Wilayah::create($validated);
+        $wilayah = Wilayah::create([
+            'kode' => $validated['kode'],
+            'nama' => $validated['nama'],
+            'status' => $validated['status'],
+            'level' => 'Kota/Kabupaten',
+            'parent_id' => null,
+        ]);
+
+        foreach ($validated['kecamatans'] as $index => $kec) {
+            Wilayah::create([
+                'kode' => $wilayah->kode . '-' . uniqid(),
+                'nama' => $kec,
+                'level' => 'Kecamatan',
+                'parent_id' => $wilayah->id,
+                'status' => 'Aktif',
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Wilayah berhasil ditambahkan!');
     }
@@ -50,7 +71,35 @@ class AdminWilayahController extends Controller
         $kecamatansArray = array_map('trim', explode(',', $validated['kecamatans'] ?? ''));
         $validated['kecamatans'] = array_filter($kecamatansArray);
 
-        $wilayah->update($validated);
+        $wilayah->update([
+            'kode' => $validated['kode'],
+            'nama' => $validated['nama'],
+            'status' => $validated['status'],
+        ]);
+
+        // Keep existing kecamatans that match, delete removed, add new
+        $existingKecs = $wilayah->children()->get()->keyBy('nama');
+        $newKecNames = $validated['kecamatans'];
+
+        // Delete removed
+        foreach ($existingKecs as $nama => $kecModel) {
+            if (!in_array($nama, $newKecNames)) {
+                $kecModel->delete();
+            }
+        }
+
+        // Add new
+        foreach ($newKecNames as $index => $nama) {
+            if (!$existingKecs->has($nama)) {
+                Wilayah::create([
+                    'kode' => $wilayah->kode . '-' . uniqid(),
+                    'nama' => $nama,
+                    'level' => 'Kecamatan',
+                    'parent_id' => $wilayah->id,
+                    'status' => 'Aktif',
+                ]);
+            }
+        }
 
         return redirect()->back()->with('success', 'Wilayah berhasil diperbarui!');
     }

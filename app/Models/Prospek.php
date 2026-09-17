@@ -13,6 +13,7 @@ class Prospek extends Model
         'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp',
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
+        'sekolah_id', 'perusahaan_id',
         'lost_reason', 'lost_note',
     ];
 
@@ -82,6 +83,16 @@ class Prospek extends Model
     public function wilayah()
     {
         return $this->belongsTo(Wilayah::class);
+    }
+
+    public function sekolah()
+    {
+        return $this->belongsTo(Sekolah::class);
+    }
+
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class);
     }
 
     public function sales()
