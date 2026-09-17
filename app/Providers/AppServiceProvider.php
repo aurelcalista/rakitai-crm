@@ -31,11 +31,24 @@ class AppServiceProvider extends ServiceProvider
                     })->count();
                 
                 $unreadNotifications = $user->unreadNotifications;
+                $rawNotifications = $user->notifications()->limit(20)->get();
+                $notifications = $rawNotifications->map(function ($notif) {
+                    return [
+                        'id' => $notif->id,
+                        'title' => $notif->data['title'] ?? 'Notifikasi Baru',
+                        'message' => $notif->data['message'] ?? '',
+                        'time' => $notif->created_at->diffForHumans(),
+                        'type' => $notif->data['type'] ?? 'info',
+                        'read' => $notif->read_at !== null,
+                        'link' => $notif->data['link'] ?? '#'
+                    ];
+                });
 
                 $view->with([
                     'globalProspekCount' => $prospekCount,
                     'globalFollowUpTodayCount' => $followUpHariIni,
-                    'globalUnreadNotifications' => $unreadNotifications
+                    'globalUnreadNotifications' => $unreadNotifications,
+                    'globalNotifications' => $notifications
                 ]);
             }
         });

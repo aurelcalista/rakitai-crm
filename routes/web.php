@@ -80,7 +80,10 @@ Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateSta
 
     // CRM Core Modules
     Route::get('/prospek', [CrmController::class, 'prospekIndex'])->name('prospek.index');
+    Route::post('/prospek', [CrmController::class, 'prospekStore'])->name('prospek.store');
     Route::get('/prospek/{id}', [CrmController::class, 'prospekShow'])->name('prospek.show');
+    Route::put('/prospek/{id}', [CrmController::class, 'prospekUpdate'])->name('prospek.update');
+    Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
 
 // Management (Head Marketing)
 Route::middleware([])->group(function () {
@@ -98,10 +101,12 @@ Route::middleware([])->group(function () {
 Route::get('/profil', [CrmController::class, 'profilIndex'])->name('profil.index');
 Route::get('/pengaturan', [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
 
-// Notifications
-Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    // Notifications
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
     Route::get('/kunjungan', [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
     Route::get('/follow-up', [CrmController::class, 'followUpIndex'])->name('follow-up.index');
+    Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');
     Route::get('/pipeline', [CrmController::class, 'pipelineIndex'])->name('pipeline.index');
 
     // Performance & Reports

@@ -20,7 +20,12 @@
         [x-cloak] { display: none !important; }
     </style>
 
+    <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    
+    <script>
+        window.__NOTIFICATIONS__ = @json($globalNotifications ?? []);
+    </script>
 </head>
 <body class="h-full bg-slate-50 font-sans text-slate-800" x-data="{ 
     sidebarCollapsed: false, 
@@ -488,8 +493,9 @@ x-init="
                     @endif
 
                     <!-- Notifications Dropdown -->
-                    <div class="relative" x-data="{ 
+                    <div class="relative flex items-center justify-center" x-data="{ 
                             open: false,
+                            filter: 'all',
                             unreadCount: {{ isset($globalUnreadNotifications) ? $globalUnreadNotifications->count() : 0 }},
                             markAllRead() {
                                 fetch('{{ route('notifications.markAllRead') }}', {
@@ -506,8 +512,6 @@ x-init="
                                 });
                             }
                         }">
-                    <!-- Notifications Dropdown (Interactive) -->
-                    <div class="relative" x-data="{ open: false, filter: 'all' }">
                         <button 
                             @click="open = !open" 
                             class="p-2 sm:p-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 transition relative cursor-pointer"
@@ -532,59 +536,38 @@ x-init="
                             x-transition:leave="transition ease-in duration-100 transform"
                             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
                             x-transition:leave-end="opacity-0 scale-95 translate-y-1"
-                            class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 overflow-hidden"
+                            class="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 overflow-hidden transform origin-top-right"
                         >
-                            <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                                <span class="font-bold text-xs text-slate-800">Notifikasi Terbaru</span>
-                                <span x-show="unreadCount > 0" @click="markAllRead()" class="text-[10px] text-blue-600 font-semibold cursor-pointer hover:underline">Tandai Dibaca</span>
-                            </div>
-                            <div class="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                                @if(isset($globalUnreadNotifications) && $globalUnreadNotifications->count() > 0)
-                                    @foreach($globalUnreadNotifications as $notif)
-                                    <div class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer relative">
-                                        <div class="absolute left-2 top-4 w-1.5 h-1.5 rounded-full bg-blue-500 unread-dot"></div>
-                                        <div class="pl-2">
-                                            <p class="text-xs font-semibold text-slate-800">{{ $notif->data['title'] ?? 'Notifikasi Baru' }}</p>
-                                            <p class="text-[11px] text-slate-500 mt-0.5">{{ $notif->data['message'] ?? '' }}</p>
-                                            <p class="text-[10px] text-slate-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
-                                        </div>
-                                    </div>
-                                    @endforeach
-                                @else
-                                    <div class="px-4 py-6 text-center text-slate-500 text-xs">
-                                        Tidak ada notifikasi baru
-                                    </div>
-                                @endif
                             <!-- Dropdown Header -->
-                            <div class="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-bold text-xs text-slate-900">Notifikasi</span>
+                            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <span class="font-bold text-xs text-slate-900">Notifikasi Terbaru</span>
+                                <div class="flex items-center gap-3">
                                     <template x-if="$store.crm.unreadCount > 0">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Belum Dibaca'"></span>
                                     </template>
+                                    <button 
+                                        @click="$store.crm.markAllAsRead()" 
+                                        x-show="$store.crm.unreadCount > 0"
+                                        class="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition"
+                                    >
+                                        Tandai Dibaca
+                                    </button>
                                 </div>
-                                <button 
-                                    @click="$store.crm.markAllAsRead()" 
-                                    x-show="$store.crm.unreadCount > 0"
-                                    class="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer transition"
-                                >
-                                    Tandai Semua Dibaca
-                                </button>
                             </div>
 
                             <!-- Filter Tabs -->
-                            <div class="flex border-b border-slate-100 bg-white px-2 py-1 gap-1 text-[11px]">
+                            <div class="flex border-b border-slate-100 bg-white px-2 py-2 gap-1 text-[11px]">
                                 <button 
                                     @click="filter = 'all'" 
                                     :class="filter === 'all' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'"
-                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                                    class="px-3 py-1.5 rounded-lg transition cursor-pointer"
                                 >
                                     Semua (<span x-text="$store.crm.notifications.length"></span>)
                                 </button>
                                 <button 
                                     @click="filter = 'unread'" 
                                     :class="filter === 'unread' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'"
-                                    class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                                    class="px-3 py-1.5 rounded-lg transition cursor-pointer"
                                 >
                                     Belum Dibaca (<span x-text="$store.crm.unreadCount"></span>)
                                 </button>

@@ -18,4 +18,20 @@ class NotificationController extends Controller
         
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Mark a single notification as read.
+     */
+    public function markAsRead(Request $request, $id)
+    {
+        $user = $request->user();
+        if ($user) {
+            $notification = $user->notifications()->find($id);
+            if ($notification) {
+                $notification->markAsRead();
+            }
+        }
+        
+        return response()->json(['success' => true]);
+    }
 }

@@ -46,7 +46,7 @@ document.addEventListener('alpine:init', () => {
             this.toasts = this.toasts.filter(t => t.id !== id);
         },
 
-        notifications: [
+        notifications: window.__NOTIFICATIONS__ || [
             {
                 id: 1,
                 title: 'Follow Up Terjadwal: SMK N 1 Cirebon',
@@ -94,17 +94,35 @@ document.addEventListener('alpine:init', () => {
             if (notif && !notif.read) {
                 notif.read = true;
                 this.showToast('Notifikasi ditandai dibaca');
+                
+                // Send AJAX to backend
+                fetch(`/notifications/${id}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
             }
         },
 
         markAllAsRead() {
             this.notifications.forEach(n => n.read = true);
             this.showToast('Semua notifikasi ditandai telah dibaca');
+            
+            // Send AJAX to backend
+            fetch('/notifications/read-all', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            });
         },
 
         deleteNotification(id) {
             this.notifications = this.notifications.filter(n => n.id !== id);
-            this.showToast('Notifikasi dihapus');
+            this.showToast('Notifikasi disembunyikan');
         },
 
         setRole(role) {

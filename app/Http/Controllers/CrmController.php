@@ -808,10 +808,21 @@ class CrmController extends Controller
                 }
             }
 
+            $stages = [
+                'Cold Lead' => 1,
+                'Interested' => 2,
+                'Follow Up' => 3,
+                'Beli Formulir' => 4,
+                'Pembayaran Termin 1' => 5,
+                'Closing' => 6,
+            ];
+            $stageNumber = $stages[$request->status] ?? 0;
+
             $prospek = Prospek::create([
                 'name' => $request->name,
                 'type' => $request->type,
                 'status' => $request->status,
+                'stage_number' => $stageNumber,
                 'pic' => $request->pic,
                 'whatsapp' => $request->whatsapp,
                 'sales_id' => $salesId,
