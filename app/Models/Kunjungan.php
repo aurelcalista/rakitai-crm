@@ -16,6 +16,15 @@ class Kunjungan extends Model
         return $this->belongsTo(User::class, 'sales_id');
     }
 
+    public function sekolah()
+    {
+        return $this->belongsTo(Sekolah::class, 'tujuan_id');
+    }
+
+    public function perusahaan()
+    {
+        return $this->belongsTo(Perusahaan::class, 'tujuan_id');
+    }
     public function tujuan()
     {
         if ($this->jenis === 'Sekolah') {
