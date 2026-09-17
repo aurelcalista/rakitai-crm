@@ -70,10 +70,12 @@ class SalesTargetService
 
         if (!$target) {
             return [
-                'target_hari_ini_kontak'   => 0,
-                'target_hari_ini_followup' => 0,
-                'sisa_akumulasi_kontak'    => 0,
-                'sisa_akumulasi_followup'  => 0,
+                'target_hari_ini_kontak'     => 0,
+                'target_hari_ini_followup'   => 0,
+                'sisa_akumulasi_kontak'      => 0,
+                'sisa_akumulasi_followup'    => 0,
+                'pencapaian_hari_ini_kontak' => 0,
+                'pencapaian_hari_ini_followup'=> 0,
             ];
         }
 
@@ -100,11 +102,18 @@ class SalesTargetService
         $sisaKontak   = max(0, $expectedKontak - $achievedUpToYesterday['kontak_baru']);
         $sisaFollowup = max(0, $expectedFollowup - $achievedUpToYesterday['follow_up']);
 
+        // Actual achievement today
+        $achievedToday = $this->getAchievementUpToDate($sales, $target, $now);
+        $pencapaianKontakHariIni = max(0, $achievedToday['kontak_baru'] - $achievedUpToYesterday['kontak_baru']);
+        $pencapaianFollowupHariIni = max(0, $achievedToday['follow_up'] - $achievedUpToYesterday['follow_up']);
+
         return [
-            'target_hari_ini_kontak'   => $dailyKontak + $sisaKontak,
-            'target_hari_ini_followup' => $dailyFollowup + $sisaFollowup,
-            'sisa_akumulasi_kontak'    => $sisaKontak,
-            'sisa_akumulasi_followup'  => $sisaFollowup,
+            'target_hari_ini_kontak'     => $dailyKontak + $sisaKontak,
+            'target_hari_ini_followup'   => $dailyFollowup + $sisaFollowup,
+            'sisa_akumulasi_kontak'      => $sisaKontak,
+            'sisa_akumulasi_followup'    => $sisaFollowup,
+            'pencapaian_hari_ini_kontak' => $pencapaianKontakHariIni,
+            'pencapaian_hari_ini_followup'=> $pencapaianFollowupHariIni,
         ];
     }
 

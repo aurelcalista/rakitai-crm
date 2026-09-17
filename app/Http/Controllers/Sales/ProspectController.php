@@ -78,6 +78,7 @@ class ProspectController extends Controller
             'potential'=> 'nullable|string|max:500',
             'ai_training' => 'nullable|string|max:255',
             'notes'    => 'nullable|string',
+            'source'   => 'nullable|string|max:100',
         ]);
 
         $user = auth()->user();
@@ -356,6 +357,7 @@ class ProspectController extends Controller
             'potential'      => $p->potential ?? '-',
             'ai_training'    => $p->ai_training ?? '-',
             'notes'          => $p->notes ?? '',
+            'source'         => $p->source ?? '-',
             'lost_reason'    => $p->lost_reason,
             'lost_note'      => $p->lost_note,
             'created_at'     => $p->created_at ? $p->created_at->format('d M Y') : '-',
