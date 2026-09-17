@@ -12,7 +12,7 @@
 
         <!-- Back Button & Breadcrumbs -->
         <div class="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <a href="{{ route('prospek.index') }}" class="hover:text-blue-600 flex items-center gap-1">
+            <a href="{{ route((strtolower(auth()->user()->role) === 'sales' ? 'sales.' : '') . 'prospek.index') }}" class="hover:text-blue-600 flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 Kembali ke Daftar Prospek
             </a>
@@ -43,6 +43,11 @@
 
                 <!-- Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2">
+                    @php 
+                        $prospekModel = \App\Models\Prospek::find($prospect['id']); 
+                    @endphp
+
+                    @can('followUp', $prospekModel)
                     <button 
                         type="button" 
                         @click="selectedProspect = prospect; modalFollowUp = true"
@@ -51,7 +56,9 @@
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         <span>Follow Up</span>
                     </button>
+                    @endcan
 
+                    @can('updateStatus', $prospekModel)
                     <button 
                         type="button" 
                         @click="selectedProspect = prospect; modalUpdateStatus = true"
@@ -60,15 +67,21 @@
                         <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         <span>Update Status</span>
                     </button>
+                    @endcan
 
-                    <button 
-                        type="button" 
-                        @click="selectedProspect = prospect; modalTakeover = true"
-                        class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                        <span>Takeover</span>
-                    </button>
+                    @can('takeover', $prospekModel)
+                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block">
+                        @csrf
+                        <button 
+                            type="submit" 
+                            onclick="return confirm('Yakin ingin menyerahkan prospek ini ke CS?')"
+                            class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                            <span>Serahkan ke CS</span>
+                        </button>
+                    </form>
+                    @endcan
                 </div>
             </div>
 
@@ -136,9 +149,15 @@
                 <div class="crm-card bg-white p-5 space-y-4">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Takeover Penugasan</h3>
-                        <button @click="selectedProspect = prospect; modalTakeover = true" class="text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer">
-                            Ganti PIC
-                        </button>
+                        
+                        @can('takeover', $prospekModel)
+                        <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block">
+                            @csrf
+                            <button type="submit" onclick="return confirm('Yakin ingin menyerahkan prospek ini ke CS?')" class="text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer">
+                                Ganti PIC
+                            </button>
+                        </form>
+                        @endcan
                     </div>
 
                     <!-- Sales Takeover Card -->

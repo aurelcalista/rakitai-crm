@@ -10,7 +10,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'username', 'email', 'phone', 'role', 'status', 'last_login_at', 'password'])]
+#[Fillable([
+    'name',
+    'username',
+    'email',
+    'phone',
+    'role',
+    'status',
+    'last_login_at',
+    'password',
+    'wilayah_id',
+    'supervisor_id',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,5 +39,65 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function supervisor()
+    {
+        return $this->belongsTo(User::class, 'supervisor_id');
+    }
+
+    public function subordinates()
+    {
+        return $this->hasMany(User::class, 'supervisor_id');
+    }
+
+    public function wilayah()
+    {
+        return $this->belongsTo(Wilayah::class);
+    }
+
+    public function targets()
+    {
+        return $this->hasMany(Target::class, 'sales_id');
+    }
+
+    /**
+     * Prospects where this user is the Sales handler.
+     */
+    public function prospeks()
+    {
+        return $this->hasMany(Prospek::class, 'sales_id');
+    }
+
+    /**
+     * Prospects where this user is the owner (creator).
+     */
+    public function ownedProspeks()
+    {
+        return $this->hasMany(Prospek::class, 'owner_id');
+    }
+
+    /**
+     * Follow-ups recorded by this user.
+     */
+    public function followUps()
+    {
+        return $this->hasMany(FollowUp::class, 'user_id');
+    }
+
+    /**
+     * Field visits by this Sales user.
+     */
+    public function kunjungans()
+    {
+        return $this->hasMany(Kunjungan::class, 'sales_id');
+    }
+
+    /**
+     * Helper: check if user has a specific role.
+     */
+    public function hasRole(string $role): bool
+    {
+        return strtolower($this->role) === strtolower($role);
     }
 }

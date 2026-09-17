@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use App\Models\Prospek;
+use App\Models\ProspekTimeline;
+use Illuminate\Support\Facades\DB;
 
 class CrmController extends Controller
 {
@@ -392,54 +395,51 @@ class CrmController extends Controller
     /**
      * Get mock visits data (Sekolah & Corporate).
      */
-    private function getVisits(): array
+    /**
+     * Format a Kunjungan model to the array expected by kunjungan/index.blade.php.
+     * Blade expects: id, name, type, pic, sales, date, time, address, potential, photo, notes
+     */
+    private function formatKunjunganForBlade(\App\Models\Kunjungan $k): array
     {
+        // Determine potential text based on visit type
+        $potential = '-';
+        if ($k->jenis === 'Sekolah') {
+            $potential = $k->potensi_beasiswa ?? $k->hasil ?? '-';
+        } else {
+            $parts = array_filter([
+                $k->potensi_s1 ? 'S1: ' . $k->potensi_s1 : null,
+                $k->potensi_s2 ? 'S2: ' . $k->potensi_s2 : null,
+                $k->potensi_csr ? 'CSR: ' . $k->potensi_csr : null,
+            ]);
+            $potential = count($parts) ? implode(' | ', $parts) : ($k->hasil ?? '-');
+        }
+
+        // Photo URL: use storage if available, else null (blade handles missing gracefully)
+        $photoUrl = $k->foto_path
+            ? \Illuminate\Support\Facades\Storage::url($k->foto_path)
+            : null;
+
         return [
-            [
-                'id' => 1,
-                'name' => 'SMK Negeri 1 Cirebon',
-                'type' => 'Sekolah',
-                'category' => 'SMK',
-                'pic' => 'Drs. H. Bambang Sutrisno, M.Pd (Kepala Sekolah)',
-                'sales' => 'Aurel Calista',
-                'date' => '10 Sep 2026',
-                'time' => '09:00 - 11:30 WIB',
-                'address' => 'Jl. Perjuangan No. 12, Sunyaragi, Kota Cirebon',
-                'potential' => '120 Siswa Kelas XII (TKJ & RPL)',
-                'ai_training' => 'Bersedia Training AI/Robotics Oktober 2026',
-                'photo' => 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
-                'notes' => 'Pertemuan dihadiri Kepala Sekolah, Waka Kurikulum, dan Guru BK. Sangat antusias dengan beasiswa UCIC.',
-            ],
-            [
-                'id' => 2,
-                'name' => 'PT Surya Digital Nusantara',
-                'type' => 'Corporate',
-                'category' => 'Corporate',
-                'pic' => 'Maya Kartika, S.Psi (HRD Manager)',
-                'sales' => 'Rizky Pratama',
-                'date' => '08 Sep 2026',
-                'time' => '14:00 - 15:45 WIB',
-                'address' => 'Kawasan Industri Surya Megah Blok C-4, Cirebon',
-                'potential' => 'Kelas Karyawan S1/S2 untuk 25 staf IT & Potensi CSR',
-                'ai_training' => 'In-house AI Workshop',
-                'photo' => 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&auto=format&fit=crop&q=80',
-                'notes' => 'Diskusi skema kemitraan korporasi & benefit pendaftaran rombongan beasiswa karyawan.',
-            ],
-            [
-                'id' => 3,
-                'name' => 'SMA Negeri 2 Majalengka',
-                'type' => 'Sekolah',
-                'category' => 'SMA',
-                'pic' => 'Ibu Nenden Kurniawati (Koordinator BK)',
-                'sales' => 'Aurel Calista',
-                'date' => '04 Sep 2026',
-                'time' => '10:00 - 12:00 WIB',
-                'address' => 'Jl. Ahmad Yani No. 88, Majalengka',
-                'potential' => '35 Siswa Jalur PMDK',
-                'ai_training' => 'Workshop AI for Teachers',
-                'photo' => 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=80',
-                'notes' => 'Kunjungan tindak lanjut pengantaran brosur & form pendaftaran fisik gelombang 1.',
-            ],
+            'id'        => $k->id,
+            'name'      => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
+            'type'      => $k->jenis ?? '-',
+            'pic'       => $k->pic_name ?? '-',
+            'whatsapp'  => $k->pic_whatsapp ?? '-',
+            'sales'     => $k->sales ? $k->sales->name : '-',
+            'date'      => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
+            'time'      => $k->waktu ?? '-',
+            'address'   => $k->alamat ?? '-',
+            'potential' => $potential,
+            'photo'     => $photoUrl,
+            'notes'     => $k->catatan ?? $k->hasil ?? '-',
+            // Type-specific details
+            'potensi_beasiswa'      => $k->potensi_beasiswa ?? '-',
+            'detail_beasiswa'       => $k->detail_beasiswa ?? '-',
+            'kesediaan_training_ai' => $k->kesediaan_training_ai,
+            'bidang_usaha'          => $k->bidang_usaha ?? '-',
+            'potensi_s1'            => $k->potensi_s1 ?? '-',
+            'potensi_s2'            => $k->potensi_s2 ?? '-',
+            'potensi_csr'           => $k->potensi_csr ?? '-',
         ];
     }
 
@@ -590,26 +590,59 @@ class CrmController extends Controller
     public function dashboardHm(Request $request): View
     {
         $request->session()->put('user_role', 'hm');
+        
+        $totalProspek = Prospek::count();
+        $closing = Prospek::where('status', 'Closing')->count();
+        $activeProspek = Prospek::whereNotIn('status', ['Closing', 'Lost'])->count();
+        $lost = Prospek::where('status', 'Lost')->count();
+        
         $stats = [
-            'total_prospek' => 485,
-            'active_prospek' => 290,
-            'closing' => 142,
-            'lost' => 21,
-            'conversion_rate' => 29.3,
-            'total_sales' => 8,
-            'total_cs' => 4,
+            'total_prospek' => $totalProspek,
+            'active_prospek' => $activeProspek,
+            'closing' => $closing,
+            'lost' => $lost,
+            'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
+            'total_sales' => \App\Models\User::where('role', 'Sales')->count(),
+            'total_cs' => \App\Models\User::where('role', 'CS')->count(),
         ];
 
-        $team = $this->getTeamPerformance();
+        $salesUsers = \App\Models\User::where('role', 'Sales')->get();
+        $team = $salesUsers->map(function ($s) {
+            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
+            $prospectsCount = Prospek::where('sales_id', $s->id)->count();
+            // Just for demonstration, use a default target of 50 if none exists.
+            $target = 50; 
+            $achievement = $target > 0 ? round(($closing / $target) * 100) : 0;
+            return [
+                'name' => $s->name,
+                'role' => $s->role,
+                'avatar' => substr($s->name, 0, 2),
+                'target' => $target,
+                'prospects' => $prospectsCount,
+                'closing' => $closing,
+                'achievement' => $achievement,
+            ];
+        })->sortByDesc('achievement')->values()->map(function ($member, $index) {
+            $member['rank'] = $index + 1;
+            return $member;
+        })->toArray();
 
-        $pipelineStages = [
-            ['name' => 'Cold Lead', 'count' => 84, 'pct' => 17],
-            ['name' => 'Interested', 'count' => 126, 'pct' => 26],
-            ['name' => 'Follow Up', 'count' => 98, 'pct' => 20],
-            ['name' => 'Beli Formulir', 'count' => 54, 'pct' => 11],
-            ['name' => 'Pembayaran Termin 1', 'count' => 32, 'pct' => 7],
-            ['name' => 'Closing', 'count' => 142, 'pct' => 29],
+        $stagesCount = [
+            'Cold Lead' => Prospek::where('status', 'Cold Lead')->count(),
+            'Interested' => Prospek::where('status', 'Interested')->count(),
+            'Follow Up' => Prospek::where('status', 'Follow Up')->count(),
+            'Beli Formulir' => Prospek::where('status', 'Beli Formulir')->count(),
+            'Pembayaran Termin 1' => Prospek::where('status', 'Pembayaran Termin 1')->count(),
+            'Closing' => $closing,
         ];
+
+        $pipelineStages = collect($stagesCount)->map(function ($count, $name) use ($totalProspek) {
+            return [
+                'name' => $name,
+                'count' => $count,
+                'pct' => $totalProspek > 0 ? round(($count / $totalProspek) * 100) : 0,
+            ];
+        })->values()->toArray();
 
         return view('hm.dashboard', compact('stats', 'team', 'pipelineStages'));
     }
@@ -677,11 +710,135 @@ class CrmController extends Controller
     /**
      * Daftar Prospek.
      */
+    private function getDbProspects()
+    {
+        $prospectsRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
+            $q->orderBy('tanggal', 'desc');
+        }, 'timelines' => function($q) {
+            $q->orderBy('time', 'desc')->with('user');
+        }])->get();
+
+        return $prospectsRaw->map(function ($p) {
+            $activeTakeover = [];
+            if ($p->sales) $activeTakeover[] = 'Sales';
+            if ($p->cs) $activeTakeover[] = 'CS';
+
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'type' => $p->type,
+                'category' => $p->category ?? '-',
+                'pic' => $p->pic ?? '-',
+                'pic_phone' => $p->pic_phone ?? '-',
+                'whatsapp' => $p->whatsapp ?? '-',
+                'status' => $p->status,
+                'stage_number' => $p->stage_number,
+                'takeover_sales' => $p->sales ? $p->sales->name : null,
+                'takeover_cs' => $p->cs ? $p->cs->name : null,
+                'active_takeover' => count($activeTakeover) > 0 ? implode(' & ', $activeTakeover) : 'Belum Ada',
+                'owner' => $p->owner ? $p->owner->name : 'Sistem',
+                'last_activity' => $p->updated_at->diffForHumans(),
+                'potential' => $p->potential ?? '-',
+                'ai_training' => $p->ai_training ?? '-',
+                'notes' => $p->notes ?? '',
+                'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
+                'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
+                'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
+                'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
+                'timeline' => $p->timelines->map(function ($t) {
+                    return [
+                        'time' => $t->time->format('d M, H:i'),
+                        'title' => $t->title,
+                        'notes' => $t->notes,
+                        'status' => $t->status_after,
+                        'user' => $t->user ? $t->user->name : 'Sistem',
+                        'role' => $t->user ? $t->user->role : 'Admin',
+                    ];
+                })->toArray(),
+            ];
+        })->toArray();
+    }
+
     public function prospekIndex(Request $request): View
     {
-        $prospects = $this->getProspects();
+        $prospects = $this->getDbProspects();
 
         return view('prospek.index', compact('prospects'));
+    }
+
+    public function prospekStore(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|string',
+            'status' => 'required|string',
+            'pic' => 'required|string',
+            'whatsapp' => 'required|string',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            $ownerId = auth()->id() ?? 1;
+            $user = \App\Models\User::find($ownerId);
+            
+            $salesId = $request->sales_id ?? ($user && $user->role === 'Sales' ? $user->id : null);
+            $csId = $request->cs_id ?? ($user && $user->role === 'CS' ? $user->id : null);
+            $wilayahId = null;
+
+            if ($salesId) {
+                $sales = \App\Models\User::find($salesId);
+                if ($sales && $sales->wilayah_id) {
+                    $wilayahId = $sales->wilayah_id;
+                    // cs_id should only be assigned upon explicit handover, not creation
+                    $csId = null;
+                }
+            } elseif ($csId) {
+                $cs = \App\Models\User::find($csId);
+                if ($cs && $cs->wilayah_id) {
+                    $wilayahId = $cs->wilayah_id;
+                    if (!$salesId) {
+                        $sales = \App\Models\User::where('role', 'Sales')->where('wilayah_id', $wilayahId)->first();
+                        $salesId = $sales ? $sales->id : null;
+                    }
+                }
+            }
+
+            $stages = [
+                'Cold Lead' => 1,
+                'Interested' => 2,
+                'Follow Up' => 3,
+                'Beli Formulir' => 4,
+                'Pembayaran Termin 1' => 5,
+                'Closing' => 6,
+            ];
+            $stageNumber = $stages[$request->status] ?? 0;
+
+            $prospek = Prospek::create([
+                'name' => $request->name,
+                'type' => $request->type,
+                'status' => $request->status,
+                'stage_number' => $stageNumber,
+                'pic' => $request->pic,
+                'whatsapp' => $request->whatsapp,
+                'sales_id' => $salesId,
+                'cs_id' => $csId,
+                'wilayah_id' => $wilayahId,
+                'potential' => $request->potential,
+                'notes' => $request->notes,
+                'owner_id' => $ownerId,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Prospek Dibuat',
+                'notes' => 'Prospek baru ditambahkan',
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        });
+
+        return redirect()->route('prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
     }
 
     /**
@@ -689,8 +846,49 @@ class CrmController extends Controller
      */
     public function prospekShow(int $id): View
     {
-        $prospects = $this->getProspects();
-        $prospect = collect($prospects)->firstWhere('id', $id) ?? $prospects[0];
+        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
+            $q->orderBy('tanggal', 'desc');
+        }, 'timelines' => function($q) {
+            $q->orderBy('time', 'desc')->with('user');
+        }])->findOrFail($id);
+
+        $activeTakeover = [];
+        if ($prospectRaw->sales) $activeTakeover[] = 'Sales';
+        if ($prospectRaw->cs) $activeTakeover[] = 'CS';
+
+        $prospect = [
+            'id' => $prospectRaw->id,
+            'name' => $prospectRaw->name,
+            'type' => $prospectRaw->type,
+            'category' => $prospectRaw->category ?? '-',
+            'pic' => $prospectRaw->pic ?? '-',
+            'pic_phone' => $prospectRaw->pic_phone ?? '-',
+            'whatsapp' => $prospectRaw->whatsapp ?? '-',
+            'status' => $prospectRaw->status,
+            'stage_number' => $prospectRaw->stage_number,
+            'takeover_sales' => $prospectRaw->sales ? $prospectRaw->sales->name : null,
+            'takeover_cs' => $prospectRaw->cs ? $prospectRaw->cs->name : null,
+            'active_takeover' => $prospectRaw->activeHandlerLabel(),
+            'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
+            'last_activity' => $prospectRaw->updated_at->diffForHumans(),
+            'potential' => $prospectRaw->potential ?? '-',
+            'ai_training' => $prospectRaw->ai_training ?? '-',
+            'notes' => $prospectRaw->notes ?? '',
+            'created_at' => $prospectRaw->created_at ? $prospectRaw->created_at->format('d M Y') : '-',
+            'takeover_time' => $prospectRaw->updated_at ? $prospectRaw->updated_at->format('d M Y, H:i') : '-',
+            'last_contact' => $prospectRaw->followUps->first() ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
+            'next_follow_up' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+            'timeline' => $prospectRaw->timelines->map(function ($t) {
+                return [
+                    'time' => $t->time->format('d M, H:i'),
+                    'title' => $t->title,
+                    'notes' => $t->notes,
+                    'status' => $t->status_after,
+                    'user' => $t->user ? $t->user->name : 'Sistem',
+                    'role' => $t->user ? $t->user->role : 'Admin',
+                ];
+            })->toArray(),
+        ];
 
         $allStages = [
             ['name' => 'Cold Lead', 'number' => 1],
@@ -704,14 +902,194 @@ class CrmController extends Controller
         return view('prospek.show', compact('prospect', 'allStages'));
     }
 
+    public function prospekUpdate(Request $request, int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        $this->authorize('update', $prospek);
+        
+        $request->validate([
+            'status' => 'required|string',
+        ]);
+
+        $oldStatus = $prospek->status;
+        $prospek->status = $request->status;
+
+        $stages = [
+            'Cold Lead' => 1,
+            'Interested' => 2,
+            'Follow Up' => 3,
+            'Beli Formulir' => 4,
+            'Pembayaran Termin 1' => 5,
+            'Closing' => 6,
+        ];
+        if (isset($stages[$request->status])) {
+            $prospek->stage_number = $stages[$request->status];
+        }
+
+        $prospek->save();
+
+        if ($oldStatus !== $prospek->status) {
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Status Diperbarui',
+                'notes' => 'Status prospek diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
+                'status_before' => $oldStatus,
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Status prospek berhasil diperbarui!');
+    }
+
+    public function prospekDestroy(int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        $this->authorize('delete', $prospek);
+        $prospek->delete();
+        
+        return redirect()->route('prospek.index')->with('success', 'Prospek berhasil dihapus!');
+    }
+
+    public function prospekTakeover(int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        $this->authorize('takeover', $prospek);
+
+        // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
+        $cs = \App\Models\User::where('role', 'CS')
+            ->when($prospek->wilayah_id, function ($q) use ($prospek) {
+                return $q->where('wilayah_id', $prospek->wilayah_id);
+            })
+            ->first();
+
+        if (!$cs) {
+            $cs = \App\Models\User::where('role', 'CS')->first();
+        }
+
+        if (!$cs) {
+            return redirect()->back()->withErrors(['cs_id' => 'Tidak ada user CS yang tersedia untuk menerima prospek.']);
+        }
+
+        $prospek->update([
+            'cs_id' => $cs->id,
+        ]);
+
+        \App\Models\ProspekTimeline::create([
+            'prospek_id'   => $prospek->id,
+            'user_id'      => auth()->id(),
+            'title'        => 'Prospek Diserahkan ke CS',
+            'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
+            'status_after'  => $prospek->status,
+            'time'          => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Prospek berhasil diserahkan ke CS ' . $cs->name);
+    }
+
+    public function pipelineUpdateStatus(Request $request)
+    {
+        $prospek = Prospek::findOrFail($request->prospek_id);
+        $this->authorize('updateStatus', $prospek);
+        
+        $oldStatus = $prospek->status;
+        $prospek->status = $request->status;
+        
+        $stages = [
+            'Cold Lead' => 1,
+            'Interested' => 2,
+            'Follow Up' => 3,
+            'Beli Formulir' => 4,
+            'Pembayaran Termin 1' => 5,
+            'Closing' => 6,
+        ];
+        if (isset($stages[$request->status])) {
+            $prospek->stage_number = $stages[$request->status];
+        }
+        
+        $prospek->save();
+
+        if ($oldStatus !== $prospek->status) {
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Status Diperbarui',
+                'notes' => 'Status prospek diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
+                'status_before' => $oldStatus,
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
+        
+        return response()->json(['success' => true]);
+    }
+
     /**
      * Halaman Kunjungan.
      */
     public function kunjunganIndex(): View
     {
-        $visits = $this->getVisits();
+        $user = auth()->user();
+        $query = \App\Models\Kunjungan::with('sales')
+            ->orderBy('tanggal', 'desc');
+
+        // Scope to own visits if role is Sales
+        if (strtolower($user->role) === 'sales') {
+            $query->where('sales_id', $user->id);
+        }
+
+        $visits = $query->get()->map(fn ($k) => $this->formatKunjunganForBlade($k))->toArray();
 
         return view('kunjungan.index', compact('visits'));
+    }
+
+    public function kunjunganStore(Request $request)
+    {
+        $request->validate([
+            'nama_institusi' => 'required|string|max:255',
+            'jenis'          => 'required|in:Sekolah,Perusahaan',
+            'tanggal'        => 'required|date',
+            'pic_name'       => 'required|string|max:255',
+            'pic_whatsapp'   => 'required|string|max:20',
+            'catatan'        => 'nullable|string|max:2000',
+            'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+        ]);
+
+        $user = auth()->user();
+        $fotoPath = null;
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
+            $fotoPath = $request->file('foto')->store('kunjungan', 'public');
+        }
+
+        \App\Models\Kunjungan::create([
+            'nomor'            => 'KNJ-' . ($user->id ?? 1) . '-' . now()->format('YmdHis'),
+            'tanggal'          => $request->tanggal,
+            'waktu'            => now()->format('H:i:s'),
+            'sales_id'         => $user->id ?? 1,
+            'jenis'            => $request->jenis,
+            'tujuan_id'        => 0,
+            'tujuan_kunjungan' => $request->nama_institusi,
+            'hasil'            => 'Kunjungan ' . $request->jenis,
+            'catatan'          => $request->catatan,
+            'status'           => 'Selesai',
+            'nama_institusi'   => $request->nama_institusi,
+            'alamat'           => $request->alamat,
+            'pic_name'         => $request->pic_name,
+            'pic_whatsapp'     => $request->pic_whatsapp,
+            'foto_path'        => $fotoPath,
+            // School-specific
+            'potensi_beasiswa'      => $request->potensi_beasiswa,
+            'detail_beasiswa'       => $request->detail_beasiswa,
+            'kesediaan_training_ai' => $request->boolean('kesediaan_training_ai'),
+            // Corporate-specific
+            'bidang_usaha' => $request->bidang_usaha,
+            'potensi_s1'   => $request->potensi_s1,
+            'potensi_s2'   => $request->potensi_s2,
+            'potensi_csr'  => $request->potensi_csr,
+        ]);
+
+        return redirect()->back()->with('success', 'Kunjungan berhasil disimpan!');
     }
 
     /**
@@ -719,9 +1097,90 @@ class CrmController extends Controller
      */
     public function followUpIndex(): View
     {
-        $prospects = $this->getProspects();
+        $allProspects = collect($this->getDbProspects());
+        $today = now()->toDateString();
+        
+        $prospects = [
+            'today' => [],
+            'upcoming' => [],
+            'overdue' => [],
+            'done' => [],
+        ];
+
+        foreach ($allProspects as $p) {
+            if (in_array($p['status'], ['Closing', 'Lost'])) {
+                $prospects['done'][] = $p;
+            } else if ($p['next_follow_up_date']) {
+                if ($p['next_follow_up_date'] === $today) {
+                    $prospects['today'][] = $p;
+                } else if ($p['next_follow_up_date'] > $today) {
+                    $prospects['upcoming'][] = $p;
+                } else {
+                    $prospects['overdue'][] = $p;
+                }
+            } else {
+                // If no date but not done, treat as overdue or today. Let's put in today.
+                $prospects['today'][] = $p;
+            }
+        }
 
         return view('follow-up.index', compact('prospects'));
+    }
+
+    public function followUpStore(Request $request)
+    {
+        $request->validate([
+            'prospek_id' => 'required|exists:prospeks,id',
+            'hasil' => 'required|string',
+            'catatan' => 'required|string',
+            'status' => 'required|string',
+            'next_follow_up' => 'nullable|date',
+        ]);
+
+        $prospek = Prospek::findOrFail($request->prospek_id);
+        $this->authorize('followUp', $prospek);
+        
+        // Save follow up log
+        $catatan = '[' . $request->hasil . '] ' . $request->catatan;
+        \App\Models\FollowUp::create([
+            'prospek_id' => $prospek->id,
+            'user_id' => auth()->id() ?? 1,
+            'tanggal' => now(),
+            'catatan' => $catatan,
+            'next_follow_up' => $request->next_follow_up,
+        ]);
+
+        // Update status if changed
+        $oldStatus = $prospek->status;
+        if ($oldStatus !== $request->status) {
+            $prospek->status = $request->status;
+            
+            $stages = [
+                'Cold Lead' => 1,
+                'Interested' => 2,
+                'Follow Up' => 3,
+                'Beli Formulir' => 4,
+                'Pembayaran Termin 1' => 5,
+                'Closing' => 6,
+            ];
+            if (isset($stages[$request->status])) {
+                $prospek->stage_number = $stages[$request->status];
+            }
+            
+            $prospek->save();
+
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Follow Up & Update Status',
+                'notes' => 'Status diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status . ' (Hasil: ' . $request->hasil . ')',
+                'status_before' => $oldStatus,
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Follow-up berhasil disimpan!');
     }
 
     /**
@@ -729,7 +1188,7 @@ class CrmController extends Controller
      */
     public function pipelineIndex(): View
     {
-        $prospects = $this->getProspects();
+        $prospects = $this->getDbProspects();
 
         return view('pipeline.index', compact('prospects'));
     }
@@ -739,12 +1198,36 @@ class CrmController extends Controller
      */
     public function performaIndex(): View
     {
-        $team = $this->getTeamPerformance();
+        $salesUsers = \App\Models\User::where('role', 'Sales')->get();
+        $team = $salesUsers->map(function ($s) {
+            $totalClosing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
+            $totalProspects = Prospek::where('sales_id', $s->id)->count();
+            $totalFollowUp = Prospek::where('sales_id', $s->id)->where('status', 'Follow Up')->count();
+            $totalLost = Prospek::where('sales_id', $s->id)->where('status', 'Lost')->count();
+            // Since we haven't implemented Targets fully per sales, we simulate based on role target
+            $target = 50; 
+            return [
+                'name' => $s->name,
+                'role' => $s->role,
+                'target' => $target,
+                'prospects' => $totalProspects,
+                'follow_up' => $totalFollowUp,
+                'closing' => $totalClosing,
+                'lost' => $totalLost,
+                'achievement' => $target > 0 ? round(($totalClosing / $target) * 100) : 0,
+                'avatar' => strtoupper(substr($s->name, 0, 2)),
+                'status' => $totalClosing >= $target ? 'Target Achieved' : 'On Progress'
+            ];
+        })->toArray();
+
+        $totalTarget = count($salesUsers) * 50;
+        $totalRealisasi = Prospek::where('status', 'Closing')->count();
+
         $summary = [
-            'target' => 180,
-            'realisasi' => 104,
-            'achievement' => 58,
-            'sisa_target' => 76,
+            'target' => $totalTarget,
+            'realisasi' => $totalRealisasi,
+            'achievement' => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100) : 0,
+            'sisa_target' => max(0, $totalTarget - $totalRealisasi),
         ];
 
         return view('performa.index', compact('team', 'summary'));
@@ -755,13 +1238,17 @@ class CrmController extends Controller
      */
     public function laporanIndex(): View
     {
-        $prospects = $this->getProspects();
+        $prospects = $this->getDbProspects();
+        
+        $totalProspek = Prospek::count();
+        $closing = Prospek::where('status', 'Closing')->count();
+        
         $summary = [
-            'total_prospek' => 485,
-            'active' => 290,
-            'closing' => 142,
-            'lost' => 21,
-            'conversion_rate' => 29.3,
+            'total_prospek' => $totalProspek,
+            'active' => Prospek::whereNotIn('status', ['Closing', 'Lost'])->count(),
+            'closing' => $closing,
+            'lost' => Prospek::where('status', 'Lost')->count(),
+            'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
         ];
 
         return view('laporan.index', compact('prospects', 'summary'));

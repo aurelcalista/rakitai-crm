@@ -1,6 +1,31 @@
 import Alpine from 'alpinejs';
+import Swal from 'sweetalert2';
 
 window.Alpine = Alpine;
+window.Swal = Swal;
+
+window.confirmLogout = function() {
+    Swal.fire({
+        title: 'Konfirmasi Logout',
+        text: 'Apakah Anda yakin ingin keluar dari sistem CRM?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e11d48',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Ya, Logout',
+        cancelButtonText: 'Batal',
+        reverseButtons: true,
+        customClass: {
+            popup: 'rounded-2xl',
+            confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5',
+            cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('logout-form')?.submit();
+        }
+    });
+};
 
 // Global CRM Store & State Management
 document.addEventListener('alpine:init', () => {
@@ -21,7 +46,7 @@ document.addEventListener('alpine:init', () => {
             this.toasts = this.toasts.filter(t => t.id !== id);
         },
 
-        notifications: [
+        notifications: window.__NOTIFICATIONS__ || [
             {
                 id: 1,
                 title: 'Follow Up Terjadwal: SMK N 1 Cirebon',
@@ -69,17 +94,35 @@ document.addEventListener('alpine:init', () => {
             if (notif && !notif.read) {
                 notif.read = true;
                 this.showToast('Notifikasi ditandai dibaca');
+                
+                // Send AJAX to backend
+                fetch(`/notifications/${id}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
             }
         },
 
         markAllAsRead() {
             this.notifications.forEach(n => n.read = true);
             this.showToast('Semua notifikasi ditandai telah dibaca');
+            
+            // Send AJAX to backend
+            fetch('/notifications/read-all', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            });
         },
 
         deleteNotification(id) {
             this.notifications = this.notifications.filter(n => n.id !== id);
-            this.showToast('Notifikasi dihapus');
+            this.showToast('Notifikasi disembunyikan');
         },
 
         setRole(role) {
