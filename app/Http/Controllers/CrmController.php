@@ -810,7 +810,7 @@ class CrmController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password'         => 'required|min:8|confirmed',
+            'password'         => 'required|confirmed',
         ]);
 
         if (auth()->check()) {
