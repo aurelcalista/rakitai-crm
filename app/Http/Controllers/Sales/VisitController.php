@@ -145,20 +145,35 @@ class VisitController extends Controller
 
     private function formatKunjungan(Kunjungan $k): array
     {
+        $potential = '-';
+        if ($k->jenis === 'Sekolah') {
+            $potential = $k->potensi_beasiswa ?? $k->hasil ?? '-';
+        } else {
+            $parts = array_filter([
+                $k->potensi_s1 ? 'S1: ' . $k->potensi_s1 : null,
+                $k->potensi_s2 ? 'S2: ' . $k->potensi_s2 : null,
+                $k->potensi_csr ? 'CSR: ' . $k->potensi_csr : null,
+            ]);
+            $potential = count($parts) ? implode(' | ', $parts) : ($k->hasil ?? '-');
+        }
+
+        $photoUrl = $k->foto_path ? Storage::url($k->foto_path) : null;
+
         return [
             'id'             => $k->id,
-            'nomor'          => $k->nomor,
-            'tanggal'        => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
-            'waktu'          => $k->waktu ?? '-',
-            'jenis'          => $k->jenis,
-            'nama_institusi' => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
-            'alamat'         => $k->alamat ?? '-',
-            'pic_name'       => $k->pic_name ?? '-',
-            'pic_whatsapp'   => $k->pic_whatsapp ?? '-',
-            'catatan'        => $k->catatan ?? '-',
-            'hasil'          => $k->hasil ?? '-',
+            'name'           => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
+            'type'           => $k->jenis ?? '-',
+            'pic'            => $k->pic_name ?? '-',
+            'whatsapp'       => $k->pic_whatsapp ?? '-',
+            'sales'          => $k->sales ? $k->sales->name : '-',
+            'date'           => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
+            'time'           => $k->waktu ?? '-',
+            'address'        => $k->alamat ?? '-',
+            'potential'      => $potential,
+            'photo'          => $photoUrl,
+            'notes'          => $k->catatan ?? $k->hasil ?? '-',
             'status'         => $k->status,
-            'foto_url'       => $k->foto_path ? Storage::url($k->foto_path) : null,
+            'nomor'          => $k->nomor,
             // School-specific
             'potensi_beasiswa'      => $k->potensi_beasiswa ?? '-',
             'detail_beasiswa'       => $k->detail_beasiswa ?? '-',

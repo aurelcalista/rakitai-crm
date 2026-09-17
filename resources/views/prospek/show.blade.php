@@ -145,60 +145,17 @@
             <!-- LEFT COLUMN: DETAIL & TAKEOVER -->
             <div class="space-y-6">
 
-                <!-- TAKEOVER STATUS SECTION -->
-                <div class="crm-card bg-white p-5 space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Takeover Penugasan</h3>
-                        
-                        @can('takeover', $prospekModel)
-                        <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block">
-                            @csrf
-                            <button type="submit" onclick="return confirm('Yakin ingin menyerahkan prospek ini ke CS?')" class="text-xs text-blue-600 hover:text-blue-700 font-semibold cursor-pointer">
-                                Ganti PIC
-                            </button>
-                        </form>
-                        @endcan
-                    </div>
-
-                    <!-- Sales Takeover Card -->
-                    <div class="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                                AC
-                            </div>
-                            <div>
-                                <span class="text-[10px] uppercase font-bold text-blue-700 tracking-wider">Sales Incharge</span>
-                                <div class="text-xs font-bold text-slate-900">{{ $prospect['takeover_sales'] }}</div>
-                            </div>
-                        </div>
-                        <x-takeover-badge type="sales" />
-                    </div>
-
-                    <!-- CS Takeover Card -->
-                    <div class="p-3.5 rounded-xl bg-teal-50/60 border border-teal-100 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-xs">
-                                DM
-                            </div>
-                            <div>
-                                <span class="text-[10px] uppercase font-bold text-teal-800 tracking-wider">CS Incharge</span>
-                                <div class="text-xs font-bold text-slate-900">{{ $prospect['takeover_cs'] }}</div>
-                            </div>
-                        </div>
-                        <x-takeover-badge type="cs" />
-                    </div>
-
-                    <div class="text-[11px] text-slate-400 pt-1 flex items-center justify-between">
-                        <span>Takeover Terakhir:</span>
-                        <span class="font-medium text-slate-600">{{ $prospect['takeover_time'] }}</span>
-                    </div>
-                </div>
 
                 <!-- INFORMASI LENGKAP PROSPEK -->
                 <div class="crm-card bg-white p-5 space-y-4">
                     <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">Informasi Prospek</h3>
                     
                     <div class="space-y-3 text-xs">
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] }}</p>
+                        </div>
+
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
                             <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] }}</p>

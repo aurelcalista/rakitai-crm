@@ -198,13 +198,7 @@
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                         </button>
-                                        <button 
-                                            @click="selectedProspect = prospect; modalTakeover = true"
-                                            class="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
-                                            title="Takeover Penugasan"
-                                        >
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                        </button>
+
                                         <a 
                                             :href="'/prospek/' + prospect.id"
                                             class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
@@ -240,10 +234,7 @@
                         </div>
 
                         <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-xs space-y-1">
-                            <div class="flex justify-between items-center text-[11px]">
-                                <span class="text-slate-400">Takeover Aktif:</span>
-                                <span class="font-semibold text-slate-800" x-text="prospect.active_takeover"></span>
-                            </div>
+
                             <div class="flex justify-between items-center text-[11px]">
                                 <span class="text-slate-400">Last Activity:</span>
                                 <span class="text-slate-600" x-text="prospect.last_activity"></span>
