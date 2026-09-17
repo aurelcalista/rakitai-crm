@@ -6,6 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 
 class Wilayah extends Model
 {
+<<<<<<< Updated upstream
+=======
+    use HasFactory;
+
+    protected $fillable = [
+        'kode', 'nama', 'level', 'parent_id', 'status'
+    ];
+
+    public function parent()
+    {
+        return $this->belongsTo(Wilayah::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Wilayah::class, 'parent_id');
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class, 'wilayah_id');
+    }
+
+>>>>>>> Stashed changes
     protected $fillable = ['kode', 'nama', 'kecamatans', 'status'];
 
     protected $casts = [
