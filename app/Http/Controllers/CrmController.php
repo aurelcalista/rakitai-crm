@@ -739,6 +739,7 @@ class CrmController extends Controller
                 'owner' => $p->owner ? $p->owner->name : 'Sistem',
                 'last_activity' => $p->updated_at->diffForHumans(),
                 'potential' => $p->potential ?? '-',
+                'source' => $p->source ?? '-',
                 'ai_training' => $p->ai_training ?? '-',
                 'notes' => $p->notes ?? '',
                 'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',

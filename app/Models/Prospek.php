@@ -12,7 +12,7 @@ class Prospek extends Model
     protected $fillable = [
         'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp',
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
-        'wilayah_id', 'sales_id', 'cs_id', 'owner_id',
+        'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
         'lost_reason', 'lost_note',
     ];
 

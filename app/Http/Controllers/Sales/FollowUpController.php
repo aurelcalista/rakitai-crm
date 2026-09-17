@@ -86,7 +86,7 @@ class FollowUpController extends Controller
         $prospek = Prospek::findOrFail($validated['prospek_id']);
 
         // Backend authorization: must be active handler (Sales or CS)
-        $this->authorize('followUp', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('followUp', $prospek);
 
         $oldStatus = $prospek->status;
         $newStatus = $validated['status'];

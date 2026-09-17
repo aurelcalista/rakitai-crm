@@ -146,8 +146,56 @@
                 </div>
             </div>
 
+            <!-- Target Harian Pribadi -->
+            <div class="crm-card p-6 bg-white flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Target Harian (Snowball)</h3>
+                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">Hari Ini</span>
+                    </div>
+
+                    <div class="mt-4 space-y-4">
+                        <!-- Kontak Baru -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1 text-xs">
+                                <span class="font-bold text-slate-700">Kontak Baru</span>
+                                <span class="font-bold text-blue-600">{{ $dailyTarget['pencapaian_hari_ini_kontak'] }} / {{ $dailyTarget['target_hari_ini_kontak'] }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                @php $pctKontak = $dailyTarget['target_hari_ini_kontak'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_kontak'] / $dailyTarget['target_hari_ini_kontak']) * 100)) : 0; @endphp
+                                <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: {{ $pctKontak }}%"></div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                                <span>Sisa Akumulasi: {{ $dailyTarget['sisa_akumulasi_kontak'] }}</span>
+                                <span class="{{ $dailyTarget['pencapaian_hari_ini_kontak'] >= $dailyTarget['target_hari_ini_kontak'] ? 'text-emerald-500 font-bold' : '' }}">
+                                    Kekurangan: {{ max(0, $dailyTarget['target_hari_ini_kontak'] - $dailyTarget['pencapaian_hari_ini_kontak']) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Follow Up -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1 text-xs">
+                                <span class="font-bold text-slate-700">Follow Up</span>
+                                <span class="font-bold text-amber-600">{{ $dailyTarget['pencapaian_hari_ini_followup'] }} / {{ $dailyTarget['target_hari_ini_followup'] }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                @php $pctFollowup = $dailyTarget['target_hari_ini_followup'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_followup'] / $dailyTarget['target_hari_ini_followup']) * 100)) : 0; @endphp
+                                <div class="bg-amber-500 h-2 rounded-full transition-all" style="width: {{ $pctFollowup }}%"></div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                                <span>Sisa Akumulasi: {{ $dailyTarget['sisa_akumulasi_followup'] }}</span>
+                                <span class="{{ $dailyTarget['pencapaian_hari_ini_followup'] >= $dailyTarget['target_hari_ini_followup'] ? 'text-emerald-500 font-bold' : '' }}">
+                                    Kekurangan: {{ max(0, $dailyTarget['target_hari_ini_followup'] - $dailyTarget['pencapaian_hari_ini_followup']) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Visual Pipeline Stages -->
-            <div class="crm-card p-6 bg-white lg:col-span-2">
+            <div class="crm-card p-6 bg-white lg:col-span-1">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                     <div>
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Visual Pipeline Prospek</h3>
