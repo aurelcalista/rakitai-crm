@@ -26,11 +26,7 @@ class Wilayah extends Model
     public function users()
     {
         return $this->hasMany(User::class, 'wilayah_id');
-    protected $fillable = ['kode', 'nama', 'kecamatans', 'status'];
-
-    protected $casts = [
-        'kecamatans' => 'array',
-    ];
+    }
 
     public function sekolahs()
     {
