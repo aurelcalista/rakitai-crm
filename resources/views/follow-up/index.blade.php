@@ -98,7 +98,7 @@
                     <div>
                         <div class="flex items-start justify-between gap-2">
                             <div>
-                                <a :href="'/prospek/' + prospect.id" class="font-bold text-sm text-slate-900 hover:text-blue-600 block" x-text="prospect.name"></a>
+                                <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id" class="font-bold text-sm text-slate-900 hover:text-blue-600 block" x-text="prospect.name"></a>
                                 <span class="text-xs text-slate-500 font-medium" x-text="prospect.type + ' • PIC: ' + prospect.pic"></span>
                             </div>
                             <span 

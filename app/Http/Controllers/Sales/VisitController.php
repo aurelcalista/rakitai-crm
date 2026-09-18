@@ -122,6 +122,14 @@ class VisitController extends Controller
             'potensi_csr'  => $request->input('potensi_csr'),
         ]);
 
+        // Clear needs_visit_report for matching prospect owned by this sales user
+        if ($tujuanId > 0) {
+            $column = $validated['jenis'] === 'Sekolah' ? 'sekolah_id' : 'perusahaan_id';
+            \App\Models\Prospek::where('sales_id', $user->id)
+                ->where($column, $tujuanId)
+                ->where('needs_visit_report', true)
+                ->update(['needs_visit_report' => false]);
+        }
         return redirect()->route('sales.kunjungan.index')
             ->with('success', 'Kunjungan berhasil disimpan!');
     }

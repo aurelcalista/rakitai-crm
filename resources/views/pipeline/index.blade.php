@@ -84,7 +84,7 @@
                         <!-- Cards in Column -->
                         <div class="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
                             <template x-for="prospect in getProspectsByStage(stage.name)" :key="prospect.id">
-                                <div class="crm-card bg-white p-3.5 space-y-2.5 hover:shadow-md hover:border-blue-300 transition group cursor-pointer" @click="window.location.href = '/prospek/' + prospect.id">
+                                <div class="crm-card bg-white p-3.5 space-y-2.5 hover:shadow-md hover:border-blue-300 transition group cursor-pointer" @click="window.location.href = '{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id">
                                     <div class="flex items-start justify-between">
                                         <h4 class="font-bold text-xs text-slate-900 group-hover:text-blue-600 leading-snug line-clamp-1" x-text="prospect.name"></h4>
                                     </div>
@@ -122,7 +122,7 @@
 
                     <div class="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
                         <template x-for="prospect in lostProspects" :key="prospect.id">
-                            <div class="crm-card bg-white p-3.5 space-y-2.5 border-rose-100 hover:border-rose-300 transition group cursor-pointer" @click="window.location.href = '/prospek/' + prospect.id">
+                            <div class="crm-card bg-white p-3.5 space-y-2.5 border-rose-100 hover:border-rose-300 transition group cursor-pointer" @click="window.location.href = '{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id">
                                 <h4 class="font-bold text-xs text-slate-900 group-hover:text-rose-600 leading-snug" x-text="prospect.name"></h4>
                                 <p class="text-[11px] text-slate-500 line-clamp-2 italic" x-text="prospect.notes"></p>
                                 <div class="pt-2 border-t border-slate-100 text-[10px] text-slate-400 flex justify-between">

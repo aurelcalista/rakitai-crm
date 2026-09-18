@@ -158,6 +158,7 @@ class FollowUpController extends Controller
                 : null,
             'metode_terakhir' => $latestFU ? ($latestFU->metode ?? '-') : '-',
             'hasil_terakhir'  => $latestFU ? ($latestFU->hasil ?? '-') : '-',
+            'notes'           => $latestFU ? ($latestFU->catatan ?? '-') : ($p->notes ?? '-'),
         ];
     }
 }
