@@ -79,7 +79,7 @@ class FollowUpController extends Controller
             'metode'        => 'required|in:WhatsApp,Telepon,Meeting,Email',
             'hasil'         => 'required|string|max:255',
             'catatan'       => 'required|string|max:2000',
-            'status'        => 'required|in:Cold Lead,Interested,Follow Up,Beli Formulir,Pembayaran Termin 1,Closing',
+            'status'        => 'required|string|max:255',
             'next_follow_up'=> 'nullable|date|after_or_equal:today',
         ]);
 

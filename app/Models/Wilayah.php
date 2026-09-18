@@ -9,13 +9,9 @@ class Wilayah extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'kode', 'nama', 'level', 'parent_id', 'status'
-    ];
-
-    public function parent()
+    public function users()
     {
-        return $this->belongsTo(Wilayah::class, 'parent_id');
+        return $this->hasMany(User::class, 'wilayah_id');
     }
 
     public function children()
@@ -23,14 +19,12 @@ class Wilayah extends Model
         return $this->hasMany(Wilayah::class, 'parent_id');
     }
 
-    public function users()
+    public function parent()
     {
-        return $this->hasMany(User::class, 'wilayah_id');
-    protected $fillable = ['kode', 'nama', 'kecamatans', 'status'];
+        return $this->belongsTo(Wilayah::class, 'parent_id');
+    }
 
-    protected $casts = [
-        'kecamatans' => 'array',
-    ];
+    protected $fillable = ['kode', 'nama', 'level', 'parent_id', 'status'];
 
     public function sekolahs()
     {

@@ -6,7 +6,7 @@
         modalAdd: false, modalEdit: false, modalDetail: false,
         selectedPrs: null, searchQuery: '', filterWilayah: 'all', filterKategori: 'all', filterStatus: 'all',
         perusahaan: {{ json_encode($perusahaan) }},
-        wilayahData: {{ json_encode($wilayahList->map(fn($w) => ['id' => $w->id, 'nama' => $w->nama, 'kecamatans' => $w->kecamatans ?? []])) }},
+        wilayahData: {{ json_encode($wilayahList->map(fn($w) => ['id' => $w->id, 'nama' => $w->nama, 'kecamatans' => $w->children->pluck('nama')->toArray()])) }},
         addKecList: [],
         editKecList: [],
         onAddWilayahChange(id) {
@@ -71,7 +71,6 @@
                             <th class="py-3.5 px-4">Kode / Nama Perusahaan</th>
                             <th class="py-3.5 px-3">Kategori</th>
                             <th class="py-3.5 px-3">Wilayah / Kecamatan</th>
-                            <th class="py-3.5 px-3">PIC / Kontak</th>
                             <th class="py-3.5 px-3 text-center">Kunjungan</th>
                             <th class="py-3.5 px-3 text-center">Status</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
@@ -99,10 +98,6 @@
                                 <td class="py-3.5 px-3">
                                     <div class="font-semibold text-slate-700 text-[11px]" x-text="p.wilayah_nama"></div>
                                     <div class="text-slate-400 text-[11px]" x-text="'Kec. ' + p.kecamatan"></div>
-                                </td>
-                                <td class="py-3.5 px-3">
-                                    <div class="text-slate-800 font-medium" x-text="p.pic_name || '-'"></div>
-                                    <div class="text-[11px] text-slate-400" x-text="p.pic_phone"></div>
                                 </td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="font-bold text-slate-700" x-text="p.jumlah_kunjungan + 'x'"></span>
@@ -181,11 +176,6 @@
                                 <div class="p-3 rounded-xl bg-blue-50 border border-blue-100">
                                     <p class="text-blue-500 mb-0.5">Email</p><p class="font-bold text-slate-800 truncate" x-text="selectedPrs.email || '-'"></p>
                                 </div>
-                            </div>
-                            <div class="p-3 rounded-xl bg-purple-50 border border-purple-100">
-                                <p class="text-purple-600 font-semibold mb-0.5">PIC / Kontak Utama</p>
-                                <p class="font-bold text-slate-800" x-text="selectedPrs.pic_name || '-'"></p>
-                                <p class="text-slate-500 mt-0.5" x-text="selectedPrs.pic_jabatan ? selectedPrs.pic_jabatan + ' · ' + (selectedPrs.pic_phone || '') : ''"></p>
                             </div>
                             <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between">
                                 <span class="text-emerald-700 font-semibold">Total Kunjungan</span>
@@ -269,23 +259,11 @@
                             </div>
                         </div>
 
-                        {{-- Baris 3: Website | PIC Nama | PIC Jabatan | PIC Phone --}}
-                        <div class="grid grid-cols-4 gap-3">
+                        {{-- Baris 3: Website --}}
+                        <div class="grid grid-cols-1 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Website</label>
                                 <input type="text" name="website" placeholder="www.perusahaan.co.id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Nama PIC</label>
-                                <input type="text" name="pic_name" placeholder="Nama lengkap" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Jabatan PIC</label>
-                                <input type="text" name="pic_jabatan" placeholder="HRD, dll" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">No. HP PIC</label>
-                                <input type="tel" name="pic_phone" placeholder="08XXXXXXXXXX" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
                             </div>
                         </div>
 
@@ -381,23 +359,11 @@
                             </div>
                         </div>
 
-                        {{-- Baris 3: Website | PIC Nama | PIC Jabatan | PIC Phone --}}
-                        <div class="grid grid-cols-4 gap-3">
+                        {{-- Baris 3: Website --}}
+                        <div class="grid grid-cols-1 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Website</label>
                                 <input type="text" name="website" :value="selectedPrs.website" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Nama PIC</label>
-                                <input type="text" name="pic_name" :value="selectedPrs.pic_name" placeholder="Nama lengkap" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Jabatan PIC</label>
-                                <input type="text" name="pic_jabatan" :value="selectedPrs.pic_jabatan" placeholder="HRD, dll" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">No. HP PIC</label>
-                                <input type="tel" name="pic_phone" :value="selectedPrs.pic_phone" placeholder="08XXXXXXXXXX" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
                             </div>
                         </div>
 
