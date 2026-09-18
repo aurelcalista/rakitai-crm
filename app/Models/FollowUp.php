@@ -10,7 +10,14 @@ class FollowUp extends Model
     use HasFactory;
 
     protected $fillable = [
-        'prospek_id', 'user_id', 'tanggal', 'catatan', 'next_follow_up'
+        'prospek_id', 'user_id', 'metode', 'tanggal', 'catatan', 'hasil', 'next_follow_up',
+    ];
+
+    public const METODE_OPTIONS = [
+        'WhatsApp',
+        'Telepon',
+        'Meeting',
+        'Email',
     ];
 
     protected $casts = [

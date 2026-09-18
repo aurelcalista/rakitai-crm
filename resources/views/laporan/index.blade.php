@@ -152,7 +152,7 @@
                         @foreach($prospects as $prospect)
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3.5 px-4 font-semibold text-slate-900">
-                                    <a href="{{ route('prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
+                                    <a href="{{ route((strtolower(auth()->user()->role) === 'sales' ? 'sales.' : '') . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
                                         {{ $prospect['name'] }}
                                     </a>
                                 </td>

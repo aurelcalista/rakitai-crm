@@ -27,7 +27,7 @@ class AdminSekolahController extends Controller
             return $s;
         });
 
-        $wilayahList = Wilayah::all();
+        $wilayahList = Wilayah::whereNull('parent_id')->with('children')->get();
         $kategoriList = MasterData::where('type', 'kategori_sekolah')->get();
 
         return view('admin.sekolah.index', ['sekolah' => $sekolahs, 'wilayahList' => $wilayahList, 'kategoriList' => $kategoriList]);

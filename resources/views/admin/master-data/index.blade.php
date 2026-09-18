@@ -82,6 +82,16 @@
             @include('admin.master-data._table', ['items' => $masterData['kategori_perusahaan'], 'tabLabel' => 'Kategori Perusahaan'])
         </div>
 
+        <!-- Tab Content: Fakultas -->
+        <div x-show="activeTab === 'fakultas'" x-cloak class="crm-card bg-white overflow-hidden">
+            @include('admin.master-data._table', ['items' => $masterData['fakultas'], 'tabLabel' => 'Fakultas'])
+        </div>
+
+        <!-- Tab Content: Jenjang -->
+        <div x-show="activeTab === 'jenjang'" x-cloak class="crm-card bg-white overflow-hidden">
+            @include('admin.master-data._table', ['items' => $masterData['jenjang'], 'tabLabel' => 'Jenjang'])
+        </div>
+
         <!-- MODAL TAMBAH -->
         <div x-show="modalAdd" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div class="flex items-center justify-center min-h-screen px-4">

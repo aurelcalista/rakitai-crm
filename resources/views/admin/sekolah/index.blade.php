@@ -6,7 +6,7 @@
         modalAdd: false, modalEdit: false, modalDetail: false,
         selectedSkl: null, searchQuery: '', filterWilayah: 'all', filterStatus: 'all',
         sekolah: {{ json_encode($sekolah) }},
-        wilayahData: {{ json_encode($wilayahList->map(fn($w) => ['id' => $w->id, 'nama' => $w->nama, 'kecamatans' => $w->kecamatans ?? []])) }},
+        wilayahData: {{ json_encode($wilayahList->map(fn($w) => ['id' => $w->id, 'nama' => $w->nama, 'kecamatans' => $w->children->pluck('nama')->toArray()])) }},
         addKecList: [],
         editKecList: [],
         onAddWilayahChange(id) {
@@ -48,7 +48,7 @@
             </div>
             <select x-model="filterWilayah" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-52">
                 <option value="all">Semua Wilayah</option>
-                @foreach($wilayahList as $w)<option value="{{ $w }}">{{ $w }}</option>@endforeach
+                @foreach($wilayahList as $w)<option value="{{ $w->nama }}">{{ $w->nama }}</option>@endforeach
             </select>
             <select x-model="filterStatus" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-36">
                 <option value="all">Semua Status</option>
@@ -67,7 +67,6 @@
                             <th class="py-3.5 px-3">Kategori</th>
                             <th class="py-3.5 px-3">Wilayah / Kecamatan</th>
                             <th class="py-3.5 px-3">Telepon</th>
-                            <th class="py-3.5 px-3">PIC</th>
                             <th class="py-3.5 px-3 text-center">Kunjungan</th>
                             <th class="py-3.5 px-3 text-center">Status</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
@@ -88,7 +87,6 @@
                                     <div class="text-slate-400 text-[11px]" x-text="'Kec. ' + s.kecamatan"></div>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-600" x-text="s.telepon"></td>
-                                <td class="py-3.5 px-3 text-slate-700 font-medium max-w-[140px] truncate" x-text="s.pic"></td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="font-bold text-slate-700" x-text="s.jumlah_kunjungan + 'x'"></span>
                                 </td>
@@ -164,11 +162,6 @@
                                 <div class="p-3 rounded-xl bg-blue-50 border border-blue-100">
                                     <p class="text-blue-500 mb-0.5">Email</p><p class="font-bold text-slate-800 truncate" x-text="selectedSkl.email || '-'"></p>
                                 </div>
-                            </div>
-                            <div class="p-3 rounded-xl bg-purple-50 border border-purple-100">
-                                <p class="text-purple-600 font-semibold mb-0.5">PIC / Kontak Sekolah</p>
-                                <p class="font-bold text-slate-800" x-text="selectedSkl.pic_name || '-'"></p>
-                                <p class="text-slate-500 mt-0.5" x-text="selectedSkl.pic_jabatan ? selectedSkl.pic_jabatan + ' · ' + (selectedSkl.pic_phone || '') : ''"></p>
                             </div>
                             <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between">
                                 <span class="text-emerald-700 font-semibold">Total Kunjungan</span>
@@ -257,22 +250,6 @@
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Website</label>
                                 <input type="text" name="website" placeholder="www.sekolah.sch.id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
-                        </div>
-
-                        {{-- Baris 4 (PIC): Nama PIC | Jabatan | HP PIC | Status --}}
-                        <div class="grid grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Nama PIC</label>
-                                <input type="text" name="pic_name" placeholder="Nama lengkap" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Jabatan PIC</label>
-                                <input type="text" name="pic_jabatan" placeholder="Guru BK, dll" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Nomor HP PIC</label>
-                                <input type="text" name="pic_phone" placeholder="0812xxxx" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
                             </div>
                         </div>
 
@@ -373,22 +350,6 @@
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Website</label>
                                 <input type="text" name="website" :value="selectedSkl.website" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
-                        </div>
-
-                        {{-- Baris 4 (PIC): Nama PIC | Jabatan | HP PIC --}}
-                        <div class="grid grid-cols-3 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Nama PIC</label>
-                                <input type="text" name="pic_name" :value="selectedSkl.pic_name" placeholder="Nama lengkap" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Jabatan PIC</label>
-                                <input type="text" name="pic_jabatan" :value="selectedSkl.pic_jabatan" placeholder="Guru BK, dll" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Nomor HP PIC</label>
-                                <input type="text" name="pic_phone" :value="selectedSkl.pic_phone" placeholder="0812xxxx" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 bg-white">
                             </div>
                         </div>
 

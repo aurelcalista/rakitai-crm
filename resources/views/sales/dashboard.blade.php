@@ -33,7 +33,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, Aurel Calista 👋</h2>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }} 👋</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Sales Inbound</span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Berikut ringkasan aktivitas dan performa kamu bulan ini.</p>
@@ -114,7 +114,7 @@
                 <div>
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Target Bulan Ini</h3>
-                        <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">September 2026</span>
+                        <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">{{ $stats['bulan_label'] ?? now()->locale('id')->isoFormat('MMMM Y') }}</span>
                     </div>
 
                     <!-- Circular / Big Progress -->
@@ -146,14 +146,62 @@
                 </div>
             </div>
 
+            <!-- Target Harian Pribadi -->
+            <div class="crm-card p-6 bg-white flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Target Harian (Snowball)</h3>
+                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">Hari Ini</span>
+                    </div>
+
+                    <div class="mt-4 space-y-4">
+                        <!-- Kontak Baru -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1 text-xs">
+                                <span class="font-bold text-slate-700">Kontak Baru</span>
+                                <span class="font-bold text-blue-600">{{ $dailyTarget['pencapaian_hari_ini_kontak'] }} / {{ $dailyTarget['target_hari_ini_kontak'] }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                @php $pctKontak = $dailyTarget['target_hari_ini_kontak'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_kontak'] / $dailyTarget['target_hari_ini_kontak']) * 100)) : 0; @endphp
+                                <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: {{ $pctKontak }}%"></div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                                <span>Sisa Akumulasi: {{ $dailyTarget['sisa_akumulasi_kontak'] }}</span>
+                                <span class="{{ $dailyTarget['pencapaian_hari_ini_kontak'] >= $dailyTarget['target_hari_ini_kontak'] ? 'text-emerald-500 font-bold' : '' }}">
+                                    Kekurangan: {{ max(0, $dailyTarget['target_hari_ini_kontak'] - $dailyTarget['pencapaian_hari_ini_kontak']) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Follow Up -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1 text-xs">
+                                <span class="font-bold text-slate-700">Follow Up</span>
+                                <span class="font-bold text-amber-600">{{ $dailyTarget['pencapaian_hari_ini_followup'] }} / {{ $dailyTarget['target_hari_ini_followup'] }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                @php $pctFollowup = $dailyTarget['target_hari_ini_followup'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_followup'] / $dailyTarget['target_hari_ini_followup']) * 100)) : 0; @endphp
+                                <div class="bg-amber-500 h-2 rounded-full transition-all" style="width: {{ $pctFollowup }}%"></div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                                <span>Sisa Akumulasi: {{ $dailyTarget['sisa_akumulasi_followup'] }}</span>
+                                <span class="{{ $dailyTarget['pencapaian_hari_ini_followup'] >= $dailyTarget['target_hari_ini_followup'] ? 'text-emerald-500 font-bold' : '' }}">
+                                    Kekurangan: {{ max(0, $dailyTarget['target_hari_ini_followup'] - $dailyTarget['pencapaian_hari_ini_followup']) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Visual Pipeline Stages -->
-            <div class="crm-card p-6 bg-white lg:col-span-2">
+            <div class="crm-card p-6 bg-white lg:col-span-1">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                     <div>
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Visual Pipeline Prospek</h3>
                         <p class="text-xs text-slate-500">Pergerakan prospek aktif berdasarkan tahapan inbound</p>
                     </div>
-                    <a href="{{ route('pipeline.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                    <a href="{{ route('sales.pipeline.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         Board Detail &rarr;
                     </a>
                 </div>
@@ -193,7 +241,7 @@
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Prospek Terbaru</h3>
                         <p class="text-xs text-slate-500">Daftar prospek yang baru ditangani atau diperbarui</p>
                     </div>
-                    <a href="{{ route('prospek.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                    <a href="{{ route('sales.prospek.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
                         Lihat Semua &rarr;
                     </a>
                 </div>
@@ -215,7 +263,7 @@
                             @foreach($recentProspects as $prospect)
                                 <tr class="hover:bg-slate-50/80 transition">
                                     <td class="py-3.5 px-4 font-semibold text-slate-900">
-                                        <a href="{{ route('prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
+                                        <a href="{{ route('sales.prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
                                             {{ $prospect['name'] }}
                                         </a>
                                         <div class="text-[11px] text-slate-400 font-normal">{{ $prospect['pic'] }}</div>
@@ -235,14 +283,14 @@
                                     <td class="py-3.5 px-4 text-right">
                                         <div class="flex items-center justify-end gap-1.5">
                                             <button 
-                                                @click="selectedProspect = {{ json_encode($prospect) }}; modalFollowUp = true"
+                                                @click='selectedProspect = @json($prospect); modalFollowUp = true'
                                                 class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-[11px] transition cursor-pointer"
                                                 title="Follow Up"
                                             >
                                                 Follow Up
                                             </button>
                                             <a 
-                                                href="{{ route('prospek.show', $prospect['id']) }}"
+                                                href="{{ route('sales.prospek.show', $prospect['id']) }}"
                                                 class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
                                                 title="Lihat Detail"
                                             >
@@ -262,7 +310,7 @@
                         <div class="p-4 space-y-2.5">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <a href="{{ route('prospek.show', $prospect['id']) }}" class="font-bold text-xs text-slate-900 hover:text-blue-600 block">
+                                    <a href="{{ route('sales.prospek.show', $prospect['id']) }}" class="font-bold text-xs text-slate-900 hover:text-blue-600 block">
                                         {{ $prospect['name'] }}
                                     </a>
                                     <span class="text-[11px] text-slate-500">{{ $prospect['type'] }} &bull; {{ $prospect['pic'] }}</span>
@@ -277,13 +325,13 @@
 
                             <div class="pt-2 flex items-center gap-2">
                                 <button 
-                                    @click="selectedProspect = {{ json_encode($prospect) }}; modalFollowUp = true"
+                                    @click='selectedProspect = @json($prospect); modalFollowUp = true'
                                     class="flex-1 py-1.5 px-3 rounded-lg bg-blue-50 text-blue-700 font-semibold text-xs text-center border border-blue-200/80"
                                 >
                                     Follow Up
                                 </button>
                                 <a 
-                                    href="{{ route('prospek.show', $prospect['id']) }}"
+                                    href="{{ route('sales.prospek.show', $prospect['id']) }}"
                                     class="py-1.5 px-3 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs text-center hover:bg-slate-200"
                                 >
                                     Detail
@@ -294,7 +342,7 @@
                 </div>
             </div>
 
-            <!-- Recent Activity Timeline (Compact) -->
+            <!-- Recent Activity Timeline (Compact) — Data Real dari DB -->
             <div class="crm-card p-5 bg-white">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                     <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Aktivitas Terbaru</h3>
@@ -302,37 +350,28 @@
                 </div>
 
                 <div class="space-y-4">
-                    <div class="flex items-start gap-3 text-xs">
-                        <span class="text-[11px] font-bold text-blue-600 shrink-0 w-12 pt-0.5">09:30</span>
-                        <div class="border-l-2 border-blue-500 pl-3 pb-1">
-                            <p class="font-semibold text-slate-800">Status "SMK N 1 Cirebon" berubah jadi <span class="text-blue-600">Interested</span></p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Oleh Aurel Calista via WhatsApp audiensi</p>
+                    @forelse($recentActivity as $activity)
+                        @php
+                            $colors = ['blue', 'indigo', 'amber', 'teal', 'emerald', 'rose'];
+                            $color  = $colors[$loop->index % count($colors)];
+                        @endphp
+                        <div class="flex items-start gap-3 text-xs">
+                            <span class="text-[11px] font-bold text-{{ $color }}-600 shrink-0 w-12 pt-0.5">{{ $activity['time'] }}</span>
+                            <div class="border-l-2 border-{{ $color }}-500 pl-3 pb-1">
+                                <p class="font-semibold text-slate-800">
+                                    {{ $activity['title'] }}
+                                    @if($activity['prospek_name'] !== '-')
+                                        : <span class="text-{{ $color }}-600">{{ Str::limit($activity['prospek_name'], 30) }}</span>
+                                    @endif
+                                </p>
+                                <p class="text-[11px] text-slate-400 mt-0.5">{{ Str::limit($activity['notes'], 80) }}</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="flex items-start gap-3 text-xs">
-                        <span class="text-[11px] font-bold text-indigo-600 shrink-0 w-12 pt-0.5">10:15</span>
-                        <div class="border-l-2 border-indigo-500 pl-3 pb-1">
-                            <p class="font-semibold text-slate-800">Kunjungan Corporate diinput: <span class="text-indigo-600">PT Surya Digital</span></p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Dokumentasi foto terunggah</p>
+                    @empty
+                        <div class="text-center py-6">
+                            <p class="text-xs text-slate-400">Belum ada aktivitas terbaru.</p>
                         </div>
-                    </div>
-
-                    <div class="flex items-start gap-3 text-xs">
-                        <span class="text-[11px] font-bold text-amber-600 shrink-0 w-12 pt-0.5">11:00</span>
-                        <div class="border-l-2 border-amber-500 pl-3 pb-1">
-                            <p class="font-semibold text-slate-800">Follow-up telepon dilakukan ke Guru BK SMA 2 Majalengka</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Beli formulir kolektif 35 siswa</p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-start gap-3 text-xs">
-                        <span class="text-[11px] font-bold text-teal-600 shrink-0 w-12 pt-0.5">14:00</span>
-                        <div class="border-l-2 border-teal-500 pl-3 pb-1">
-                            <p class="font-semibold text-slate-800">Takeover CS dari Dina Marlina</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Verifikasi pendaftaran online masuk</p>
-                        </div>
-                    </div>
+                    @endforelse
                 </div>
             </div>
 
