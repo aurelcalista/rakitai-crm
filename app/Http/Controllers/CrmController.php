@@ -566,22 +566,79 @@ class CrmController extends Controller
     }
 
     /**
-     * Dashboard SPV.
+     * Dashboard SPV — Dynamic from real Sales team data in Database.
      */
     public function dashboardSpv(Request $request): View
     {
-        $request->session()->put('user_role', 'spv');
+        if ($request->hasSession()) {
+            $request->session()->put('user_role', 'spv');
+        }
+        $user = auth()->user();
+
+        // Retrieve Sales team members under this SPV
+        $salesList = $user ? $user->salesSubordinates()->get() : collect();
+        $salesIds = $salesList->pluck('id');
+
+        // Aggregated Dynamic Stats from DB for this SPV's team
+        $totalProspek = Prospek::whereIn('sales_id', $salesIds)->count();
+        $totalClosing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Closing')->count();
+        $totalLost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Lost')->count();
+        $activeProspek = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['Closing', 'Lost'])->count();
+
+        $totalFollowUp = \App\Models\FollowUp::where(function ($q) use ($salesIds) {
+            $q->whereIn('user_id', $salesIds)
+              ->orWhereHas('prospek', fn ($p) => $p->whereIn('sales_id', $salesIds));
+        })->count();
+
+        $totalKunjungan = \App\Models\Kunjungan::whereIn('sales_id', $salesIds)->count();
+
         $stats = [
-            'total_sales' => 8,
-            'total_prospek' => 312,
-            'total_follow_up' => 178,
-            'total_closing' => 104,
-            'total_lost' => 14,
+            'total_sales'      => $salesList->count(),
+            'total_prospek'    => $totalProspek,
+            'active_prospek'   => $activeProspek,
+            'total_follow_up'  => $totalFollowUp,
+            'total_closing'    => $totalClosing,
+            'total_lost'       => $totalLost,
+            'total_kunjungan'  => $totalKunjungan,
+            'conversion_rate'  => $totalProspek > 0 ? round(($totalClosing / $totalProspek) * 100, 1) : 0,
         ];
 
-        $team = $this->getTeamPerformance();
+        // Team Performance Per Personil
+        $targetService = app(\App\Services\SalesTargetService::class);
+        $team = $salesList->map(function ($s) use ($targetService) {
+            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
+            $prospectsCount = Prospek::where('sales_id', $s->id)->count();
+            $followUpCount = \App\Models\FollowUp::where('user_id', $s->id)->count();
+            $lostCount = Prospek::where('sales_id', $s->id)->where('status', 'Lost')->count();
 
-        return view('spv.dashboard', compact('stats', 'team'));
+            $activeTarget = $targetService->getActiveTarget($s);
+            $targetAmount = $activeTarget ? $activeTarget->target_closing : 0;
+            if ($targetAmount <= 0) {
+                $targetAmount = $activeTarget ? $activeTarget->target_kontak : 50;
+            }
+
+            $achievement = $targetAmount > 0 ? round(($closing / $targetAmount) * 100) : 0;
+            $statusLabel = $achievement >= 70 ? 'Sangat Baik' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan');
+
+            return [
+                'id'          => $s->id,
+                'name'        => $s->name,
+                'role'        => $s->role,
+                'avatar'      => strtoupper(substr($s->name, 0, 2)),
+                'target'      => $targetAmount,
+                'prospects'   => $prospectsCount,
+                'follow_up'   => $followUpCount,
+                'closing'     => $closing,
+                'lost'        => $lostCount,
+                'achievement' => $achievement,
+                'status'      => $statusLabel,
+            ];
+        })->sortByDesc('achievement')->values()->map(function ($member, $index) {
+            $member['rank'] = $index + 1;
+            return $member;
+        })->toArray();
+
+        return view('spv.dashboard', compact('stats', 'team', 'salesList'));
     }
 
     /**
@@ -675,8 +732,79 @@ class CrmController extends Controller
     }
 
     /**
-     * Daftar Prospek.
+     * Daftar Prospek (Scoped to authenticated user role / team hierarchy).
      */
+<<<<<<< Updated upstream
+=======
+    private function getDbProspects()
+    {
+        $user = auth()->user();
+        $query = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function ($q) {
+            $q->orderBy('tanggal', 'desc');
+        }, 'timelines' => function ($q) {
+            $q->orderBy('time', 'desc')->with('user');
+        }]);
+
+        if ($user) {
+            $role = strtolower($user->role);
+            if ($role === 'sales') {
+                $query->where('sales_id', $user->id);
+            } elseif ($role === 'spv') {
+                $salesIds = $user->salesSubordinates()->pluck('id');
+                $query->whereIn('sales_id', $salesIds);
+            } elseif ($role === 'cs') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('cs_id', $user->id)->orWhereNull('cs_id');
+                });
+            }
+        }
+
+        $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
+
+        return $prospectsRaw->map(function ($p) {
+            $activeTakeover = [];
+            if ($p->sales) $activeTakeover[] = 'Sales';
+            if ($p->cs) $activeTakeover[] = 'CS';
+
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'type' => $p->type,
+                'category' => $p->category ?? '-',
+                'pic' => $p->pic ?? '-',
+                'pic_phone' => $p->pic_phone ?? '-',
+                'whatsapp' => $p->whatsapp ?? '-',
+                'status' => $p->status,
+                'stage_number' => $p->stage_number,
+                'takeover_sales' => $p->sales ? $p->sales->name : null,
+                'takeover_cs' => $p->cs ? $p->cs->name : null,
+                'active_takeover' => $p->activeHandlerLabel(),
+                'owner' => $p->owner ? $p->owner->name : 'Sistem',
+                'last_activity' => $p->updated_at->diffForHumans(),
+                'potential' => $p->potential ?? '-',
+                'source' => $p->source ?? '-',
+                'ai_training' => $p->ai_training ?? '-',
+                'notes' => $p->notes ?? '',
+                'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
+                'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
+                'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
+                'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
+                'timeline' => $p->timelines->map(function ($t) {
+                    return [
+                        'time' => $t->time ? $t->time->format('d M, H:i') : '-',
+                        'title' => $t->title,
+                        'notes' => $t->notes,
+                        'status' => $t->status_after,
+                        'user' => $t->user ? $t->user->name : 'Sistem',
+                        'role' => $t->user ? $t->user->role : 'Admin',
+                    ];
+                })->toArray(),
+            ];
+        })->toArray();
+    }
+
+>>>>>>> Stashed changes
     public function prospekIndex(Request $request): View
     {
         $prospects = $this->getProspects();
@@ -684,13 +812,134 @@ class CrmController extends Controller
         return view('prospek.index', compact('prospects'));
     }
 
+<<<<<<< Updated upstream
+=======
+    public function prospekStore(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|string',
+            'status' => 'required|string',
+            'pic' => 'required|string',
+            'whatsapp' => 'required|string',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            $ownerId = auth()->id() ?? 1;
+            $user = \App\Models\User::find($ownerId);
+            
+            $salesId = $request->sales_id ?? ($user && $user->role === 'Sales' ? $user->id : null);
+            $csId = $request->cs_id ?? ($user && $user->role === 'CS' ? $user->id : null);
+            $wilayahId = null;
+
+            if ($salesId) {
+                $sales = \App\Models\User::find($salesId);
+                if ($sales && $sales->wilayah_id) {
+                    $wilayahId = $sales->wilayah_id;
+                    $csId = null;
+                }
+            } elseif ($csId) {
+                $cs = \App\Models\User::find($csId);
+                if ($cs && $cs->wilayah_id) {
+                    $wilayahId = $cs->wilayah_id;
+                    if (!$salesId) {
+                        $sales = \App\Models\User::where('role', 'Sales')->where('wilayah_id', $wilayahId)->first();
+                        $salesId = $sales ? $sales->id : null;
+                    }
+                }
+            }
+
+            $stages = [
+                'Cold Lead' => 1,
+                'Interested' => 2,
+                'Follow Up' => 3,
+                'Beli Formulir' => 4,
+                'Pembayaran Termin 1' => 5,
+                'Closing' => 6,
+            ];
+            $stageNumber = $stages[$request->status] ?? 0;
+
+            $prospek = Prospek::create([
+                'name' => $request->name,
+                'type' => $request->type,
+                'status' => $request->status,
+                'stage_number' => $stageNumber,
+                'pic' => $request->pic,
+                'whatsapp' => $request->whatsapp,
+                'sales_id' => $salesId,
+                'cs_id' => $csId,
+                'wilayah_id' => $wilayahId,
+                'potential' => $request->potential,
+                'notes' => $request->notes,
+                'owner_id' => $ownerId,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Prospek Dibuat',
+                'notes' => 'Prospek baru ditambahkan',
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        });
+
+        return redirect()->route('prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
+    }
+
+>>>>>>> Stashed changes
     /**
      * Detail Prospek.
      */
     public function prospekShow(int $id): View
     {
+<<<<<<< Updated upstream
         $prospects = $this->getProspects();
         $prospect = collect($prospects)->firstWhere('id', $id) ?? $prospects[0];
+=======
+        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
+            $q->orderBy('tanggal', 'desc');
+        }, 'timelines' => function($q) {
+            $q->orderBy('time', 'desc')->with('user');
+        }])->findOrFail($id);
+
+        \Illuminate\Support\Facades\Gate::authorize('view', $prospectRaw);
+
+        $prospect = [
+            'id' => $prospectRaw->id,
+            'name' => $prospectRaw->name,
+            'type' => $prospectRaw->type,
+            'category' => $prospectRaw->category ?? '-',
+            'pic' => $prospectRaw->pic ?? '-',
+            'pic_phone' => $prospectRaw->pic_phone ?? '-',
+            'whatsapp' => $prospectRaw->whatsapp ?? '-',
+            'status' => $prospectRaw->status,
+            'stage_number' => $prospectRaw->stage_number,
+            'takeover_sales' => $prospectRaw->sales ? $prospectRaw->sales->name : null,
+            'takeover_cs' => $prospectRaw->cs ? $prospectRaw->cs->name : null,
+            'active_takeover' => $prospectRaw->activeHandlerLabel(),
+            'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
+            'last_activity' => $prospectRaw->updated_at->diffForHumans(),
+            'potential' => $prospectRaw->potential ?? '-',
+            'source' => $prospectRaw->source ?? '-',
+            'ai_training' => $prospectRaw->ai_training ?? '-',
+            'notes' => $prospectRaw->notes ?? '',
+            'created_at' => $prospectRaw->created_at ? $prospectRaw->created_at->format('d M Y') : '-',
+            'takeover_time' => $prospectRaw->updated_at ? $prospectRaw->updated_at->format('d M Y, H:i') : '-',
+            'last_contact' => $prospectRaw->followUps->first() ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
+            'next_follow_up' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+            'timeline' => $prospectRaw->timelines->map(function ($t) {
+                return [
+                    'time' => $t->time ? $t->time->format('d M, H:i') : '-',
+                    'title' => $t->title,
+                    'notes' => $t->notes,
+                    'status' => $t->status_after,
+                    'user' => $t->user ? $t->user->name : 'Sistem',
+                    'role' => $t->user ? $t->user->role : 'Admin',
+                ];
+            })->toArray(),
+        ];
+>>>>>>> Stashed changes
 
         $allStages = [
             ['name' => 'Cold Lead', 'number' => 1],
@@ -701,15 +950,211 @@ class CrmController extends Controller
             ['name' => 'Closing', 'number' => 6],
         ];
 
-        return view('prospek.show', compact('prospect', 'allStages'));
+        // Retrieve available Sales team for re-allocation
+        $user = auth()->user();
+        if ($user && strtolower($user->role) === 'spv') {
+            $salesTeam = $user->salesSubordinates()->get();
+        } else {
+            $salesTeam = \App\Models\User::where('role', 'Sales')->where('status', 'aktif')->get();
+        }
+
+        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw'));
     }
 
+<<<<<<< Updated upstream
+=======
+    public function prospekUpdate(Request $request, int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
+        
+        $request->validate([
+            'status' => 'required|string',
+        ]);
+
+        $oldStatus = $prospek->status;
+        $prospek->status = $request->status;
+
+        $stages = [
+            'Cold Lead' => 1,
+            'Interested' => 2,
+            'Follow Up' => 3,
+            'Beli Formulir' => 4,
+            'Pembayaran Termin 1' => 5,
+            'Closing' => 6,
+        ];
+        if (isset($stages[$request->status])) {
+            $prospek->stage_number = $stages[$request->status];
+        }
+
+        $prospek->save();
+
+        if ($oldStatus !== $prospek->status) {
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Status Diperbarui',
+                'notes' => 'Status prospek diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
+                'status_before' => $oldStatus,
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Status prospek berhasil diperbarui!');
+    }
+
+    public function prospekDestroy(int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('delete', $prospek);
+        $prospek->delete();
+        
+        return redirect()->route('prospek.index')->with('success', 'Prospek berhasil dihapus!');
+    }
+
+    public function prospekTakeover(int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
+
+        // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
+        $cs = \App\Models\User::where('role', 'CS')
+            ->when($prospek->wilayah_id, function ($q) use ($prospek) {
+                return $q->where('wilayah_id', $prospek->wilayah_id);
+            })
+            ->first();
+
+        if (!$cs) {
+            $cs = \App\Models\User::where('role', 'CS')->first();
+        }
+
+        if (!$cs) {
+            return redirect()->back()->withErrors(['cs_id' => 'Tidak ada user CS yang tersedia untuk menerima prospek.']);
+        }
+
+        $prospek->update([
+            'cs_id' => $cs->id,
+        ]);
+
+        \App\Models\ProspekTimeline::create([
+            'prospek_id'   => $prospek->id,
+            'user_id'      => auth()->id(),
+            'title'        => 'Prospek Diserahkan ke CS',
+            'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
+            'status_after'  => $prospek->status,
+            'time'          => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Prospek berhasil diserahkan ke CS ' . $cs->name);
+    }
+
+    /**
+     * Re-alokasi Prospek dari satu Sales ke Sales lain dalam tim SPV.
+     */
+    public function prospekRealokasi(Request $request, int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('reallocate', $prospek);
+
+        $request->validate([
+            'sales_id' => 'required|exists:users,id',
+            'alasan'   => 'nullable|string|max:500',
+        ]);
+
+        $user = auth()->user();
+        $newSales = \App\Models\User::findOrFail($request->sales_id);
+
+        // SPV can only re-allocate to Sales within their own team
+        if (strtolower($user->role) === 'spv' && !$user->isSupervisorOf($newSales->id)) {
+            return redirect()->back()->withErrors(['sales_id' => 'Sales yang dipilih bukan anggota tim Anda.']);
+        }
+
+        $oldSales = $prospek->sales;
+        $oldSalesName = $oldSales ? $oldSales->name : 'Belum Ditugaskan';
+
+        DB::transaction(function () use ($prospek, $newSales, $oldSalesName, $user, $request) {
+            $prospek->update([
+                'sales_id' => $newSales->id,
+                'owner_id' => $newSales->id,
+            ]);
+
+            \App\Models\ProspekTimeline::create([
+                'prospek_id'    => $prospek->id,
+                'user_id'       => $user->id,
+                'title'         => 'Re-alokasi Prospek: ' . $oldSalesName . ' → ' . $newSales->name,
+                'notes'         => 'Re-alokasi oleh ' . $user->name . ($request->alasan ? '. Alasan: ' . $request->alasan : ''),
+                'status_before' => $prospek->status,
+                'status_after'  => $prospek->status,
+                'time'          => now(),
+            ]);
+        });
+
+        return redirect()->back()->with('success', 'Prospek berhasil dialokasikan ke ' . $newSales->name);
+    }
+
+    public function pipelineUpdateStatus(Request $request)
+    {
+        $prospek = Prospek::findOrFail($request->prospek_id);
+        \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
+        
+        $oldStatus = $prospek->status;
+        $prospek->status = $request->status;
+        
+        $stages = [
+            'Cold Lead' => 1,
+            'Interested' => 2,
+            'Follow Up' => 3,
+            'Beli Formulir' => 4,
+            'Pembayaran Termin 1' => 5,
+            'Closing' => 6,
+        ];
+        if (isset($stages[$request->status])) {
+            $prospek->stage_number = $stages[$request->status];
+        }
+        
+        $prospek->save();
+
+        if ($oldStatus !== $prospek->status) {
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Status Diperbarui',
+                'notes' => 'Status prospek diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
+                'status_before' => $oldStatus,
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
+        
+        return response()->json(['success' => true]);
+    }
+
+>>>>>>> Stashed changes
     /**
      * Halaman Kunjungan.
      */
     public function kunjunganIndex(): View
     {
+<<<<<<< Updated upstream
         $visits = $this->getVisits();
+=======
+        $user = auth()->user();
+        $query = \App\Models\Kunjungan::with('sales')
+            ->orderBy('tanggal', 'desc');
+
+        if ($user) {
+            $role = strtolower($user->role);
+            if ($role === 'sales') {
+                $query->where('sales_id', $user->id);
+            } elseif ($role === 'spv') {
+                $salesIds = $user->salesSubordinates()->pluck('id');
+                $query->whereIn('sales_id', $salesIds);
+            }
+        }
+
+        $visits = $query->get()->map(fn ($k) => $this->formatKunjunganForBlade($k))->toArray();
+>>>>>>> Stashed changes
 
         return view('kunjungan.index', compact('visits'));
     }
@@ -719,7 +1164,35 @@ class CrmController extends Controller
      */
     public function followUpIndex(): View
     {
+<<<<<<< Updated upstream
         $prospects = $this->getProspects();
+=======
+        $allProspects = collect($this->getDbProspects());
+        $today = now()->toDateString();
+        
+        $prospects = [
+            'today' => [],
+            'upcoming' => [],
+            'overdue' => [],
+            'done' => [],
+        ];
+
+        foreach ($allProspects as $p) {
+            if (in_array($p['status'], ['Closing', 'Lost'])) {
+                $prospects['done'][] = $p;
+            } else if ($p['next_follow_up_date']) {
+                if ($p['next_follow_up_date'] === $today) {
+                    $prospects['today'][] = $p;
+                } else if ($p['next_follow_up_date'] > $today) {
+                    $prospects['upcoming'][] = $p;
+                } else {
+                    $prospects['overdue'][] = $p;
+                }
+            } else {
+                $prospects['today'][] = $p;
+            }
+        }
+>>>>>>> Stashed changes
 
         return view('follow-up.index', compact('prospects'));
     }
@@ -735,16 +1208,69 @@ class CrmController extends Controller
     }
 
     /**
-     * Halaman Target & Performa.
+     * Halaman Target & Performa (Data Akumulasi).
      */
     public function performaIndex(): View
     {
+<<<<<<< Updated upstream
         $team = $this->getTeamPerformance();
         $summary = [
             'target' => 180,
             'realisasi' => 104,
             'achievement' => 58,
             'sisa_target' => 76,
+=======
+        $user = auth()->user();
+        $targetService = app(\App\Services\SalesTargetService::class);
+
+        if ($user && strtolower($user->role) === 'spv') {
+            $salesUsers = $user->salesSubordinates()->get();
+        } elseif ($user && strtolower($user->role) === 'sales') {
+            $salesUsers = collect([$user]);
+        } else {
+            $salesUsers = \App\Models\User::where('role', 'Sales')->get();
+        }
+
+        $salesIds = $salesUsers->pluck('id');
+
+        $team = $salesUsers->map(function ($s) use ($targetService) {
+            $totalClosing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
+            $totalProspects = Prospek::where('sales_id', $s->id)->count();
+            $totalFollowUp = \App\Models\FollowUp::where('user_id', $s->id)->count();
+            $totalLost = Prospek::where('sales_id', $s->id)->where('status', 'Lost')->count();
+
+            $activeTarget = $targetService->getActiveTarget($s);
+            $targetAmount = $activeTarget ? $activeTarget->target_closing : 0;
+            if ($targetAmount <= 0) {
+                $targetAmount = $activeTarget ? $activeTarget->target_kontak : 50;
+            }
+
+            $achievement = $targetAmount > 0 ? round(($totalClosing / $targetAmount) * 100) : 0;
+
+            return [
+                'id'          => $s->id,
+                'name'        => $s->name,
+                'role'        => $s->role,
+                'target'      => $targetAmount,
+                'prospects'   => $totalProspects,
+                'follow_up'   => $totalFollowUp,
+                'closing'     => $totalClosing,
+                'lost'        => $totalLost,
+                'achievement' => $achievement,
+                'avatar'      => strtoupper(substr($s->name, 0, 2)),
+                'status'      => $totalClosing >= $targetAmount ? 'Target Tercapai' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan'),
+            ];
+        })->toArray();
+
+        $totalTarget = count($team) > 0 ? array_sum(array_column($team, 'target')) : 0;
+        $totalRealisasi = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Closing')->count();
+
+        $summary = [
+            'target'      => $totalTarget,
+            'realisasi'   => $totalRealisasi,
+            'achievement' => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100) : 0,
+            'sisa_target' => max(0, $totalTarget - $totalRealisasi),
+>>>>>>> Stashed changes
         ];
 
         return view('performa.index', compact('team', 'summary'));
@@ -755,6 +1281,7 @@ class CrmController extends Controller
      */
     public function laporanIndex(): View
     {
+<<<<<<< Updated upstream
         $prospects = $this->getProspects();
         $summary = [
             'total_prospek' => 485,
@@ -762,6 +1289,30 @@ class CrmController extends Controller
             'closing' => 142,
             'lost' => 21,
             'conversion_rate' => 29.3,
+=======
+        $user = auth()->user();
+        $prospects = $this->getDbProspects();
+
+        if ($user && strtolower($user->role) === 'spv') {
+            $salesIds = $user->salesSubordinates()->pluck('id');
+        } elseif ($user && strtolower($user->role) === 'sales') {
+            $salesIds = collect([$user->id]);
+        } else {
+            $salesIds = \App\Models\User::where('role', 'Sales')->pluck('id');
+        }
+
+        $totalProspek = Prospek::whereIn('sales_id', $salesIds)->count();
+        $closing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Closing')->count();
+        $active = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['Closing', 'Lost'])->count();
+        $lost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Lost')->count();
+
+        $summary = [
+            'total_prospek'   => $totalProspek,
+            'active'          => $active,
+            'closing'         => $closing,
+            'lost'            => $lost,
+            'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
+>>>>>>> Stashed changes
         ];
 
         return view('laporan.index', compact('prospects', 'summary'));

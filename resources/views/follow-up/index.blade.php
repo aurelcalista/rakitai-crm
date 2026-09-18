@@ -40,6 +40,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Aktivitas Follow Up</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau dan tindak lanjuti prospek calon mahasiswa sesuai jadwal audiensi.</p>
             </div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div>
                 <button 
                     type="button" 
@@ -52,6 +53,7 @@
                     <span>+ Catat Follow Up Baru</span>
                 </button>
             </div>
+            @endif
         </div>
 
         <!-- Follow-up Status Tabs -->

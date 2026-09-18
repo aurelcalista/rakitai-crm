@@ -15,6 +15,68 @@
 
     <style>
         [x-cloak] { display: none !important; }
+
+        @media print {
+            aside,
+            header,
+            nav,
+            .no-print,
+            .fixed,
+            [class*="state-simulator"],
+            button:not(.allow-print) {
+                display: none !important;
+            }
+
+            html, body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                font-size: 10pt !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            .min-h-full, .min-h-screen, .md\:pl-64, .md\:pl-20 {
+                padding-left: 0 !important;
+                margin: 0 !important;
+                min-height: auto !important;
+            }
+
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .print-only {
+                display: block !important;
+            }
+
+            .crm-card, .border, .shadow-xs, .shadow-sm, .shadow-md, .shadow-lg {
+                box-shadow: none !important;
+            }
+
+            tr, .print-avoid-break {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            thead {
+                display: table-header-group !important;
+            }
+
+            @page {
+                size: A4 portrait;
+                margin: 1.2cm 1cm 1.2cm 1cm;
+            }
+        }
+
+        @media screen {
+            .print-only {
+                display: none !important;
+            }
+        }
     </style>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -437,7 +499,11 @@ x-init="
                     </div>
 
                     <!-- Search Trigger / Modal Button -->
+<<<<<<< Updated upstream
                     @if($currentUser['role'] !== 'Admin')
+=======
+                    @if(in_array($currentUser['role'], ['Sales', 'CS']))
+>>>>>>> Stashed changes
                         <button 
                             @click="modalTambahProspek = true" 
                             class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer shrink-0"

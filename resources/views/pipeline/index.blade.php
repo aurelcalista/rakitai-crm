@@ -14,8 +14,8 @@
         <x-empty-state 
             title="Pipeline prospek kosong" 
             description="Belum ada prospek aktif di dalam board pipeline."
-            actionLabel="Tambah Prospek"
-            actionClick="modalTambahProspek = true"
+            :actionLabel="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'Tambah Prospek' : null"
+            :actionClick="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'modalTambahProspek = true' : null"
         />
     </div>
 
@@ -50,6 +50,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Inbound</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau perpindahan prospek dari kontak awal hingga registrasi resmi.</p>
             </div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div>
                 <button 
                     type="button" 
@@ -62,6 +63,7 @@
                     <span>+ Prospek Baru</span>
                 </button>
             </div>
+            @endif
         </div>
 
         <!-- Visual Kanban Board (Horizontal Scroll on Mobile/Desktop) -->

@@ -62,9 +62,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings',     [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
+<<<<<<< Updated upstream
     // CRM Core Modules
     Route::get('/prospek', [CrmController::class, 'prospekIndex'])->name('prospek.index');
     Route::get('/prospek/{id}', [CrmController::class, 'prospekShow'])->name('prospek.show');
+=======
+    // ──────────────────────────────────────────────────────────────
+    // Shared CRM Modules (CS, SPV, HM, Admin)
+    // Non-prefixed routes for non-Sales roles
+    // ──────────────────────────────────────────────────────────────
+    Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
+    Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
+    Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
+    Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
+    Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
+    Route::post('/prospek/{id}/takeover', [CrmController::class, 'prospekTakeover'])->name('prospek.takeover');
+    Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
+>>>>>>> Stashed changes
 
     Route::get('/kunjungan', [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
     Route::get('/follow-up', [CrmController::class, 'followUpIndex'])->name('follow-up.index');

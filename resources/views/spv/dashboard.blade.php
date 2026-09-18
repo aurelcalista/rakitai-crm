@@ -31,7 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, Hendra Setiawan, S.Kom 👋</h2>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name ?? 'Supervisor' }} 👋</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Supervisor Marketing</span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Evaluasi capaian bulanan dan distribusi penugasan tim Sales & Inbound.</p>
@@ -40,16 +40,16 @@
             <!-- Filters Bar -->
             <div class="flex flex-wrap items-center gap-2">
                 <select class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                    <option value="sep-2026">September 2026</option>
-                    <option value="aug-2026">Agustus 2026</option>
-                    <option value="jul-2026">Juli 2026</option>
+                    <option value="current">{{ now()->translatedFormat('F Y') }}</option>
+                    <option value="prev-1">{{ now()->subMonth()->translatedFormat('F Y') }}</option>
+                    <option value="prev-2">{{ now()->subMonths(2)->translatedFormat('F Y') }}</option>
                 </select>
 
                 <select class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                    <option value="all">Semua Personil Sales</option>
-                    <option value="aurel">Aurel Calista</option>
-                    <option value="rizky">Rizky Pratama</option>
-                    <option value="budi">Budi Santoso</option>
+                    <option value="all">Semua Personil Sales ({{ count($team) }})</option>
+                    @foreach($team as $m)
+                        <option value="{{ $m['id'] }}">{{ $m['name'] }}</option>
+                    @endforeach
                 </select>
             </div>
         </div>
