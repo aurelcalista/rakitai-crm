@@ -26,21 +26,28 @@
     <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         prospectsList: {{ json_encode($prospects) }},
-        stages: [
-            { name: 'Cold Lead', color: 'badge-cold-lead', border: 'border-slate-300' },
-            { name: 'Interested', color: 'badge-interested', border: 'border-blue-400' },
-            { name: 'Follow Up', color: 'badge-follow-up', border: 'border-amber-400' },
-            { name: 'Beli Formulir', color: 'badge-beli-formulir', border: 'border-purple-400' },
-            { name: 'Pembayaran Termin 1', color: 'badge-pembayaran-termin-1', border: 'border-indigo-400' },
-            { name: 'Closing', color: 'badge-closing', border: 'border-emerald-400' }
-        ],
+        stages: {!! json_encode(collect($pipelineStages)->map(function($stage, $index) {
+            $colors = [
+                ['color' => 'badge-cold-lead', 'border' => 'border-slate-300'],
+                ['color' => 'badge-interested', 'border' => 'border-blue-400'],
+                ['color' => 'badge-follow-up', 'border' => 'border-amber-400'],
+                ['color' => 'badge-beli-formulir', 'border' => 'border-purple-400'],
+                ['color' => 'badge-pembayaran-termin-1', 'border' => 'border-indigo-400'],
+                ['color' => 'badge-closing', 'border' => 'border-emerald-400']
+            ];
+            return [
+                'name' => $stage,
+                'color' => $colors[$index % count($colors)]['color'],
+                'border' => $colors[$index % count($colors)]['border']
+            ];
+        })->values()->toArray()) !!},
         
         getProspectsByStage(stageName) {
             return this.prospectsList.filter(p => p.status.toLowerCase() === stageName.toLowerCase());
         },
 
         get lostProspects() {
-            return this.prospectsList.filter(p => p.status.toLowerCase() === 'lost');
+            return this.prospectsList.filter(p => p.status.toLowerCase() === 'lost' || p.status.toLowerCase() === 'ditolak/batal' || p.status.toLowerCase() === 'ditolak / batal');
         }
     }">
 

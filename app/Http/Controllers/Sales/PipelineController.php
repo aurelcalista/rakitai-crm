@@ -10,14 +10,7 @@ use Illuminate\View\View;
 
 class PipelineController extends Controller
 {
-    private const STAGES = [
-        'Cold Lead'           => 1,
-        'Interested'          => 2,
-        'Follow Up'           => 3,
-        'Beli Formulir'       => 4,
-        'Pembayaran Termin 1' => 5,
-        'Closing'             => 6,
-    ];
+    // STAGES removed; using Prospek::STAGES instead
 
     /**
      * Kanban board — shows all prospects the Sales user handles.
@@ -37,7 +30,14 @@ class PipelineController extends Controller
 
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
-        return view('pipeline.index', compact('prospects'));
+        $pipelineStages = \App\Models\MasterData::where('type', 'status_prospek')
+            ->where('status', 'Aktif')
+            ->whereNotIn('nama', ['Lost', 'Ditolak/Batal', 'Ditolak / Batal'])
+            ->orderBy('id')
+            ->pluck('nama')
+            ->toArray();
+
+        return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }
 
     /**
@@ -48,7 +48,7 @@ class PipelineController extends Controller
     {
         $request->validate([
             'prospek_id' => 'required|exists:prospeks,id',
-            'status'     => 'required|string|in:' . implode(',', array_keys(self::STAGES)),
+            'status'     => 'required|string|in:' . implode(',', array_keys(Prospek::STAGES)),
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);
@@ -72,7 +72,7 @@ class PipelineController extends Controller
 
         $oldStatus = $prospek->status;
         $prospek->status       = $request->status;
-        $prospek->stage_number = self::STAGES[$request->status] ?? $prospek->stage_number;
+        $prospek->stage_number = Prospek::STAGES[$request->status] ?? $prospek->stage_number;
         $prospek->save();
 
         // Activity log
@@ -106,7 +106,7 @@ class PipelineController extends Controller
             'pic'            => $p->pic ?? '-',
             'whatsapp'       => $p->whatsapp ?? '-',
             'status'         => $p->status,
-            'stage_number'   => $p->stage_number,
+            'stage_number'   => Prospek::STAGES[$p->status] ?? 0,
             'notes'          => $p->notes ?? '',
             'takeover_sales' => $p->sales ? $p->sales->name : null,
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
