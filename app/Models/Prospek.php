@@ -21,6 +21,14 @@ class Prospek extends Model
      * Stage number map for pipeline transitions.
      */
     public const STAGES = [
+        // New MasterData Statuses
+        'Baru'                => 1,
+        'Follow Up 1'         => 2,
+        'Negosiasi'           => 3,
+        'Mendaftar'           => 4,
+        'Ditolak/Batal'       => 0,
+        
+        // Old Statuses (Backward compatibility)
         'Cold Lead'           => 1,
         'Interested'          => 2,
         'Follow Up'           => 3,
