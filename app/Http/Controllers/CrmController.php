@@ -517,31 +517,83 @@ class CrmController extends Controller
     public function dashboardSales(Request $request): View
     {
         $request->session()->put('user_role', 'sales');
-        $prospects = $this->getProspects();
-        $recentProspects = array_slice($prospects, 0, 5);
+        
+        $userId = auth()->id();
+        
+        // Use real DB queries for prospect data
+        $prospectsData = \App\Models\Prospek::where('sales_id', $userId)->get();
+        $totalProspek = $prospectsData->count();
+        $activeProspek = $prospectsData->whereNotIn('status', ['Closing', 'Lost'])->count();
+        $followUp = $prospectsData->where('status', 'Follow Up')->count();
+        $closing = $prospectsData->where('status', 'Closing')->count();
+        $lost = $prospectsData->where('status', 'Lost')->count();
+
+        // Target Bulan Ini
+        $targetMonth = \App\Models\Target::where('sales_id', $userId)
+            ->whereMonth('tanggal_mulai', now()->month)
+            ->whereYear('tanggal_mulai', now()->year)
+            ->first();
+        $targetBulanIni = $targetMonth ? $targetMonth->target_kontak : 50;
+        $percentage = $targetBulanIni > 0 ? round(($closing / $targetBulanIni) * 100) : 0;
+        $sisaTarget = max(0, $targetBulanIni - $closing);
 
         $stats = [
-            'total_prospek' => 142,
-            'active_prospek' => 86,
-            'follow_up' => 34,
-            'closing' => 36,
-            'lost' => 6,
-            'target_bulan_ini' => 50,
-            'realisasi_closing' => 36,
-            'percentage' => 72,
-            'sisa_target' => 14,
+            'total_prospek' => $totalProspek,
+            'active_prospek' => $activeProspek,
+            'follow_up' => $followUp,
+            'closing' => $closing,
+            'lost' => $lost,
+            'target_bulan_ini' => $targetBulanIni,
+            'realisasi_closing' => $closing,
+            'percentage' => min(100, $percentage),
+            'sisa_target' => $sisaTarget,
+            'bulan_label' => now()->locale('id')->isoFormat('MMMM Y'),
         ];
 
-        $pipelineStages = [
-            ['name' => 'Cold Lead', 'count' => 24, 'color' => 'badge-cold-lead'],
-            ['name' => 'Interested', 'count' => 38, 'color' => 'badge-interested'],
-            ['name' => 'Follow Up', 'count' => 34, 'color' => 'badge-follow-up'],
-            ['name' => 'Beli Formulir', 'count' => 18, 'color' => 'badge-beli-formulir'],
-            ['name' => 'Pembayaran Termin 1', 'count' => 12, 'color' => 'badge-pembayaran-termin-1'],
-            ['name' => 'Closing', 'count' => 36, 'color' => 'badge-closing'],
+        // Daily Target
+        $targetKontakHarian = 5;
+        $targetFollowupHarian = 10;
+        
+        $pencapaianKontakHarian = \App\Models\Prospek::where('sales_id', $userId)->whereDate('created_at', today())->count();
+        $pencapaianFollowupHarian = \App\Models\FollowUp::where('user_id', $userId)->whereDate('tanggal', today())->count();
+        
+        $dailyTarget = [
+            'target_hari_ini_kontak' => $targetKontakHarian,
+            'pencapaian_hari_ini_kontak' => $pencapaianKontakHarian,
+            'sisa_akumulasi_kontak' => max(0, $targetKontakHarian - $pencapaianKontakHarian),
+            'target_hari_ini_followup' => $targetFollowupHarian,
+            'pencapaian_hari_ini_followup' => $pencapaianFollowupHarian,
+            'sisa_akumulasi_followup' => max(0, $targetFollowupHarian - $pencapaianFollowupHarian),
         ];
 
-        return view('sales.dashboard', compact('stats', 'pipelineStages', 'recentProspects'));
+        // Pipeline Stages
+        $pipelineStages = collect(\App\Models\Prospek::STAGES)->map(function($val, $key) use ($prospectsData) {
+            $count = $prospectsData->where('status', $key)->count();
+            return [
+                'name' => $key,
+                'count' => $count,
+                'color' => 'badge-' . strtolower(str_replace(' ', '-', $key))
+            ];
+        })->values()->toArray();
+
+        // Recent prospects
+        $recentProspects = $prospectsData->sortByDesc('created_at')->take(5)->map(function($p) {
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'type' => $p->type,
+                'category' => $p->category ?? '-',
+                'pic' => $p->pic ?? '-',
+                'pic_phone' => $p->whatsapp ?? '-',
+                'whatsapp' => $p->whatsapp ?? '-',
+                'status' => $p->status,
+                'active_takeover' => $p->activeHandlerLabel(),
+                'last_activity' => $p->updated_at->diffForHumans(),
+                'potential' => $p->notes ?? '-',
+            ];
+        })->values()->toArray();
+
+        return view('sales.dashboard', compact('stats', 'pipelineStages', 'recentProspects', 'dailyTarget'));
     }
 
     /**
@@ -906,7 +958,7 @@ class CrmController extends Controller
     public function prospekUpdate(Request $request, int $id)
     {
         $prospek = Prospek::findOrFail($id);
-        $this->authorize('update', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
         
         $request->validate([
             'status' => 'required|string',
@@ -947,7 +999,7 @@ class CrmController extends Controller
     public function prospekDestroy(int $id)
     {
         $prospek = Prospek::findOrFail($id);
-        $this->authorize('delete', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('delete', $prospek);
         $prospek->delete();
         
         return redirect()->route('prospek.index')->with('success', 'Prospek berhasil dihapus!');
@@ -956,7 +1008,7 @@ class CrmController extends Controller
     public function prospekTakeover(int $id)
     {
         $prospek = Prospek::findOrFail($id);
-        $this->authorize('takeover', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
 
         // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
         $cs = \App\Models\User::where('role', 'CS')
@@ -992,7 +1044,7 @@ class CrmController extends Controller
     public function pipelineUpdateStatus(Request $request)
     {
         $prospek = Prospek::findOrFail($request->prospek_id);
-        $this->authorize('updateStatus', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
         
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
@@ -1139,7 +1191,7 @@ class CrmController extends Controller
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);
-        $this->authorize('followUp', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('followUp', $prospek);
         
         // Save follow up log
         $catatan = '[' . $request->hasil . '] ' . $request->catatan;

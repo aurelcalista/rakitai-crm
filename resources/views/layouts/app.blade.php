@@ -643,6 +643,29 @@ x-init="
 
             <!-- MAIN PAGE SLOT -->
             <main class="flex-1 px-4 sm:px-6 lg:px-8 py-7 sm:py-8 max-w-7xl w-full mx-auto">
+                @if(auth()->check() && strtolower(auth()->user()->role) === 'sales')
+                    @php
+                        $pendingVisits = \App\Models\Prospek::where('sales_id', auth()->id())->where('needs_visit_report', true)->count();
+                    @endphp
+                    @if($pendingVisits > 0)
+                        <div class="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start sm:items-center justify-between gap-4 shadow-xs">
+                            <div class="flex items-start gap-3">
+                                <div class="bg-amber-100 p-2 rounded-lg text-amber-600 shrink-0 mt-0.5 sm:mt-0">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-amber-800">Pengingat Laporan Kunjungan</h4>
+                                    <p class="text-xs text-amber-700 mt-0.5">Ada <span class="font-bold">{{ $pendingVisits }} prospek baru</span> yang belum memiliki laporan kunjungan. Jangan lupa lengkapi data kunjungannya!</p>
+                                </div>
+                            </div>
+                            <button @click="modalTambahKunjungan = true" class="shrink-0 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition shadow-sm">
+                                Lapor Sekarang
+                            </button>
+                        </div>
+                    @endif
+                @endif
                 {{ $slot }}
             </main>
 
@@ -1231,6 +1254,7 @@ x-init="
                     </button>
                 </div>
 
+                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6">
                 <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
                     @csrf
                     <!-- Section: INFORMASI DASAR -->
@@ -1372,7 +1396,7 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route(($routePrefix ?? '') . 'follow-up.store') }}" method="POST" class="mt-4 space-y-4">
+                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'follow-up.store') }}" method="POST" class="mt-4 space-y-4">
                     @csrf
                     <input type="hidden" name="prospek_id" :value="selectedProspect.id">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1574,7 +1598,7 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route(($routePrefix ?? '') . 'kunjungan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'kunjungan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
                     @csrf
                     <input type="hidden" name="jenis" :value="kunjunganType === 'sekolah' ? 'Sekolah' : 'Perusahaan'">
                     <input type="hidden" name="tanggal" value="{{ date('Y-m-d') }}">
@@ -1702,9 +1726,9 @@ x-init="
                             <span class="text-[11px] text-slate-400">Hanya foto (Tanpa GPS)</span>
                         </div>
 
-                        <div class="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-white rounded-xl p-4 text-center transition relative">
+                        <div class="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-white rounded-xl p-4 text-center transition relative cursor-pointer" @click="document.getElementById('foto_upload').click()">
                             <!-- File input is always in DOM -->
-                            <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @change="
+                            <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @click.stop @change="
                                 const file = $event.target.files[0];
                                 if (file) {
                                     const reader = new FileReader();
@@ -1718,9 +1742,9 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2v12a2 2 0 002 2z" />
                                 </svg>
                                 <div class="mt-2 text-xs text-slate-600">
-                                    <label for="foto_upload" class="relative cursor-pointer rounded-md font-semibold text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                                        <span>Upload foto dokumentasi</span>
-                                    </label>
+                                    <span class="relative font-semibold text-blue-600 hover:text-blue-500">
+                                        Upload foto dokumentasi
+                                    </span>
                                     <span class="text-slate-400 block mt-0.5">PNG, JPG hingga 10MB</span>
                                 </div>
                             </div>
@@ -1728,7 +1752,7 @@ x-init="
                             <div x-show="photoPreview" x-cloak>
                                 <div class="relative inline-block">
                                     <img :src="photoPreview" class="max-h-40 rounded-lg shadow-xs object-cover mx-auto" alt="Preview foto">
-                                    <button type="button" @click="photoPreview = null; document.getElementById('foto_upload').value = ''" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600 cursor-pointer">
+                                    <button type="button" @click.stop="photoPreview = null; document.getElementById('foto_upload').value = ''" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600 cursor-pointer">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                     </button>
                                 </div>
