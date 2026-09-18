@@ -26,7 +26,7 @@
     <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         prospectsList: {{ json_encode($prospects) }},
-        stages: {!! json_encode(collect($pipelineStages)->map(function($stage, $index) {
+        stages: {{ json_encode(collect($pipelineStages)->map(function($stage, $index) {
             $colors = [
                 ['color' => 'badge-cold-lead', 'border' => 'border-slate-300'],
                 ['color' => 'badge-interested', 'border' => 'border-blue-400'],
@@ -40,7 +40,7 @@
                 'color' => $colors[$index % count($colors)]['color'],
                 'border' => $colors[$index % count($colors)]['border']
             ];
-        })->values()->toArray()) !!},
+        })->values()->toArray()) }},
         
         getProspectsByStage(stageName) {
             return this.prospectsList.filter(p => p.status.toLowerCase() === stageName.toLowerCase());
