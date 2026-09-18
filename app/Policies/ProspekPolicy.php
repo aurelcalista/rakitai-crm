@@ -74,6 +74,7 @@ class ProspekPolicy
     /**
      * Takeover / Assignment.
      * Allowed if user is SPV/HM/Admin OR if user is the current active Sales handler handing over to CS.
+     * Also allowed for CS to proactively takeover if it has a sales_id but no cs_id yet.
      */
     public function takeover(User $user, Prospek $prospek): bool
     {
@@ -81,8 +82,28 @@ class ProspekPolicy
             return true;
         }
 
-        // Only sales can hand over to CS, and only if they are the current active handler (i.e. not already handed over).
-        return strtolower($user->role) === 'sales' && $prospek->isActiveHandler($user) && is_null($prospek->cs_id);
+        if (strtolower($user->role) === 'sales') {
+            return $prospek->isActiveHandler($user) && is_null($prospek->cs_id);
+        }
+        
+        if (strtolower($user->role) === 'cs') {
+            return !is_null($prospek->sales_id) && is_null($prospek->cs_id);
+        }
+
+        return false;
+    }
+
+    /**
+     * Input manual transaction (Beli Formulir & Pembayaran Termin 1).
+     * Sales and CS can input transaction if they are the active handler.
+     */
+    public function transaction(User $user, Prospek $prospek): bool
+    {
+        if (in_array(strtolower($user->role), ['spv', 'hm', 'admin'])) {
+            return true;
+        }
+
+        return $prospek->isActiveHandler($user);
     }
 
     /**

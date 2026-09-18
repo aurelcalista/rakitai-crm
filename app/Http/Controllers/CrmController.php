@@ -550,17 +550,33 @@ class CrmController extends Controller
     public function dashboardCs(Request $request): View
     {
         $request->session()->put('user_role', 'cs');
-        $prospects = $this->getProspects();
-        $stats = [
-            'total_prospek' => 184,
-            'takeover_cs' => 52,
-            'follow_up_today' => 16,
-            'follow_up_pending' => 7,
-            'closing' => 45,
-            'lost' => 8,
-        ];
+        
+        $prospects = $this->getDbProspects();
+        
+        $today = now()->toDateString();
+        $followUpTodayCount = 0;
+        $followUpPendingCount = 0;
+        $followUpsToday = [];
 
-        $followUpsToday = array_slice($prospects, 0, 4);
+        foreach ($prospects as $p) {
+            if ($p['next_follow_up_date'] === $today) {
+                $followUpTodayCount++;
+                if (count($followUpsToday) < 4) {
+                    $followUpsToday[] = $p;
+                }
+            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['Closing', 'Lost'])) {
+                $followUpPendingCount++;
+            }
+        }
+
+        $stats = [
+            'total_prospek' => count($prospects),
+            'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'], 'CS'))),
+            'follow_up_today' => $followUpTodayCount,
+            'follow_up_pending' => $followUpPendingCount,
+            'closing' => count(array_filter($prospects, fn($p) => $p['status'] === 'Closing')),
+            'lost' => count(array_filter($prospects, fn($p) => $p['status'] === 'Lost')),
+        ];
 
         return view('cs.dashboard', compact('stats', 'followUpsToday'));
     }
@@ -712,21 +728,31 @@ class CrmController extends Controller
      */
     private function getDbProspects()
     {
-        $prospectsRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'followUps' => function($q) {
             $q->orderBy('tanggal', 'desc');
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
-        }])->get();
+        }]);
+
+        if (auth()->check()) {
+            $user = auth()->user();
+            if (strtolower($user->role) === 'cs') {
+                $query->where(function($q) use ($user) {
+                    $q->where('cs_id', $user->id)
+                      ->orWhereNotNull('sales_id');
+                });
+            }
+        }
+
+        $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
         return $prospectsRaw->map(function ($p) {
-            $activeTakeover = [];
-            if ($p->sales) $activeTakeover[] = 'Sales';
-            if ($p->cs) $activeTakeover[] = 'CS';
-
             return [
                 'id' => $p->id,
                 'name' => $p->name,
                 'type' => $p->type,
+                'sekolah_name' => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+                'sales_name' => $p->sales ? $p->sales->name : '-',
                 'category' => $p->category ?? '-',
                 'pic' => $p->pic ?? '-',
                 'pic_phone' => $p->pic_phone ?? '-',
@@ -735,7 +761,7 @@ class CrmController extends Controller
                 'stage_number' => $p->stage_number,
                 'takeover_sales' => $p->sales ? $p->sales->name : null,
                 'takeover_cs' => $p->cs ? $p->cs->name : null,
-                'active_takeover' => count($activeTakeover) > 0 ? implode(' & ', $activeTakeover) : 'Belum Ada',
+                'active_takeover' => $p->activeHandlerLabel(),
                 'owner' => $p->owner ? $p->owner->name : 'Sistem',
                 'last_activity' => $p->updated_at->diffForHumans(),
                 'potential' => $p->potential ?? '-',
@@ -764,8 +790,10 @@ class CrmController extends Controller
     public function prospekIndex(Request $request): View
     {
         $prospects = $this->getDbProspects();
+        $sekolahs = \App\Models\Sekolah::where('status', 'Aktif')->get();
+        $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
 
-        return view('prospek.index', compact('prospects'));
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans'));
     }
 
     public function prospekStore(Request $request)
@@ -827,6 +855,8 @@ class CrmController extends Controller
                 'potential' => $request->potential,
                 'notes' => $request->notes,
                 'owner_id' => $ownerId,
+                'sekolah_id' => $request->sekolah_id,
+                'perusahaan_id' => $request->perusahaan_id,
             ]);
 
             ProspekTimeline::create([
@@ -852,6 +882,8 @@ class CrmController extends Controller
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])->findOrFail($id);
+
+        $this->authorize('view', $prospectRaw);
 
         $activeTakeover = [];
         if ($prospectRaw->sales) $activeTakeover[] = 'Sales';
@@ -958,15 +990,20 @@ class CrmController extends Controller
         $prospek = Prospek::findOrFail($id);
         $this->authorize('takeover', $prospek);
 
-        // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
-        $cs = \App\Models\User::where('role', 'CS')
-            ->when($prospek->wilayah_id, function ($q) use ($prospek) {
-                return $q->where('wilayah_id', $prospek->wilayah_id);
-            })
-            ->first();
+        $cs = null;
+        if (strtolower(auth()->user()->role) === 'cs') {
+            $cs = auth()->user();
+        } else {
+            // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
+            $cs = \App\Models\User::where('role', 'CS')
+                ->when($prospek->wilayah_id, function ($q) use ($prospek) {
+                    return $q->where('wilayah_id', $prospek->wilayah_id);
+                })
+                ->first();
 
-        if (!$cs) {
-            $cs = \App\Models\User::where('role', 'CS')->first();
+            if (!$cs) {
+                $cs = \App\Models\User::where('role', 'CS')->first();
+            }
         }
 
         if (!$cs) {
@@ -1182,6 +1219,52 @@ class CrmController extends Controller
         }
 
         return redirect()->back()->with('success', 'Follow-up berhasil disimpan!');
+    }
+
+    public function transaksiStore(Request $request, int $id)
+    {
+        $prospek = Prospek::findOrFail($id);
+        $this->authorize('transaction', $prospek);
+
+        $request->validate([
+            'jenis' => 'required|in:Beli Formulir,Pembayaran Termin 1',
+            'nominal' => 'required|numeric|min:0',
+            'tanggal' => 'required|date',
+            'notes' => 'nullable|string',
+        ]);
+
+        \App\Models\Transaksi::create([
+            'prospek_id' => $prospek->id,
+            'user_id' => auth()->id(),
+            'jenis' => $request->jenis,
+            'nominal' => $request->nominal,
+            'tanggal' => $request->tanggal,
+            'notes' => $request->notes,
+        ]);
+
+        $oldStatus = $prospek->status;
+        
+        if ($request->jenis === 'Pembayaran Termin 1') {
+            $prospek->status = 'Closing';
+            $prospek->stage_number = 6;
+        } else if ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 4) {
+            $prospek->status = 'Beli Formulir';
+            $prospek->stage_number = 4;
+        }
+        
+        $prospek->save();
+
+        ProspekTimeline::create([
+            'prospek_id' => $prospek->id,
+            'user_id' => auth()->id(),
+            'title' => 'Input Transaksi Manual: ' . $request->jenis,
+            'notes' => 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.') . ($request->notes ? ' | Catatan: ' . $request->notes : ''),
+            'status_before' => $oldStatus,
+            'status_after' => $prospek->status,
+            'time' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Transaksi ' . $request->jenis . ' berhasil disimpan!');
     }
 
     /**

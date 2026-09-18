@@ -169,6 +169,8 @@
                                 </td>
                                 <td class="py-4 px-3">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
+                                    <div class="text-[10px] text-slate-500 mt-1 font-semibold" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
+                                    <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
                                 </td>
                                 <td class="py-4 px-3">
                                     <div class="font-medium text-slate-800" x-text="prospect.pic"></div>
@@ -223,7 +225,9 @@
                                 <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0" x-text="prospect.name.substring(0, 2).toUpperCase()"></div>
                                 <div>
                                     <a :href="'/prospek/' + prospect.id" class="font-bold text-xs text-slate-900 block" x-text="prospect.name"></a>
-                                    <span class="text-[11px] text-slate-500" x-text="prospect.type + ' • PIC: ' + prospect.pic"></span>
+                                    <span class="text-[11px] text-slate-500 block" x-text="prospect.type + ' • PIC: ' + prospect.pic"></span>
+                                    <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
+                                    <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
                                 </div>
                             </div>
                             <span 

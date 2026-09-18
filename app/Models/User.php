@@ -41,6 +41,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function transaksis()
+    {
+        return $this->hasMany(Transaksi::class);
+    }
+
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');

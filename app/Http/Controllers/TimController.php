@@ -14,8 +14,6 @@ class TimController extends Controller
         $supervisors = User::where('role', 'SPV')->with('wilayah')->get();
         // Sales
         $sales = User::where('role', 'Sales')->with('wilayah.parent')->get();
-        // CS
-        $cs = User::where('role', 'CS')->with('wilayah.parent')->get();
 
         $kota = Wilayah::where('level', 'Kota/Kabupaten')->where('status', 'Aktif')->get();
         $kecamatan = Wilayah::where('level', 'Kecamatan')->where('status', 'Aktif')->with('parent')->get();
@@ -26,7 +24,6 @@ class TimController extends Controller
         return view('tim.index', [
             'supervisors' => $supervisors,
             'salesList' => $sales,
-            'csList' => $cs,
             'kota' => $kota,
             'kecamatan' => $kecamatan,
             'tims' => $tims,
@@ -41,16 +38,14 @@ class TimController extends Controller
             'kota_id' => 'required|exists:wilayahs,id',
             'kecamatan_id' => 'required|exists:wilayahs,id',
             'sales_id' => 'required|exists:users,id',
-            'cs_id' => 'required|exists:users,id',
         ]);
 
         $supervisor = User::findOrFail($request->supervisor_id);
         $kota = Wilayah::findOrFail($request->kota_id);
         $kecamatan = Wilayah::findOrFail($request->kecamatan_id);
         $sales = User::findOrFail($request->sales_id);
-        $cs = User::findOrFail($request->cs_id);
 
-        if ($supervisor->role !== 'SPV' || $sales->role !== 'Sales' || $cs->role !== 'CS') {
+        if ($supervisor->role !== 'SPV' || $sales->role !== 'Sales') {
             return back()->withErrors(['message' => 'Role tidak sesuai untuk assignment ini.']);
         }
 
@@ -62,7 +57,7 @@ class TimController extends Controller
             return back()->withErrors(['message' => 'Kecamatan bukan merupakan bagian dari Kota/Kabupaten yang dipilih.']);
         }
 
-        // Check 1 Kecamatan = 1 Sales + 1 CS rule
+        // Check 1 Kecamatan = 1 Sales rule
         $existingSales = User::where('role', 'Sales')
             ->where('wilayah_id', $kecamatan->id)
             ->where('id', '!=', $sales->id)
@@ -74,19 +69,9 @@ class TimController extends Controller
             return back()->withErrors(['message' => "Assignment gagal. Kecamatan {$kecamatan->nama} ({$assignmentCode}) sudah memiliki Sales."]);
         }
 
-        $existingCs = User::where('role', 'CS')
-            ->where('wilayah_id', $kecamatan->id)
-            ->where('id', '!=', $cs->id)
-            ->first();
-            
-        if ($existingCs) {
-            return back()->withErrors(['message' => "Assignment gagal. Kecamatan {$kecamatan->nama} ({$assignmentCode}) sudah memiliki CS."]);
-        }
-
         // Update assignments
         $supervisor->update(['wilayah_id' => $kota->id]);
         $sales->update(['wilayah_id' => $kecamatan->id, 'supervisor_id' => $supervisor->id]);
-        $cs->update(['wilayah_id' => $kecamatan->id, 'supervisor_id' => $supervisor->id]);
 
         return redirect()->route('tim.index')->with('success', 'Assignment tim berhasil disimpan.');
     }
