@@ -139,4 +139,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/profil',          [CrmController::class, 'profilUpdate'])->name('profil.update');
     Route::post('/profil/password', [CrmController::class, 'profilPasswordUpdate'])->name('profil.password.update');
     Route::get('/pengaturan',       [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
+
+    // Notifications (all roles)
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    Route::post('/notifications/read-all',      [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
+    Route::post('/notifications/{id}/read',     [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
 });
