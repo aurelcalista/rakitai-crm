@@ -14,8 +14,8 @@
         <x-empty-state 
             title="Belum ada prospek ditemukan" 
             description="Tidak ada data prospek yang sesuai dengan kriteria filter pencarian Anda."
-            actionLabel="Tambah Prospek Baru"
-            actionClick="modalTambahProspek = true"
+            :actionLabel="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'Tambah Prospek Baru' : null"
+            :actionClick="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'modalTambahProspek = true' : null"
         />
     </div>
 
@@ -54,6 +54,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Prospek</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data calon mahasiswa, sekolah mitra, dan instansi inbound UCIC.</p>
             </div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div>
                 <button 
                     type="button" 
@@ -66,6 +67,7 @@
                     <span>+ Tambah Prospek</span>
                 </button>
             </div>
+            @endif
         </div>
 
         <!-- Search & Filter Controls -->
