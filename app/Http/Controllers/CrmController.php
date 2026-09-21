@@ -593,7 +593,27 @@ class CrmController extends Controller
             ];
         })->values()->toArray();
 
-        return view('sales.dashboard', compact('stats', 'pipelineStages', 'recentProspects', 'dailyTarget'));
+        // Recent live activity
+        $recentActivity = \App\Models\ProspekTimeline::where(function ($query) use ($userId) {
+            $query->where('user_id', $userId)
+                ->orWhereHas('prospek', function ($q) use ($userId) {
+                    $q->where('sales_id', $userId);
+                });
+        })
+        ->with('prospek')
+        ->orderBy('time', 'desc')
+        ->take(6)
+        ->get()
+        ->map(function ($t) {
+            return [
+                'time' => $t->time ? $t->time->format('d M, H:i') : ($t->created_at ? $t->created_at->format('d M, H:i') : '-'),
+                'title' => $t->title ?? 'Aktivitas Prospek',
+                'prospek_name' => $t->prospek ? $t->prospek->name : '-',
+                'notes' => $t->notes ?? '-',
+            ];
+        })->toArray();
+
+        return view('sales.dashboard', compact('stats', 'pipelineStages', 'recentProspects', 'dailyTarget', 'recentActivity'));
     }
 
     /**
