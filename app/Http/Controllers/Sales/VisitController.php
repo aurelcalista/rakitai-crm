@@ -202,6 +202,27 @@ class VisitController extends Controller
         return view('kunjungan.show', compact('visit'));
     }
 
+    /**
+     * Delete a visit record.
+     * Authorization via KunjunganPolicy: Sales hanya bisa menghapus kunjungannya sendiri.
+     */
+    public function destroy(Kunjungan $kunjungan): RedirectResponse
+    {
+        // Gate check via KunjunganPolicy::delete()
+        $this->authorize('delete', $kunjungan);
+
+        // Hapus foto dari storage jika ada
+        if ($kunjungan->foto_path) {
+            Storage::disk('public')->delete($kunjungan->foto_path);
+        }
+
+        $kunjungan->delete();
+
+        return redirect()
+            ->route('sales.kunjungan.index')
+            ->with('success', 'Kunjungan berhasil dihapus.');
+    }
+
     // ─── Private Helpers ─────────────────────────────────────────────────────
 
     private function formatKunjungan(Kunjungan $k): array
