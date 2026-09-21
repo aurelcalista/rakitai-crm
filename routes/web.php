@@ -35,12 +35,49 @@ Route::middleware('auth')->group(function () {
 
     // Role-specific dashboard entry points
     Route::prefix('dashboard')->group(function () {
-        Route::get('/sales', [CrmController::class, 'dashboardSales'])->name('dashboard.sales');
+        Route::get('/sales', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
         Route::get('/cs',    [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
         Route::get('/spv',   [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
         Route::get('/hm',    [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
         Route::get('/admin', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
     });
+
+    // ──────────────────────────────────────────────────────────────
+    // SALES Role Routes — prefix: /sales, name: sales.*
+    // Protected by role:Sales middleware
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware('role:Sales')
+        ->prefix('sales')
+        ->name('sales.')
+        ->group(function () {
+            // Prospect management
+            Route::get('/prospek',                    [\App\Http\Controllers\Sales\ProspectController::class, 'index'])->name('prospek.index');
+            Route::get('/prospek/create',             [\App\Http\Controllers\Sales\ProspectController::class, 'create'])->name('prospek.create');
+            Route::post('/prospek',                   [\App\Http\Controllers\Sales\ProspectController::class, 'store'])->name('prospek.store');
+            Route::get('/prospek/{prospek}',          [\App\Http\Controllers\Sales\ProspectController::class, 'show'])->name('prospek.show');
+            Route::put('/prospek/{prospek}',          [\App\Http\Controllers\Sales\ProspectController::class, 'update'])->name('prospek.update');
+            Route::patch('/prospek/{prospek}/status', [\App\Http\Controllers\Sales\ProspectController::class, 'updateStatus'])->name('prospek.updateStatus');
+            Route::patch('/prospek/{prospek}/lost',   [\App\Http\Controllers\Sales\ProspectController::class, 'markLost'])->name('prospek.markLost');
+            Route::post('/prospek/{prospek}/takeover', [\App\Http\Controllers\Sales\ProspectController::class, 'takeover'])->name('prospek.takeover');
+
+            // Follow-up management
+            Route::get('/follow-up',  [\App\Http\Controllers\Sales\FollowUpController::class, 'index'])->name('follow-up.index');
+            Route::post('/follow-up', [\App\Http\Controllers\Sales\FollowUpController::class, 'store'])->name('follow-up.store');
+
+            // Field visit management
+            Route::get('/kunjungan',             [\App\Http\Controllers\Sales\VisitController::class, 'index'])->name('kunjungan.index');
+            Route::get('/kunjungan/create',      [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
+            Route::post('/kunjungan',            [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
+            Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
+
+            // Pipeline
+            Route::get('/pipeline',                [\App\Http\Controllers\Sales\PipelineController::class, 'index'])->name('pipeline.index');
+            Route::post('/pipeline/update-status', [\App\Http\Controllers\Sales\PipelineController::class, 'updateStatus'])->name('pipeline.updateStatus');
+
+            // Performance & Report
+            Route::get('/target-performa', [\App\Http\Controllers\Sales\PerformanceController::class, 'index'])->name('performa.index');
+            Route::get('/laporan',         [\App\Http\Controllers\Sales\ReportController::class, 'index'])->name('laporan.index');
+        });
 
     // ──────────────────────────────────────────────────────────────
     // SPV (Supervisor) Role Routes — prefix: /spv, name: spv.*
@@ -88,12 +125,12 @@ Route::middleware('auth')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
 
         // Custom Actions
-        Route::post('users/{user}/reset-password',           [\App\Http\Controllers\Admin\AdminUserController::class, 'resetPassword'])->name('users.reset-password');
-        Route::post('users/{user}/toggle-status',            [\App\Http\Controllers\Admin\AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
-        Route::post('wilayah/{wilayah}/toggle-status',       [\App\Http\Controllers\Admin\AdminWilayahController::class, 'toggleStatus'])->name('wilayah.toggle-status');
-        Route::post('sekolah/{sekolah}/toggle-status',       [\App\Http\Controllers\Admin\AdminSekolahController::class, 'toggleStatus'])->name('sekolah.toggle-status');
-        Route::post('prodi/{prodi}/toggle-status',           [\App\Http\Controllers\Admin\AdminProdiController::class, 'toggleStatus'])->name('prodi.toggle-status');
-        Route::post('perusahaan/{perusahaan}/toggle-status', [\App\Http\Controllers\Admin\AdminPerusahaanController::class, 'toggleStatus'])->name('perusahaan.toggle-status');
+        Route::post('users/{user}/reset-password',             [\App\Http\Controllers\Admin\AdminUserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::post('users/{user}/toggle-status',              [\App\Http\Controllers\Admin\AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::post('wilayah/{wilayah}/toggle-status',         [\App\Http\Controllers\Admin\AdminWilayahController::class, 'toggleStatus'])->name('wilayah.toggle-status');
+        Route::post('sekolah/{sekolah}/toggle-status',         [\App\Http\Controllers\Admin\AdminSekolahController::class, 'toggleStatus'])->name('sekolah.toggle-status');
+        Route::post('prodi/{prodi}/toggle-status',             [\App\Http\Controllers\Admin\AdminProdiController::class, 'toggleStatus'])->name('prodi.toggle-status');
+        Route::post('perusahaan/{perusahaan}/toggle-status',   [\App\Http\Controllers\Admin\AdminPerusahaanController::class, 'toggleStatus'])->name('perusahaan.toggle-status');
         Route::post('master-data/{master_data}/toggle-status', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'toggleStatus'])->name('master-data.toggle-status');
 
         Route::resource('users',       \App\Http\Controllers\Admin\AdminUserController::class, $except);
@@ -110,8 +147,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // ──────────────────────────────────────────────────────────────
-    // Shared CRM Modules (CS, SPV, HM, Admin)
-    // Non-prefixed routes for non-Sales roles
+    // Shared CRM Modules (CS, SPV, HM, Admin, Fallback)
     // ──────────────────────────────────────────────────────────────
     Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
     Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
@@ -129,6 +165,16 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/pipeline',                [CrmController::class, 'pipelineIndex'])->name('pipeline.index');
     Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateStatus'])->name('pipeline.update-status');
+
+    // Management (Head Marketing / Supervisor)
+    Route::get('/wilayah',               [\App\Http\Controllers\WilayahController::class, 'index'])->name('wilayah.index');
+    Route::post('/wilayah',              [\App\Http\Controllers\WilayahController::class, 'store'])->name('wilayah.store');
+    Route::put('/wilayah/{id}',          [\App\Http\Controllers\WilayahController::class, 'update'])->name('wilayah.update');
+    Route::delete('/wilayah/{id}',       [\App\Http\Controllers\WilayahController::class, 'destroy'])->name('wilayah.destroy');
+    Route::patch('/wilayah/{id}/toggle', [\App\Http\Controllers\WilayahController::class, 'toggleStatus'])->name('wilayah.toggle');
+
+    Route::get('/tim',  [\App\Http\Controllers\TimController::class, 'index'])->name('tim.index');
+    Route::post('/tim', [\App\Http\Controllers\TimController::class, 'store'])->name('tim.store');
 
     // Performance & Reports
     Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
