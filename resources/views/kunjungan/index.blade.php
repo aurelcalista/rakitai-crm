@@ -153,7 +153,7 @@
                     <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
                         <span class="text-[11px] text-slate-400 font-medium" x-text="visit.time"></span>
                         <a 
-                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'Admin' ? '/admin' : '') }}/kunjungan/' + visit.id"
+                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : (auth()->user()->role === 'Admin' ? '/admin' : '')) }}/kunjungan/' + visit.id"
                             class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
                         >
                             Detail Data &rarr;
