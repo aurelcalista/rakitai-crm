@@ -7,10 +7,15 @@
         modalEdit: false,
         selectedTarget: null,
         filterStatus: 'all',
+        filterRole: 'all',
+        selectedRoleAdd: '',
         targets: {{ json_encode($targets) }},
         salesList: {{ json_encode($salesList) }},
         get filtered() {
-            return this.targets.filter(t => this.filterStatus === 'all' || t.status.toLowerCase() === this.filterStatus.toLowerCase());
+            return this.targets.filter(t => 
+                (this.filterStatus === 'all' || t.status.toLowerCase() === this.filterStatus.toLowerCase()) &&
+                (this.filterRole === 'all' || t.role.toLowerCase() === this.filterRole.toLowerCase())
+            );
         }
     }">
 
@@ -38,13 +43,44 @@
         </div>
 
         <!-- Filter -->
-        <div class="flex items-center gap-3">
-            @foreach([['val'=>'all','label'=>'Semua'],['val'=>'aktif','label'=>'Aktif'],['val'=>'selesai','label'=>'Selesai'],['val'=>'nonaktif','label'=>'Nonaktif']] as $sf)
-            <button type="button"
-                @click="filterStatus = '{{ $sf['val'] }}'"
-                :class="filterStatus === '{{ $sf['val'] }}' ? 'bg-purple-600 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
-                class="px-3.5 py-2 rounded-xl text-xs font-semibold transition">{{ $sf['label'] }}</button>
-            @endforeach
+        <div class="flex flex-col sm:flex-row gap-3">
+            <!-- Status Dropdown -->
+            <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open" @click.away="open = false" type="button" class="flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-xs text-xs font-semibold text-slate-700 hover:bg-slate-50 transition min-w-[150px]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Status:</span>
+                        <span x-text="filterStatus === 'all' ? 'Semua' : (filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1))"></span>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-1" class="absolute left-0 mt-2 w-full min-w-[150px] bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-20" style="display: none;">
+                    @foreach([['val'=>'all','label'=>'Semua'],['val'=>'aktif','label'=>'Aktif'],['val'=>'selesai','label'=>'Selesai'],['val'=>'nonaktif','label'=>'Nonaktif']] as $sf)
+                    <button type="button" @click="filterStatus = '{{ $sf['val'] }}'; open = false" class="w-full text-left px-4 py-2 text-xs font-medium transition-colors flex items-center justify-between" :class="filterStatus === '{{ $sf['val'] }}' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'">
+                        <span>{{ $sf['label'] }}</span>
+                        <svg x-show="filterStatus === '{{ $sf['val'] }}'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <!-- Role Dropdown -->
+            <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open" @click.away="open = false" type="button" class="flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-xs text-xs font-semibold text-slate-700 hover:bg-slate-50 transition min-w-[150px]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Role:</span>
+                        <span x-text="filterRole === 'all' ? 'Semua' : (filterRole.toUpperCase() === 'CS' ? 'CS' : 'Sales')"></span>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-1" class="absolute left-0 mt-2 w-full min-w-[150px] bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-20" style="display: none;">
+                    @foreach([['val'=>'all','label'=>'Semua'],['val'=>'sales','label'=>'Sales'],['val'=>'cs','label'=>'CS']] as $rf)
+                    <button type="button" @click="filterRole = '{{ $rf['val'] }}'; open = false" class="w-full text-left px-4 py-2 text-xs font-medium transition-colors flex items-center justify-between" :class="filterRole === '{{ $rf['val'] }}' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'">
+                        <span>{{ $rf['label'] }}</span>
+                        <svg x-show="filterRole === '{{ $rf['val'] }}'" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                    @endforeach
+                </div>
+            </div>
         </div>
 
         <!-- Target Cards -->
@@ -101,9 +137,32 @@
                             <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                 <div class="h-full rounded-full transition-all"
                                     :class="t.realisasi_kontak >= t.target_kontak ? 'bg-emerald-500' : 'bg-red-500'"
-                                    :style="'width:' + Math.min(100, Math.round(t.realisasi_kontak/t.target_kontak*100)) + '%'"></div>
+                                    :style="'width:' + (t.target_kontak > 0 ? Math.min(100, Math.round(t.realisasi_kontak/t.target_kontak*100)) : 100) + '%'"></div>
                             </div>
                         </div>
+
+                        <!-- Menghubungi (CS Only) -->
+                        <template x-if="t.role === 'CS' || t.target_menghubungi > 0">
+                            <div class="p-3.5 rounded-xl border"
+                                :class="t.kekurangan_menghubungi > 0 ? 'bg-red-50/50 border-red-200' : 'bg-slate-50/50 border-slate-200'">
+                                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Menghubungi</p>
+                                <div class="flex items-end justify-between">
+                                    <div>
+                                        <div class="text-2xl font-extrabold text-slate-900" x-text="t.realisasi_menghubungi + ' / ' + t.target_menghubungi"></div>
+                                        <div class="text-[11px] mt-0.5" x-text="t.kekurangan_menghubungi > 0 ? 'Kurang: ' + t.kekurangan_menghubungi : 'Tercapai ✓'" :class="t.kekurangan_menghubungi > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-[11px] text-slate-400">Akumulasi</div>
+                                        <div class="font-bold" x-text="t.akum_menghubungi > 0 ? '+' + t.akum_menghubungi : '0'" :class="t.akum_menghubungi > 0 ? 'text-red-600' : 'text-slate-500'"></div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                    <div class="h-full rounded-full transition-all"
+                                        :class="t.realisasi_menghubungi >= t.target_menghubungi ? 'bg-emerald-500' : 'bg-red-500'"
+                                        :style="'width:' + (t.target_menghubungi > 0 ? Math.min(100, Math.round(t.realisasi_menghubungi/t.target_menghubungi*100)) : 100) + '%'"></div>
+                                </div>
+                            </div>
+                        </template>
 
                         <!-- Follow Up -->
                         <div class="p-3.5 rounded-xl border"
@@ -122,7 +181,7 @@
                             <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                 <div class="h-full rounded-full transition-all"
                                     :class="t.realisasi_followup >= t.target_followup ? 'bg-emerald-500' : 'bg-red-500'"
-                                    :style="'width:' + Math.min(100, Math.round(t.realisasi_followup/t.target_followup*100)) + '%'"></div>
+                                    :style="'width:' + (t.target_followup > 0 ? Math.min(100, Math.round(t.realisasi_followup/t.target_followup*100)) : 100) + '%'"></div>
                             </div>
                         </div>
 
@@ -163,10 +222,10 @@
                         @csrf
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Pilih Sales *</label>
-                                <select name="sales_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
-                                    <option value="">Pilih Sales</option>
-                                    @foreach($salesList as $s)<option value="{{ $s->id }}">{{ $s->name }}</option>@endforeach
+                                <label class="block font-semibold text-slate-700 mb-1">Pilih Sales/CS *</label>
+                                <select name="sales_id" @change="selectedRoleAdd = $event.target.options[$event.target.selectedIndex].dataset.role" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                    <option value="" data-role="">Pilih Sales/CS</option>
+                                    @foreach($salesList as $s)<option value="{{ $s->id }}" data-role="{{ $s->role }}">{{ $s->name }} ({{ $s->role }})</option>@endforeach
                                 </select>
                             </div>
                             <div>
@@ -186,18 +245,22 @@
                                 <input type="date" name="tanggal_selesai" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kontak</label>
                                 <input type="number" name="target_kontak" min="0" required placeholder="10" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                            </div>
+                            <div x-show="selectedRoleAdd === 'CS'">
+                                <label class="block font-semibold text-slate-700 mb-1">Target Menghubungi</label>
+                                <input type="number" name="target_menghubungi" min="0" required placeholder="0" value="0" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Target Follow Up</label>
                                 <input type="number" name="target_followup" min="0" required placeholder="20" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
-                            <div>
+                            <div x-show="selectedRoleAdd !== 'CS'">
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kunjungan</label>
-                                <input type="number" name="target_kunjungan" min="0" required placeholder="2" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                                <input type="number" name="target_kunjungan" min="0" required placeholder="2" value="0" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
                         <div>
@@ -242,18 +305,22 @@
                                 <input type="date" name="tanggal_selesai" required :value="selectedTarget ? new Date(selectedTarget.raw_tanggal_selesai).toISOString().split('T')[0] : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kontak</label>
                                 <input type="number" name="target_kontak" required :value="selectedTarget ? selectedTarget.target_kontak : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                            </div>
+                            <div x-show="selectedTarget && selectedTarget.role === 'CS'">
+                                <label class="block font-semibold text-slate-700 mb-1">Target Menghubungi</label>
+                                <input type="number" name="target_menghubungi" required :value="selectedTarget ? selectedTarget.target_menghubungi : '0'" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Target Follow Up</label>
                                 <input type="number" name="target_followup" required :value="selectedTarget ? selectedTarget.target_followup : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
-                            <div>
+                            <div x-show="selectedTarget && selectedTarget.role !== 'CS'">
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kunjungan</label>
-                                <input type="number" name="target_kunjungan" required :value="selectedTarget ? selectedTarget.target_kunjungan : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                                <input type="number" name="target_kunjungan" required :value="selectedTarget ? selectedTarget.target_kunjungan : '0'" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
                         <div>

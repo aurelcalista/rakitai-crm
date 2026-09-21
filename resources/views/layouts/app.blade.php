@@ -481,18 +481,6 @@ x-init="
                 <!-- Right: Quick Tools & User Profile -->
                 <div class="flex items-center gap-2.5 sm:gap-4">
 
-                    <!-- Search Trigger / Modal Button -->
-                    @if($currentUser['role'] !== 'Admin' && $currentUser['role'] !== 'Head Marketing')
-                        <button 
-                            @click="modalTambahProspek = true" 
-                            class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer shrink-0"
-                        >
-                            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span class="font-semibold"><span class="hidden sm:inline">Tambah </span>Prospek</span>
-                        </button>
-                    @endif
 
                     <!-- Notifications Dropdown -->
                     <div class="relative flex items-center justify-center" x-data="{ 
@@ -1231,7 +1219,11 @@ x-init="
                     </button>
                 </div>
 
+<<<<<<< Updated upstream
                 <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
+=======
+                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
+>>>>>>> Stashed changes
                     @csrf
                     <!-- Section: INFORMASI DASAR -->
                     <div>
@@ -1308,19 +1300,6 @@ x-init="
                                     @foreach($kategoriProspekList as $kategori)
                                         <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
                                     @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek (Opsional)</label>
-                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="">-- Pilih Sumber --</option>
-                                    <option value="Kunjungan Sekolah">Kunjungan Sekolah</option>
-                                    <option value="Edufair / Pameran">Edufair / Pameran</option>
-                                    <option value="Sosial Media">Sosial Media</option>
-                                    <option value="Website">Website</option>
-                                    <option value="Teman/Alumni">Teman / Alumni</option>
-                                    <option value="Walk-in">Walk-in (Datang Langsung)</option>
-                                    <option value="Lainnya">Lainnya</option>
                                 </select>
                             </div>
                         </div>
@@ -1624,13 +1603,6 @@ x-init="
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Potensi Beasiswa</label>
                                         <input type="text" name="potensi_beasiswa" placeholder="Jumlah kuota / estimasi siswa" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Kesediaan Training AI/Robotics</label>
-                                        <select name="kesediaan_training_ai" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                            <option value="1">Bersedia</option>
-                                            <option value="0">Belum Bersedia</option>
-                                        </select>
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Potensi</label>
