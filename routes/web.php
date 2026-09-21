@@ -29,6 +29,7 @@ Route::middleware('auth')->group(function () {
 
     // Role-specific Dashboards (Each dedicated to 1 role)
     Route::prefix('dashboard')->group(function () {
+<<<<<<< Updated upstream
         Route::get('/sales', [CrmController::class, 'dashboardSales'])->name('dashboard.sales');
         Route::get('/cs', [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
         Route::get('/spv', [CrmController::class, 'dashboardSpv'])->name('dashboard.spv');
@@ -37,6 +38,95 @@ Route::middleware('auth')->group(function () {
     });
 
     // Admin Panel Modules (Only for Admin)
+=======
+        // Sales dashboard now served by dedicated Sales\DashboardController
+        Route::get('/sales', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
+        Route::get('/cs',    [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
+        Route::get('/spv',   [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
+        Route::get('/hm',    [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
+        Route::get('/admin', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
+    });
+
+    // ──────────────────────────────────────────────────────────────
+    // SPV (Supervisor) Role Routes — prefix: /spv, name: spv.*
+    // Protected by role:SPV middleware
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware('role:SPV')
+        ->prefix('spv')
+        ->name('spv.')
+        ->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard');
+
+            // Team Prospect management
+            Route::get('/prospek',                    [\App\Http\Controllers\Spv\ProspectController::class, 'index'])->name('prospek.index');
+            Route::get('/prospek/create',             [\App\Http\Controllers\Spv\ProspectController::class, 'create'])->name('prospek.create');
+            Route::post('/prospek',                   [\App\Http\Controllers\Spv\ProspectController::class, 'store'])->name('prospek.store');
+            Route::get('/prospek/{prospek}',          [\App\Http\Controllers\Spv\ProspectController::class, 'show'])->name('prospek.show');
+            Route::put('/prospek/{prospek}',          [\App\Http\Controllers\Spv\ProspectController::class, 'update'])->name('prospek.update');
+            Route::patch('/prospek/{prospek}/status', [\App\Http\Controllers\Spv\ProspectController::class, 'updateStatus'])->name('prospek.updateStatus');
+            Route::post('/prospek/{prospek}/reassign',[\App\Http\Controllers\Spv\ProspectController::class, 'reassign'])->name('prospek.reassign');
+            Route::delete('/prospek/{prospek}',       [\App\Http\Controllers\Spv\ProspectController::class, 'destroy'])->name('prospek.destroy');
+
+            // Team Pipeline Kanban
+            Route::get('/pipeline',                [\App\Http\Controllers\Spv\PipelineController::class, 'index'])->name('pipeline.index');
+            Route::post('/pipeline/update-status', [\App\Http\Controllers\Spv\PipelineController::class, 'updateStatus'])->name('pipeline.updateStatus');
+
+            // Team Visit Monitoring
+            Route::get('/kunjungan',             [\App\Http\Controllers\Spv\VisitController::class, 'index'])->name('kunjungan.index');
+            Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Spv\VisitController::class, 'show'])->name('kunjungan.show');
+
+            // Team Target & Performance
+            Route::get('/target-performa', [\App\Http\Controllers\Spv\PerformanceController::class, 'index'])->name('performa.index');
+
+            // Team Recap Reports
+            Route::get('/laporan', [\App\Http\Controllers\Spv\ReportController::class, 'index'])->name('laporan.index');
+
+            // Team Structure & Directory
+            Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
+        });
+
+    // ──────────────────────────────────────────────────────────────
+    // SALES Role Routes  — prefix: /sales, name: sales.*
+    // Protected by role:Sales middleware
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware('role:Sales')
+        ->prefix('sales')
+        ->name('sales.')
+        ->group(function () {
+            // Prospect management
+            Route::get('/prospek',                    [\App\Http\Controllers\Sales\ProspectController::class, 'index'])->name('prospek.index');
+            Route::get('/prospek/create',             [\App\Http\Controllers\Sales\ProspectController::class, 'create'])->name('prospek.create');
+            Route::post('/prospek',                   [\App\Http\Controllers\Sales\ProspectController::class, 'store'])->name('prospek.store');
+            Route::get('/prospek/{prospek}',          [\App\Http\Controllers\Sales\ProspectController::class, 'show'])->name('prospek.show');
+            Route::put('/prospek/{prospek}',          [\App\Http\Controllers\Sales\ProspectController::class, 'update'])->name('prospek.update');
+            Route::patch('/prospek/{prospek}/status', [\App\Http\Controllers\Sales\ProspectController::class, 'updateStatus'])->name('prospek.updateStatus');
+            Route::patch('/prospek/{prospek}/lost',   [\App\Http\Controllers\Sales\ProspectController::class, 'markLost'])->name('prospek.markLost');
+            Route::post('/prospek/{prospek}/takeover', [\App\Http\Controllers\Sales\ProspectController::class, 'takeover'])->name('prospek.takeover');
+
+            // Follow-up management
+            Route::get('/follow-up',  [\App\Http\Controllers\Sales\FollowUpController::class, 'index'])->name('follow-up.index');
+            Route::post('/follow-up', [\App\Http\Controllers\Sales\FollowUpController::class, 'store'])->name('follow-up.store');
+
+            // Field visit management
+            Route::get('/kunjungan',             [\App\Http\Controllers\Sales\VisitController::class, 'index'])->name('kunjungan.index');
+            Route::get('/kunjungan/create',      [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
+            Route::post('/kunjungan',            [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
+            Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
+
+            // Pipeline
+            Route::get('/pipeline',                [\App\Http\Controllers\Sales\PipelineController::class, 'index'])->name('pipeline.index');
+            Route::post('/pipeline/update-status', [\App\Http\Controllers\Sales\PipelineController::class, 'updateStatus'])->name('pipeline.updateStatus');
+
+            // Performance & Report
+            Route::get('/target-performa', [\App\Http\Controllers\Sales\PerformanceController::class, 'index'])->name('performa.index');
+            Route::get('/laporan',         [\App\Http\Controllers\Sales\ReportController::class, 'index'])->name('laporan.index');
+        });
+
+    // ──────────────────────────────────────────────────────────────
+    // Admin Panel Modules — prefix: /admin, name: admin.*
+    // Protected by role:Admin middleware
+    // ──────────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
     Route::middleware(['role:Admin'])->prefix('admin')->name('admin.')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
 

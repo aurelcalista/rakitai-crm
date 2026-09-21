@@ -84,11 +84,10 @@
                     @endcan
 
                     @can('takeover', $prospekModel)
-                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block">
+                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.">
                         @csrf
                         <button 
                             type="submit" 
-                            onclick="return confirm('Yakin ingin menyerahkan prospek ini ke CS?')"
                             class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
@@ -209,18 +208,26 @@
                     
                     <div class="space-y-3 text-xs">
                         <div>
+<<<<<<< Updated upstream
+=======
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
+                        </div>
+
+                        <div>
+>>>>>>> Stashed changes
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
-                            <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] }}</p>
+                            <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] ?? '-' }}</p>
                         </div>
 
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Training AI & Robotics</span>
-                            <p class="font-semibold text-blue-600 mt-0.5">{{ $prospect['ai_training'] }}</p>
+                            <p class="font-semibold text-blue-600 mt-0.5">{{ $prospect['ai_training'] ?? '-' }}</p>
                         </div>
 
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>
-                            <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] }}</p>
+                            <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] ?? '-' }}</p>
                         </div>
                     </div>
                 </div>

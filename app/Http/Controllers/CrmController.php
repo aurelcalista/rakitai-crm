@@ -920,14 +920,18 @@ class CrmController extends Controller
             'active_takeover' => $prospectRaw->activeHandlerLabel(),
             'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
+            'source' => $prospectRaw->source ?? '-',
             'potential' => $prospectRaw->potential ?? '-',
             'source' => $prospectRaw->source ?? '-',
             'ai_training' => $prospectRaw->ai_training ?? '-',
             'notes' => $prospectRaw->notes ?? '',
+            'lost_reason' => $prospectRaw->lost_reason ?? null,
+            'lost_note' => $prospectRaw->lost_note ?? null,
             'created_at' => $prospectRaw->created_at ? $prospectRaw->created_at->format('d M Y') : '-',
             'takeover_time' => $prospectRaw->updated_at ? $prospectRaw->updated_at->format('d M Y, H:i') : '-',
             'last_contact' => $prospectRaw->followUps->first() ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
             'next_follow_up' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+            'next_follow_up_date' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->toDateString() : null,
             'timeline' => $prospectRaw->timelines->map(function ($t) {
                 return [
                     'time' => $t->time ? $t->time->format('d M, H:i') : '-',
@@ -1202,9 +1206,14 @@ class CrmController extends Controller
      */
     public function pipelineIndex(): View
     {
+<<<<<<< Updated upstream
         $prospects = $this->getProspects();
+=======
+        $prospects = $this->getDbProspects();
+        $pipelineStages = ['Cold Lead', 'Interested', 'Follow Up', 'Beli Formulir', 'Pembayaran Termin 1', 'Closing'];
+>>>>>>> Stashed changes
 
-        return view('pipeline.index', compact('prospects'));
+        return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }
 
     /**

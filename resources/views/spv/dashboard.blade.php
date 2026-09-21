@@ -31,14 +31,19 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2">
+<<<<<<< Updated upstream
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name ?? 'Supervisor' }} 👋</h2>
+=======
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }} 👋</h2>
+>>>>>>> Stashed changes
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Supervisor Marketing</span>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Evaluasi capaian bulanan dan distribusi penugasan tim Sales & Inbound.</p>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Evaluasi capaian bulanan dan monitoring aktivitas tim Sales & CS.</p>
             </div>
             
-            <!-- Filters Bar -->
+            <!-- Quick Link Actions -->
             <div class="flex flex-wrap items-center gap-2">
+<<<<<<< Updated upstream
                 <select class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
                     <option value="current">{{ now()->translatedFormat('F Y') }}</option>
                     <option value="prev-1">{{ now()->subMonth()->translatedFormat('F Y') }}</option>
@@ -51,57 +56,81 @@
                         <option value="{{ $m['id'] }}">{{ $m['name'] }}</option>
                     @endforeach
                 </select>
+=======
+                <a href="{{ route('spv.prospek.create') }}" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-xs flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>+ Tambah Prospek Tim</span>
+                </a>
+                <a href="{{ route('spv.pipeline.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5">
+                    <span>Lihat Pipeline Board</span>
+                </a>
+>>>>>>> Stashed changes
             </div>
         </div>
 
         <!-- SPV Statistic Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             <x-stat-card 
-                title="Total Personil Sales" 
-                :value="$stats['total_sales'] . ' Personil'" 
-                subtitle="Tim Aktif Lapangan" 
+                title="Total Anggota Tim" 
+                :value="($stats['total_team_members'] ?? $stats['total_sales'] ?? 0) . ' Personil'" 
+                subtitle="Sales & CS Aktif" 
                 color="blue"
             />
             <x-stat-card 
-                title="Total Prospek Masuk" 
-                :value="$stats['total_prospek']" 
-                subtitle="Inbound + Kunjungan" 
-                trend="+15%"
-                :trendUp="true"
+                title="Total Prospek Tim" 
+                :value="$stats['total_prospek'] ?? 0" 
+                subtitle="Semua Prospek Tim" 
                 color="indigo"
             />
             <x-stat-card 
-                title="Total Follow Up Tim" 
-                :value="$stats['total_follow_up']" 
-                subtitle="Interaksi tercatat" 
+                title="Total Kunjungan" 
+                :value="$stats['total_visits'] ?? $stats['total_follow_up'] ?? 0" 
+                subtitle="Kunjungan Lapangan" 
                 color="amber"
             />
             <x-stat-card 
                 title="Total Closing" 
-                :value="$stats['total_closing']" 
-                subtitle="Mahasiswa resmi" 
-                trend="+22%"
-                :trendUp="true"
+                :value="$stats['closing_count'] ?? $stats['total_closing'] ?? 0" 
+                subtitle="Mahasiswa Terdaftar" 
                 color="emerald"
             />
             <x-stat-card 
-                title="Total Lost" 
-                :value="$stats['total_lost']" 
-                subtitle="Arsip prospek" 
+                title="Konversi Closing" 
+                :value="($stats['conversion_rate'] ?? 0) . '%'" 
+                subtitle="Rasio Closing Tim" 
                 color="rose"
             />
         </div>
+
+        @php
+            $displayTeam = isset($teamPerformance) ? $teamPerformance->map(function($t, $idx) {
+                return [
+                    'rank' => $idx + 1,
+                    'name' => $t['user']->name,
+                    'role' => $t['user']->role,
+                    'avatar' => strtoupper(substr($t['user']->name, 0, 2)),
+                    'target' => $t['target'],
+                    'prospects' => $t['prospects'],
+                    'follow_up' => $t['visits'],
+                    'closing' => $t['closing'],
+                    'lost' => 0,
+                    'achievement' => $t['achieved_pct'],
+                    'status' => $t['achieved_pct'] >= 70 ? 'Target Achieved' : ($t['achieved_pct'] >= 40 ? 'On Progress' : 'Need Support'),
+                ];
+            })->toArray() : ($team ?? []);
+        @endphp
 
         <!-- Section: PERFORMANCE TIM -->
         <div class="crm-card bg-white p-6">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 mb-5">
                 <div>
-                    <h3 class="text-base font-bold text-slate-900 tracking-tight">Performance Tim Sales (September 2026)</h3>
+                    <h3 class="text-base font-bold text-slate-900 tracking-tight">Performance Tim Sales</h3>
                     <p class="text-xs text-slate-500">Evaluasi performa berkala untuk mendukung pembinaan dan akselerasi closing</p>
                 </div>
-                <div class="text-xs text-slate-400 font-medium italic">
-                    * Evaluasi berbasis capaian periode berjalan (Bukan punishment harian)
-                </div>
+                <a href="{{ route('spv.performa.index') }}" class="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1">
+                    <span>Lihat Detail Performa</span>
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
             </div>
 
             <!-- Team Performance Table (Desktop) -->
@@ -112,23 +141,22 @@
                             <th class="py-3 px-4">Peringkat & Sales</th>
                             <th class="py-3 px-3 text-center">Target</th>
                             <th class="py-3 px-3 text-center">Prospek</th>
-                            <th class="py-3 px-3 text-center">Follow Up</th>
+                            <th class="py-3 px-3 text-center">Kunjungan</th>
                             <th class="py-3 px-3 text-center">Closing</th>
-                            <th class="py-3 px-3 text-center">Lost</th>
                             <th class="py-3 px-4 text-center w-48">Achievement Progress</th>
                             <th class="py-3 px-4 text-right">Status Evaluasi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        @foreach($team as $member)
+                        @forelse($displayTeam as $member)
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3.5 px-4 font-semibold text-slate-900">
                                     <div class="flex items-center gap-3">
-                                        <span class="w-6 h-6 rounded-full {{ $loop->first ? 'bg-amber-100 text-amber-800 font-bold' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center text-xs">
-                                            #{{ $member['rank'] }}
+                                        <span class="w-6 h-6 rounded-full {{ ($member['rank'] ?? 1) == 1 ? 'bg-amber-100 text-amber-800 font-bold' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center text-xs">
+                                            #{{ $member['rank'] ?? ($loop->iteration) }}
                                         </span>
                                         <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                                            {{ $member['avatar'] }}
+                                            {{ $member['avatar'] ?? 'SL' }}
                                         </div>
                                         <div>
                                             <div class="text-slate-900 font-bold">{{ $member['name'] }}</div>
@@ -140,7 +168,6 @@
                                 <td class="py-3.5 px-3 text-center text-slate-700 font-medium">{{ $member['prospects'] }}</td>
                                 <td class="py-3.5 px-3 text-center text-amber-700 font-semibold">{{ $member['follow_up'] }}</td>
                                 <td class="py-3.5 px-3 text-center text-emerald-700 font-bold text-sm">{{ $member['closing'] }}</td>
-                                <td class="py-3.5 px-3 text-center text-rose-600 font-medium">{{ $member['lost'] }}</td>
                                 <td class="py-3.5 px-4">
                                     <div class="space-y-1">
                                         <div class="flex justify-between text-[11px] font-semibold text-slate-700">
@@ -148,7 +175,7 @@
                                             <span class="text-slate-400">{{ $member['closing'] }}/{{ $member['target'] }}</span>
                                         </div>
                                         <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                            <div class="h-2 rounded-full {{ $member['achievement'] >= 70 ? 'bg-emerald-500' : ($member['achievement'] >= 50 ? 'bg-blue-500' : 'bg-amber-500') }}" style="width: {{ $member['achievement'] }}%"></div>
+                                            <div class="h-2 rounded-full {{ $member['achievement'] >= 70 ? 'bg-emerald-500' : ($member['achievement'] >= 50 ? 'bg-blue-500' : 'bg-amber-500') }}" style="width: {{ min(100, $member['achievement']) }}%"></div>
                                         </div>
                                     </div>
                                 </td>
@@ -158,19 +185,23 @@
                                     </span>
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-slate-400 text-xs">Belum ada data anggota Sales dalam tim.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
 
             <!-- Mobile Cards List -->
             <div class="md:hidden divide-y divide-slate-100">
-                @foreach($team as $member)
+                @forelse($displayTeam as $member)
                     <div class="py-4 space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
                                 <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-xs">
-                                    #{{ $member['rank'] }}
+                                    #{{ $member['rank'] ?? $loop->iteration }}
                                 </span>
                                 <div>
                                     <h4 class="font-bold text-xs text-slate-900">{{ $member['name'] }}</h4>
@@ -188,33 +219,25 @@
                                 <span class="font-semibold text-slate-800">{{ $member['target'] }}</span>
                             </div>
                             <div>
-                                <span class="text-slate-400 text-[10px] block">Follow Up</span>
-                                <span class="font-semibold text-amber-700">{{ $member['follow_up'] }}</span>
+                                <span class="text-slate-400 text-[10px] block">Prospek</span>
+                                <span class="font-semibold text-slate-700">{{ $member['prospects'] }}</span>
                             </div>
                             <div>
                                 <span class="text-slate-400 text-[10px] block">Closing</span>
                                 <span class="font-bold text-emerald-600">{{ $member['closing'] }}</span>
                             </div>
                             <div>
-                                <span class="text-slate-400 text-[10px] block">Lost</span>
-                                <span class="font-semibold text-rose-600">{{ $member['lost'] }}</span>
-                            </div>
-                        </div>
-
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[11px] font-semibold text-slate-700">
-                                <span>Capaian: {{ $member['achievement'] }}%</span>
-                                <span class="text-slate-400">{{ $member['closing'] }}/{{ $member['target'] }} Closing</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="h-2 rounded-full bg-blue-600" style="width: {{ $member['achievement'] }}%"></div>
+                                <span class="text-slate-400 text-[10px] block">Capaian</span>
+                                <span class="font-semibold text-blue-600">{{ $member['achievement'] }}%</span>
                             </div>
                         </div>
                     </div>
-                @endforeach
-            </div>
+                @empty
+                    <div class="py-6 text-center text-slate-400 text-xs">Belum ada data anggota Sales dalam tim.</div>
+                @endforelse
         </div>
 
     </div>
 
 </x-app-layout>
+
