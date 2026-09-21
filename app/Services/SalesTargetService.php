@@ -153,30 +153,38 @@ class SalesTargetService
      *
      * @return array
      */
-    public function getStats(User $sales): array
+    public function getStats(User $user): array
     {
         $now    = Carbon::now();
-        $target = $this->getActiveTarget($sales);
+        $target = $this->getActiveTarget($user);
+        $role = strtolower($user->role);
 
-        // Count all prospects this Sales is handler for
-        $totalProspek  = Prospek::where('sales_id', $sales->id)->count();
-        $activeProspek = Prospek::where('sales_id', $sales->id)
+        // Count all prospects this user is handler for
+        $prospekQuery = Prospek::query();
+        if ($role === 'cs') {
+            $prospekQuery->where('cs_id', $user->id);
+        } else {
+            $prospekQuery->where('sales_id', $user->id);
+        }
+
+        $totalProspek  = (clone $prospekQuery)->count();
+        $activeProspek = (clone $prospekQuery)
             ->whereNotIn('status', ['Closing', 'Lost'])
             ->count();
-        $closing = Prospek::where('sales_id', $sales->id)
+        $closing = (clone $prospekQuery)
             ->where('status', 'Closing')
             ->count();
-        $lost = Prospek::where('sales_id', $sales->id)
+        $lost = (clone $prospekQuery)
             ->where('status', 'Lost')
             ->count();
 
         // Follow-up scheduled / active
-        $followUpCount = Prospek::where('sales_id', $sales->id)
+        $followUpCount = (clone $prospekQuery)
             ->where('status', 'Follow Up')
             ->count();
 
         if ($target) {
-            $achievement     = $this->getAchievement($sales, $target);
+            $achievement     = $this->getAchievement($user, $target);
             $targetBulanIni  = $target->target_kontak;
             $realisasiKontak = $achievement['kontakBaru'];
             $realisasiClosing = $closing;
