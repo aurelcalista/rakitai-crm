@@ -26,11 +26,11 @@
                 <td class="py-3.5 px-4 text-right">
                     <div class="flex items-center justify-end gap-1">
                         <button @click="selectedItem = {{ json_encode($item) }}; modalEdit = true" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer">Edit</button>
-                        <form action="{{ route('admin.master-data.toggle-status', $item['id']) }}" method="POST" class="inline" onsubmit="return confirm('{{ $item['status'] === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan' }} master data ini?');">
+                        <form action="{{ route('admin.master-data.toggle-status', $item['id']) }}" method="POST" class="inline" data-confirm="{{ $item['status'] === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan' }} master data ini?">
                             @csrf
                             <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer {{ $item['status'] === 'Aktif' ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700' }}">{{ $item['status'] === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan' }}</button>
                         </form>
-                        <form action="{{ route('admin.master-data.destroy', $item['id']) }}" method="POST" class="inline" onsubmit="return confirm('Hapus master data ini?');">
+                        <form action="{{ route('admin.master-data.destroy', $item['id']) }}" method="POST" class="inline" data-confirm="Hapus master data ini secara permanen?">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer" title="Hapus">

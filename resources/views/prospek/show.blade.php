@@ -7,12 +7,13 @@
 
     <div class="space-y-6" x-data="{
         prospect: {{ json_encode($prospect) }},
-        currentStatus: '{{ $prospect['status'] }}'
+        currentStatus: '{{ $prospect['status'] }}',
+        modalRealokasi: false
     }">
 
         <!-- Back Button & Breadcrumbs -->
         <div class="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <a href="{{ route((strtolower(auth()->user()->role) === 'sales' ? 'sales.' : '') . 'prospek.index') }}" class="hover:text-blue-600 flex items-center gap-1">
+            <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '') . 'prospek.index') }}" class="hover:text-blue-600 flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 Kembali ke Daftar Prospek
             </a>
@@ -69,7 +70,7 @@
                     </button>
                     @endcan
 
-                    @can('transaction', $prospekModel)
+                    @can('transaction', $prospekModel ?? null)
                     <button 
                         type="button" 
                         @click="selectedProspect = prospect; modalTransaksi = true"
@@ -80,12 +81,22 @@
                     </button>
                     @endcan
 
-                    @can('takeover', $prospekModel)
-                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block">
+                    @can('reallocate', $prospekModel ?? null)
+                    <button 
+                        type="button" 
+                        @click="modalRealokasi = true"
+                        class="px-3.5 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        <span>Re-alokasi Sales</span>
+                    </button>
+                    @endcan
+
+                    @can('takeover', $prospekModel ?? null)
+                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="{{ strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.' }}">
                         @csrf
                         <button 
-                            type="submit" 
-                            onclick="return confirm('{{ strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS?' }}')"
+                            type="submit"
                             class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
@@ -164,14 +175,22 @@
                     <div class="space-y-3 text-xs">
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] }}</p>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
                         </div>
 
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
+                            <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] ?? '-' }}</p>
+                        </div>
 
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Training AI & Robotics</span>
+                            <p class="font-semibold text-blue-600 mt-0.5">{{ $prospect['ai_training'] ?? '-' }}</p>
+                        </div>
 
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>
-                            <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] }}</p>
+                            <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] ?? '-' }}</p>
                         </div>
                     </div>
                 </div>
@@ -198,15 +217,15 @@
                     @foreach($prospect['timeline'] as $item)
                         <div class="relative flex items-start gap-4">
                             <!-- Timeline Dot / Avatar -->
-                            <div class="w-6 h-6 rounded-full bg-white border-2 border-blue-600 text-blue-600 font-bold flex items-center justify-center text-[10px] shrink-0 z-10">
-                                @if($item['role'] === 'Sales') S @elseif($item['role'] === 'CS') C @else ✓ @endif
+                            <div class="w-6 h-6 rounded-full bg-white border-2 {{ str_contains($item['title'], 'Re-alokasi') ? 'border-purple-600 text-purple-600' : 'border-blue-600 text-blue-600' }} font-bold flex items-center justify-center text-[10px] shrink-0 z-10">
+                                @if(str_contains($item['title'], 'Re-alokasi')) ⇄ @elseif($item['role'] === 'Sales') S @elseif($item['role'] === 'CS') C @else ✓ @endif
                             </div>
 
-                            <div class="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-1">
+                            <div class="flex-1 {{ str_contains($item['title'], 'Re-alokasi') ? 'bg-purple-50/60 border-purple-200' : 'bg-slate-50/70 border-slate-200/80' }} p-4 rounded-xl border space-y-1">
                                 <div class="flex flex-wrap items-center justify-between gap-1">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold text-slate-900">{{ $item['title'] }}</span>
-                                        <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">{{ $item['role'] }}</span>
+                                        <span class="text-[10px] px-1.5 py-0.2 rounded {{ str_contains($item['title'], 'Re-alokasi') ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-700' }} font-medium">{{ $item['role'] }}</span>
                                     </div>
                                     <span class="text-[11px] text-slate-400">{{ $item['time'] }}</span>
                                 </div>
@@ -219,6 +238,68 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- MODAL RE-ALOKASI PROSPEK (SPV / MANAGEMENT) -->
+        <div 
+            x-show="modalRealokasi" 
+            x-cloak 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            role="dialog" 
+            aria-modal="true"
+        >
+            <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+                <div x-show="modalRealokasi" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalRealokasi = false"></div>
+
+                <div 
+                    x-show="modalRealokasi" 
+                    class="inline-block w-full max-w-lg p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10"
+                >
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Re-alokasi Prospek ke Sales Lain</h3>
+                            <p class="text-xs text-slate-500">Pindahkan penugasan prospek ke personil sales lain dalam tim Anda.</p>
+                        </div>
+                        <button @click="modalRealokasi = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <form action="{{ route('prospek.realokasi', $prospect['id']) }}" method="POST" class="mt-5 space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Sales Saat Ini</label>
+                            <input type="text" readonly value="{{ $prospect['takeover_sales'] ?? 'Belum Ditugaskan' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-semibold cursor-not-allowed">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Sales Baru (Penerima Tugas) *</label>
+                            <select name="sales_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition bg-white font-medium">
+                                <option value="">-- Pilih Sales Anggota Tim --</option>
+                                @foreach($salesTeam as $st)
+                                    <option value="{{ $st->id }}" {{ (isset($prospekModel) && $prospekModel->sales_id == $st->id) ? 'disabled' : '' }}>
+                                        {{ $st->name }} ({{ $st->email }}) {{ (isset($prospekModel) && $prospekModel->sales_id == $st->id) ? '- (Saat ini)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Alasan / Catatan Re-alokasi</label>
+                            <textarea name="alasan" rows="3" placeholder="Contoh: Pembagian beban wilayah / percepatan follow-up..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition"></textarea>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                            <button type="button" @click="modalRealokasi = false" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer">
+                                Batal
+                            </button>
+                            <button type="submit" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer">
+                                Simpan Re-alokasi
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
     </div>

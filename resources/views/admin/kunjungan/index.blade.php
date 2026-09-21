@@ -5,7 +5,9 @@
     <div class="space-y-6" x-data="{
         modalDetail: false,
         modalEdit: false,
+        modalFoto: false,
         selectedKjg: null,
+        selectedFoto: null,
         searchQuery: '',
         filterJenis: 'all',
         filterStatus: 'all',
@@ -72,8 +74,8 @@
                             <th class="py-3.5 px-3">Tanggal</th>
                             <th class="py-3.5 px-3">Sales</th>
                             <th class="py-3.5 px-3">Jenis</th>
-                            <th class="py-3.5 px-3">Nama Tempat</th>
-                            <th class="py-3.5 px-3">Tujuan</th>
+                            <th class="py-3.5 px-3">Nama Sekolah</th>
+                            <th class="py-3.5 px-3 text-center">Foto Dokumentasi</th>
                             <th class="py-3.5 px-3 text-center">Status</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
@@ -97,8 +99,17 @@
                                         :class="k.jenis === 'Sekolah' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-purple-50 text-purple-700 border-purple-200'"
                                         x-text="k.jenis"></span>
                                 </td>
-                                <td class="py-3.5 px-3 font-semibold text-slate-900 max-w-[160px]" x-text="k.nama_tempat"></td>
-                                <td class="py-3.5 px-3 text-slate-500 max-w-[180px] truncate" x-text="k.tujuan"></td>
+                                <td class="py-3.5 px-3 font-semibold text-slate-900 max-w-[160px]" x-text="k.tujuan"></td>
+                                <td class="py-3.5 px-3 text-center">
+                                    <template x-if="k.foto">
+                                        <button type="button" @click="selectedFoto = k.foto; modalFoto = true" class="inline-block cursor-pointer">
+                                            <img :src="k.foto" class="h-10 w-10 rounded-md object-cover shadow-sm border border-slate-200 hover:scale-105 transition" alt="Foto">
+                                        </button>
+                                    </template>
+                                    <template x-if="!k.foto">
+                                        <span class="text-[10px] text-slate-400 italic">Tidak ada foto</span>
+                                    </template>
+                                </td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                                         :class="{
@@ -257,6 +268,28 @@
                             <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white">Simpan</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL FOTO DOKUMENTASI -->
+        <div x-show="modalFoto" x-cloak class="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4 py-8">
+                <!-- Backdrop -->
+                <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" @click="modalFoto = false"></div>
+                
+                <!-- Modal Panel -->
+                <div class="relative max-w-xl w-auto mx-auto flex flex-col items-center justify-center" @click.away="modalFoto = false">
+                    
+                    <!-- Tombol Silang (Tutup) -->
+                    <button @click="modalFoto = false" class="absolute top-3 right-3 p-1.5 bg-slate-900/60 hover:bg-rose-600 text-white rounded-full transition-colors cursor-pointer z-10 shadow-sm backdrop-blur-md border border-white/20">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+
+                    <!-- Foto Full -->
+                    <img :src="selectedFoto" alt="Dokumentasi Full" class="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl bg-white p-2">
                 </div>
             </div>
         </div>

@@ -14,8 +14,8 @@
         <x-empty-state 
             title="Belum ada prospek ditemukan" 
             description="Tidak ada data prospek yang sesuai dengan kriteria filter pencarian Anda."
-            actionLabel="Tambah Prospek Baru"
-            actionClick="modalTambahProspek = true"
+            :actionLabel="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'Tambah Prospek Baru' : null"
+            :actionClick="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'modalTambahProspek = true' : null"
         />
     </div>
 
@@ -54,6 +54,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Prospek</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data calon mahasiswa, sekolah mitra, dan instansi inbound UCIC.</p>
             </div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div>
                 <button 
                     type="button" 
@@ -66,6 +67,7 @@
                     <span>Tambah Prospek</span>
                 </button>
             </div>
+            @endif
         </div>
 
         <!-- Search & Filter Controls -->
@@ -164,7 +166,8 @@
                         <template x-for="prospect in filteredProspects" :key="prospect.id">
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-4 px-4 font-semibold text-slate-900">
-                                    <a :href="'/prospek/' + prospect.id" class="hover:text-blue-600 text-xs font-bold block" x-text="prospect.name"></a>
+                                    <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="hover:text-blue-600 text-xs font-bold block" x-text="prospect.name"></a>
+                                    <span class="text-[11px] text-slate-400 font-normal truncate max-w-xs block" x-text="prospect.potential"></span>
                                 </td>
                                 <td class="py-4 px-3">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
@@ -199,9 +202,8 @@
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                         </button>
-
                                         <a 
-                                            :href="'/prospek/' + prospect.id"
+                                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id"
                                             class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
                                             title="Lihat Detail"
                                         >
@@ -223,7 +225,7 @@
                             <div class="flex items-center gap-2.5">
                                 <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0" x-text="prospect.name.substring(0, 2).toUpperCase()"></div>
                                 <div>
-                                    <a :href="'/prospek/' + prospect.id" class="font-bold text-xs text-slate-900 block" x-text="prospect.name"></a>
+                                    <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="font-bold text-xs text-slate-900 block" x-text="prospect.name"></a>
                                     <span class="text-[11px] text-slate-500 block" x-text="prospect.type + ' • Kontak: ' + prospect.pic"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
@@ -258,7 +260,7 @@
                                 Status
                             </button>
                             <a 
-                                :href="'/prospek/' + prospect.id"
+                                :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id"
                                 class="py-2 px-3 rounded-xl bg-blue-600 text-white text-xs font-semibold shadow-xs"
                             >
                                 Detail

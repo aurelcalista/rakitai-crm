@@ -20,7 +20,6 @@ class SalesTargetService
 
         return Target::where('sales_id', $sales->id)
             ->where('status', 'Aktif')
-            ->where('tipe_periode', 'Bulanan')
             ->where('tanggal_mulai', '<=', $now->toDateString())
             ->where('tanggal_selesai', '>=', $now->toDateString())
             ->latest()
@@ -79,17 +78,22 @@ class SalesTargetService
             ];
         }
 
-        $now        = Carbon::now();
-        $startOfMonth = $target->tanggal_mulai->copy()->startOfMonth();
-        $endOfMonth   = $target->tanggal_selesai->copy()->endOfMonth();
-        $totalDays    = $startOfMonth->diffInDays($endOfMonth) + 1;
+        $now   = Carbon::now();
+        $start = $target->tanggal_mulai->copy();
+        $end   = $target->tanggal_selesai->copy();
+        $totalDays = $start->diffInDays($end) + 1;
 
-        // Base daily target (rounded up)
-        $dailyKontak  = (int) ceil($target->target_kontak / $totalDays);
-        $dailyFollowup = (int) ceil($target->target_followup / $totalDays);
+        if ($target->tipe_periode === 'Harian') {
+            $dailyKontak  = (int) $target->target_kontak;
+            $dailyFollowup = (int) $target->target_followup;
+        } else {
+            // Base daily target (rounded up)
+            $dailyKontak  = (int) ceil($target->target_kontak / $totalDays);
+            $dailyFollowup = (int) ceil($target->target_followup / $totalDays);
+        }
 
         // How many days have elapsed since period start (excluding today)
-        $elapsedDays = max(0, $startOfMonth->diffInDays($now->copy()->startOfDay()));
+        $elapsedDays = max(0, $start->diffInDays($now->copy()->startOfDay()));
 
         // Expected achievement up to yesterday
         $expectedKontak   = $dailyKontak * $elapsedDays;

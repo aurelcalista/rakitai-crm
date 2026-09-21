@@ -18,6 +18,68 @@
 
     <style>
         [x-cloak] { display: none !important; }
+
+        @media print {
+            aside,
+            header,
+            nav,
+            .no-print,
+            .fixed,
+            [class*="state-simulator"],
+            button:not(.allow-print) {
+                display: none !important;
+            }
+
+            html, body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                font-size: 10pt !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            .min-h-full, .min-h-screen, .md\:pl-64, .md\:pl-20 {
+                padding-left: 0 !important;
+                margin: 0 !important;
+                min-height: auto !important;
+            }
+
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .print-only {
+                display: block !important;
+            }
+
+            .crm-card, .border, .shadow-xs, .shadow-sm, .shadow-md, .shadow-lg {
+                box-shadow: none !important;
+            }
+
+            tr, .print-avoid-break {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            thead {
+                display: table-header-group !important;
+            }
+
+            @page {
+                size: A4 portrait;
+                margin: 1.2cm 1cm 1.2cm 1cm;
+            }
+        }
+
+        @media screen {
+            .print-only {
+                display: none !important;
+            }
+        }
     </style>
 
     <!-- Scripts -->
@@ -80,6 +142,11 @@ x-init="
             </div>
         </template>
     </div>
+
+    @php
+        $userRole = strtolower($currentUser['role'] ?? auth()->user()->role ?? 'sales');
+        $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
+    @endphp
 
     <!-- Main Container -->
     <div class="min-h-full flex flex-col md:flex-row">
@@ -263,7 +330,7 @@ x-init="
 
                     <!-- Section: CRM CORE (Sales, CS, SPV, HM) -->
                     @php
-                        $routePrefix = strtolower($currentUser['role']) === 'sales' ? 'sales.' : '';
+                        $routePrefix = strtolower($currentUser['role']) === 'sales' ? 'sales.' : (strtolower($currentUser['role']) === 'spv' ? 'spv.' : '');
                         $prospekMenuTitle = 'Prospek';
                         if ($currentUser['role'] === 'Sales') $prospekMenuTitle = 'Data Prospek';
                         if ($currentUser['role'] === 'CS') $prospekMenuTitle = 'Data Kontak';
@@ -298,14 +365,15 @@ x-init="
                                 </a>
                             @endif
 
+                            @if($userRole === 'sales')
                             <a 
-                                href="{{ route($routePrefix . 'follow-up.index') }}" 
+                                href="{{ route('sales.follow-up.index') }}" 
                                 title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
                                 <div class="relative flex items-center justify-center">
-                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
                                     @if(isset($globalFollowUpTodayCount) && $globalFollowUpTodayCount > 0)
@@ -315,6 +383,21 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Follow Up</span>
                                 <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
                             </a>
+                            @elseif($userRole !== 'spv')
+                            <a 
+                                href="{{ route('follow-up.index') }}" 
+                                title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <div class="relative flex items-center justify-center">
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                    </svg>
+                                </div>
+                                <span x-show="!sidebarCollapsed">Follow Up</span>
+                            </a>
+                            @endif
 
                             <a 
                                 href="{{ route($routePrefix . 'pipeline.index') }}" 
@@ -360,6 +443,28 @@ x-init="
                             </a>
                         </div>
                     </div>
+
+                    @if($userRole === 'spv')
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: TIM SPV -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Manajemen Tim</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('spv.tim.index') }}" 
+                                title="Anggota Tim"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('spv.tim.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.tim.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Anggota Tim</span>
+                            </a>
+                        </div>
+                    </div>
+                    @endif
                 @endif
 
                 <!-- Section: MANAGEMENT (Head Marketing) -->
@@ -637,6 +742,29 @@ x-init="
 
             <!-- MAIN PAGE SLOT -->
             <main class="flex-1 px-4 sm:px-6 lg:px-8 py-7 sm:py-8 max-w-7xl w-full mx-auto">
+                @if(auth()->check() && strtolower(auth()->user()->role) === 'sales')
+                    @php
+                        $pendingVisits = \App\Models\Prospek::where('sales_id', auth()->id())->where('needs_visit_report', true)->count();
+                    @endphp
+                    @if($pendingVisits > 0)
+                        <div class="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start sm:items-center justify-between gap-4 shadow-xs">
+                            <div class="flex items-start gap-3">
+                                <div class="bg-amber-100 p-2 rounded-lg text-amber-600 shrink-0 mt-0.5 sm:mt-0">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-amber-800">Pengingat Laporan Kunjungan</h4>
+                                    <p class="text-xs text-amber-700 mt-0.5">Ada <span class="font-bold">{{ $pendingVisits }} prospek baru</span> yang belum memiliki laporan kunjungan. Jangan lupa lengkapi data kunjungannya!</p>
+                                </div>
+                            </div>
+                            <button @click="modalTambahKunjungan = true" class="shrink-0 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition shadow-sm">
+                                Lapor Sekarang
+                            </button>
+                        </div>
+                    @endif
+                @endif
                 {{ $slot }}
             </main>
 
@@ -695,8 +823,8 @@ x-init="
                     <!-- Submenu Links Grid -->
                     <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
                         <a 
-                            href="{{ route('prospek.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            href="{{ route($routePrefix . 'prospek.index') }}" 
+                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
                         >
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
@@ -707,13 +835,13 @@ x-init="
                                     <div class="text-[10px] text-slate-500">Database prospek & kontak</div>
                                 </div>
                             </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">142</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">{{ $globalProspekCount ?? 0 }}</span>
                         </a>
 
                         @if($currentUser['role'] !== 'CS')
                             <a 
-                                href="{{ route('kunjungan.index') }}" 
-                                class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                                href="{{ route($routePrefix . 'kunjungan.index') }}" 
+                                class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
                             >
                                 <div class="flex items-center gap-3">
                                     <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
@@ -729,8 +857,8 @@ x-init="
                         @endif
 
                         <a 
-                            href="{{ route('follow-up.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            href="{{ route($routePrefix . 'follow-up.index') }}" 
+                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
                         >
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -745,8 +873,8 @@ x-init="
                         </a>
 
                         <a 
-                            href="{{ route('pipeline.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('pipeline.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            href="{{ route($routePrefix . 'pipeline.index') }}" 
+                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'pipeline.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
                         >
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -783,8 +911,8 @@ x-init="
 
                     <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
                         <a 
-                            href="{{ route('performa.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('performa.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            href="{{ route($routePrefix . 'performa.index') }}" 
+                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'performa.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
                         >
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
@@ -799,8 +927,8 @@ x-init="
                         </a>
 
                         <a 
-                            href="{{ route('laporan.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            href="{{ route($routePrefix . 'laporan.index') }}" 
+                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
                         >
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
@@ -1225,7 +1353,7 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
+                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
                     @csrf
                     <!-- Section: INFORMASI DASAR -->
                     <div>
@@ -1346,7 +1474,7 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route(($routePrefix ?? '') . 'follow-up.store') }}" method="POST" class="mt-4 space-y-4">
+                <form action="{{ route('follow-up.store') }}" method="POST" class="mt-4 space-y-4">
                     @csrf
                     <input type="hidden" name="prospek_id" :value="selectedProspect.id">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1600,13 +1728,6 @@ x-init="
                                         <input type="text" name="potensi_beasiswa" placeholder="Jumlah kuota / estimasi siswa" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Kesediaan Training AI/Robotics</label>
-                                        <select name="kesediaan_training_ai" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                            <option value="1">Bersedia</option>
-                                            <option value="0">Belum Bersedia</option>
-                                        </select>
-                                    </div>
-                                    <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Potensi</label>
                                         <input type="text" name="detail_beasiswa" placeholder="Contoh: Minat tinggi pada Prodi Teknik Informatika & Bisnis Digital" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
@@ -1676,9 +1797,9 @@ x-init="
                             <span class="text-[11px] text-slate-400">Hanya foto (Tanpa GPS)</span>
                         </div>
 
-                        <div class="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-white rounded-xl p-4 text-center transition relative">
+                        <div class="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-white rounded-xl p-4 text-center transition relative cursor-pointer" @click="document.getElementById('foto_upload').click()">
                             <!-- File input is always in DOM -->
-                            <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @change="
+                            <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @click.stop @change="
                                 const file = $event.target.files[0];
                                 if (file) {
                                     const reader = new FileReader();
@@ -1692,9 +1813,9 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2v12a2 2 0 002 2z" />
                                 </svg>
                                 <div class="mt-2 text-xs text-slate-600">
-                                    <label for="foto_upload" class="relative cursor-pointer rounded-md font-semibold text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                                        <span>Upload foto dokumentasi</span>
-                                    </label>
+                                    <span class="relative font-semibold text-blue-600 hover:text-blue-500">
+                                        Upload foto dokumentasi
+                                    </span>
                                     <span class="text-slate-400 block mt-0.5">PNG, JPG hingga 10MB</span>
                                 </div>
                             </div>
@@ -1702,7 +1823,7 @@ x-init="
                             <div x-show="photoPreview" x-cloak>
                                 <div class="relative inline-block">
                                     <img :src="photoPreview" class="max-h-40 rounded-lg shadow-xs object-cover mx-auto" alt="Preview foto">
-                                    <button type="button" @click="photoPreview = null; document.getElementById('foto_upload').value = ''" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600 cursor-pointer">
+                                    <button type="button" @click.stop="photoPreview = null; document.getElementById('foto_upload').value = ''" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600 cursor-pointer">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                     </button>
                                 </div>
@@ -1739,38 +1860,125 @@ x-init="
     </form>
 
     <script>
+        // Global SweetAlert2 Confirmation Dialog
+        window.confirmAction = function(options = {}, callback) {
+            const isDanger = options.isDanger || options.icon === 'warning' || options.icon === 'error';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: options.title || (isDanger ? 'Konfirmasi Tindakan' : 'Konfirmasi'),
+                    text: options.text || 'Apakah Anda yakin ingin melanjutkan?',
+                    icon: options.icon || (isDanger ? 'warning' : 'question'),
+                    showCancelButton: true,
+                    confirmButtonColor: options.confirmButtonColor || (isDanger ? '#e11d48' : '#2563eb'),
+                    cancelButtonColor: options.cancelButtonColor || '#64748b',
+                    confirmButtonText: options.confirmButtonText || (isDanger ? 'Ya, Lanjutkan' : 'Ya, Setuju'),
+                    cancelButtonText: options.cancelButtonText || 'Batal',
+                    reverseButtons: true,
+                    customClass: {
+                        popup: 'rounded-2xl shadow-2xl border border-slate-100 p-6',
+                        title: 'text-slate-900 font-bold text-lg',
+                        htmlContainer: 'text-slate-600 text-xs mt-1',
+                        confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5 shadow-xs',
+                        cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed && typeof callback === 'function') {
+                        callback();
+                    }
+                });
+            } else {
+                if (confirm(options.text || 'Apakah Anda yakin?')) {
+                    if (typeof callback === 'function') callback();
+                }
+            }
+        };
+
         // Fallback global confirmLogout function
-        if (typeof window.confirmLogout !== 'function') {
-            window.confirmLogout = function() {
+        window.confirmLogout = function() {
+            window.confirmAction({
+                title: 'Konfirmasi Logout',
+                text: 'Apakah Anda yakin ingin keluar dari sistem CRM UCIC?',
+                icon: 'warning',
+                isDanger: true,
+                confirmButtonText: 'Ya, Logout',
+                confirmButtonColor: '#e11d48'
+            }, function() {
+                document.getElementById('logout-form')?.submit();
+            });
+        };
+
+        // Automatic SweetAlert2 Form Confirmation for forms with data-confirm
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const confirmMsg = form.getAttribute('data-confirm');
+            if (confirmMsg && !form.dataset.confirmed) {
+                e.preventDefault();
+                const isDelete = form.querySelector('input[name="_method"][value="DELETE"]') || form.action.includes('destroy') || form.action.includes('delete');
+                window.confirmAction({
+                    title: isDelete ? 'Konfirmasi Hapus' : 'Konfirmasi Tindakan',
+                    text: confirmMsg,
+                    icon: isDelete ? 'warning' : 'question',
+                    isDanger: isDelete,
+                    confirmButtonText: isDelete ? 'Ya, Hapus' : 'Ya, Lanjutkan'
+                }, function() {
+                    form.dataset.confirmed = 'true';
+                    form.submit();
+                });
+            }
+        });
+
+        // Flash message handling on load with SweetAlert2 Toast / Modal
+        document.addEventListener('DOMContentLoaded', function() {
+            @if(session('success'))
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        title: 'Konfirmasi Logout',
-                        text: 'Apakah Anda yakin ingin keluar dari sistem CRM?',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonColor: '#e11d48',
-                        cancelButtonColor: '#64748b',
-                        confirmButtonText: 'Ya, Logout',
-                        cancelButtonText: 'Batal',
-                        reverseButtons: true,
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: {!! json_encode(session('success')) !!},
+                        timer: 3500,
+                        timerProgressBar: true,
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
                         customClass: {
-                            popup: 'rounded-2xl',
-                            confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5',
-                            cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
-                        }
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            document.getElementById('logout-form')?.submit();
+                            popup: 'rounded-xl shadow-lg border border-emerald-200 bg-white'
                         }
                     });
-                } else {
-                    if (confirm('Apakah Anda yakin ingin logout?')) {
-                        document.getElementById('logout-form')?.submit();
-                    }
                 }
-            };
-        }
-    </script>
+            @endif
 
+            @if(session('error'))
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Perhatian!',
+                        text: {!! json_encode(session('error')) !!},
+                        confirmButtonColor: '#e11d48',
+                        confirmButtonText: 'Tutup',
+                        customClass: {
+                            popup: 'rounded-2xl shadow-xl border border-rose-100',
+                            confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                        }
+                    });
+                }
+            @endif
+
+            @if($errors->any())
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validasi Gagal',
+                        html: '<ul class="text-left text-xs text-rose-700 space-y-1 list-disc pl-5 mt-2">@foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach</ul>',
+                        confirmButtonColor: '#e11d48',
+                        confirmButtonText: 'Tutup',
+                        customClass: {
+                            popup: 'rounded-2xl shadow-xl border border-rose-100',
+                            confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                        }
+                    });
+                }
+            @endif
+        });
+    </script>
 </body>
 </html>

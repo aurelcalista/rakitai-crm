@@ -38,6 +38,14 @@ class Prospek extends Model
      * Stage number map for pipeline transitions.
      */
     public const STAGES = [
+        // New MasterData Statuses
+        'Baru'                => 1,
+        'Follow Up 1'         => 2,
+        'Negosiasi'           => 3,
+        'Mendaftar'           => 4,
+        'Ditolak/Batal'       => 0,
+        
+        // Pipeline Stage Statuses
         'Cold Lead'           => 1,
         'Interested'          => 2,
         'Follow Up'           => 3,
@@ -148,6 +156,18 @@ class Prospek extends Model
     public function scopeForSales($query, int $salesId)
     {
         return $query->where('sales_id', $salesId);
+    }
+
+    /**
+     * Scope to filter prospects belonging to any sales under a supervisor.
+     */
+    public function scopeForSupervisor($query, int $supervisorId)
+    {
+        $subordinateIds = User::where('supervisor_id', $supervisorId)
+            ->where('role', 'Sales')
+            ->pluck('id');
+
+        return $query->whereIn('sales_id', $subordinateIds);
     }
 
     /**
