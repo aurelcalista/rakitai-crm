@@ -1,4 +1,4 @@
-php
+@php
     $pageTitle = 'Monitoring Kunjungan Tim (SPV)';
     $pageSubtitle = 'Log & Evaluasi Kunjungan Lapangan Tim Sales';
 @endphp
