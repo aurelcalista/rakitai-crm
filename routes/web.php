@@ -135,7 +135,6 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('users',       \App\Http\Controllers\Admin\AdminUserController::class, $except);
         Route::resource('kunjungan',   \App\Http\Controllers\Admin\AdminKunjunganController::class, $except);
-        Route::resource('target',      \App\Http\Controllers\Admin\AdminTargetController::class, $except);
         Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except);
         Route::resource('wilayah',     \App\Http\Controllers\Admin\AdminWilayahController::class, $except);
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
@@ -144,6 +143,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
+    });
+
+    // Admin & HM Shared Modules
+    Route::middleware(['role:Admin,HM'])->prefix('admin')->name('admin.')->group(function () {
+        $except = ['except' => ['create', 'show', 'edit']];
+        Route::resource('target', \App\Http\Controllers\Admin\AdminTargetController::class, $except);
     });
 
     // ──────────────────────────────────────────────────────────────

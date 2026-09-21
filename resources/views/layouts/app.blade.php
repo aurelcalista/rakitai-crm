@@ -495,6 +495,17 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Tim</span>
                             </a>
+                            <a 
+                                href="{{ route('admin.target.index') }}" 
+                                title="Kelola Target"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.target.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.target.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Target</span>
+                            </a>
                         </div>
                     </div>
                 @endif
