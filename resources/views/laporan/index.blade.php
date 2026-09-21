@@ -228,7 +228,7 @@
                                 <td class="py-3 px-3 text-center text-slate-500 font-medium print:border print:border-slate-400">{{ $index + 1 }}</td>
                                 <td class="py-3 px-4 font-semibold text-slate-900 print:border print:border-slate-400">
                                     <span class="no-print">
-                                        <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'sales' ? 'sales.' : (strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '')) . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline">
+                                        <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '') . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline">
                                             {{ $prospect['name'] }}
                                         </a>
                                     </span>

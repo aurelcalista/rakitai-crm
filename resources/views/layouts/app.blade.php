@@ -324,7 +324,7 @@ x-init="
 
                     @php
                         $userRole = strtolower($currentUser['role']);
-                        $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
+                        $routePrefix = $userRole === 'spv' ? 'spv.' : '';
                     @endphp
                     <div>
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
@@ -358,14 +358,13 @@ x-init="
 
                             @if($userRole === 'sales')
                             <a 
-                                href="{{ route('sales.follow-up.index') }}" 
+                                href="{{ route('follow-up.index') }}" 
                                 title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
                                 <div class="relative flex items-center justify-center">
-                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
->>>>>>> spv
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
                                     @if(isset($globalFollowUpTodayCount) && $globalFollowUpTodayCount > 0)
@@ -1339,7 +1338,6 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6">
                 <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
                     @csrf
                     <!-- Section: INFORMASI DASAR -->
@@ -1481,7 +1479,7 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'follow-up.store') }}" method="POST" class="mt-4 space-y-4">
+                <form action="{{ route('follow-up.store') }}" method="POST" class="mt-4 space-y-4">
                     @csrf
                     <input type="hidden" name="prospek_id" :value="selectedProspect.id">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1683,7 +1681,7 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'kunjungan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+                <form action="{{ route(($routePrefix ?? '') . 'kunjungan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
                     @csrf
                     <input type="hidden" name="jenis" :value="kunjunganType === 'sekolah' ? 'Sekolah' : 'Perusahaan'">
                     <input type="hidden" name="tanggal" value="{{ date('Y-m-d') }}">

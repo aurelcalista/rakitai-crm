@@ -13,7 +13,7 @@
 
         <!-- Back Button & Breadcrumbs -->
         <div class="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <a href="{{ route((strtolower(auth()->user()->role) === 'sales' ? 'sales.' : '') . 'prospek.index') }}" class="hover:text-blue-600 flex items-center gap-1">
+            <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '') . 'prospek.index') }}" class="hover:text-blue-600 flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 Kembali ke Daftar Prospek
             </a>
@@ -82,7 +82,7 @@
                     @endcan
 
                     @can('takeover', $prospekModel ?? null)
-                    <form action="{{ route(strtolower(auth()->user()->role ?? '') === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.">
+                    <form action="{{ route('prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.">
                         @csrf
                         <button 
                             type="submit" 
