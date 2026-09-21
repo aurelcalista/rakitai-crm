@@ -74,8 +74,13 @@ class DashboardController extends Controller
             $prospectCount = Prospek::where('sales_id', $sales->id)->count();
             $closing = Prospek::where('sales_id', $sales->id)->where('status', 'Closing')->count();
             $visits = Kunjungan::where('sales_id', $sales->id)->count();
-            $target = $sales->targets()->where('bulan', now()->month)->where('tahun', now()->year)->first();
-            $targetNum = $target ? $target->target : 30;
+            $target = $sales->targets()
+                ->where('tipe_periode', 'Bulanan')
+                ->where('tanggal_mulai', '<=', now()->endOfMonth())
+                ->where('tanggal_selesai', '>=', now()->startOfMonth())
+                ->where('status', 'Aktif')
+                ->first();
+            $targetNum = $target ? $target->target_kontak : 30;
             $achievedPct = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
 
             return [
