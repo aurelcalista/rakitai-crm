@@ -182,7 +182,7 @@
                         <div x-show="openDetail" style="display: none;" class="border-t border-slate-200 bg-slate-50">
                             @if($subordinatesByWilayah->isEmpty())
                                 <div class="p-6 text-center">
-                                    <p class="text-sm text-slate-500 font-medium">Belum ada anggota tim (Sales/CS) yang ditugaskan ke supervisor ini di wilayah manapun.</p>
+                                    <p class="text-sm text-slate-500 font-medium">Belum ada anggota tim (Sales) yang ditugaskan ke supervisor ini di wilayah manapun.</p>
                                 </div>
                             @else
                                 <div class="p-5">

@@ -167,15 +167,7 @@
                             <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] }}</p>
                         </div>
 
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
-                            <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] }}</p>
-                        </div>
 
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Training AI & Robotics</span>
-                            <p class="font-semibold text-blue-600 mt-0.5">{{ $prospect['ai_training'] }}</p>
-                        </div>
 
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>
@@ -253,7 +245,7 @@
                     </button>
                 </div>
 
-                <form :action="'{{ route('prospek.transaksi', '') }}/' + selectedProspect.id" method="POST" class="mt-4 space-y-4">
+                <form :action="'{{ url('prospek') }}/' + selectedProspect.id + '/transaksi'" method="POST" class="mt-4 space-y-4">
                     @csrf
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Transaksi *</label>

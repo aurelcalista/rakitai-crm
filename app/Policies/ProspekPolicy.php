@@ -56,11 +56,23 @@ class ProspekPolicy
      */
     public function followUp(User $user, Prospek $prospek): bool
     {
-        if (in_array(strtolower($user->role), ['spv', 'hm', 'admin'])) {
+        $role = strtolower($user->role);
+
+        if (in_array($role, ['spv', 'hm', 'admin'])) {
             return true;
         }
 
-        return $prospek->isActiveHandler($user);
+        if ($role === 'cs') {
+            // CS scope: either explicitly assigned to them, or has a sales assigned
+            return $prospek->cs_id === $user->id || !is_null($prospek->sales_id);
+        }
+
+        if ($role === 'sales') {
+            // Sales scope: either they are the active sales or they are the owner
+            return $prospek->sales_id === $user->id || $prospek->owner_id === $user->id;
+        }
+
+        return false;
     }
 
     /**

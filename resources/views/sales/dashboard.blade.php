@@ -47,7 +47,7 @@
                     <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
-                    <span>+ Lapor Kunjungan</span>
+                    <span>Lapor Kunjungan</span>
                 </button>
                 <button 
                     type="button"
@@ -57,7 +57,7 @@
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>+ Prospek Baru</span>
+                    <span>Prospek Baru</span>
                 </button>
             </div>
         </div>
@@ -121,7 +121,11 @@
                     <div class="my-5 flex items-center justify-between">
                         <div>
                             <div class="text-4xl font-extrabold text-slate-900">{{ $stats['percentage'] }}%</div>
-                            <div class="text-xs font-semibold text-slate-500 mt-1">{{ $stats['realisasi_closing'] }} / {{ $stats['target_bulan_ini'] }} Closing Prospek</div>
+                            @if($stats['target_bulan_ini'] > 0)
+                                <div class="text-xs font-semibold text-slate-500 mt-1">{{ $stats['realisasi_closing'] }} / {{ $stats['target_bulan_ini'] }} Closing Prospek</div>
+                            @else
+                                <div class="text-xs font-semibold text-rose-500 mt-1">Belum ada target</div>
+                            @endif
                         </div>
                         <div class="w-16 h-16 rounded-full border-4 border-blue-600 border-t-blue-100 flex items-center justify-center font-bold text-xs text-blue-700 bg-blue-50/50">
                             {{ $stats['percentage'] }}%
@@ -209,12 +213,9 @@
                 <!-- Pipeline Grid / Stepper cards -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     @foreach($pipelineStages as $stage)
-                        <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-300 transition">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <span class="text-xs font-semibold text-slate-700">{{ $stage['name'] }}</span>
-                                <span class="text-base font-extrabold text-slate-900">{{ $stage['count'] }}</span>
-                            </div>
-                            <x-status-badge :status="$stage['name']" class="scale-90 origin-left" />
+                        <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-300 transition flex flex-col justify-center items-center gap-2 text-center">
+                            <x-status-badge :status="$stage['name']" class="scale-90" />
+                            <span class="text-2xl font-extrabold text-slate-900">{{ $stage['count'] }}</span>
                         </div>
                     @endforeach
                 </div>

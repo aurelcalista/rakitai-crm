@@ -84,14 +84,7 @@ class ProspectController extends Controller
         $user = auth()->user();
 
         // Resolve name from Master Data if applicable
-        $name = $validated['name'] ?? 'Prospek Baru';
-        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $sekolah = Sekolah::find($validated['sekolah_id']);
-            if ($sekolah) $name = $sekolah->nama;
-        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
-            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-            if ($perusahaan) $name = $perusahaan->nama;
-        }
+        $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
 
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah

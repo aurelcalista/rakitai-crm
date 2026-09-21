@@ -486,17 +486,7 @@ x-init="
                 <div class="flex items-center gap-2.5 sm:gap-4">
 
                     <!-- Search Trigger / Modal Button -->
-                    @if($currentUser['role'] !== 'Admin' && $currentUser['role'] !== 'Head Marketing')
-                        <button 
-                            @click="modalTambahProspek = true" 
-                            class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer shrink-0"
-                        >
-                            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span class="font-semibold"><span class="hidden sm:inline">Tambah </span>Prospek</span>
-                        </button>
-                    @endif
+
 
                     <!-- Notifications Dropdown -->
                     <div class="relative flex items-center justify-center" x-data="{ 
@@ -751,7 +741,7 @@ x-init="
                                     <div class="text-[10px] text-slate-500">Jadwal interaksi harian prospek</div>
                                 </div>
                             </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">16 Hari Ini</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
                         </a>
 
                         <a 
@@ -1273,10 +1263,7 @@ x-init="
                                     @endforeach
                                 </select>
                             </div>
-                            <div x-show="prospekType === 'Individu'" style="display: none;">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Individu / Siswa *</label>
-                                <input type="text" name="name" :required="prospekType === 'Individu'" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
@@ -1286,8 +1273,8 @@ x-init="
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kontak / Nama PIC *</label>
-                                <input type="text" name="pic" required placeholder="Contoh: Bpk. Bambang (Guru BK)" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak *</label>
+                                <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
@@ -1314,19 +1301,6 @@ x-init="
                                     @endforeach
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek (Opsional)</label>
-                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="">-- Pilih Sumber --</option>
-                                    <option value="Kunjungan Sekolah">Kunjungan Sekolah</option>
-                                    <option value="Edufair / Pameran">Edufair / Pameran</option>
-                                    <option value="Sosial Media">Sosial Media</option>
-                                    <option value="Website">Website</option>
-                                    <option value="Teman/Alumni">Teman / Alumni</option>
-                                    <option value="Walk-in">Walk-in (Datang Langsung)</option>
-                                    <option value="Lainnya">Lainnya</option>
-                                </select>
-                            </div>
                         </div>
                     </div>
 
@@ -1334,10 +1308,6 @@ x-init="
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
                         <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Deskripsi Potensi Prospek</label>
-                                <input type="text" name="potential" placeholder="Contoh: 100 Siswa Jurusan RPL & TKJ potensi beasiswa UCIC" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
                                 <textarea name="notes" rows="2" placeholder="Catatan awal hasil perbincangan atau sumber prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>

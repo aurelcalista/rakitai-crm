@@ -63,7 +63,7 @@
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>+ Tambah Prospek</span>
+                    <span>Tambah Prospek</span>
                 </button>
             </div>
         </div>
@@ -152,7 +152,7 @@
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
                             <th class="py-3.5 px-4">Nama Prospek</th>
                             <th class="py-3.5 px-3">Tipe</th>
-                            <th class="py-3.5 px-3">PIC & WhatsApp</th>
+                            <th class="py-3.5 px-3">Nama & WhatsApp</th>
                             <th class="py-3.5 px-3">Status Pipeline</th>
                             <th class="py-3.5 px-3">Takeover Aktif</th>
                             <th class="py-3.5 px-3">Owner</th>
@@ -165,7 +165,6 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-4 px-4 font-semibold text-slate-900">
                                     <a :href="'/prospek/' + prospect.id" class="hover:text-blue-600 text-xs font-bold block" x-text="prospect.name"></a>
-                                    <span class="text-[11px] text-slate-400 font-normal truncate max-w-xs block" x-text="prospect.potential"></span>
                                 </td>
                                 <td class="py-4 px-3">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
@@ -225,7 +224,7 @@
                                 <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0" x-text="prospect.name.substring(0, 2).toUpperCase()"></div>
                                 <div>
                                     <a :href="'/prospek/' + prospect.id" class="font-bold text-xs text-slate-900 block" x-text="prospect.name"></a>
-                                    <span class="text-[11px] text-slate-500 block" x-text="prospect.type + ' • PIC: ' + prospect.pic"></span>
+                                    <span class="text-[11px] text-slate-500 block" x-text="prospect.type + ' • Kontak: ' + prospect.pic"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
                                 </div>
