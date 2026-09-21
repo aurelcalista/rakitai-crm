@@ -95,6 +95,7 @@
     modalTambahProspek: false,
     modalFollowUp: false,
     modalUpdateStatus: false,
+    modalTransaksi: false,
     modalTambahKunjungan: false,
     selectedProspect: { name: 'SMK Negeri 1 Cirebon', status: 'Interested', id: 1, owner: 'Aurel Calista' },
     notificationOpen: false
@@ -327,19 +328,26 @@ x-init="
                 @else
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
+                    <!-- Section: CRM CORE (Sales, CS, SPV, HM) -->
+                    @php
+                        $routePrefix = strtolower($currentUser['role']) === 'sales' ? 'sales.' : (strtolower($currentUser['role']) === 'spv' ? 'spv.' : '');
+                        $prospekMenuTitle = 'Prospek';
+                        if ($currentUser['role'] === 'Sales') $prospekMenuTitle = 'Data Prospek';
+                        if ($currentUser['role'] === 'CS') $prospekMenuTitle = 'Data Kontak';
+                    @endphp
                     <div>
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
                         <div class="space-y-1">
                             <a 
                                 href="{{ route($routePrefix . 'prospek.index') }}" 
-                                title="Prospek ({{ $globalProspekCount ?? 0 }})"
+                                title="{{ $prospekMenuTitle }} ({{ $globalProspekCount ?? 0 }})"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
                                 <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'prospek.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Prospek</span>
+                                <span x-show="!sidebarCollapsed">{{ $prospekMenuTitle }}</span>
                                 <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             
@@ -582,6 +590,7 @@ x-init="
                 <!-- Right: Quick Tools & User Profile -->
                 <div class="flex items-center gap-2.5 sm:gap-4">
 
+                    <!-- Search Trigger / Modal Button -->
 
 
                     <!-- Notifications Dropdown -->
@@ -846,6 +855,22 @@ x-init="
                                 <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                             </a>
                         @endif
+
+                        <a 
+                            href="{{ route($routePrefix . 'follow-up.index') }}" 
+                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                        >
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">Follow Up</div>
+                                    <div class="text-[10px] text-slate-500">Jadwal interaksi harian prospek</div>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
+                        </a>
 
                         <a 
                             href="{{ route($routePrefix . 'pipeline.index') }}" 
@@ -1366,10 +1391,7 @@ x-init="
                                     @endforeach
                                 </select>
                             </div>
-                            <div x-show="prospekType === 'Individu'" style="display: none;">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Individu / Siswa *</label>
-                                <input type="text" name="name" :required="prospekType === 'Individu'" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
@@ -1379,8 +1401,8 @@ x-init="
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kontak / Nama PIC *</label>
-                                <input type="text" name="pic" required placeholder="Contoh: Bpk. Bambang (Guru BK)" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak *</label>
+                                <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
@@ -1414,10 +1436,6 @@ x-init="
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
                         <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Deskripsi Potensi Prospek</label>
-                                <input type="text" name="potential" placeholder="Contoh: 100 Siswa Jurusan RPL & TKJ potensi beasiswa UCIC" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
                                 <textarea name="notes" rows="2" placeholder="Catatan awal hasil perbincangan atau sumber prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>

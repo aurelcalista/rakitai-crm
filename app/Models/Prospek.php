@@ -17,6 +17,23 @@ class Prospek extends Model
         'lost_reason', 'lost_note',
     ];
 
+    protected static function booted()
+    {
+        static::saving(function ($prospek) {
+            if ($prospek->sekolah_id) {
+                $sekolah = Sekolah::find($prospek->sekolah_id);
+                if ($sekolah && $sekolah->sales_id) {
+                    $prospek->sales_id = $sekolah->sales_id;
+                }
+            } elseif ($prospek->perusahaan_id) {
+                $perusahaan = Perusahaan::find($prospek->perusahaan_id);
+                if ($perusahaan && $perusahaan->sales_id) {
+                    $prospek->sales_id = $perusahaan->sales_id;
+                }
+            }
+        });
+    }
+
     /**
      * Stage number map for pipeline transitions.
      */
@@ -126,6 +143,11 @@ class Prospek extends Model
     public function timelines()
     {
         return $this->hasMany(ProspekTimeline::class);
+    }
+
+    public function transaksis()
+    {
+        return $this->hasMany(Transaksi::class);
     }
 
     /**

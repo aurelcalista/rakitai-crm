@@ -155,6 +155,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
     Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
     Route::post('/prospek/{id}/takeover', [CrmController::class, 'prospekTakeover'])->name('prospek.takeover');
+    Route::post('/prospek/{id}/transaksi', [CrmController::class, 'transaksiStore'])->name('prospek.transaksi');
     Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
 
     Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');

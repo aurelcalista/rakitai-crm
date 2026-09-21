@@ -40,6 +40,11 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function transaksis()
+    {
+        return $this->hasMany(Transaksi::class);
+    }
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');

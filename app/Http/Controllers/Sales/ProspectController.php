@@ -22,7 +22,7 @@ class ProspectController extends Controller
     {
         $user = auth()->user();
 
-        $query = Prospek::with(['cs', 'owner', 'followUps' => function ($q) {
+        $query = Prospek::with(['cs', 'owner', 'sekolah', 'perusahaan', 'sales', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->limit(1);
         }])
             ->where('sales_id', $user->id);
@@ -84,14 +84,7 @@ class ProspectController extends Controller
         $user = auth()->user();
 
         // Resolve name from Master Data if applicable
-        $name = $validated['name'] ?? 'Prospek Baru';
-        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $sekolah = Sekolah::find($validated['sekolah_id']);
-            if ($sekolah) $name = $sekolah->nama;
-        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
-            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-            if ($perusahaan) $name = $perusahaan->nama;
-        }
+        $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
 
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
@@ -344,6 +337,8 @@ class ProspectController extends Controller
             'id'             => $p->id,
             'name'           => $p->name,
             'type'           => $p->type,
+            'sekolah_name'   => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+            'sales_name'     => $p->sales ? $p->sales->name : '-',
             'category'       => $p->category ?? '-',
             'pic'            => $p->pic ?? '-',
             'pic_phone'      => $p->pic_phone ?? '-',

@@ -70,6 +70,17 @@
                     </button>
                     @endcan
 
+                    @can('transaction', $prospekModel ?? null)
+                    <button 
+                        type="button" 
+                        @click="selectedProspect = prospect; modalTransaksi = true"
+                        class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>Input Transaksi</span>
+                    </button>
+                    @endcan
+
                     @can('reallocate', $prospekModel ?? null)
                     <button 
                         type="button" 
@@ -82,14 +93,14 @@
                     @endcan
 
                     @can('takeover', $prospekModel ?? null)
-                    <form action="{{ route('prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.">
+                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="{{ strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.' }}">
                         @csrf
                         <button 
-                            type="submit" 
+                            type="submit"
                             class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                            <span>Serahkan ke CS</span>
+                            <span>{{ strtolower(auth()->user()->role) === 'cs' ? 'Takeover (Ambil Alih)' : 'Serahkan ke CS' }}</span>
                         </button>
                     </form>
                     @endcan
@@ -162,13 +173,9 @@
                     <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">Informasi Prospek</h3>
                     
                     <div class="space-y-3 text-xs">
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
-                        </div>
-
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] }}</p>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
                         </div>
 
                         <div>
@@ -295,6 +302,63 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- MODAL: INPUT TRANSAKSI -->
+    <div 
+        x-show="modalTransaksi" 
+        x-cloak 
+        class="fixed inset-0 z-50 overflow-y-auto"
+        role="dialog" 
+        aria-modal="true"
+    >
+        <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div x-show="modalTransaksi" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalTransaksi = false"></div>
+
+            <div class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Input Transaksi Manual</h3>
+                        <p class="text-xs text-slate-500" x-text="selectedProspect.name"></p>
+                    </div>
+                    <button @click="modalTransaksi = false" class="text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <form :action="'{{ url('prospek') }}/' + selectedProspect.id + '/transaksi'" method="POST" class="mt-4 space-y-4">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Transaksi *</label>
+                        <select name="jenis" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                            <option value="">-- Pilih Jenis --</option>
+                            <option value="Beli Formulir">Beli Formulir</option>
+                            <option value="Pembayaran Termin 1">Pembayaran Termin 1 (Closing)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Transaksi *</label>
+                        <input type="date" name="tanggal" required value="{{ date('Y-m-d') }}" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nominal (Rp) *</label>
+                        <input type="number" name="nominal" required min="0" placeholder="Contoh: 1500000" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
+                        <textarea name="notes" rows="2" placeholder="Catatan opsional..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <button type="button" @click="modalTransaksi = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+                        <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">Simpan Transaksi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
 </x-app-layout>
