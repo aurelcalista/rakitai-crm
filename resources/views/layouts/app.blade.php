@@ -1219,11 +1219,7 @@ x-init="
                     </button>
                 </div>
 
-<<<<<<< Updated upstream
-                <form action="{{ route(($routePrefix ?? '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
-=======
                 <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
->>>>>>> Stashed changes
                     @csrf
                     <!-- Section: INFORMASI DASAR -->
                     <div>
