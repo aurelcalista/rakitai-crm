@@ -11,7 +11,7 @@ class Target extends Model
 
     protected $fillable = [
         'sales_id', 'tipe_periode', 'tanggal_mulai', 'tanggal_selesai',
-        'target_kontak', 'target_followup', 'target_kunjungan', 'status'
+        'target_kontak', 'target_menghubungi', 'target_followup', 'target_kunjungan', 'status'
     ];
 
     protected $casts = [

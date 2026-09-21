@@ -152,16 +152,12 @@
 
                     <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
                         <span class="text-[11px] text-slate-400 font-medium" x-text="visit.time"></span>
-                        <button 
-                            type="button" 
-                            @click="selectedVisit = visit; modalDetailVisit = true"
-                            class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1 hover:underline"
+                        <a 
+                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'Admin' ? '/admin' : '') }}/kunjungan/' + visit.id"
+                            class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
                         >
-                            <span>Lihat Detail</span>
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
+                            Detail Data &rarr;
+                        </a>
                     </div>
 
                 </div>
