@@ -40,7 +40,6 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');
@@ -49,6 +48,24 @@ class User extends Authenticatable
     public function subordinates()
     {
         return $this->hasMany(User::class, 'supervisor_id');
+    }
+
+    /**
+     * Sales subordinates under this Supervisor.
+     */
+    public function salesSubordinates()
+    {
+        return $this->hasMany(User::class, 'supervisor_id')->where('role', 'Sales');
+    }
+
+    /**
+     * Check if a given Sales user (or ID) is a subordinate of this Supervisor.
+     */
+    public function isSupervisorOf(User|int|null $sales): bool
+    {
+        if (!$sales) return false;
+        $salesId = $sales instanceof User ? $sales->id : $sales;
+        return $this->subordinates()->where('id', $salesId)->exists();
     }
 
     public function wilayah()
@@ -100,4 +117,59 @@ class User extends Authenticatable
     {
         return strtolower($this->role) === strtolower($role);
     }
+
+    /**
+     * Get team member IDs for an SPV (subordinates or same wilayah Sales).
+     */
+    public function teamMemberIds(): array
+    {
+        $ids = $this->subordinates()->pluck('id')->toArray();
+        if (empty($ids)) {
+            if ($this->wilayah_id) {
+                $ids = User::where('wilayah_id', $this->wilayah_id)
+                    ->whereIn('role', ['Sales', 'CS'])
+                    ->pluck('id')
+                    ->toArray();
+            }
+        }
+        if (empty($ids)) {
+            $ids = User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray();
+        }
+        return $ids;
+    }
+
+    /**
+     * Get Sales subordinates for SPV.
+     */
+    public function teamSales()
+    {
+        $memberIds = $this->teamMemberIds();
+        return User::whereIn('id', $memberIds)->where('role', 'Sales');
+    }
+
+    /**
+     * Get query for prospects belonging to this SPV's team.
+     */
+    public function teamProspeks()
+    {
+        $memberIds = $this->teamMemberIds();
+        return Prospek::where(function ($q) use ($memberIds) {
+            $q->whereIn('sales_id', $memberIds)
+              ->orWhereIn('owner_id', $memberIds)
+              ->orWhereIn('cs_id', $memberIds);
+            if ($this->wilayah_id) {
+                $q->orWhere('wilayah_id', $this->wilayah_id);
+            }
+        });
+    }
+
+    /**
+     * Get query for field visits by this SPV's team.
+     */
+    public function teamKunjungans()
+    {
+        $memberIds = $this->teamMemberIds();
+        return Kunjungan::whereIn('sales_id', $memberIds);
+    }
 }
+

@@ -213,7 +213,7 @@
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Visual Pipeline Prospek</h3>
                         <p class="text-xs text-slate-500">Pergerakan prospek aktif berdasarkan tahapan inbound</p>
                     </div>
-                    <a href="{{ route('sales.pipeline.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                    <a href="{{ route('pipeline.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         Board Detail &rarr;
                     </a>
                 </div>
@@ -253,7 +253,7 @@
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Prospek Terbaru</h3>
                         <p class="text-xs text-slate-500">Daftar prospek yang baru ditangani atau diperbarui</p>
                     </div>
-                    <a href="{{ route('sales.prospek.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                    <a href="{{ route('prospek.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
                         Lihat Semua &rarr;
                     </a>
                 </div>
@@ -275,7 +275,7 @@
                             @foreach($recentProspects as $prospect)
                                 <tr class="hover:bg-slate-50/80 transition">
                                     <td class="py-3.5 px-4 font-semibold text-slate-900">
-                                        <a href="{{ route('sales.prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
+                                        <a href="{{ route('prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
                                             {{ $prospect['name'] }}
                                         </a>
                                         <div class="text-[11px] text-slate-400 font-normal">{{ $prospect['pic'] }}</div>
@@ -302,7 +302,7 @@
                                                 Follow Up
                                             </button>
                                             <a 
-                                                href="{{ route('sales.prospek.show', $prospect['id']) }}"
+                                                href="{{ route('prospek.show', $prospect['id']) }}"
                                                 class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
                                                 title="Lihat Detail"
                                             >
@@ -322,7 +322,7 @@
                         <div class="p-4 space-y-2.5">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <a href="{{ route('sales.prospek.show', $prospect['id']) }}" class="font-bold text-xs text-slate-900 hover:text-blue-600 block">
+                                    <a href="{{ route('prospek.show', $prospect['id']) }}" class="font-bold text-xs text-slate-900 hover:text-blue-600 block">
                                         {{ $prospect['name'] }}
                                     </a>
                                     <span class="text-[11px] text-slate-500">{{ $prospect['type'] }} &bull; {{ $prospect['pic'] }}</span>
@@ -343,7 +343,7 @@
                                     Follow Up
                                 </button>
                                 <a 
-                                    href="{{ route('sales.prospek.show', $prospect['id']) }}"
+                                    href="{{ route('prospek.show', $prospect['id']) }}"
                                     class="py-1.5 px-3 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs text-center hover:bg-slate-200"
                                 >
                                     Detail

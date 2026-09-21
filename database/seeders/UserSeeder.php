@@ -10,26 +10,75 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $users = [
-            ['name' => 'Admin CIC',  'email' => 'admin@cic.ac.id', 'role' => 'Admin'],
-            ['name' => 'HM CIC',     'email' => 'hm@cic.ac.id',    'role' => 'HM'],
-            ['name' => 'SPV CIC',    'email' => 'spv@cic.ac.id',   'role' => 'SPV'],
-            ['name' => 'Sales CIC',  'email' => 'sales@cic.ac.id', 'role' => 'Sales'],
-            ['name' => 'CS CIC',     'email' => 'cs@cic.ac.id',    'role' => 'CS'],
+        // 1. Create Leadership & Management Users
+        $admin = User::updateOrCreate(
+            ['email' => 'admin@cic.ac.id'],
+            [
+                'name'              => 'Admin CIC',
+                'role'              => 'Admin',
+                'password'          => Hash::make('password'),
+                'status'            => 'aktif',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $hm = User::updateOrCreate(
+            ['email' => 'hm@cic.ac.id'],
+            [
+                'name'              => 'HM CIC',
+                'role'              => 'HM',
+                'password'          => Hash::make('password'),
+                'status'            => 'aktif',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $spv = User::updateOrCreate(
+            ['email' => 'spv@cic.ac.id'],
+            [
+                'name'              => 'Hendra Setiawan, S.Kom',
+                'role'              => 'SPV',
+                'password'          => Hash::make('password'),
+                'status'            => 'aktif',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $cs = User::updateOrCreate(
+            ['email' => 'cs@cic.ac.id'],
+            [
+                'name'              => 'Dina Marlina',
+                'role'              => 'CS',
+                'password'          => Hash::make('password'),
+                'status'            => 'aktif',
+                'supervisor_id'     => $spv->id,
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // 2. Create Sales Team Members under SPV
+        $salesMembers = [
+            ['name' => 'Sales CIC',     'email' => 'sales@cic.ac.id'],
+            ['name' => 'Aurel Calista', 'email' => 'aurel.calista@cic.ac.id'],
+            ['name' => 'Rizky Pratama', 'email' => 'rizky.pratama@cic.ac.id'],
+            ['name' => 'Budi Santoso',  'email' => 'budi.santoso@cic.ac.id'],
         ];
 
-        foreach ($users as $user) {
+        foreach ($salesMembers as $sales) {
             User::updateOrCreate(
-                ['email' => $user['email']],
+                ['email' => $sales['email']],
                 [
-                    'name'              => $user['name'],
-                    'role'              => $user['role'],
+                    'name'              => $sales['name'],
+                    'role'              => 'Sales',
                     'password'          => Hash::make('password'),
                     'status'            => 'aktif',
+                    'supervisor_id'     => $spv->id,
                     'email_verified_at' => now(),
                 ]
             );
         }
+
+        // 3. Ensure any existing Sales without supervisor get attached to SPV
+        User::where('role', 'Sales')->whereNull('supervisor_id')->update(['supervisor_id' => $spv->id]);
     }
 }
-

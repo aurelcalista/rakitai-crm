@@ -126,6 +126,7 @@ class ProspectController extends Controller
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,
                 'owner_id'     => $user->id,
+                'needs_visit_report' => true,
             ]);
 
             // Record creation activity log
@@ -149,7 +150,7 @@ class ProspectController extends Controller
      */
     public function show(Prospek $prospek): View
     {
-        $this->authorize('view', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('view', $prospek);
 
         $prospek->load(['sales', 'cs', 'owner', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
@@ -187,7 +188,7 @@ class ProspectController extends Controller
      */
     public function update(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('update', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
 
         $validated = $request->validate([
             'pic'         => 'required|string|max:255',
@@ -221,7 +222,7 @@ class ProspectController extends Controller
      */
     public function updateStatus(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('updateStatus', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
 
         $validated = $request->validate([
             'status' => 'required|string|max:255',
@@ -262,7 +263,7 @@ class ProspectController extends Controller
      */
     public function markLost(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('markLost', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('markLost', $prospek);
 
         $validated = $request->validate([
             'lost_reason' => 'required|in:' . implode(',', Prospek::LOST_REASONS),
@@ -297,7 +298,7 @@ class ProspectController extends Controller
      */
     public function takeover(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('takeover', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
 
         // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
         $cs = \App\Models\User::where('role', 'CS')
