@@ -14,8 +14,8 @@
         <x-empty-state 
             title="Pipeline prospek kosong" 
             description="Belum ada prospek aktif di dalam board pipeline."
-            actionLabel="Tambah Prospek"
-            actionClick="modalTambahProspek = true"
+            :actionLabel="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'Tambah Prospek' : null"
+            :actionClick="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'modalTambahProspek = true' : null"
         />
     </div>
 
@@ -26,21 +26,28 @@
     <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         prospectsList: {{ json_encode($prospects) }},
-        stages: [
-            { name: 'Cold Lead', color: 'badge-cold-lead', border: 'border-slate-300' },
-            { name: 'Interested', color: 'badge-interested', border: 'border-blue-400' },
-            { name: 'Follow Up', color: 'badge-follow-up', border: 'border-amber-400' },
-            { name: 'Beli Formulir', color: 'badge-beli-formulir', border: 'border-purple-400' },
-            { name: 'Pembayaran Termin 1', color: 'badge-pembayaran-termin-1', border: 'border-indigo-400' },
-            { name: 'Closing', color: 'badge-closing', border: 'border-emerald-400' }
-        ],
+        stages: {{ json_encode(collect($pipelineStages)->map(function($stage, $index) {
+            $colors = [
+                ['color' => 'badge-cold-lead', 'border' => 'border-slate-300'],
+                ['color' => 'badge-interested', 'border' => 'border-blue-400'],
+                ['color' => 'badge-follow-up', 'border' => 'border-amber-400'],
+                ['color' => 'badge-beli-formulir', 'border' => 'border-purple-400'],
+                ['color' => 'badge-pembayaran-termin-1', 'border' => 'border-indigo-400'],
+                ['color' => 'badge-closing', 'border' => 'border-emerald-400']
+            ];
+            return [
+                'name' => $stage,
+                'color' => $colors[$index % count($colors)]['color'],
+                'border' => $colors[$index % count($colors)]['border']
+            ];
+        })->values()->toArray()) }},
         
         getProspectsByStage(stageName) {
             return this.prospectsList.filter(p => p.status.toLowerCase() === stageName.toLowerCase());
         },
 
         get lostProspects() {
-            return this.prospectsList.filter(p => p.status.toLowerCase() === 'lost');
+            return this.prospectsList.filter(p => p.status.toLowerCase() === 'lost' || p.status.toLowerCase() === 'ditolak/batal' || p.status.toLowerCase() === 'ditolak / batal');
         }
     }">
 
@@ -50,6 +57,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Inbound</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau perpindahan prospek dari kontak awal hingga registrasi resmi.</p>
             </div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div>
                 <button 
                     type="button" 
@@ -59,9 +67,10 @@
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>+ Prospek Baru</span>
+                    <span>Prospek Baru</span>
                 </button>
             </div>
+            @endif
         </div>
 
         <!-- Visual Kanban Board (Horizontal Scroll on Mobile/Desktop) -->
@@ -84,7 +93,7 @@
                         <!-- Cards in Column -->
                         <div class="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
                             <template x-for="prospect in getProspectsByStage(stage.name)" :key="prospect.id">
-                                <div class="crm-card bg-white p-3.5 space-y-2.5 hover:shadow-md hover:border-blue-300 transition group cursor-pointer" @click="window.location.href = '/prospek/' + prospect.id">
+                                <div class="crm-card bg-white p-3.5 space-y-2.5 hover:shadow-md hover:border-blue-300 transition group cursor-pointer" @click="window.location.href = '{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id">
                                     <div class="flex items-start justify-between">
                                         <h4 class="font-bold text-xs text-slate-900 group-hover:text-blue-600 leading-snug line-clamp-1" x-text="prospect.name"></h4>
                                     </div>
@@ -122,7 +131,7 @@
 
                     <div class="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
                         <template x-for="prospect in lostProspects" :key="prospect.id">
-                            <div class="crm-card bg-white p-3.5 space-y-2.5 border-rose-100 hover:border-rose-300 transition group cursor-pointer" @click="window.location.href = '/prospek/' + prospect.id">
+                            <div class="crm-card bg-white p-3.5 space-y-2.5 border-rose-100 hover:border-rose-300 transition group cursor-pointer" @click="window.location.href = '{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id">
                                 <h4 class="font-bold text-xs text-slate-900 group-hover:text-rose-600 leading-snug" x-text="prospect.name"></h4>
                                 <p class="text-[11px] text-slate-500 line-clamp-2 italic" x-text="prospect.notes"></p>
                                 <div class="pt-2 border-t border-slate-100 text-[10px] text-slate-400 flex justify-between">

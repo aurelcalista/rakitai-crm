@@ -37,6 +37,7 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Aktivitas Follow Up</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau dan tindak lanjuti prospek calon mahasiswa sesuai jadwal audiensi.</p>
             </div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div>
                 <button 
                     type="button" 
@@ -46,9 +47,10 @@
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>+ Catat Follow Up Baru</span>
+                    <span>Catat Follow Up Baru</span>
                 </button>
             </div>
+            @endif
         </div>
 
         <!-- Follow-up Status Tabs -->
@@ -98,7 +100,7 @@
                     <div>
                         <div class="flex items-start justify-between gap-2">
                             <div>
-                                <a :href="'/prospek/' + prospect.id" class="font-bold text-sm text-slate-900 hover:text-blue-600 block" x-text="prospect.name"></a>
+                                <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id" class="font-bold text-sm text-slate-900 hover:text-blue-600 block" x-text="prospect.name"></a>
                                 <span class="text-xs text-slate-500 font-medium" x-text="prospect.type + ' • PIC: ' + prospect.pic"></span>
                             </div>
                             <span 

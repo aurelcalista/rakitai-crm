@@ -47,7 +47,7 @@
                     <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
-                    <span>+ Lapor Kunjungan</span>
+                    <span>Lapor Kunjungan</span>
                 </button>
                 <button 
                     type="button"
@@ -57,7 +57,7 @@
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>+ Prospek Baru</span>
+                    <span>Prospek Baru</span>
                 </button>
             </div>
         </div>
@@ -121,7 +121,11 @@
                     <div class="my-5 flex items-center justify-between">
                         <div>
                             <div class="text-4xl font-extrabold text-slate-900">{{ $stats['percentage'] }}%</div>
-                            <div class="text-xs font-semibold text-slate-500 mt-1">{{ $stats['realisasi_closing'] }} / {{ $stats['target_bulan_ini'] }} Closing Prospek</div>
+                            @if($stats['target_bulan_ini'] > 0)
+                                <div class="text-xs font-semibold text-slate-500 mt-1">{{ $stats['realisasi_closing'] }} / {{ $stats['target_bulan_ini'] }} Closing Prospek</div>
+                            @else
+                                <div class="text-xs font-semibold text-rose-500 mt-1">Belum ada target</div>
+                            @endif
                         </div>
                         <div class="w-16 h-16 rounded-full border-4 border-blue-600 border-t-blue-100 flex items-center justify-center font-bold text-xs text-blue-700 bg-blue-50/50">
                             {{ $stats['percentage'] }}%
@@ -151,43 +155,55 @@
                 <div>
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Target Harian (Snowball)</h3>
-                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">Hari Ini</span>
+                        <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Hari Ini</span>
                     </div>
 
-                    <div class="mt-4 space-y-4">
+                    <div class="mt-5 space-y-6">
                         <!-- Kontak Baru -->
-                        <div>
-                            <div class="flex items-center justify-between mb-1 text-xs">
-                                <span class="font-bold text-slate-700">Kontak Baru</span>
-                                <span class="font-bold text-blue-600">{{ $dailyTarget['pencapaian_hari_ini_kontak'] }} / {{ $dailyTarget['target_hari_ini_kontak'] }}</span>
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <h4 class="font-bold text-slate-800">Kontak Baru</h4>
+                                <div class="text-[11px] text-slate-500 mt-1">
+                                    Target hari ini: <strong class="text-slate-700">{{ $dailyTarget['target_hari_ini_kontak'] }}</strong><br>
+                                    <span class="text-slate-400">(Sisa Akumulasi Kemarin: {{ $dailyTarget['sisa_akumulasi_kontak'] }})</span>
+                                </div>
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                @php $pctKontak = $dailyTarget['target_hari_ini_kontak'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_kontak'] / $dailyTarget['target_hari_ini_kontak']) * 100)) : 0; @endphp
-                                <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: {{ $pctKontak }}%"></div>
-                            </div>
-                            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
-                                <span>Sisa Akumulasi: {{ $dailyTarget['sisa_akumulasi_kontak'] }}</span>
-                                <span class="{{ $dailyTarget['pencapaian_hari_ini_kontak'] >= $dailyTarget['target_hari_ini_kontak'] ? 'text-emerald-500 font-bold' : '' }}">
-                                    Kekurangan: {{ max(0, $dailyTarget['target_hari_ini_kontak'] - $dailyTarget['pencapaian_hari_ini_kontak']) }}
-                                </span>
+                            @php $pctKontak = $dailyTarget['target_hari_ini_kontak'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_kontak'] / $dailyTarget['target_hari_ini_kontak']) * 100)) : 0; @endphp
+                            <div class="relative w-14 h-14 shrink-0">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                    <!-- Background (Belum terpenuhi / Abu) -->
+                                    <path class="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+                                    <!-- Progress (Terpenuhi / Biru) -->
+                                    <path class="text-blue-500 transition-all duration-1000 ease-out" stroke-dasharray="{{ $pctKontak }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span class="text-xs font-bold text-slate-800">{{ $dailyTarget['pencapaian_hari_ini_kontak'] }}/{{ $dailyTarget['target_hari_ini_kontak'] }}</span>
+                                </div>
                             </div>
                         </div>
 
+                        <div class="border-t border-slate-100"></div>
+
                         <!-- Follow Up -->
-                        <div>
-                            <div class="flex items-center justify-between mb-1 text-xs">
-                                <span class="font-bold text-slate-700">Follow Up</span>
-                                <span class="font-bold text-amber-600">{{ $dailyTarget['pencapaian_hari_ini_followup'] }} / {{ $dailyTarget['target_hari_ini_followup'] }}</span>
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <h4 class="font-bold text-slate-800">Follow Up</h4>
+                                <div class="text-[11px] text-slate-500 mt-1">
+                                    Target hari ini: <strong class="text-slate-700">{{ $dailyTarget['target_hari_ini_followup'] }}</strong><br>
+                                    <span class="text-slate-400">(Sisa Akumulasi Kemarin: {{ $dailyTarget['sisa_akumulasi_followup'] }})</span>
+                                </div>
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                @php $pctFollowup = $dailyTarget['target_hari_ini_followup'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_followup'] / $dailyTarget['target_hari_ini_followup']) * 100)) : 0; @endphp
-                                <div class="bg-amber-500 h-2 rounded-full transition-all" style="width: {{ $pctFollowup }}%"></div>
-                            </div>
-                            <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
-                                <span>Sisa Akumulasi: {{ $dailyTarget['sisa_akumulasi_followup'] }}</span>
-                                <span class="{{ $dailyTarget['pencapaian_hari_ini_followup'] >= $dailyTarget['target_hari_ini_followup'] ? 'text-emerald-500 font-bold' : '' }}">
-                                    Kekurangan: {{ max(0, $dailyTarget['target_hari_ini_followup'] - $dailyTarget['pencapaian_hari_ini_followup']) }}
-                                </span>
+                            @php $pctFollowup = $dailyTarget['target_hari_ini_followup'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_followup'] / $dailyTarget['target_hari_ini_followup']) * 100)) : 0; @endphp
+                            <div class="relative w-14 h-14 shrink-0">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                    <!-- Background (Belum terpenuhi / Abu) -->
+                                    <path class="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+                                    <!-- Progress (Terpenuhi / Biru) -->
+                                    <path class="text-blue-500 transition-all duration-1000 ease-out" stroke-dasharray="{{ $pctFollowup }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span class="text-xs font-bold text-slate-800">{{ $dailyTarget['pencapaian_hari_ini_followup'] }}/{{ $dailyTarget['target_hari_ini_followup'] }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -201,7 +217,7 @@
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Visual Pipeline Prospek</h3>
                         <p class="text-xs text-slate-500">Pergerakan prospek aktif berdasarkan tahapan inbound</p>
                     </div>
-                    <a href="{{ route('sales.pipeline.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                    <a href="{{ route('pipeline.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         Board Detail &rarr;
                     </a>
                 </div>
@@ -209,12 +225,9 @@
                 <!-- Pipeline Grid / Stepper cards -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     @foreach($pipelineStages as $stage)
-                        <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-300 transition">
-                            <div class="flex items-center justify-between mb-1.5">
-                                <span class="text-xs font-semibold text-slate-700">{{ $stage['name'] }}</span>
-                                <span class="text-base font-extrabold text-slate-900">{{ $stage['count'] }}</span>
-                            </div>
-                            <x-status-badge :status="$stage['name']" class="scale-90 origin-left" />
+                        <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-300 transition flex flex-col justify-center items-center gap-2 text-center">
+                            <x-status-badge :status="$stage['name']" class="scale-90" />
+                            <span class="text-2xl font-extrabold text-slate-900">{{ $stage['count'] }}</span>
                         </div>
                     @endforeach
                 </div>
@@ -241,7 +254,7 @@
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Prospek Terbaru</h3>
                         <p class="text-xs text-slate-500">Daftar prospek yang baru ditangani atau diperbarui</p>
                     </div>
-                    <a href="{{ route('sales.prospek.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                    <a href="{{ route('prospek.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-700">
                         Lihat Semua &rarr;
                     </a>
                 </div>
@@ -263,7 +276,7 @@
                             @foreach($recentProspects as $prospect)
                                 <tr class="hover:bg-slate-50/80 transition">
                                     <td class="py-3.5 px-4 font-semibold text-slate-900">
-                                        <a href="{{ route('sales.prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
+                                        <a href="{{ route('prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
                                             {{ $prospect['name'] }}
                                         </a>
                                         <div class="text-[11px] text-slate-400 font-normal">{{ $prospect['pic'] }}</div>
@@ -290,7 +303,7 @@
                                                 Follow Up
                                             </button>
                                             <a 
-                                                href="{{ route('sales.prospek.show', $prospect['id']) }}"
+                                                href="{{ route('prospek.show', $prospect['id']) }}"
                                                 class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
                                                 title="Lihat Detail"
                                             >
@@ -310,7 +323,7 @@
                         <div class="p-4 space-y-2.5">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <a href="{{ route('sales.prospek.show', $prospect['id']) }}" class="font-bold text-xs text-slate-900 hover:text-blue-600 block">
+                                    <a href="{{ route('prospek.show', $prospect['id']) }}" class="font-bold text-xs text-slate-900 hover:text-blue-600 block">
                                         {{ $prospect['name'] }}
                                     </a>
                                     <span class="text-[11px] text-slate-500">{{ $prospect['type'] }} &bull; {{ $prospect['pic'] }}</span>
@@ -331,7 +344,7 @@
                                     Follow Up
                                 </button>
                                 <a 
-                                    href="{{ route('sales.prospek.show', $prospect['id']) }}"
+                                    href="{{ route('prospek.show', $prospect['id']) }}"
                                     class="py-1.5 px-3 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs text-center hover:bg-slate-200"
                                 >
                                     Detail

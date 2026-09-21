@@ -22,28 +22,55 @@ class AdminTargetController extends Controller
                 ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
                 ->count();
 
+            // Realisasi Kontak
+            $realisasi_kontak = \App\Models\Prospek::where(function($q) use ($t) {
+                if ($t->sales && $t->sales->role === 'CS') {
+                    $q->where('cs_id', $t->sales_id);
+                } else {
+                    $q->where('sales_id', $t->sales_id);
+                }
+            })->whereBetween('created_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])->count();
+
+            // Realisasi Menghubungi (khusus CS)
+            $realisasi_menghubungi = 0;
+            if ($t->sales && $t->sales->role === 'CS') {
+                $realisasi_menghubungi = \App\Models\FollowUp::where('user_id', $t->sales_id)
+                    ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
+                    ->distinct('prospek_id')
+                    ->count('prospek_id');
+            }
+
+            // Realisasi Follow-up
+            $realisasi_followup = \App\Models\FollowUp::where('user_id', $t->sales_id)
+                ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
+                ->count();
+
             return [
                 'id' => $t->id,
                 'sales' => $salesName,
+                'role' => $t->sales ? $t->sales->role : '-',
                 'avatar' => $avatar,
                 'periode' => \Carbon\Carbon::parse($t->tanggal_mulai)->translatedFormat('F Y'),
                 'periode_type' => $t->tipe_periode,
                 'tanggal_mulai' => \Carbon\Carbon::parse($t->tanggal_mulai)->format('d M Y'),
                 'tanggal_selesai' => \Carbon\Carbon::parse($t->tanggal_selesai)->format('d M Y'),
                 'target_kontak' => $t->target_kontak,
+                'target_menghubungi' => $t->target_menghubungi ?? 0,
                 'target_followup' => $t->target_followup,
                 'target_kunjungan' => $t->target_kunjungan,
                 
-                // Mocking kontak & followup for now as no tracking implemented yet
-                'realisasi_kontak' => 0,
-                'realisasi_followup' => 0,
+                'realisasi_kontak' => $realisasi_kontak,
+                'realisasi_menghubungi' => $realisasi_menghubungi,
+                'realisasi_followup' => $realisasi_followup,
                 'realisasi_kunjungan' => $realisasi_kunjungan,
                 
-                'kekurangan_kontak' => $t->target_kontak,
-                'kekurangan_followup' => $t->target_followup,
+                'kekurangan_kontak' => max(0, $t->target_kontak - $realisasi_kontak),
+                'kekurangan_menghubungi' => max(0, ($t->target_menghubungi ?? 0) - $realisasi_menghubungi),
+                'kekurangan_followup' => max(0, $t->target_followup - $realisasi_followup),
                 'kekurangan_kunjungan' => max(0, $t->target_kunjungan - $realisasi_kunjungan),
                 
                 'akum_kontak' => 0,
+                'akum_menghubungi' => 0,
                 'akum_followup' => 0,
                 
                 'target_besok_kontak' => $t->target_kontak,
@@ -69,6 +96,7 @@ class AdminTargetController extends Controller
             'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'target_kontak' => 'required|integer|min:0',
+            'target_menghubungi' => 'nullable|integer|min:0',
             'target_followup' => 'required|integer|min:0',
             'target_kunjungan' => 'required|integer|min:0',
             'status' => 'required|in:Aktif,Selesai,Nonaktif',
@@ -87,6 +115,7 @@ class AdminTargetController extends Controller
             'tanggal_mulai' => 'required|date',
             'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
             'target_kontak' => 'required|integer|min:0',
+            'target_menghubungi' => 'nullable|integer|min:0',
             'target_followup' => 'required|integer|min:0',
             'target_kunjungan' => 'required|integer|min:0',
             'status' => 'required|in:Aktif,Selesai,Nonaktif',

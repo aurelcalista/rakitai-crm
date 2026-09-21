@@ -34,7 +34,9 @@ class AppServiceProvider extends ServiceProvider
                 if ($role === 'sales') {
                     $prospekCount = \App\Models\Prospek::where('sales_id', $user->id)->count();
                 } elseif ($role === 'cs') {
-                    $prospekCount = \App\Models\Prospek::where('cs_id', $user->id)->count();
+                    $prospekCount = \App\Models\Prospek::where(function($q) use ($user) {
+                        $q->where('cs_id', $user->id)->orWhereNotNull('sales_id');
+                    })->count();
                 } else {
                     $prospekCount = \App\Models\Prospek::count(); // HM/SPV/Admin: all
                 }
@@ -49,7 +51,9 @@ class AppServiceProvider extends ServiceProvider
                 if ($role === 'sales') {
                     $followUpQuery->where('user_id', $user->id);
                 } elseif ($role === 'cs') {
-                    $followUpQuery->where('user_id', $user->id);
+                    $followUpQuery->whereHas('prospek', function($q) use ($user) {
+                        $q->where('cs_id', $user->id);
+                    });
                 }
 
                 $followUpHariIni = $followUpQuery->count();

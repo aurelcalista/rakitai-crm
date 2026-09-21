@@ -22,7 +22,7 @@ class ProspectController extends Controller
     {
         $user = auth()->user();
 
-        $query = Prospek::with(['cs', 'owner', 'followUps' => function ($q) {
+        $query = Prospek::with(['cs', 'owner', 'sekolah', 'perusahaan', 'sales', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->limit(1);
         }])
             ->where('sales_id', $user->id);
@@ -84,14 +84,7 @@ class ProspectController extends Controller
         $user = auth()->user();
 
         // Resolve name from Master Data if applicable
-        $name = $validated['name'] ?? 'Prospek Baru';
-        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $sekolah = Sekolah::find($validated['sekolah_id']);
-            if ($sekolah) $name = $sekolah->nama;
-        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
-            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-            if ($perusahaan) $name = $perusahaan->nama;
-        }
+        $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
 
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
@@ -126,6 +119,7 @@ class ProspectController extends Controller
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,
                 'owner_id'     => $user->id,
+                'needs_visit_report' => true,
             ]);
 
             // Record creation activity log
@@ -149,7 +143,7 @@ class ProspectController extends Controller
      */
     public function show(Prospek $prospek): View
     {
-        $this->authorize('view', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('view', $prospek);
 
         $prospek->load(['sales', 'cs', 'owner', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
@@ -187,7 +181,7 @@ class ProspectController extends Controller
      */
     public function update(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('update', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
 
         $validated = $request->validate([
             'pic'         => 'required|string|max:255',
@@ -221,7 +215,7 @@ class ProspectController extends Controller
      */
     public function updateStatus(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('updateStatus', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
 
         $validated = $request->validate([
             'status' => 'required|string|max:255',
@@ -262,7 +256,7 @@ class ProspectController extends Controller
      */
     public function markLost(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('markLost', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('markLost', $prospek);
 
         $validated = $request->validate([
             'lost_reason' => 'required|in:' . implode(',', Prospek::LOST_REASONS),
@@ -297,7 +291,7 @@ class ProspectController extends Controller
      */
     public function takeover(Request $request, Prospek $prospek): RedirectResponse
     {
-        $this->authorize('takeover', $prospek);
+        \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
 
         // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
         $cs = \App\Models\User::where('role', 'CS')
@@ -343,6 +337,8 @@ class ProspectController extends Controller
             'id'             => $p->id,
             'name'           => $p->name,
             'type'           => $p->type,
+            'sekolah_name'   => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+            'sales_name'     => $p->sales ? $p->sales->name : '-',
             'category'       => $p->category ?? '-',
             'pic'            => $p->pic ?? '-',
             'pic_phone'      => $p->pic_phone ?? '-',

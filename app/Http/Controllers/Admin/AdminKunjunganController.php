@@ -45,6 +45,7 @@ class AdminKunjunganController extends Controller
                 'pic_phone' => $pic_phone,
                 'catatan' => $k->catatan,
                 'status' => $k->status,
+                'foto' => $k->foto_path ? \Storage::url($k->foto_path) : null,
                 'riwayat' => [] // Riwayat feature can be added later
             ];
         });

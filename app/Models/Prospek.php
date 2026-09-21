@@ -17,10 +17,35 @@ class Prospek extends Model
         'lost_reason', 'lost_note',
     ];
 
+    protected static function booted()
+    {
+        static::saving(function ($prospek) {
+            if ($prospek->sekolah_id) {
+                $sekolah = Sekolah::find($prospek->sekolah_id);
+                if ($sekolah && $sekolah->sales_id) {
+                    $prospek->sales_id = $sekolah->sales_id;
+                }
+            } elseif ($prospek->perusahaan_id) {
+                $perusahaan = Perusahaan::find($prospek->perusahaan_id);
+                if ($perusahaan && $perusahaan->sales_id) {
+                    $prospek->sales_id = $perusahaan->sales_id;
+                }
+            }
+        });
+    }
+
     /**
      * Stage number map for pipeline transitions.
      */
     public const STAGES = [
+        // New MasterData Statuses
+        'Baru'                => 1,
+        'Follow Up 1'         => 2,
+        'Negosiasi'           => 3,
+        'Mendaftar'           => 4,
+        'Ditolak/Batal'       => 0,
+        
+        // Pipeline Stage Statuses
         'Cold Lead'           => 1,
         'Interested'          => 2,
         'Follow Up'           => 3,
@@ -120,12 +145,29 @@ class Prospek extends Model
         return $this->hasMany(ProspekTimeline::class);
     }
 
+    public function transaksis()
+    {
+        return $this->hasMany(Transaksi::class);
+    }
+
     /**
      * Scope to filter prospects belonging to a specific sales user.
      */
     public function scopeForSales($query, int $salesId)
     {
         return $query->where('sales_id', $salesId);
+    }
+
+    /**
+     * Scope to filter prospects belonging to any sales under a supervisor.
+     */
+    public function scopeForSupervisor($query, int $supervisorId)
+    {
+        $subordinateIds = User::where('supervisor_id', $supervisorId)
+            ->where('role', 'Sales')
+            ->pluck('id');
+
+        return $query->whereIn('sales_id', $subordinateIds);
     }
 
     /**

@@ -46,14 +46,14 @@
             <x-stat-card 
                 title="Target Kuota Mahasiswa" 
                 :value="$summary['target'] . ' Prospek'" 
-                subtitle="Target Total September" 
+                subtitle="Target Total {{ $summary['periode_label'] }}" 
                 color="blue"
             />
             <x-stat-card 
                 title="Realisasi Closing" 
                 :value="$summary['realisasi'] . ' Mhs'" 
                 subtitle="Terdaftar & Bayar" 
-                trend="+18%"
+                trend="+0%"
                 :trendUp="true"
                 color="emerald"
             />
@@ -75,30 +75,29 @@
         <div class="crm-card bg-white p-6 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Pencapaian Target Kampus (September 2026)</h3>
-                    <p class="text-xs text-slate-500">Realisasi 104 dari total target 180 mahasiswa baru jalur inbound</p>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Pencapaian Target Kampus ({{ $summary['periode_label'] }})</h3>
+                    <p class="text-xs text-slate-500">Realisasi {{ $summary['realisasi'] }} dari total target {{ $summary['target'] }} mahasiswa baru jalur inbound</p>
                 </div>
                 <span class="text-sm font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                    58% Tercapai
+                    {{ $summary['achievement'] }}% Tercapai
                 </span>
             </div>
 
             <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden p-0.5 border border-slate-200/60">
-                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 58%"></div>
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-3 rounded-full transition-all duration-500" style="width: {{ $summary['achievement'] }}%"></div>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs text-slate-500 border-t border-slate-100">
-                <div><span class="text-slate-400">Jalur Beasiswa AI:</span> <strong class="text-slate-800">48 Siswa</strong></div>
-                <div><span class="text-slate-400">Jalur PMDK Sekolah:</span> <strong class="text-slate-800">32 Siswa</strong></div>
-                <div><span class="text-slate-400">Kelas Karyawan S1/S2:</span> <strong class="text-slate-800">18 Peserta</strong></div>
-                <div><span class="text-slate-400">Reguler Mandiri:</span> <strong class="text-slate-800">6 Siswa</strong></div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 text-xs text-slate-500 border-t border-slate-100">
+                <div><span class="text-slate-400">Jalur PMDK Sekolah:</span> <strong class="text-slate-800">{{ $summary['breakdown']['Sekolah'] ?? 0 }} Siswa</strong></div>
+                <div><span class="text-slate-400">Kelas Corporate:</span> <strong class="text-slate-800">{{ $summary['breakdown']['Corporate'] ?? 0 }} Peserta</strong></div>
+                <div><span class="text-slate-400">Reguler Individu:</span> <strong class="text-slate-800">{{ $summary['breakdown']['Individu'] ?? 0 }} Siswa</strong></div>
             </div>
         </div>
 
         <!-- Table Performance Per Sales -->
         <div class="crm-card bg-white p-6">
             <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100 mb-4">
-                Rincian Performa Sales Inbound
+                Rincian Performa
             </h3>
 
             <!-- Desktop Table -->

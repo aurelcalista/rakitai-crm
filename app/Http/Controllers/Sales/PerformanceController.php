@@ -34,11 +34,10 @@ class PerformanceController extends Controller
 
         foreach ($salesUsers as $s) {
             $stats = $this->targetService->getStats($s);
-            $dailyTarget = $this->targetService->calculateDailyTarget($s);
-            $targetBulanan = 50; // Idealnya dari DB Target, kita mock ke 50 jika belum ada model Target yg fix
+            $activeTarget = $this->targetService->getActiveTarget($s);
+            $targetBulanan = $activeTarget ? $activeTarget->target_kontak : 0;
             
-            // Kita coba pakai stats dari service
-            $achievement = $targetBulanan > 0 ? round(($stats['realisasi_closing'] / $targetBulanan) * 100) : 0;
+            $achievement = $targetBulanan > 0 ? min(100, round(($stats['realisasi_closing'] / $targetBulanan) * 100)) : 0;
             
             $team[] = [
                 'name'        => $s->name,
@@ -50,18 +49,26 @@ class PerformanceController extends Controller
                 'lost'        => $stats['lost'],
                 'achievement' => $achievement,
                 'avatar'      => strtoupper(substr($s->name, 0, 2)),
-                'status'      => $stats['realisasi_closing'] >= $targetBulanan ? 'Target Achieved' : 'On Progress'
+                'status'      => ($targetBulanan > 0 && $stats['realisasi_closing'] >= $targetBulanan) ? 'Target Achieved' : 'On Progress'
             ];
 
             $totalTarget += $targetBulanan;
             $totalRealisasi += $stats['realisasi_closing'];
         }
 
+        $breakdown = [
+            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'Closing')->count(),
+            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'Closing')->count(),
+            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'Closing')->count(),
+        ];
+
         $summary = [
             'target'      => $totalTarget,
             'realisasi'   => $totalRealisasi,
             'achievement' => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100) : 0,
             'sisa_target' => max(0, $totalTarget - $totalRealisasi),
+            'breakdown'   => $breakdown,
+            'periode_label' => \Carbon\Carbon::now()->locale('id')->isoFormat('MMMM YYYY'),
         ];
 
         return view('performa.index', compact('team', 'summary'));
