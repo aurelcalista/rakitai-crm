@@ -99,10 +99,6 @@
                     
                     <div>
                         <!-- Photo Documentation Preview -->
-<<<<<<< Updated upstream
-                        <div class="h-44 w-full bg-slate-100 relative overflow-hidden">
-                            <img :src="visit.photo" :alt="visit.name" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-=======
                         <div class="h-44 w-full bg-slate-100 relative overflow-hidden cursor-pointer" @click="selectedVisit = visit; modalDetailVisit = true">
                             <template x-if="visit.photo">
                                 <img :src="visit.photo" :alt="visit.name" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
@@ -114,7 +110,6 @@
                                     </svg>
                                 </div>
                             </template>
->>>>>>> Stashed changes
                             <div class="absolute top-3 left-3">
                                 <span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-900/75 backdrop-blur-md text-white border border-white/20" x-text="visit.type"></span>
                             </div>
@@ -159,13 +154,8 @@
                         <span class="text-[11px] text-slate-400 font-medium" x-text="visit.time"></span>
                         <button 
                             type="button" 
-<<<<<<< Updated upstream
-                            @click="$store.crm.showToast('Detail dokumentasi foto siap diunduh')"
-                            class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-=======
                             @click="selectedVisit = visit; modalDetailVisit = true"
                             class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1 hover:underline"
->>>>>>> Stashed changes
                         >
                             <span>Lihat Detail</span>
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

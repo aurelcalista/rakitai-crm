@@ -31,11 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2">
-<<<<<<< Updated upstream
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name ?? 'Supervisor' }} 👋</h2>
-=======
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }} 👋</h2>
->>>>>>> Stashed changes
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Supervisor Marketing</span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Evaluasi capaian bulanan dan monitoring aktivitas tim Sales & CS.</p>
@@ -43,20 +39,6 @@
             
             <!-- Quick Link Actions -->
             <div class="flex flex-wrap items-center gap-2">
-<<<<<<< Updated upstream
-                <select class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                    <option value="current">{{ now()->translatedFormat('F Y') }}</option>
-                    <option value="prev-1">{{ now()->subMonth()->translatedFormat('F Y') }}</option>
-                    <option value="prev-2">{{ now()->subMonths(2)->translatedFormat('F Y') }}</option>
-                </select>
-
-                <select class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                    <option value="all">Semua Personil Sales ({{ count($team) }})</option>
-                    @foreach($team as $m)
-                        <option value="{{ $m['id'] }}">{{ $m['name'] }}</option>
-                    @endforeach
-                </select>
-=======
                 <a href="{{ route('spv.prospek.create') }}" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-xs flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     <span>+ Tambah Prospek Tim</span>
@@ -64,7 +46,6 @@
                 <a href="{{ route('spv.pipeline.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5">
                     <span>Lihat Pipeline Board</span>
                 </a>
->>>>>>> Stashed changes
             </div>
         </div>
 

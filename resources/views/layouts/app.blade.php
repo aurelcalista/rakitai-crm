@@ -305,14 +305,10 @@ x-init="
                 @else
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
-                    <!-- Section: CRM CORE (Sales, CS, SPV, HM) -->
-<<<<<<< Updated upstream
-=======
                     @php
                         $userRole = strtolower($currentUser['role']);
                         $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
                     @endphp
->>>>>>> Stashed changes
                     <div>
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
                         <div class="space-y-1">
@@ -345,15 +341,6 @@ x-init="
 
                             @if($userRole === 'sales')
                             <a 
-<<<<<<< Updated upstream
-                                href="{{ route('follow-up.index') }}" 
-                                title="Follow Up (16 Hari Ini)"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <div class="relative flex items-center justify-center">
-                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-=======
                                 href="{{ route('sales.follow-up.index') }}" 
                                 title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -361,7 +348,6 @@ x-init="
                             >
                                 <div class="relative flex items-center justify-center">
                                     <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
->>>>>>> Stashed changes
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
                                     <span x-show="sidebarCollapsed" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500"></span>
@@ -554,11 +540,7 @@ x-init="
                     </div>
 
                     <!-- Search Trigger / Modal Button -->
-<<<<<<< Updated upstream
-                    @if($currentUser['role'] !== 'Admin')
-=======
                     @if(in_array($currentUser['role'], ['Sales', 'CS']))
->>>>>>> Stashed changes
                         <button 
                             @click="modalTambahProspek = true" 
                             class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer shrink-0"
@@ -1767,8 +1749,6 @@ x-init="
         @csrf
     </form>
 
-<<<<<<< Updated upstream
-=======
     <script>
         // Global SweetAlert2 Confirmation Dialog
         window.confirmAction = function(options = {}, callback) {

@@ -222,27 +222,17 @@
                             <th class="py-3 px-4 text-right print:border print:border-slate-400">Tanggal Masuk</th>
                         </tr>
                     </thead>
-<<<<<<< Updated upstream
-                    <tbody class="divide-y divide-slate-100">
-                        @foreach($prospects as $prospect)
-                            <tr class="hover:bg-slate-50/80 transition">
-                                <td class="py-3.5 px-4 font-semibold text-slate-900">
-                                    <a href="{{ route('prospek.show', $prospect['id']) }}" class="hover:text-blue-600">
-                                        {{ $prospect['name'] }}
-                                    </a>
-=======
                     <tbody class="divide-y divide-slate-100 print:divide-slate-400">
                         @forelse($prospects as $index => $prospect)
                             <tr class="hover:bg-slate-50/80 transition print:hover:bg-transparent">
                                 <td class="py-3 px-3 text-center text-slate-500 font-medium print:border print:border-slate-400">{{ $index + 1 }}</td>
                                 <td class="py-3 px-4 font-semibold text-slate-900 print:border print:border-slate-400">
                                     <span class="no-print">
-                                        <a href="{{ route((strtolower(auth()->user()->role) === 'sales' ? 'sales.' : '') . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline">
+                                        <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'sales' ? 'sales.' : (strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '')) . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline">
                                             {{ $prospect['name'] }}
                                         </a>
                                     </span>
                                     <span class="print-only font-bold text-slate-900">{{ $prospect['name'] }}</span>
->>>>>>> Stashed changes
                                 </td>
                                 <td class="py-3 px-3 text-slate-600 print:border print:border-slate-400">{{ $prospect['type'] }}</td>
                                 <td class="py-3 px-3 text-slate-800 font-medium print:border print:border-slate-400">{{ $prospect['pic'] }}</td>

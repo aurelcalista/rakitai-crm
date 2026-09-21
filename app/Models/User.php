@@ -29,9 +29,6 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-<<<<<<< Updated upstream
-=======
-
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');
@@ -109,9 +106,6 @@ class User extends Authenticatable
     {
         return strtolower($this->role) === strtolower($role);
     }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 
     /**
      * Get team member IDs for an SPV (subordinates or same wilayah Sales).
@@ -166,6 +160,5 @@ class User extends Authenticatable
         $memberIds = $this->teamMemberIds();
         return Kunjungan::whereIn('sales_id', $memberIds);
     }
->>>>>>> Stashed changes
 }
 

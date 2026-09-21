@@ -62,17 +62,7 @@
                         <span>Update Status</span>
                     </button>
 
-<<<<<<< Updated upstream
-                    <button 
-                        type="button" 
-                        @click="selectedProspect = prospect; modalTakeover = true"
-                        class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                        <span>Takeover</span>
-                    </button>
-=======
-                    @can('reallocate', $prospekModel)
+                    @can('reallocate', $prospekModel ?? null)
                     <button 
                         type="button" 
                         @click="modalRealokasi = true"
@@ -83,8 +73,8 @@
                     </button>
                     @endcan
 
-                    @can('takeover', $prospekModel)
-                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.">
+                    @can('takeover', $prospekModel ?? null)
+                    <form action="{{ route(strtolower(auth()->user()->role ?? '') === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.">
                         @csrf
                         <button 
                             type="submit" 
@@ -95,7 +85,6 @@
                         </button>
                     </form>
                     @endcan
->>>>>>> Stashed changes
                 </div>
             </div>
 
@@ -207,15 +196,11 @@
                     <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">Informasi Prospek</h3>
                     
                     <div class="space-y-3 text-xs">
-                        <div>
-<<<<<<< Updated upstream
-=======
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
                             <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
                         </div>
 
                         <div>
->>>>>>> Stashed changes
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
                             <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] ?? '-' }}</p>
                         </div>

@@ -734,8 +734,6 @@ class CrmController extends Controller
     /**
      * Daftar Prospek (Scoped to authenticated user role / team hierarchy).
      */
-<<<<<<< Updated upstream
-=======
     private function getDbProspects()
     {
         $user = auth()->user();
@@ -750,8 +748,14 @@ class CrmController extends Controller
             if ($role === 'sales') {
                 $query->where('sales_id', $user->id);
             } elseif ($role === 'spv') {
-                $salesIds = $user->salesSubordinates()->pluck('id');
-                $query->whereIn('sales_id', $salesIds);
+                $salesIds = $user->teamMemberIds();
+                $query->where(function ($q) use ($salesIds, $user) {
+                    $q->whereIn('sales_id', $salesIds)
+                      ->orWhereIn('owner_id', $salesIds);
+                    if ($user->wilayah_id) {
+                        $q->orWhere('wilayah_id', $user->wilayah_id);
+                    }
+                });
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
                     $q->where('cs_id', $user->id)->orWhereNull('cs_id');
@@ -804,16 +808,13 @@ class CrmController extends Controller
         })->toArray();
     }
 
->>>>>>> Stashed changes
     public function prospekIndex(Request $request): View
     {
-        $prospects = $this->getProspects();
+        $prospects = $this->getDbProspects();
 
         return view('prospek.index', compact('prospects'));
     }
 
-<<<<<<< Updated upstream
-=======
     public function prospekStore(Request $request)
     {
         $request->validate([
@@ -887,16 +888,11 @@ class CrmController extends Controller
         return redirect()->route('prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
     }
 
->>>>>>> Stashed changes
     /**
      * Detail Prospek.
      */
     public function prospekShow(int $id): View
     {
-<<<<<<< Updated upstream
-        $prospects = $this->getProspects();
-        $prospect = collect($prospects)->firstWhere('id', $id) ?? $prospects[0];
-=======
         $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
             $q->orderBy('tanggal', 'desc');
         }, 'timelines' => function($q) {
@@ -922,7 +918,6 @@ class CrmController extends Controller
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
             'source' => $prospectRaw->source ?? '-',
             'potential' => $prospectRaw->potential ?? '-',
-            'source' => $prospectRaw->source ?? '-',
             'ai_training' => $prospectRaw->ai_training ?? '-',
             'notes' => $prospectRaw->notes ?? '',
             'lost_reason' => $prospectRaw->lost_reason ?? null,
@@ -943,7 +938,6 @@ class CrmController extends Controller
                 ];
             })->toArray(),
         ];
->>>>>>> Stashed changes
 
         $allStages = [
             ['name' => 'Cold Lead', 'number' => 1],
@@ -957,7 +951,7 @@ class CrmController extends Controller
         // Retrieve available Sales team for re-allocation
         $user = auth()->user();
         if ($user && strtolower($user->role) === 'spv') {
-            $salesTeam = $user->salesSubordinates()->get();
+            $salesTeam = $user->teamSales()->get();
         } else {
             $salesTeam = \App\Models\User::where('role', 'Sales')->where('status', 'aktif')->get();
         }
@@ -965,8 +959,6 @@ class CrmController extends Controller
         return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw'));
     }
 
-<<<<<<< Updated upstream
-=======
     public function prospekUpdate(Request $request, int $id)
     {
         $prospek = Prospek::findOrFail($id);
@@ -1134,15 +1126,11 @@ class CrmController extends Controller
         return response()->json(['success' => true]);
     }
 
->>>>>>> Stashed changes
     /**
      * Halaman Kunjungan.
      */
     public function kunjunganIndex(): View
     {
-<<<<<<< Updated upstream
-        $visits = $this->getVisits();
-=======
         $user = auth()->user();
         $query = \App\Models\Kunjungan::with('sales')
             ->orderBy('tanggal', 'desc');
@@ -1152,13 +1140,12 @@ class CrmController extends Controller
             if ($role === 'sales') {
                 $query->where('sales_id', $user->id);
             } elseif ($role === 'spv') {
-                $salesIds = $user->salesSubordinates()->pluck('id');
+                $salesIds = $user->teamMemberIds();
                 $query->whereIn('sales_id', $salesIds);
             }
         }
 
         $visits = $query->get()->map(fn ($k) => $this->formatKunjunganForBlade($k))->toArray();
->>>>>>> Stashed changes
 
         return view('kunjungan.index', compact('visits'));
     }
@@ -1168,9 +1155,6 @@ class CrmController extends Controller
      */
     public function followUpIndex(): View
     {
-<<<<<<< Updated upstream
-        $prospects = $this->getProspects();
-=======
         $allProspects = collect($this->getDbProspects());
         $today = now()->toDateString();
         
@@ -1196,7 +1180,6 @@ class CrmController extends Controller
                 $prospects['today'][] = $p;
             }
         }
->>>>>>> Stashed changes
 
         return view('follow-up.index', compact('prospects'));
     }
@@ -1206,12 +1189,8 @@ class CrmController extends Controller
      */
     public function pipelineIndex(): View
     {
-<<<<<<< Updated upstream
-        $prospects = $this->getProspects();
-=======
         $prospects = $this->getDbProspects();
         $pipelineStages = ['Cold Lead', 'Interested', 'Follow Up', 'Beli Formulir', 'Pembayaran Termin 1', 'Closing'];
->>>>>>> Stashed changes
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }
@@ -1221,19 +1200,11 @@ class CrmController extends Controller
      */
     public function performaIndex(): View
     {
-<<<<<<< Updated upstream
-        $team = $this->getTeamPerformance();
-        $summary = [
-            'target' => 180,
-            'realisasi' => 104,
-            'achievement' => 58,
-            'sisa_target' => 76,
-=======
         $user = auth()->user();
         $targetService = app(\App\Services\SalesTargetService::class);
 
         if ($user && strtolower($user->role) === 'spv') {
-            $salesUsers = $user->salesSubordinates()->get();
+            $salesUsers = $user->teamSales()->get();
         } elseif ($user && strtolower($user->role) === 'sales') {
             $salesUsers = collect([$user]);
         } else {
@@ -1279,7 +1250,6 @@ class CrmController extends Controller
             'realisasi'   => $totalRealisasi,
             'achievement' => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100) : 0,
             'sisa_target' => max(0, $totalTarget - $totalRealisasi),
->>>>>>> Stashed changes
         ];
 
         return view('performa.index', compact('team', 'summary'));
@@ -1290,20 +1260,11 @@ class CrmController extends Controller
      */
     public function laporanIndex(): View
     {
-<<<<<<< Updated upstream
-        $prospects = $this->getProspects();
-        $summary = [
-            'total_prospek' => 485,
-            'active' => 290,
-            'closing' => 142,
-            'lost' => 21,
-            'conversion_rate' => 29.3,
-=======
         $user = auth()->user();
         $prospects = $this->getDbProspects();
 
         if ($user && strtolower($user->role) === 'spv') {
-            $salesIds = $user->salesSubordinates()->pluck('id');
+            $salesIds = $user->teamMemberIds();
         } elseif ($user && strtolower($user->role) === 'sales') {
             $salesIds = collect([$user->id]);
         } else {
@@ -1321,7 +1282,6 @@ class CrmController extends Controller
             'closing'         => $closing,
             'lost'            => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
->>>>>>> Stashed changes
         ];
 
         return view('laporan.index', compact('prospects', 'summary'));
