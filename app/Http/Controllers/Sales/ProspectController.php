@@ -166,12 +166,16 @@ class ProspectController extends Controller
         $lostReasons = Prospek::LOST_REASONS;
         $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
 
+        // Sales tidak bisa re-alokasi, kirim collection kosong agar view tidak error
+        $salesTeam = \Illuminate\Support\Collection::make();
+
         return view('prospek.show', compact(
             'prospect',
             'isHandler',
             'allStages',
             'lostReasons',
-            'metodeOptions'
+            'metodeOptions',
+            'salesTeam'
         ));
     }
 

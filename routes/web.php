@@ -65,10 +65,11 @@ Route::middleware('auth')->group(function () {
             Route::post('/follow-up', [\App\Http\Controllers\Sales\FollowUpController::class, 'store'])->name('follow-up.store');
 
             // Field visit management
-            Route::get('/kunjungan',             [\App\Http\Controllers\Sales\VisitController::class, 'index'])->name('kunjungan.index');
-            Route::get('/kunjungan/create',      [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
-            Route::post('/kunjungan',            [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
-            Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
+            Route::get('/kunjungan',                [\App\Http\Controllers\Sales\VisitController::class, 'index'])->name('kunjungan.index');
+            Route::get('/kunjungan/create',         [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
+            Route::post('/kunjungan',               [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
+            Route::get('/kunjungan/{kunjungan}',    [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
+            Route::delete('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'destroy'])->name('kunjungan.destroy');
 
             // Pipeline
             Route::get('/pipeline',                [\App\Http\Controllers\Sales\PipelineController::class, 'index'])->name('pipeline.index');
