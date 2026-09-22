@@ -10,10 +10,23 @@ class Target extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sales_id', 'allocated_by', 'tipe_periode', 'tahun_akademik', 'tanggal_mulai', 'tanggal_selesai',
+        'sales_id', 'allocated_by', 'tipe_periode', 'tahun_akademik', 'academic_year_id',
+        'tanggal_mulai', 'tanggal_selesai',
         'target_kontak', 'target_menghubungi', 'target_followup', 'target_kunjungan',
         'target_formulir', 'target_lunas', 'status'
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (!$model->academic_year_id) {
+                $aktif = TahunAkademik::getAktif();
+                if ($aktif) {
+                    $model->academic_year_id = $aktif->id;
+                }
+            }
+        });
+    }
 
     protected $casts = [
         'tanggal_mulai' => 'date',

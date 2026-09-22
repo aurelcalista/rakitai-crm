@@ -89,7 +89,7 @@ class ReportController extends Controller
         })->toArray();
 
         $totalProspek = count($prospects);
-        $closing = count(array_filter($prospects, fn($p) => $p['status'] === 'Closing'));
+        $closing = count(array_filter($prospects, fn($p) => $p['status'] === 'Closing (Lunas)'));
         $lost = count(array_filter($prospects, fn($p) => $p['status'] === 'Lost'));
         $active = $totalProspek - $closing - $lost;
 

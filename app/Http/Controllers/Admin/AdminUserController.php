@@ -26,7 +26,7 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'phone' => 'required|string|max:20',
-            'role' => 'required|in:Admin,HM,SPV,Sales,CS',
+            'role' => 'required|in:Admin,HM,SPV,Sales,CS,EO',
             'status' => 'required|in:Aktif,Nonaktif',
             'password' => 'required|string|confirmed',
         ]);
@@ -44,7 +44,7 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'required|string|max:20',
-            'role' => 'required|in:Admin,HM,SPV,Sales,CS',
+            'role' => 'required|in:Admin,HM,SPV,Sales,CS,EO',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
 

@@ -5,7 +5,9 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Prospek;
+use App\Models\Kunjungan;
 use App\Policies\ProspekPolicy;
+use App\Policies\KunjunganPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register Policies
         Gate::policy(Prospek::class, ProspekPolicy::class);
+        Gate::policy(Kunjungan::class, KunjunganPolicy::class);
 
         \Illuminate\Support\Facades\View::composer('*', function ($view) {
             if (auth()->check()) {
@@ -44,7 +47,7 @@ class AppServiceProvider extends ServiceProvider
                 // Follow up hari ini dan belum selesai
                 $followUpQuery = \App\Models\FollowUp::whereDate('next_follow_up', now()->toDateString())
                     ->whereHas('prospek', function ($q) {
-                        $q->whereNotIn('status', ['Closing', 'Lost']);
+                        $q->whereNotIn('status', ['Closing (Lunas)', 'Lost']);
                     });
 
                 // Scope follow-up by role

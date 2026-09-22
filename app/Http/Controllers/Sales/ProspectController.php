@@ -41,7 +41,7 @@ class ProspectController extends Controller
             ->map(fn ($p) => $this->formatProspek($p))
             ->toArray();
 
-        $statuses = array_keys(Prospek::STAGES);
+        $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('prospek.index', compact('prospects', 'statuses', 'lostReasons'));
@@ -54,7 +54,7 @@ class ProspectController extends Controller
     {
         $sekolahs   = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
-        $statuses   = array_keys(Prospek::STAGES);
+        $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons'));
@@ -78,13 +78,39 @@ class ProspectController extends Controller
             'potential'=> 'nullable|string|max:500',
             'ai_training' => 'nullable|string|max:255',
             'notes'    => 'nullable|string',
-            'source'   => 'nullable|string|max:100',
+            'source'   => 'required|string|max:100',
         ]);
 
         $user = auth()->user();
 
         // Resolve name from Master Data if applicable
         $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
+
+        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
+            $sekolah = Sekolah::find($validated['sekolah_id']);
+            if ($sekolah) $name = $sekolah->nama;
+        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
+            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+            if ($perusahaan) $name = $perusahaan->nama;
+        }
+
+        $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {
+            $query->where('whatsapp', $validated['whatsapp'])
+                  ->orWhere('name', $name);
+        })->first();
+
+        if ($duplicate) {
+            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
+            $ownerName = $duplicate->owner ? $duplicate->owner->name : 'Sistem';
+            $salesName = $duplicate->sales ? $duplicate->sales->name : 'Belum Ada Sales';
+            
+            $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}).\n"
+                          . "Prospek ini dimiliki oleh: {$ownerName}\n"
+                          . "Sedang ditangani oleh: {$salesName}\n"
+                          . "Status saat ini: {$duplicate->status}";
+                          
+            return back()->withInput()->withErrors([$errorField => $errorMessage]);
+        }
 
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
@@ -153,25 +179,24 @@ class ProspectController extends Controller
 
         $isHandler = $prospek->isHandledBySales(auth()->user());
 
-        $allStages = [
-            ['name' => 'Cold Lead',           'number' => 1],
-            ['name' => 'Interested',          'number' => 2],
-            ['name' => 'Follow Up',           'number' => 3],
-            ['name' => 'Beli Formulir',       'number' => 4],
-            ['name' => 'Pembayaran Termin 1', 'number' => 5],
-            ['name' => 'Closing',             'number' => 6],
-        ];
+        $allStages = array_map(function ($stageName) {
+            return ['name' => $stageName, 'number' => Prospek::STAGES[$stageName]];
+        }, Prospek::ACTIVE_STAGES);
 
         $prospect   = $this->formatProspekDetail($prospek);
         $lostReasons = Prospek::LOST_REASONS;
         $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
+
+        // Sales tidak bisa re-alokasi, kirim collection kosong agar view tidak error
+        $salesTeam = \Illuminate\Support\Collection::make();
 
         return view('prospek.show', compact(
             'prospect',
             'isHandler',
             'allStages',
             'lostReasons',
-            'metodeOptions'
+            'metodeOptions',
+            'salesTeam'
         ));
     }
 
@@ -191,7 +216,20 @@ class ProspectController extends Controller
             'ai_training' => 'nullable|string|max:255',
             'notes'       => 'nullable|string',
             'category'    => 'nullable|string|max:100',
+            'source'      => 'required|string|max:100',
         ]);
+
+        $duplicate = Prospek::where('id', '!=', $prospek->id)
+            ->where(function ($q) use ($validated, $prospek) {
+                $name = $request->input('name', $prospek->name);
+                $q->where('whatsapp', $validated['whatsapp'])
+                  ->orWhere('name', $name);
+            })->first();
+
+        if ($duplicate) {
+            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
+            return back()->withInput()->withErrors([$errorField => 'Data prospek sudah ada (Duplicate ' . $errorField . ').']);
+        }
 
         $prospek->update($validated);
 
@@ -310,6 +348,7 @@ class ProspectController extends Controller
 
         $prospek->update([
             'cs_id' => $cs->id,
+            'active_follow_up_count' => 0,
         ]);
 
         ProspekTimeline::create([

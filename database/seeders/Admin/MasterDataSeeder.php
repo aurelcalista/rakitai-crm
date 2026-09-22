@@ -27,7 +27,7 @@ class MasterDataSeeder extends Seeder
             ['type' => 'status_followup', 'kode' => 'FU-TERTARIK', 'nama' => 'Tertarik & Minta Brosur', 'deskripsi' => 'Prospek minta brosur'],
             ['type' => 'status_followup', 'kode' => 'FU-JADWAL-KUNJUNGAN', 'nama' => 'Jadwalkan Kunjungan', 'deskripsi' => 'Kunjungan ke sekolah'],
             ['type' => 'status_followup', 'kode' => 'FU-BELUM-RESPON', 'nama' => 'Belum Respon', 'deskripsi' => 'Belum ada balasan'],
-            ['type' => 'status_followup', 'kode' => 'FU-BELI-FORMULIR', 'nama' => 'Beli Formulir', 'deskripsi' => 'Sudah membeli form'],
+            ['type' => 'status_followup', 'kode' => 'FU-BELI-FORMULIR', 'nama' => 'FORMULIR', 'deskripsi' => 'Sudah membeli form'],
 
             // Jenis Kunjungan
             ['type' => 'jenis_kunjungan', 'kode' => 'JK-PRESENTASI', 'nama' => 'Presentasi', 'deskripsi' => 'Presentasi ke siswa/guru'],

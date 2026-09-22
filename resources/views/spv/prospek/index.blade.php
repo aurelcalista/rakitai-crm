@@ -217,6 +217,17 @@
                                 <td class="py-3.5 px-3">
                                     <div class="font-bold text-slate-800" x-text="p.takeover_sales || p.takeover_cs || 'Belum Ditugaskan'"></div>
                                     <div class="text-[10px] text-slate-400" x-text="p.active_takeover"></div>
+                                    <template x-if="p.sla_status && p.sla_status !== 'N/A'">
+                                        <div class="mt-1 flex items-center">
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                                :class="{
+                                                    'bg-emerald-100 text-emerald-800': p.sla_status === 'Dalam SLA',
+                                                    'bg-blue-100 text-blue-800': p.sla_status === 'Sesuai SLA',
+                                                    'bg-rose-100 text-rose-800': p.sla_status === 'Terlambat'
+                                                }"
+                                                x-text="p.sla_status"></span>
+                                        </div>
+                                    </template>
                                 </td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block"

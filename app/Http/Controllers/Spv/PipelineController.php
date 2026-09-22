@@ -54,7 +54,7 @@ class PipelineController extends Controller
     {
         $request->validate([
             'prospek_id' => 'required|exists:prospeks,id',
-            'status'     => 'required|string|in:' . implode(',', array_keys(Prospek::STAGES)),
+            'status'     => 'required|string|in:' . implode(',', Prospek::ACTIVE_STAGES),
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);

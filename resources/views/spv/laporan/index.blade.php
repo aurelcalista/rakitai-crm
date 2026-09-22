@@ -76,13 +76,9 @@
                     <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Status Prospek</label>
                     <select name="status" class="w-full text-xs px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold">
                         <option value="all">Semua Status</option>
-                        <option value="Cold Lead" {{ request('status') == 'Cold Lead' ? 'selected' : '' }}>Cold Lead</option>
-                        <option value="Interested" {{ request('status') == 'Interested' ? 'selected' : '' }}>Interested</option>
-                        <option value="Follow Up" {{ request('status') == 'Follow Up' ? 'selected' : '' }}>Follow Up</option>
-                        <option value="Beli Formulir" {{ request('status') == 'Beli Formulir' ? 'selected' : '' }}>Beli Formulir</option>
-                        <option value="Pembayaran Termin 1" {{ request('status') == 'Pembayaran Termin 1' ? 'selected' : '' }}>Pembayaran Termin 1</option>
-                        <option value="Closing" {{ request('status') == 'Closing' ? 'selected' : '' }}>Closing</option>
-                        <option value="Lost" {{ request('status') == 'Lost' ? 'selected' : '' }}>Lost</option>
+                        @foreach(\App\Models\Prospek::ACTIVE_STAGES as $st)
+                            <option value="{{ $st }}" {{ request('status') == $st ? 'selected' : '' }}>{{ $st }}</option>
+                        @endforeach
                     </select>
                 </div>
 

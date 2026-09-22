@@ -29,6 +29,8 @@
         visitsList: {{ json_encode($visits) }},
         selectedVisit: null,
         modalDetailVisit: false,
+        confirmDeleteModal: false,
+        deleteVisitId: null,
         get filteredVisits() {
             if (this.kunjunganFilter === 'all') return this.visitsList;
             return this.visitsList.filter(v => v.type.toLowerCase() === this.kunjunganFilter.toLowerCase());
@@ -152,17 +154,85 @@
 
                     <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
                         <span class="text-[11px] text-slate-400 font-medium" x-text="visit.time"></span>
-                        <a 
-                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : (auth()->user()->role === 'Admin' ? '/admin' : '')) }}/kunjungan/' + visit.id"
-                            class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
-                        >
-                            Detail Data &rarr;
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <a 
+                                :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : (auth()->user()->role === 'Admin' ? '/admin' : '')) }}/kunjungan/' + visit.id"
+                                class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                            >
+                                Detail Data &rarr;
+                            </a>
+                            @if(auth()->user()->role === 'Sales')
+                            <button
+                                type="button"
+                                @click="confirmDeleteModal = true; deleteVisitId = visit.id"
+                                class="text-xs font-bold text-red-500 hover:text-red-700 cursor-pointer transition"
+                                title="Hapus kunjungan ini"
+                            >
+                                Hapus
+                            </button>
+                            @endif
+                        </div>
                     </div>
 
                 </div>
             </template>
         </div>
+
+        <!-- MODAL: KONFIRMASI HAPUS KUNJUNGAN -->
+        <div 
+            x-show="confirmDeleteModal" 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            x-cloak
+            @keydown.escape.window="confirmDeleteModal = false; deleteVisitId = null"
+        >
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <!-- Backdrop -->
+                <div 
+                    x-show="confirmDeleteModal"
+                    class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+                    @click="confirmDeleteModal = false; deleteVisitId = null"
+                ></div>
+
+                <!-- Modal Panel -->
+                <div 
+                    x-show="confirmDeleteModal"
+                    class="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center"
+                >
+                    <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 mb-2">Hapus Kunjungan?</h3>
+                    <p class="text-sm text-slate-500 mb-6">Data kunjungan ini akan dihapus secara permanen dan tidak dapat dikembalikan.</p>
+                    <div class="flex items-center gap-3 justify-center">
+                        <button
+                            type="button"
+                            @click="confirmDeleteModal = false; deleteVisitId = null"
+                            class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition cursor-pointer"
+                        >
+                            Batal
+                        </button>
+                        <!-- Form DELETE dengan CSRF -->
+                        <form
+                            :action="'/sales/kunjungan/' + deleteVisitId"
+                            method="POST"
+                            x-ref="deleteForm"
+                        >
+                            @csrf
+                            @method('DELETE')
+                            <button
+                                type="submit"
+                                class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition cursor-pointer shadow-xs"
+                            >
+                                Ya, Hapus
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
         <!-- MODAL: DETAIL LAPORAN KUNJUNGAN (COMPACT & SLEEK) -->
         <div 
@@ -277,17 +347,17 @@
                                         <div class="font-bold text-blue-900 text-[11px] uppercase tracking-wider">Potensi Kemitraan Sekolah</div>
                                         <div class="grid grid-cols-2 gap-2 text-[11px]">
                                             <div>
-                                                <span class="text-slate-500">Beasiswa:</span>
-                                                <p class="font-bold text-slate-800" x-text="selectedVisit.potensi_beasiswa || '-'"></p>
+                                                <span class="text-slate-500">Potensi Mahasiswa:</span>
+                                                <p class="font-bold text-slate-800" x-text="selectedVisit.potensi_mahasiswa || '-'"></p>
                                             </div>
                                             <div>
                                                 <span class="text-slate-500">Workshop AI:</span>
                                                 <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? '✓ Bersedia' : 'Belum Bersedia'"></p>
                                             </div>
-                                            <template x-if="selectedVisit.detail_beasiswa && selectedVisit.detail_beasiswa !== '-'">
-                                                <div class="col-span-2 pt-1 border-t border-blue-100/80">
-                                                    <span class="text-slate-500">Detail Beasiswa:</span>
-                                                    <p class="text-slate-800 mt-0.5 bg-white p-2 rounded-lg border border-blue-100" x-text="selectedVisit.detail_beasiswa"></p>
+                                            <template x-if="selectedVisit.detail_potensi_mahasiswa && selectedVisit.detail_potensi_mahasiswa !== '-'">
+                                                <div class="col-span-2">
+                                                    <span class="text-slate-500">Detail Potensi Mahasiswa:</span>
+                                                    <p class="text-slate-800 mt-0.5 bg-white p-2 rounded-lg border border-blue-100" x-text="selectedVisit.detail_potensi_mahasiswa"></p>
                                                 </div>
                                             </template>
                                         </div>

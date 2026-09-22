@@ -111,7 +111,6 @@ class DashboardController extends Controller
                 ->where(function ($q) use ($activeTa) {
                     $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
                 })->count();
-
             $visits = Kunjungan::where('sales_id', $sales->id)->count();
 
             $target = $sales->targets()

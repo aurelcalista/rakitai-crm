@@ -57,9 +57,9 @@ class PerformanceController extends Controller
         }
 
         $breakdown = [
-            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'Closing')->count(),
-            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'Closing')->count(),
-            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'Closing')->count(),
+            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'Closing (Lunas)')->count(),
+            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'Closing (Lunas)')->count(),
+            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'Closing (Lunas)')->count(),
         ];
 
         $summary = [

@@ -119,7 +119,7 @@ class ProspectController extends Controller
         $teamSales = User::whereIn('id', $user->teamMemberIds())->where('role', 'Sales')->get();
         $sekolahs = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
-        $statuses = array_keys(Prospek::STAGES);
+        $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('spv.prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons', 'teamSales'));
@@ -144,7 +144,7 @@ class ProspectController extends Controller
             'potential'     => 'nullable|string|max:500',
             'ai_training'   => 'nullable|string|max:255',
             'notes'         => 'nullable|string',
-            'source'        => 'nullable|string|max:100',
+            'source'        => 'required|string|max:100',
         ]);
 
         $user = auth()->user();
@@ -156,6 +156,24 @@ class ProspectController extends Controller
         } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
             $perusahaan = Perusahaan::find($validated['perusahaan_id']);
             if ($perusahaan) $name = $perusahaan->nama;
+        }
+
+        $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {
+            $query->where('whatsapp', $validated['whatsapp'])
+                  ->orWhere('name', $name);
+        })->first();
+
+        if ($duplicate) {
+            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
+            $ownerName = $duplicate->owner ? $duplicate->owner->name : 'Sistem';
+            $salesName = $duplicate->sales ? $duplicate->sales->name : 'Belum Ada Sales';
+            
+            $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}).\n"
+                          . "Prospek ini dimiliki oleh: {$ownerName}\n"
+                          . "Sedang ditangani oleh: {$salesName}\n"
+                          . "Status saat ini: {$duplicate->status}";
+                          
+            return back()->withInput()->withErrors([$errorField => $errorMessage]);
         }
 
         $assignedSalesId = $validated['sales_id'] ?? null;
@@ -258,7 +276,20 @@ class ProspectController extends Controller
             'ai_training' => 'nullable|string|max:255',
             'notes'       => 'nullable|string',
             'category'    => 'nullable|string|max:100',
+            'source'      => 'required|string|max:100',
         ]);
+
+        $duplicate = Prospek::where('id', '!=', $prospek->id)
+            ->where(function ($q) use ($validated, $prospek) {
+                $name = $request->input('name', $prospek->name);
+                $q->where('whatsapp', $validated['whatsapp'])
+                  ->orWhere('name', $name);
+            })->first();
+
+        if ($duplicate) {
+            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
+            return back()->withInput()->withErrors([$errorField => 'Data prospek sudah ada (Duplicate ' . $errorField . ').']);
+        }
 
         $prospek->update($validated);
 
@@ -325,9 +356,10 @@ class ProspectController extends Controller
         $newSales = !empty($validated['sales_id']) ? User::find($validated['sales_id'])?->name : $oldSales;
 
         $prospek->update([
-            'sales_id'        => $validated['sales_id'] ?? $prospek->sales_id,
-            'cs_id'           => $validated['cs_id'] ?? $prospek->cs_id,
-            'follow_up_count' => 0, // Reset follow-up counter ke 0 bagi penangan baru
+            'sales_id'               => $validated['sales_id'] ?? $prospek->sales_id,
+            'cs_id'                  => $validated['cs_id'] ?? $prospek->cs_id,
+            'follow_up_count'        => 0, // Reset follow-up counter ke 0 bagi penangan baru
+            'active_follow_up_count' => 0,
         ]);
 
         ProspekTimeline::create([
@@ -457,6 +489,7 @@ class ProspectController extends Controller
             'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up
                 ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i')
                 : '-',
+            'sla_status'     => $p->sla_status,
         ];
     }
 

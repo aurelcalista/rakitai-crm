@@ -92,10 +92,13 @@
                                 {{ $visit['kesediaan_training_ai'] ? '✓ Bersedia' : 'Belum Bersedia' }}
                             </p>
                         </div>
-                        @if($visit['detail_beasiswa'] && $visit['detail_beasiswa'] !== '-')
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Program Kerjasama</span>
-                            <p class="font-medium text-slate-700 mt-0.5">{{ $visit['detail_beasiswa'] }}</p>
+                        @php
+                            $detailPotensi = $visit['detail_potensi_mahasiswa'] ?? $visit['detail_beasiswa'] ?? null;
+                        @endphp
+                        @if($detailPotensi && $detailPotensi !== '-')
+                        <div class="mt-4 pt-4 border-t border-blue-200/50">
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Potensi Mahasiswa</span>
+                            <p class="font-medium text-slate-700 mt-0.5">{{ $detailPotensi }}</p>
                         </div>
                         @endif
                     @else
