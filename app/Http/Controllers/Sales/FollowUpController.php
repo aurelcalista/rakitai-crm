@@ -44,7 +44,7 @@ class FollowUpController extends Controller
 
             $row = $this->formatProspekRow($p, $latestFU);
 
-            if ($p->status === 'Closing') {
+            if ($p->status === 'Closing (Lunas)') {
                 $prospects['done'][] = $row;
             } elseif ($nextFollowUpDate === null) {
                 // No scheduled follow-up → treat as overdue
@@ -59,7 +59,7 @@ class FollowUpController extends Controller
         }
 
         $metodeOptions = FollowUp::METODE_OPTIONS;
-        $statuses      = array_keys(Prospek::STAGES);
+        $statuses      = Prospek::ACTIVE_STAGES;
 
         return view('follow-up.index', compact('prospects', 'metodeOptions', 'statuses'));
     }
@@ -101,6 +101,8 @@ class FollowUpController extends Controller
             'catatan'       => $validated['catatan'],
             'next_follow_up'=> $validated['next_follow_up'],
         ]);
+
+        $prospek->increment('active_follow_up_count');
 
         // Update prospect status if changed
         if ($oldStatus !== $newStatus) {

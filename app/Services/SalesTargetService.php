@@ -169,18 +169,18 @@ class SalesTargetService
 
         $totalProspek  = (clone $prospekQuery)->count();
         $activeProspek = (clone $prospekQuery)
-            ->whereNotIn('status', ['Closing', 'Lost'])
+            ->whereNotIn('status', ['LUNAS', 'DINGIN'])
             ->count();
         $closing = (clone $prospekQuery)
-            ->where('status', 'Closing')
+            ->where('status', 'LUNAS')
             ->count();
         $lost = (clone $prospekQuery)
-            ->where('status', 'Lost')
+            ->where('status', 'DINGIN')
             ->count();
 
         // Follow-up scheduled / active
         $followUpCount = (clone $prospekQuery)
-            ->where('status', 'Follow Up')
+            ->where('status', 'HANGAT')
             ->count();
 
         if ($target) {
@@ -221,21 +221,25 @@ class SalesTargetService
     public function getPipelineStages(User $sales): array
     {
         $stageNames = [
-            'Cold Lead',
-            'Interested',
-            'Follow Up',
-            'Beli Formulir',
-            'Pembayaran Termin 1',
-            'Closing',
+            'BARU',
+            'KONTAK',
+            'HANGAT',
+            'PANAS',
+            'FORMULIR',
+            'BERKAS',
+            'LUNAS',
+            'DINGIN',
         ];
 
         $colorMap = [
-            'Cold Lead'           => 'badge-cold-lead',
-            'Interested'          => 'badge-interested',
-            'Follow Up'           => 'badge-follow-up',
-            'Beli Formulir'       => 'badge-beli-formulir',
-            'Pembayaran Termin 1' => 'badge-pembayaran-termin-1',
-            'Closing'             => 'badge-closing',
+            'BARU'      => 'badge-cold-lead',
+            'KONTAK'    => 'badge-interested',
+            'HANGAT'    => 'badge-follow-up',
+            'PANAS'     => 'badge-hot-lead',
+            'FORMULIR'  => 'badge-beli-formulir',
+            'BERKAS'    => 'badge-pembayaran-termin-1',
+            'LUNAS'     => 'badge-closing',
+            'DINGIN'    => 'badge-lost',
         ];
 
         return array_map(function ($name) use ($sales, $colorMap) {

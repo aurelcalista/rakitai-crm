@@ -144,6 +144,16 @@ x-init="
     </div>
 
     @php
+        if (!isset($currentUser) && auth()->check()) {
+            $u = auth()->user();
+            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer'];
+            $currentUser = [
+                'name' => $u->name,
+                'avatar' => substr($u->name, 0, 2),
+                'role' => $u->role,
+                'role_label' => $roleLabels[$u->role] ?? $u->role,
+            ];
+        }
         $rawRole = strtolower($currentUser['role'] ?? auth()->user()->role ?? 'sales');
         $userRole = in_array($rawRole, ['spv', 'supervisor', 'supervisor marketing']) ? 'spv' : (in_array($rawRole, ['hm', 'head marketing']) ? 'hm' : $rawRole);
         $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
@@ -219,6 +229,8 @@ x-init="
                         </a>
                     </div>
                 </div>
+
+
 
                 @if($currentUser['role'] === 'Admin')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
@@ -382,6 +394,17 @@ x-init="
                                 </div>
                                 <span x-show="!sidebarCollapsed">Follow Up</span>
                                 <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
+                            </a>
+                            <a 
+                                href="{{ route('sales.event.index') }}" 
+                                title="Jadwal Event"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.event.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.event.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Jadwal Event</span>
                             </a>
                             @elseif($userRole !== 'spv')
                             <a 
@@ -776,7 +799,8 @@ x-init="
                         </div>
                     @endif
                 @endif
-                {{ $slot }}
+                {{ $slot ?? '' }}
+                @yield('content')
             </main>
 
         </div>
@@ -815,6 +839,13 @@ x-init="
             <!-- 1. POPUP FOR CRM INBOUND -->
             <template x-if="activeMobileSection === 'crm_inbound'">
                 <div class="flex flex-col">
+                    <!-- Calendar / Event -->
+                    <a href="{{ route('sales.event.index') }}" title="Jadwal Event" class="flex items-center p-3 rounded-xl text-sm font-semibold transition group {{ request()->routeIs('sales.event.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <svg class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110 {{ request()->routeIs('sales.event.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="ml-3 transition-opacity duration-300 whitespace-nowrap" :class="sidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'">Jadwal Event</span>
+                    </a>
                     <!-- Sheet Header -->
                     <div class="px-4 py-3 border-b border-slate-100 bg-blue-50/60 flex items-center justify-between">
                         <div class="flex items-center gap-2">
@@ -1629,7 +1660,7 @@ x-init="
     </div>
 
 
-    <!-- MODAL 5: TAMBAH KUNJUNGAN (NO GPS / MAPS - FOTO DOKUMENTASI ONLY) -->
+    <!-- MODAL 5: TAMBAH KUNJUNGAN (WITH GPS & FOTO) -->
     <div 
         x-show="modalTambahKunjungan" 
         x-cloak 
@@ -1651,7 +1682,29 @@ x-init="
                     sekolahPicMap: {},
                     perusahaanPicMap: {},
                     picName: '',
-                    picWhatsapp: ''
+                    picName: '',
+                    picWhatsapp: '',
+                    lat: '',
+                    lng: '',
+                    geoStatus: '',
+                    getGeolocation() {
+                        this.geoStatus = 'Mencari lokasi...';
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    this.lat = position.coords.latitude;
+                                    this.lng = position.coords.longitude;
+                                    this.geoStatus = 'Lokasi ditemukan ✓';
+                                },
+                                (error) => {
+                                    this.geoStatus = 'Gagal mendapatkan lokasi. Aktifkan Izin Lokasi/GPS.';
+                                },
+                                { enableHighAccuracy: true, timeout: 10000 }
+                            );
+                        } else {
+                            this.geoStatus = 'Browser tidak mendukung GPS.';
+                        }
+                    }
                 }"
                 x-init="
                     @php
@@ -1691,6 +1744,12 @@ x-init="
                             }
                         }
                     });
+                    
+                    $watch('modalTambahKunjungan', value => {
+                        if (value && !lat) {
+                            getGeolocation();
+                        }
+                    });
                 "
             >
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -1728,6 +1787,8 @@ x-init="
                     <input type="hidden" name="jenis" :value="kunjunganType === 'sekolah' ? 'Sekolah' : 'Perusahaan'">
                     <input type="hidden" name="tanggal" value="{{ date('Y-m-d') }}">
                     <input type="hidden" name="waktu" value="{{ date('H:i') }}">
+                    <input type="hidden" name="lat" x-model="lat">
+                    <input type="hidden" name="lng" x-model="lng">
                     
                     <!-- FORM SEKOLAH -->
                     <template x-if="kunjunganType === 'sekolah'">
@@ -1771,12 +1832,12 @@ x-init="
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Potensi Kerjasama</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Potensi Beasiswa</label>
-                                        <input type="text" name="potensi_beasiswa" placeholder="Jumlah kuota / estimasi siswa" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Potensi Mahasiswa / Pendaftar Baru</label>
+                                        <input type="text" name="potensi_mahasiswa" placeholder="Jumlah kuota / estimasi siswa" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Potensi</label>
-                                        <input type="text" name="detail_beasiswa" placeholder="Contoh: Minat tinggi pada Prodi Teknik Informatika & Bisnis Digital" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Potensi Mahasiswa (Prodi Diminati dll)</label>
+                                        <input type="text" name="detail_potensi_mahasiswa" placeholder="Contoh: Minat tinggi pada Prodi Teknik Informatika & Bisnis Digital" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                 </div>
                             </div>
@@ -1878,6 +1939,24 @@ x-init="
                         </div>
                     </div>
 
+                    <!-- Section: GEOLOCATION / LOKASI -->
+                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Lokasi Kunjungan (Geo-tagging)</h4>
+                            <span class="text-[11px] text-slate-400">Wajib radius 100m</span>
+                        </div>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                            <button type="button" @click="getGeolocation()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition shrink-0">
+                                Refresh Lokasi
+                            </button>
+                            <div class="text-xs">
+                                <span class="font-semibold text-slate-600" x-text="geoStatus"></span>
+                                <span x-show="lat" class="text-slate-500 block sm:inline mt-1 sm:mt-0 sm:ml-2 text-[10px]" x-text="lat + ', ' + lng"></span>
+                            </div>
+                        </div>
+                        <p x-show="!lat && geoStatus.includes('Gagal')" class="text-[11px] text-rose-500 font-medium">Mohon izinkan akses lokasi (GPS) pada browser Anda untuk dapat menyimpan kunjungan.</p>
+                    </div>
+
                     <!-- Section: CATATAN -->
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Kunjungan *</label>
@@ -1894,7 +1973,7 @@ x-init="
 
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                         <button type="button" @click="modalTambahKunjungan = false" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Batal</button>
-                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition">Simpan Kunjungan</button>
+                        <button type="submit" :disabled="!lat || !photoPreview" :class="(!lat || !photoPreview) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold shadow-xs transition">Simpan Kunjungan</button>
                     </div>
                 </form>
             </div>

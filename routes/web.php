@@ -71,6 +71,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/kunjungan/{kunjungan}',    [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
             Route::delete('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'destroy'])->name('kunjungan.destroy');
 
+            // Events
+            Route::get('/event', [\App\Http\Controllers\Sales\EventController::class, 'index'])->name('event.index');
+
             // Pipeline
             Route::get('/pipeline',                [\App\Http\Controllers\Sales\PipelineController::class, 'index'])->name('pipeline.index');
             Route::post('/pipeline/update-status', [\App\Http\Controllers\Sales\PipelineController::class, 'updateStatus'])->name('pipeline.updateStatus');

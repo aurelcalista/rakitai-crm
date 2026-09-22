@@ -117,12 +117,17 @@
                     <div class="space-y-1">
                         <label class="block text-xs font-semibold text-slate-700">Sumber Prospek</label>
                         <select name="source" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
-                            <option value="Supervisor Direct">Supervisor Direct (SPV)</option>
-                            <option value="Kanvasing Sekolah">Kanvasing Sekolah</option>
-                            <option value="Event / Expo">Event / Expo Pendidikan</option>
-                            <option value="Sosial Media / Ads">Sosial Media / Ads</option>
+                            <option value="Sosial Media (IG/FB/TikTok)">Sosial Media (IG/FB/TikTok)</option>
                             <option value="Website UCIC">Website UCIC</option>
-                            <option value="Referensi Mitra">Referensi Mitra</option>
+                            <option value="Brosur / Spanduk">Brosur / Spanduk</option>
+                            <option value="Guru BK / Sekolah">Guru BK / Sekolah</option>
+                            <option value="Teman / Alumni">Teman / Alumni</option>
+                            <option value="Event / Expo Pendidikan">Event / Expo Pendidikan</option>
+                            <option value="Kanvasing / Presentasi">Kanvasing / Presentasi</option>
+                            <option value="Iklan Online (Ads)">Iklan Online (Ads)</option>
+                            <option value="Referensi Mitra / Perusahaan">Referensi Mitra / Perusahaan</option>
+                            <option value="Walk-in (Datang Langsung)">Walk-in (Datang Langsung)</option>
+                            <option value="Lainnya">Lainnya</option>
                         </select>
                     </div>
                 </div>

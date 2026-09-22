@@ -62,8 +62,8 @@
                 <div class="space-y-4">
                     @if($visit['type'] === 'Sekolah')
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Kuota Calon Mahasiswa</span>
-                            <p class="font-bold text-blue-600 mt-0.5">{{ $visit['potensi_beasiswa'] }}</p>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Mahasiswa</span>
+                            <p class="font-bold text-blue-600 mt-0.5">{{ $visit['potensi_mahasiswa'] }}</p>
                         </div>
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Workshop AI</span>
@@ -71,10 +71,10 @@
                                 {{ $visit['kesediaan_training_ai'] ? '✓ Bersedia' : 'Belum Bersedia' }}
                             </p>
                         </div>
-                        @if($visit['detail_beasiswa'] && $visit['detail_beasiswa'] !== '-')
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Beasiswa</span>
-                            <p class="font-medium text-slate-700 mt-0.5">{{ $visit['detail_beasiswa'] }}</p>
+                        @if($visit['detail_potensi_mahasiswa'] && $visit['detail_potensi_mahasiswa'] !== '-')
+                        <div class="mt-4 pt-4 border-t border-blue-200/50">
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Potensi Mahasiswa</span>
+                            <p class="font-medium text-slate-700 mt-0.5">{{ $visit['detail_potensi_mahasiswa'] }}</p>
                         </div>
                         @endif
                     @else

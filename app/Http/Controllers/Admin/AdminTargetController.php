@@ -101,6 +101,48 @@ class AdminTargetController extends Controller
             'target_kunjungan' => 'required|integer|min:0',
             'status' => 'required|in:Aktif,Selesai,Nonaktif',
         ]);
+        $lastTarget = Target::where('sales_id', $validated['sales_id'])
+            ->where('tanggal_selesai', '<', $validated['tanggal_mulai'])
+            ->orderBy('tanggal_selesai', 'desc')
+            ->first();
+
+        if ($lastTarget) {
+            $realisasi_kontak = \App\Models\Prospek::where(function($q) use ($lastTarget) {
+                if ($lastTarget->sales && $lastTarget->sales->role === 'CS') {
+                    $q->where('cs_id', $lastTarget->sales_id);
+                } else {
+                    $q->where('sales_id', $lastTarget->sales_id);
+                }
+            })->whereBetween('created_at', [$lastTarget->tanggal_mulai . ' 00:00:00', $lastTarget->tanggal_selesai . ' 23:59:59'])->count();
+
+            $realisasi_followup = \App\Models\FollowUp::where('user_id', $lastTarget->sales_id)
+                ->whereBetween('tanggal', [$lastTarget->tanggal_mulai, $lastTarget->tanggal_selesai])
+                ->count();
+
+            $realisasi_kunjungan = Kunjungan::where('sales_id', $lastTarget->sales_id)
+                ->whereBetween('tanggal', [$lastTarget->tanggal_mulai, $lastTarget->tanggal_selesai])
+                ->count();
+
+            $realisasi_menghubungi = 0;
+            if ($lastTarget->sales && $lastTarget->sales->role === 'CS') {
+                $realisasi_menghubungi = \App\Models\FollowUp::where('user_id', $lastTarget->sales_id)
+                    ->whereBetween('tanggal', [$lastTarget->tanggal_mulai, $lastTarget->tanggal_selesai])
+                    ->distinct('prospek_id')
+                    ->count('prospek_id');
+            }
+
+            $defisit_kontak = max(0, $lastTarget->target_kontak - $realisasi_kontak);
+            $defisit_followup = max(0, $lastTarget->target_followup - $realisasi_followup);
+            $defisit_kunjungan = max(0, $lastTarget->target_kunjungan - $realisasi_kunjungan);
+            $defisit_menghubungi = max(0, ($lastTarget->target_menghubungi ?? 0) - $realisasi_menghubungi);
+
+            $validated['target_kontak'] += $defisit_kontak;
+            $validated['target_followup'] += $defisit_followup;
+            $validated['target_kunjungan'] += $defisit_kunjungan;
+            if (isset($validated['target_menghubungi'])) {
+                $validated['target_menghubungi'] += $defisit_menghubungi;
+            }
+        }
 
         Target::create($validated);
 

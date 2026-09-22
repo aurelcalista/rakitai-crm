@@ -15,7 +15,20 @@ class Transaksi extends Model
         'nominal',
         'tanggal',
         'notes',
+        'academic_year_id',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (!$model->academic_year_id) {
+                $aktif = TahunAkademik::getAktif();
+                if ($aktif) {
+                    $model->academic_year_id = $aktif->id;
+                }
+            }
+        });
+    }
 
     protected $casts = [
         'tanggal' => 'datetime',

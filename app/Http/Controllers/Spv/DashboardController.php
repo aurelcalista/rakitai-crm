@@ -25,17 +25,19 @@ class DashboardController extends Controller
 
         // Pipeline stage counts for team
         $stages = [
-            'Cold Lead' => 1,
-            'Interested' => 2,
-            'Follow Up' => 3,
-            'Beli Formulir' => 4,
-            'Pembayaran Termin 1' => 5,
-            'Closing' => 6,
+            'BARU' => 1,
+            'KONTAK' => 2,
+            'HANGAT' => 3,
+            'PANAS' => 4,
+            'FORMULIR' => 5,
+            'BERKAS' => 6,
+            'LUNAS' => 7,
+            'DINGIN' => 8,
         ];
 
         $totalProspek = $user->teamProspeks()->count();
-        $closingCount = $user->teamProspeks()->where('status', 'Closing')->count();
-        $hotLeads = $user->teamProspeks()->whereIn('status', ['Follow Up', 'Beli Formulir', 'Pembayaran Termin 1'])->count();
+        $closingCount = $user->teamProspeks()->where('status', 'LUNAS')->count();
+        $hotLeads = $user->teamProspeks()->whereIn('status', ['PANAS', 'FORMULIR', 'BERKAS'])->count();
         $lostCount = $user->teamProspeks()->where('status', 'Lost')->count();
 
         $conversionRate = $totalProspek > 0 ? round(($closingCount / $totalProspek) * 100, 1) : 0;
@@ -72,7 +74,7 @@ class DashboardController extends Controller
         // Sales Leaderboard / Team performance summary
         $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) {
             $prospectCount = Prospek::where('sales_id', $sales->id)->count();
-            $closing = Prospek::where('sales_id', $sales->id)->where('status', 'Closing')->count();
+            $closing = Prospek::where('sales_id', $sales->id)->where('status', 'LUNAS')->count();
             $visits = Kunjungan::where('sales_id', $sales->id)->count();
             $target = $sales->targets()
                 ->where('tipe_periode', 'Bulanan')

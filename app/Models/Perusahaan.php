@@ -8,7 +8,8 @@ class Perusahaan extends Model
 {
     protected $fillable = [
         'kode', 'nama', 'kategori_id', 'wilayah_id', 'kecamatan', 
-        'alamat', 'telepon', 'email', 'website', 'pic_name', 'pic_jabatan', 'pic_phone', 'status'
+        'alamat', 'telepon', 'email', 'website', 'pic_name', 'pic_jabatan', 'pic_phone', 'status',
+        'lat', 'lng'
     ];
 
     public function kategori()

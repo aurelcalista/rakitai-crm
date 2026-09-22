@@ -14,7 +14,12 @@ class Prospek extends Model
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
         'sekolah_id', 'perusahaan_id',
-        'lost_reason', 'lost_note',
+        'lost_reason', 'lost_note', 'active_follow_up_count',
+        'handover_at', 'academic_year_id'
+    ];
+
+    protected $casts = [
+        'handover_at' => 'datetime',
     ];
 
     protected static function booted()
@@ -31,27 +36,83 @@ class Prospek extends Model
                     $prospek->sales_id = $perusahaan->sales_id;
                 }
             }
+
+            // Auto-handover to CS when status is 'Beli Formulir'
+            if ($prospek->isDirty('status') && $prospek->status === 'Beli Formulir' && is_null($prospek->cs_id)) {
+                $cs = \App\Models\User::where('role', 'CS')->first();
+                if ($cs) {
+                    $prospek->cs_id = $cs->id;
+                    $prospek->active_follow_up_count = 0; // Reset follow-up for CS
+                    $prospek->handover_at = now();
+                }
+            }
+        });
+
+        static::updated(function ($prospek) {
+            // Log handover to Timeline if it just happened
+            if ($prospek->wasChanged('cs_id') && $prospek->cs_id) {
+                $cs = \App\Models\User::find($prospek->cs_id);
+                \App\Models\ProspekTimeline::create([
+                    'prospek_id' => $prospek->id,
+                    'user_id' => auth()->id() ?? $prospek->sales_id,
+                    'title' => 'Auto-Handover ke CS',
+                    'notes' => 'Prospek di-handover otomatis ke CS: ' . ($cs->name ?? 'Unknown'),
+                    'status_before' => $prospek->getOriginal('status') ?? 'Baru',
+                    'status_after' => $prospek->status,
+                    'time' => now(),
+                ]);
+            }
+        });
+
+        static::creating(function ($model) {
+            if (!$model->academic_year_id) {
+                $aktif = TahunAkademik::getAktif();
+                if ($aktif) {
+                    $model->academic_year_id = $aktif->id;
+                }
+            }
         });
     }
 
-    /**
-     * Stage number map for pipeline transitions.
-     */
+    public const ACTIVE_STAGES = [
+        'BARU',
+        'KONTAK',
+        'HANGAT',
+        'PANAS',
+        'FORMULIR',
+        'BERKAS',
+        'LUNAS',
+        'DINGIN',
+    ];
+
     public const STAGES = [
-        // New MasterData Statuses
-        'Baru'                => 1,
-        'Follow Up 1'         => 2,
-        'Negosiasi'           => 3,
-        'Mendaftar'           => 4,
-        'Ditolak/Batal'       => 0,
+        // 8 Pipeline Wajib
+        'BARU'      => 1,
+        'KONTAK'    => 2,
+        'HANGAT'    => 3,
+        'PANAS'     => 4,
+        'FORMULIR'  => 5,
+        'BERKAS'    => 6,
+        'LUNAS'     => 7,
+        'DINGIN'    => 8,
         
-        // Pipeline Stage Statuses
+        // Backward Compatibility (Legacy Statuses)
+        'Lead In'             => 1,
         'Cold Lead'           => 1,
-        'Interested'          => 2,
+        'Warm Lead'           => 3,
+        'Hot Lead'            => 4,
+        'Beli Formulir'       => 5,
+        'Lulus Tes'           => 6,
+        'Pembayaran Termin 1' => 7,
+        'Closing (Lunas)'     => 7,
+        'Follow Up 1'         => 2,
         'Follow Up'           => 3,
-        'Beli Formulir'       => 4,
-        'Pembayaran Termin 1' => 5,
-        'Closing'             => 6,
+        'Interested'          => 4,
+        'Negosiasi'           => 4,
+        'Mendaftar'           => 5,
+        'Closing'             => 7,
+        
+        'Ditolak/Batal'       => 0,
         'Lost'                => 0,
     ];
 
@@ -151,6 +212,32 @@ class Prospek extends Model
     }
 
     /**
+     * Get SLA status for CS Handover.
+     */
+    public function getSlaStatusAttribute()
+    {
+        if (!$this->cs_id || !$this->handover_at) {
+            return 'N/A';
+        }
+
+        // Cek follow-up pertama dari CS
+        $firstCsFollowUp = $this->followUps()
+            ->where('sales_id', $this->cs_id)
+            ->orderBy('created_at', 'asc')
+            ->first();
+
+        if ($firstCsFollowUp) {
+            // Cek apakah waktu follow-up <= 2 jam (120 menit) dari handover
+            $diffMinutes = $this->handover_at->diffInMinutes($firstCsFollowUp->created_at);
+            return $diffMinutes <= 120 ? 'Sesuai SLA' : 'Terlambat';
+        }
+
+        // Belum difollow-up, cek apakah sudah lewat 2 jam
+        $diffMinutes = $this->handover_at->diffInMinutes(now());
+        return $diffMinutes <= 120 ? 'Dalam SLA' : 'Terlambat';
+    }
+
+    /**
      * Scope to filter prospects belonging to a specific sales user.
      */
     public function scopeForSales($query, int $salesId)
@@ -175,6 +262,6 @@ class Prospek extends Model
      */
     public function scopeActive($query)
     {
-        return $query->whereNotIn('status', ['Lost', 'Closing']);
+        return $query->whereNotIn('status', ['Lost', 'Ditolak/Batal', 'Closing', 'Closing (Lunas)']);
     }
 }
