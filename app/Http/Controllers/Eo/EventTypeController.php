@@ -32,6 +32,7 @@ class EventTypeController extends Controller
         MasterData::create([
             'type' => 'jenis_event',
             'nama' => $request->nama,
+            'kode' => strtoupper(str_replace(' ', '_', $request->nama)),
             'status' => 'Aktif'
         ]);
 
