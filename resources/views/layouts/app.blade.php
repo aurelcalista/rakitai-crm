@@ -259,6 +259,17 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Event</span>
                             </a>
+                            <a 
+                                href="{{ route('eo.event-types.index') }}" 
+                                title="Kelola Jenis Event"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('eo.event-types.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('eo.event-types.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Jenis Event</span>
+                            </a>
                         </div>
                     </div>
                 @endif
