@@ -756,7 +756,7 @@ class CrmController extends Controller
         $stats = [
             'total_prospek' => $totalProspek,
             'active_prospek' => $activeProspek,
-            'Closing (Lunas)' => $closing,
+            'closing' => $closing,
             'lost' => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
             'total_sales' => \App\Models\User::where('role', 'Sales')->count(),
@@ -776,7 +776,7 @@ class CrmController extends Controller
                 'avatar' => substr($s->name, 0, 2),
                 'target' => $target,
                 'prospects' => $prospectsCount,
-                'Closing (Lunas)' => $closing,
+                'closing' => $closing,
                 'achievement' => $achievement,
             ];
         })->sortByDesc('achievement')->values()->map(function ($member, $index) {
@@ -798,7 +798,7 @@ class CrmController extends Controller
             return [
                 'name' => $name,
                 'count' => $count,
-                'percentage' => $percentage,
+                'pct' => $percentage,
                 'color' => 'badge-' . strtolower(str_replace([' ', '/', '(', ')'], '-', $name))
             ];
         })->values()->toArray();
