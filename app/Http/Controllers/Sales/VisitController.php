@@ -64,7 +64,9 @@ class VisitController extends Controller
             'pic_name'   => 'required|string|max:255',
             'pic_whatsapp' => 'required|string|max:20',
             'catatan'    => 'nullable|string|max:2000',
-            'foto'       => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120', // 5MB max
+            'foto'       => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // 5MB max
+            'lat'        => 'required|numeric',
+            'lng'        => 'required|numeric',
         ];
 
         // Conditional rules based on jenis
@@ -101,17 +103,27 @@ class VisitController extends Controller
         // Determine tujuan_id and nama_institusi based on jenis and master data
         $tujuanId = 0;
         $namaInstitusi = $validated['nama_institusi'] ?? 'Kunjungan';
+        $tujuan = null;
+        $isVerified = false;
         if ($validated['jenis'] === 'Sekolah' && $request->filled('sekolah_id')) {
-            $sekolah = Sekolah::find($request->sekolah_id);
-            if ($sekolah) {
-                $tujuanId = $sekolah->id;
-                $namaInstitusi = $sekolah->nama;
-            }
+            $tujuan = Sekolah::find($request->sekolah_id);
         } elseif ($validated['jenis'] === 'Perusahaan' && $request->filled('perusahaan_id')) {
-            $perusahaan = Perusahaan::find($request->perusahaan_id);
-            if ($perusahaan) {
-                $tujuanId = $perusahaan->id;
-                $namaInstitusi = $perusahaan->nama;
+            $tujuan = Perusahaan::find($request->perusahaan_id);
+        }
+
+        if ($tujuan) {
+            $tujuanId = $tujuan->id;
+            $namaInstitusi = $tujuan->nama;
+
+            if (empty($tujuan->lat) || empty($tujuan->lng)) {
+                $tujuan->update([
+                    'lat' => $validated['lat'],
+                    'lng' => $validated['lng']
+                ]);
+                $isVerified = true;
+            } else {
+                $distance = $this->calculateDistance($validated['lat'], $validated['lng'], $tujuan->lat, $tujuan->lng);
+                $isVerified = $distance <= 100;
             }
         }
 
@@ -125,17 +137,20 @@ class VisitController extends Controller
             'tujuan_kunjungan'=> $namaInstitusi,
             'hasil'           => 'Kunjungan ' . $validated['jenis'] . ' — ' . $namaInstitusi,
             'catatan'         => $validated['catatan'] ?? null,
-            'status'          => 'Selesai',
+            'status'          => $isVerified ? 'Selesai' : 'Perlu Verifikasi',
             // Detail fields
             'nama_institusi'  => $namaInstitusi,
             'alamat'          => $validated['alamat'] ?? null,
             'pic_name'        => $validated['pic_name'],
             'pic_whatsapp'    => $validated['pic_whatsapp'],
             'foto_path'       => $fotoPath,
+            'lat'             => $validated['lat'],
+            'lng'             => $validated['lng'],
+            'is_verified'     => $isVerified,
             // School-specific
-            'potensi_beasiswa'      => $request->input('potensi_beasiswa'),
-            'detail_beasiswa'       => $request->input('detail_beasiswa'),
-            'kesediaan_training_ai' => $request->boolean('kesediaan_training_ai'),
+            'potensi_mahasiswa'       => $request->input('potensi_mahasiswa'),
+            'detail_potensi_mahasiswa'=> $request->input('detail_potensi_mahasiswa'),
+            'kesediaan_training_ai'   => $request->boolean('kesediaan_training_ai'),
             // Corporate-specific
             'bidang_usaha' => $request->input('bidang_usaha'),
             'potensi_s1'   => $request->input('potensi_s1'),
@@ -162,9 +177,9 @@ class VisitController extends Controller
                 'perusahaan_id'=> $validated['jenis'] === 'Perusahaan' || $validated['jenis'] === 'Corporate' ? ($request->perusahaan_id ?? null) : null,
                 'pic'          => $validated['pic_name'],
                 'whatsapp'     => $validated['pic_whatsapp'],
-                'status'       => 'Baru',
+                'status'       => 'BARU',
                 'stage_number' => 1,
-                'potential'    => $validated['jenis'] === 'Sekolah' ? $request->input('potensi_beasiswa') : ($request->input('potensi_s1') . ' ' . $request->input('potensi_csr')),
+                'potential'    => $validated['jenis'] === 'Sekolah' ? $request->input('potensi_mahasiswa') : ($request->input('potensi_s1') . ' ' . $request->input('potensi_csr')),
                 'notes'        => $validated['catatan'] ?? 'Ditambahkan otomatis dari laporan kunjungan ' . $nomor,
                 'source'       => 'Kunjungan Langsung',
                 'sales_id'     => $user->id,
@@ -224,6 +239,16 @@ class VisitController extends Controller
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────────
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371000; // in meters
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) * sin($dLat / 2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
+    }
 
     private function formatKunjungan(Kunjungan $k): array
     {

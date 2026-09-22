@@ -15,14 +15,30 @@ class Kunjungan extends Model
         // Detail fields added for Sales visit reports
         'nama_institusi', 'alamat', 'pic_name', 'pic_whatsapp', 'foto_path',
         // School-specific
-        'potensi_beasiswa', 'detail_beasiswa', 'kesediaan_training_ai',
+        'potensi_mahasiswa', 'detail_potensi_mahasiswa', 'kesediaan_training_ai',
         // Corporate-specific
         'bidang_usaha', 'potensi_s1', 'potensi_s2', 'potensi_csr',
+        'lat', 'lng', 'is_verified', 'academic_year_id'
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (!$model->academic_year_id) {
+                $aktif = TahunAkademik::getAktif();
+                if ($aktif) {
+                    $model->academic_year_id = $aktif->id;
+                }
+            }
+        });
+    }
 
     protected $casts = [
         'tanggal' => 'date',
         'kesediaan_training_ai' => 'boolean',
+        'is_verified' => 'boolean',
+        'lat' => 'decimal:8',
+        'lng' => 'decimal:8',
     ];
 
     public function sales()

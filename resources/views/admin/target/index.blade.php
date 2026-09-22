@@ -16,6 +16,13 @@
                 (this.filterStatus === 'all' || t.status.toLowerCase() === this.filterStatus.toLowerCase()) &&
                 (this.filterRole === 'all' || t.role.toLowerCase() === this.filterRole.toLowerCase())
             );
+        },
+        getColorClass(realisasi, target) {
+            if (target <= 0) return 'bg-emerald-500';
+            let pct = (realisasi / target) * 100;
+            if (pct < 50) return 'bg-red-500';
+            if (pct <= 80) return 'bg-yellow-500';
+            return 'bg-emerald-500';
         }
     }">
 
@@ -136,7 +143,7 @@
                             <!-- Progress Bar -->
                             <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                 <div class="h-full rounded-full transition-all"
-                                    :class="t.realisasi_kontak >= t.target_kontak ? 'bg-emerald-500' : 'bg-red-500'"
+                                    :class="getColorClass(t.realisasi_kontak, t.target_kontak)"
                                     :style="'width:' + (t.target_kontak > 0 ? Math.min(100, Math.round(t.realisasi_kontak/t.target_kontak*100)) : 100) + '%'"></div>
                             </div>
                         </div>
@@ -158,7 +165,7 @@
                                 </div>
                                 <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                     <div class="h-full rounded-full transition-all"
-                                        :class="t.realisasi_menghubungi >= t.target_menghubungi ? 'bg-emerald-500' : 'bg-red-500'"
+                                        :class="getColorClass(t.realisasi_menghubungi, t.target_menghubungi)"
                                         :style="'width:' + (t.target_menghubungi > 0 ? Math.min(100, Math.round(t.realisasi_menghubungi/t.target_menghubungi*100)) : 100) + '%'"></div>
                                 </div>
                             </div>
@@ -180,7 +187,7 @@
                             </div>
                             <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                 <div class="h-full rounded-full transition-all"
-                                    :class="t.realisasi_followup >= t.target_followup ? 'bg-emerald-500' : 'bg-red-500'"
+                                    :class="getColorClass(t.realisasi_followup, t.target_followup)"
                                     :style="'width:' + (t.target_followup > 0 ? Math.min(100, Math.round(t.realisasi_followup/t.target_followup*100)) : 100) + '%'"></div>
                             </div>
                         </div>

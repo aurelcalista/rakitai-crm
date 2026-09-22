@@ -101,13 +101,9 @@
                 <!-- Status Filter -->
                 <select x-model="selectedStatus" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
                     <option value="all">Semua Status</option>
-                    <option value="Cold Lead">Cold Lead</option>
-                    <option value="Interested">Interested</option>
-                    <option value="Follow Up">Follow Up</option>
-                    <option value="Beli Formulir">Beli Formulir</option>
-                    <option value="Pembayaran Termin 1">Pembayaran Termin 1</option>
-                    <option value="Closing">Closing</option>
-                    <option value="Lost">Lost (Arsip)</option>
+                    @foreach($statuses as $st)
+                        <option value="{{ $st }}">{{ $st }}</option>
+                    @endforeach
                 </select>
 
                 <!-- Tipe Prospek Filter -->

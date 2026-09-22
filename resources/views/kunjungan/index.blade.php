@@ -347,17 +347,17 @@
                                         <div class="font-bold text-blue-900 text-[11px] uppercase tracking-wider">Potensi Kemitraan Sekolah</div>
                                         <div class="grid grid-cols-2 gap-2 text-[11px]">
                                             <div>
-                                                <span class="text-slate-500">Beasiswa:</span>
-                                                <p class="font-bold text-slate-800" x-text="selectedVisit.potensi_beasiswa || '-'"></p>
+                                                <span class="text-slate-500">Potensi Mahasiswa:</span>
+                                                <p class="font-bold text-slate-800" x-text="selectedVisit.potensi_mahasiswa || '-'"></p>
                                             </div>
                                             <div>
                                                 <span class="text-slate-500">Workshop AI:</span>
                                                 <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? '✓ Bersedia' : 'Belum Bersedia'"></p>
                                             </div>
-                                            <template x-if="selectedVisit.detail_beasiswa && selectedVisit.detail_beasiswa !== '-'">
-                                                <div class="col-span-2 pt-1 border-t border-blue-100/80">
-                                                    <span class="text-slate-500">Detail Beasiswa:</span>
-                                                    <p class="text-slate-800 mt-0.5 bg-white p-2 rounded-lg border border-blue-100" x-text="selectedVisit.detail_beasiswa"></p>
+                                            <template x-if="selectedVisit.detail_potensi_mahasiswa && selectedVisit.detail_potensi_mahasiswa !== '-'">
+                                                <div class="col-span-2">
+                                                    <span class="text-slate-500">Detail Potensi Mahasiswa:</span>
+                                                    <p class="text-slate-800 mt-0.5 bg-white p-2 rounded-lg border border-blue-100" x-text="selectedVisit.detail_potensi_mahasiswa"></p>
                                                 </div>
                                             </template>
                                         </div>

@@ -13,14 +13,19 @@ class Event extends Model
 
     protected $fillable = [
         'name',
+        'nama',
         'type_id',
         'tanggal',
         'waktu_mulai',
         'waktu_selesai',
+        'tanggal_mulai',
+        'tanggal_selesai',
         'lokasi',
         'deskripsi',
         'eo_id',
         'status',
+        'dokumentasi',
+        'absen_peserta',
     ];
 
     protected $casts = [

@@ -66,13 +66,15 @@
                         @if($visit['type'] === 'Sekolah')
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="p-4 rounded-xl bg-blue-50/50 border border-blue-100">
-                                    <span class="block text-xs font-medium text-slate-500 mb-1">Potensi Beasiswa</span>
-                                    <span class="font-bold text-slate-800">{{ $visit['potensi_beasiswa'] }}</span>
+                                    <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Mahasiswa</span>
+                                    <span class="font-bold text-slate-800">{{ $visit['potensi_mahasiswa'] }}</span>
                                 </div>
+                                @if($visit['detail_potensi_mahasiswa'] && $visit['detail_potensi_mahasiswa'] !== '-')
                                 <div class="md:col-span-2 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                                    <span class="block text-xs font-medium text-slate-500 mb-1">Detail Potensi</span>
-                                    <span class="font-medium text-slate-700">{{ $visit['detail_beasiswa'] }}</span>
+                                    <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Potensi Mahasiswa</span>
+                                    <span class="font-medium text-slate-700">{{ $visit['detail_potensi_mahasiswa'] }}</span>
                                 </div>
+                                @endif
                             </div>
                         @else
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

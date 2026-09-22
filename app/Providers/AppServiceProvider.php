@@ -51,7 +51,7 @@ class AppServiceProvider extends ServiceProvider
                     // Follow up hari ini dan belum selesai
                     $followUpQuery = \App\Models\FollowUp::whereDate('next_follow_up', now()->toDateString())
                         ->whereHas('prospek', function ($q) {
-                            $q->whereNotIn('status', ['Closing', 'Lost']);
+                            $q->whereNotIn('status', ['Closing', 'Closing (Lunas)', 'Lost']);
                         });
 
                     // Scope follow-up by role
@@ -65,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
 
                     $followUpHariIni = $followUpQuery->count();
                 }
+
 
                 $unreadNotifications = $user->unreadNotifications;
                 $rawNotifications = $user->notifications()->limit(20)->get();
