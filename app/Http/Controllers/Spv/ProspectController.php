@@ -11,6 +11,8 @@ use App\Models\Prodi;
 use App\Models\Wilayah;
 use App\Models\Transaksi;
 use App\Models\User;
+use App\Http\Requests\StoreProspectRequest;
+use App\Http\Requests\UpdateProspectRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -29,13 +31,10 @@ class ProspectController extends Controller
 
         $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->limit(1);
-        }])->where(function ($q) use ($teamMemberIds, $user) {
+        }])->where(function ($q) use ($teamMemberIds) {
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
               ->orWhereIn('cs_id', $teamMemberIds);
-            if ($user->wilayah_id) {
-                $q->orWhere('wilayah_id', $user->wilayah_id);
-            }
         });
 
         // Filter by Sales handler
@@ -128,25 +127,9 @@ class ProspectController extends Controller
     /**
      * Store new prospect and assign to Sales.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreProspectRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'          => 'nullable|string|max:255',
-            'type'          => 'required|in:Sekolah,Corporate,Individu',
-            'sekolah_id'    => 'nullable|exists:sekolahs,id',
-            'perusahaan_id' => 'nullable|exists:perusahaans,id',
-            'sales_id'      => 'nullable|exists:users,id',
-            'category'      => 'nullable|string|max:100',
-            'pic'           => 'required|string|max:255',
-            'pic_phone'     => 'nullable|string|max:20',
-            'whatsapp'      => 'required|string|max:20',
-            'status'        => 'required|string|max:255',
-            'potential'     => 'nullable|string|max:500',
-            'ai_training'   => 'nullable|string|max:255',
-            'notes'         => 'nullable|string',
-            'source'        => 'required|string|max:100',
-        ]);
-
+        $validated = $request->validated();
         $user = auth()->user();
 
         $name = $validated['name'] ?? 'Prospek Baru';
@@ -156,24 +139,6 @@ class ProspectController extends Controller
         } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
             $perusahaan = Perusahaan::find($validated['perusahaan_id']);
             if ($perusahaan) $name = $perusahaan->nama;
-        }
-
-        $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {
-            $query->where('whatsapp', $validated['whatsapp'])
-                  ->orWhere('name', $name);
-        })->first();
-
-        if ($duplicate) {
-            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
-            $ownerName = $duplicate->owner ? $duplicate->owner->name : 'Sistem';
-            $salesName = $duplicate->sales ? $duplicate->sales->name : 'Belum Ada Sales';
-            
-            $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}).\n"
-                          . "Prospek ini dimiliki oleh: {$ownerName}\n"
-                          . "Sedang ditangani oleh: {$salesName}\n"
-                          . "Status saat ini: {$duplicate->status}";
-                          
-            return back()->withInput()->withErrors([$errorField => $errorMessage]);
         }
 
         $assignedSalesId = $validated['sales_id'] ?? null;
@@ -199,6 +164,7 @@ class ProspectController extends Controller
                 'source'             => $validated['source'] ?? 'Supervisor',
                 'sales_id'           => $assignedSalesId,
                 'cs_id'              => null,
+                'prodi_id'           => $validated['prodi_id'],
                 'wilayah_id'         => $wilayahId,
                 'owner_id'           => $user->id,
             ]);
@@ -264,32 +230,11 @@ class ProspectController extends Controller
     /**
      * Update prospect details.
      */
-    public function update(Request $request, Prospek $prospek): RedirectResponse
+    public function update(UpdateProspectRequest $request, Prospek $prospek): RedirectResponse
     {
         Gate::authorize('update', $prospek);
 
-        $validated = $request->validate([
-            'pic'         => 'required|string|max:255',
-            'pic_phone'   => 'nullable|string|max:20',
-            'whatsapp'    => 'required|string|max:20',
-            'potential'   => 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
-            'notes'       => 'nullable|string',
-            'category'    => 'nullable|string|max:100',
-            'source'      => 'required|string|max:100',
-        ]);
-
-        $duplicate = Prospek::where('id', '!=', $prospek->id)
-            ->where(function ($q) use ($validated, $prospek) {
-                $name = $request->input('name', $prospek->name);
-                $q->where('whatsapp', $validated['whatsapp'])
-                  ->orWhere('name', $name);
-            })->first();
-
-        if ($duplicate) {
-            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
-            return back()->withInput()->withErrors([$errorField => 'Data prospek sudah ada (Duplicate ' . $errorField . ').']);
-        }
+        $validated = $request->validated();
 
         $prospek->update($validated);
 
@@ -318,6 +263,11 @@ class ProspectController extends Controller
 
         $oldStatus = $prospek->status;
         $newStatus = $validated['status'];
+
+        if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return redirect()->back()
+                ->withErrors(['status' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.']);
+        }
 
         $prospek->update([
             'status'       => $newStatus,
@@ -422,6 +372,11 @@ class ProspectController extends Controller
 
         // 3. Update status prospek menjadi LUNAS (Stage 7).
         // PENTING: sales_id dan owner_id TETAP milik Sales awal!
+        $prospek->refresh();
+        if (!\App\Services\ProspekService::isClosingValid($prospek)) {
+            return back()->withErrors(['nominal_termin1' => 'Gagal memvalidasi pembayaran Termin 1 dan Formulir.']);
+        }
+
         $oldStatus = $prospek->status;
         $prospek->status = 'LUNAS';
         $prospek->stage_number = 7;

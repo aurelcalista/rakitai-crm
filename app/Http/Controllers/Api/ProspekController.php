@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Prospek;
+use App\Http\Requests\StoreProspectRequest;
+use Illuminate\Support\Facades\Gate;
 
 class ProspekController extends Controller
 {
@@ -13,13 +15,30 @@ class ProspekController extends Controller
         $user = $request->user();
         $query = Prospek::with(['sales', 'cs']);
 
-        // Isolation
-        if ($user->role === 'Sales') {
-            $query->where('sales_id', $user->id);
-        } elseif ($user->role === 'CS') {
+        $role = strtolower($user->role);
+
+        // Role-based Isolation & Scoping
+        if ($role === 'sales') {
+            $query->where(function ($q) use ($user) {
+                $q->where('sales_id', $user->id)
+                  ->orWhere('owner_id', $user->id);
+            });
+        } elseif ($role === 'cs') {
             $query->where('cs_id', $user->id);
-        } elseif ($user->role === 'SPV' && $user->wilayah_id) {
-            $query->where('wilayah_id', $user->wilayah_id);
+        } elseif ($role === 'spv') {
+            $teamIds = $user->teamMemberIds();
+            $query->where(function ($q) use ($teamIds) {
+                $q->whereIn('sales_id', $teamIds)
+                  ->orWhereIn('owner_id', $teamIds)
+                  ->orWhereIn('cs_id', $teamIds);
+            });
+        } elseif ($role === 'hm' && $user->wilayah_id) {
+            $hmIds = $user->hmMemberIds();
+            $query->where(function ($q) use ($user, $hmIds) {
+                $q->where('wilayah_id', $user->wilayah_id)
+                  ->orWhereIn('sales_id', $hmIds)
+                  ->orWhereIn('owner_id', $hmIds);
+            });
         }
 
         if ($request->has('status')) {
@@ -33,36 +52,21 @@ class ProspekController extends Controller
 
     public function show(Request $request, Prospek $prospek)
     {
-        $user = $request->user();
-        if ($user->role === 'Sales' && $prospek->sales_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        if ($user->role === 'CS' && $prospek->cs_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        if ($user->role === 'SPV' && $user->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('view', $prospek);
 
         return response()->json([
             'data' => $prospek->load(['followUps', 'kunjungans', 'timelines'])
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreProspectRequest $request)
     {
         $user = $request->user();
         
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:Corporate,Sekolah,Individu',
-            'whatsapp' => 'required|string|max:20',
-            'wilayah_id' => 'required|exists:wilayahs,id',
-            'source' => 'required|string',
-        ]);
+        $validated = $request->validated();
 
         $validated['owner_id'] = $user->id;
-        $validated['sales_id'] = $user->role === 'Sales' ? $user->id : null;
+        $validated['sales_id'] = strtolower($user->role) === 'sales' ? $user->id : null;
         $validated['status'] = 'Baru';
         $validated['stage_number'] = 1;
 
@@ -76,20 +80,21 @@ class ProspekController extends Controller
 
     public function updateStatus(Request $request, Prospek $prospek)
     {
-        $user = $request->user();
-        if ($user->role === 'Sales' && $prospek->sales_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        Gate::authorize('updateStatus', $prospek);
 
         $validated = $request->validate([
-            'status' => 'required|string', // Ensure mobile app sends correct new status
+            'status' => 'required|string',
         ]);
+
+        if ($validated['status'] === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return response()->json(['message' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.'], 422);
+        }
 
         $oldStatus = $prospek->status;
         $prospek->status = $validated['status'];
         $stages = [
-            'Baru' => 1, 'Follow Up' => 2, 'Kunjungan' => 3, 'Beli Formulir' => 4,
-            'Pembayaran Termin 1' => 5, 'Pemberkasan' => 6, 'Wawancara' => 7, 'Closing (Lunas)' => 8
+            'BARU' => 1, 'KONTAK' => 2, 'HANGAT' => 3, 'PANAS' => 4,
+            'FORMULIR' => 5, 'BERKAS' => 6, 'LUNAS' => 7, 'DINGIN' => 8
         ];
         if (isset($stages[$validated['status']])) {
             $prospek->stage_number = $stages[$validated['status']];

@@ -15,7 +15,7 @@ class Prospek extends Model
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
         'sekolah_id', 'perusahaan_id',
         'lost_reason', 'lost_note', 'active_follow_up_count', 'follow_up_count',
-        'handover_at', 'academic_year_id'
+        'handover_at', 'academic_year_id', 'prodi_id'
     ];
 
     protected $casts = [
@@ -25,8 +25,12 @@ class Prospek extends Model
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            // Keep the legacy string column in sync with the active TA when creating
             if (empty($prospek->tahun_akademik)) {
-                $prospek->tahun_akademik = '2027/2028';
+                $aktivNama = \App\Services\AkademikService::getAktifNama();
+                if ($aktivNama) {
+                    $prospek->tahun_akademik = $aktivNama;
+                }
             }
             if ($prospek->sekolah_id) {
                 $sekolah = Sekolah::find($prospek->sekolah_id);
@@ -40,13 +44,23 @@ class Prospek extends Model
                 }
             }
 
-            // Auto-handover to CS when status is 'Beli Formulir'
-            if ($prospek->isDirty('status') && $prospek->status === 'FORMULIR' && is_null($prospek->cs_id)) {
-                $cs = \App\Models\User::where('role', 'CS')->first();
-                if ($cs) {
-                    $prospek->cs_id = $cs->id;
-                    $prospek->active_follow_up_count = 0; // Reset follow-up for CS
-                    $prospek->handover_at = now();
+            // Auto-handover to CS when status is 'FORMULIR'
+            if ($prospek->isDirty('status') && $prospek->status === 'FORMULIR') {
+                if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
+                    $cs = \App\Models\User::where('role', 'CS')
+                        ->where('wilayah_id', $prospek->wilayah_id)
+                        ->where('status', 'Aktif')
+                        ->first();
+                        
+                    if (!$cs) {
+                        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
+                    }
+                    
+                    if ($cs) {
+                        $prospek->cs_id = $cs->id;
+                        $prospek->active_follow_up_count = 0; // Reset follow-up for CS
+                        $prospek->handover_at = now();
+                    }
                 }
             }
         });
@@ -98,6 +112,8 @@ class Prospek extends Model
         'LUNAS',
         'DINGIN',
     ];
+
+    public const ACTIVE_STAGES = self::PIPELINE_8_STAGES;
 
     /**
      * Syarat Maba Lunas: Pembayaran Formulir + Pembayaran Termin 1 (Status 07 LUNAS)

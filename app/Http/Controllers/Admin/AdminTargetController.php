@@ -151,6 +151,8 @@ class AdminTargetController extends Controller
 
     public function update(Request $request, Target $target)
     {
+        \Illuminate\Support\Facades\Gate::authorize('update', $target);
+
         $validated = $request->validate([
             'sales_id' => 'required|exists:users,id',
             'tipe_periode' => 'required|in:Harian,Mingguan,Bulanan',
@@ -168,8 +170,28 @@ class AdminTargetController extends Controller
         return redirect()->back()->with('success', 'Target berhasil diperbarui!');
     }
 
+    public function lock(Request $request, Target $target)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('lock', $target);
+
+        $target->lock(auth()->user());
+
+        return redirect()->back()->with('success', 'Target berhasil dikunci (locked).');
+    }
+
+    public function unlock(Request $request, Target $target)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('unlock', $target);
+
+        $target->unlock();
+
+        return redirect()->back()->with('success', 'Target berhasil dibuka kuncinya (unlocked).');
+    }
+
     public function destroy(Target $target)
     {
+        \Illuminate\Support\Facades\Gate::authorize('delete', $target);
+
         $target->delete();
         return redirect()->back()->with('success', 'Target berhasil dihapus!');
     }

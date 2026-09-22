@@ -7,24 +7,27 @@ use App\Models\Prospek;
 use App\Models\Kunjungan;
 use App\Models\User;
 use App\Models\FollowUp;
+use App\Services\AkademikService;
 use App\Services\SpvPerformanceService;
+use App\Services\TargetMetricsService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private SpvPerformanceService $spvService)
-    {
+    public function __construct(
+        private SpvPerformanceService $spvService,
+        private TargetMetricsService $metricsService,
+    ) {
     }
 
     /**
-     * Display SPV Team Analytics Dashboard (Tahun Akademik Aktif TA 2027/2028).
+     * Display SPV Team Analytics Dashboard (Active Tahun Akademik).
      */
     public function index(Request $request): View
     {
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
-        $activeTa = $request->get('ta', SpvPerformanceService::DEFAULT_TA);
 
         // Team members (Sales & CS under SPV)
         $teamMembers = User::whereIn('id', $teamMemberIds)->with('wilayah')->get();
@@ -34,9 +37,13 @@ class DashboardController extends Controller
         // 8 Pipeline Stages Standar
         $stages = Prospek::PIPELINE_8_STAGES;
 
-        // Ambil ID Tahun Akademik Aktif
-        $activeTaObj = \App\Models\TahunAkademik::getAktif();
-        $activeTaId = $activeTaObj ? $activeTaObj->id : null;
+        // Active Tahun Akademik via central mechanism
+        $activeTaId  = \App\Services\AkademikService::getAktifId();
+        $activeTaNama = \App\Services\AkademikService::getAktifNama();
+
+        // Historical override via ?ta= query param (explicit, not default)
+        $taOverride = $request->get('ta');
+        $activeTa   = $taOverride ?? $activeTaNama; // used for SpvPerformanceService calls
 
         // Query prospek tim terikat TA Aktif
         $prospekQuery = $user->teamProspeks()->where('academic_year_id', $activeTaId);
@@ -95,6 +102,9 @@ class DashboardController extends Controller
             ->get();
 
         // Sales Leaderboard / Team performance summary
+        // Each Sales scoped to active TA — no double-count (each prospek attributed to one sales_id)
+        $spvRollup = $metricsService->rollUpForSpv($user, null, $activeTaId);
+
         $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) use ($activeTaId) {
             $prospectCount = Prospek::where('sales_id', $sales->id)
                 ->where('academic_year_id', $activeTaId)
@@ -106,12 +116,14 @@ class DashboardController extends Controller
                 ->count();
             $visits = Kunjungan::where('sales_id', $sales->id)->count();
 
+            // Use target_lunas (target_closing does not exist in DB)
             $target = $sales->targets()
                 ->where('status', 'Aktif')
+                ->when($activeTaId, fn($q) => $q->where('academic_year_id', $activeTaId))
                 ->latest()
                 ->first();
 
-            $targetNum = $target ? (int)$target->target_lunas : 10;
+            $targetNum   = $target ? (int)$target->target_lunas : 0;
             $achievedPct = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
 
             return [
@@ -121,8 +133,12 @@ class DashboardController extends Controller
                 'visits'       => $visits,
                 'target'       => $targetNum,
                 'achieved_pct' => $achievedPct,
+                'color_status' => \App\Services\TargetMetricsService::YELLOW_THRESHOLD <= $achievedPct
+                    ? ($achievedPct >= 100 ? 'green' : 'yellow')
+                    : 'red',
             ];
         });
+
 
         return view('spv.dashboard', compact(
             'stats',
@@ -130,6 +146,7 @@ class DashboardController extends Controller
             'pipelineStats',
             'teamMembers',
             'teamPerformance',
+            'spvRollup',
             'recentFollowUps',
             'activeTa'
         ));

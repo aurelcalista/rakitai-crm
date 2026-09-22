@@ -7,7 +7,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement('ALTER TABLE kunjungans MODIFY COLUMN status VARCHAR(255)');
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE kunjungans MODIFY COLUMN status VARCHAR(255)');
+        } else {
+            \Illuminate\Support\Facades\Schema::table('kunjungans', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('status')->change();
+            });
+        }
     }
 
     public function down(): void

@@ -6,8 +6,12 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Prospek;
 use App\Models\Kunjungan;
+use App\Models\Event;
+use App\Models\Target;
 use App\Policies\ProspekPolicy;
 use App\Policies\KunjunganPolicy;
+use App\Policies\EventPolicy;
+use App\Policies\TargetPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
         // Register Policies
         Gate::policy(Prospek::class, ProspekPolicy::class);
         Gate::policy(Kunjungan::class, KunjunganPolicy::class);
+        Gate::policy(Event::class, EventPolicy::class);
+        Gate::policy(Target::class, TargetPolicy::class);
 
         \Illuminate\Support\Facades\View::composer('*', function ($view) {
             if (auth()->check()) {
@@ -41,17 +47,29 @@ class AppServiceProvider extends ServiceProvider
                     if ($role === 'sales') {
                         $prospekCount = \App\Models\Prospek::where('sales_id', $user->id)->count();
                     } elseif ($role === 'cs') {
-                        $prospekCount = \App\Models\Prospek::where(function($q) use ($user) {
-                            $q->where('cs_id', $user->id)->orWhereNotNull('sales_id');
+                        $prospekCount = \App\Models\Prospek::where('cs_id', $user->id)->count();
+                    } elseif ($role === 'spv') {
+                        $teamIds = $user->teamMemberIds();
+                        $prospekCount = \App\Models\Prospek::where(function($q) use ($teamIds) {
+                            $q->whereIn('sales_id', $teamIds)
+                              ->orWhereIn('owner_id', $teamIds)
+                              ->orWhereIn('cs_id', $teamIds);
+                        })->count();
+                    } elseif ($role === 'hm' && $user->wilayah_id) {
+                        $hmIds = $user->hmMemberIds();
+                        $prospekCount = \App\Models\Prospek::where(function($q) use ($user, $hmIds) {
+                            $q->where('wilayah_id', $user->wilayah_id)
+                              ->orWhereIn('sales_id', $hmIds)
+                              ->orWhereIn('owner_id', $hmIds);
                         })->count();
                     } else {
-                        $prospekCount = \App\Models\Prospek::count(); // HM/SPV/Admin: all
+                        $prospekCount = \App\Models\Prospek::count(); // Admin: all
                     }
 
                     // Follow up hari ini dan belum selesai
                     $followUpQuery = \App\Models\FollowUp::whereDate('next_follow_up', now()->toDateString())
                         ->whereHas('prospek', function ($q) {
-                            $q->whereNotIn('status', ['Closing', 'Closing (Lunas)', 'Lost']);
+                            $q->whereNotIn('status', ['LUNAS', 'DINGIN']);
                         });
 
                     // Scope follow-up by role

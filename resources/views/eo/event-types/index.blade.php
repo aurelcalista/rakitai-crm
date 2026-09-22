@@ -26,7 +26,7 @@
                 <thead>
                     <tr class="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <th class="px-5 py-4 w-12 text-center">No</th>
-                        <th class="px-5 py-4">Nama Jenis Event</th>
+                        <th class="px-5 py-4"> Jenis Event</th>
                         <th class="px-5 py-4 w-32">Status</th>
                         <th class="px-5 py-4 w-32 text-center">Aksi</th>
                     </tr>

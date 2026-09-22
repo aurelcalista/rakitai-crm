@@ -7,6 +7,9 @@ use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use App\Models\Sekolah;
 use App\Models\Perusahaan;
+use App\Models\FollowUp;
+use App\Http\Requests\StoreProspectRequest;
+use App\Http\Requests\UpdateProspectRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -63,23 +66,9 @@ class ProspectController extends Controller
     /**
      * Store a new prospect created by the Sales user.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreProspectRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'     => 'nullable|string|max:255',
-            'type'     => 'required|in:Sekolah,Corporate,Individu',
-            'sekolah_id' => 'nullable|exists:sekolahs,id',
-            'perusahaan_id' => 'nullable|exists:perusahaans,id',
-            'category' => 'nullable|string|max:100',
-            'pic'      => 'required|string|max:255',
-            'pic_phone'=> 'nullable|string|max:20',
-            'whatsapp' => 'required|string|max:20',
-            'status'   => 'required|string|max:255',
-            'potential'=> 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
-            'notes'    => 'nullable|string',
-            'source'   => 'required|string|max:100',
-        ]);
+        $validated = $request->validated();
 
         $user = auth()->user();
 
@@ -92,24 +81,6 @@ class ProspectController extends Controller
         } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
             $perusahaan = Perusahaan::find($validated['perusahaan_id']);
             if ($perusahaan) $name = $perusahaan->nama;
-        }
-
-        $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {
-            $query->where('whatsapp', $validated['whatsapp'])
-                  ->orWhere('name', $name);
-        })->first();
-
-        if ($duplicate) {
-            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
-            $ownerName = $duplicate->owner ? $duplicate->owner->name : 'Sistem';
-            $salesName = $duplicate->sales ? $duplicate->sales->name : 'Belum Ada Sales';
-            
-            $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}).\n"
-                          . "Prospek ini dimiliki oleh: {$ownerName}\n"
-                          . "Sedang ditangani oleh: {$salesName}\n"
-                          . "Status saat ini: {$duplicate->status}";
-                          
-            return back()->withInput()->withErrors([$errorField => $errorMessage]);
         }
 
         DB::transaction(function () use ($validated, $user, $name) {
@@ -141,6 +112,7 @@ class ProspectController extends Controller
                 'ai_training'  => $validated['ai_training'] ?? null,
                 'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
+                'prodi_id'     => $validated['prodi_id'],
                 'sales_id'     => $user->id,
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,
@@ -204,32 +176,11 @@ class ProspectController extends Controller
      * Update editable prospect fields.
      * Only allowed for active Sales handler.
      */
-    public function update(Request $request, Prospek $prospek): RedirectResponse
+    public function update(UpdateProspectRequest $request, Prospek $prospek): RedirectResponse
     {
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
 
-        $validated = $request->validate([
-            'pic'         => 'required|string|max:255',
-            'pic_phone'   => 'nullable|string|max:20',
-            'whatsapp'    => 'required|string|max:20',
-            'potential'   => 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
-            'notes'       => 'nullable|string',
-            'category'    => 'nullable|string|max:100',
-            'source'      => 'required|string|max:100',
-        ]);
-
-        $duplicate = Prospek::where('id', '!=', $prospek->id)
-            ->where(function ($q) use ($validated, $prospek) {
-                $name = $request->input('name', $prospek->name);
-                $q->where('whatsapp', $validated['whatsapp'])
-                  ->orWhere('name', $name);
-            })->first();
-
-        if ($duplicate) {
-            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
-            return back()->withInput()->withErrors([$errorField => 'Data prospek sudah ada (Duplicate ' . $errorField . ').']);
-        }
+        $validated = $request->validated();
 
         $prospek->update($validated);
 
@@ -263,9 +214,14 @@ class ProspectController extends Controller
         $newStatus = $validated['status'];
 
         // Prevent downgrading to Lost via this endpoint — use markLost instead
-        if ($newStatus === 'Lost') {
+        if ($newStatus === 'DINGIN') {
             return redirect()->back()
                 ->withErrors(['status' => 'Gunakan tombol "Mark as Lost" untuk mengubah ke status Lost.']);
+        }
+
+        if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return redirect()->back()
+                ->withErrors(['status' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.']);
         }
 
         $prospek->update([
@@ -304,8 +260,8 @@ class ProspectController extends Controller
         $oldStatus = $prospek->status;
 
         $prospek->update([
-            'status'       => 'Lost',
-            'stage_number' => 0,
+            'status'       => 'DINGIN',
+            'stage_number' => 8,
             'lost_reason'  => $validated['lost_reason'],
             'lost_note'    => $validated['lost_note'],
         ]);
@@ -313,15 +269,15 @@ class ProspectController extends Controller
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
             'user_id'      => auth()->id(),
-            'title'        => 'Prospek Ditandai Lost',
+            'title'        => 'Prospek Ditandai DINGIN',
             'notes'        => 'Alasan: ' . $validated['lost_reason'] . ($validated['lost_note'] ? '. Catatan: ' . $validated['lost_note'] : ''),
             'status_before' => $oldStatus,
-            'status_after'  => 'Lost',
+            'status_after'  => 'DINGIN',
             'time'          => now(),
         ]);
 
         return redirect()->route('sales.prospek.index')
-            ->with('success', 'Prospek telah ditandai sebagai Lost.');
+            ->with('success', 'Prospek telah ditandai sebagai DINGIN.');
     }
 
     /**

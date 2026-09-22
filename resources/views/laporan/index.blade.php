@@ -159,13 +159,13 @@
             />
             <x-stat-card 
                 title="Total Closing" 
-                :value="$summary['closing']" 
+                :value="$summary['closing'] ?? $summary['LUNAS'] ?? 0" 
                 subtitle="Mahasiswa Resmi" 
                 color="emerald"
             />
             <x-stat-card 
                 title="Total Lost" 
-                :value="$summary['lost']" 
+                :value="$summary['lost'] ?? $summary['DINGIN'] ?? 0" 
                 subtitle="Historis Arsip" 
                 color="rose"
             />

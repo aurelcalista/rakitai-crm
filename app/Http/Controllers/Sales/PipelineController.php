@@ -32,7 +32,7 @@ class PipelineController extends Controller
 
         $pipelineStages = \App\Models\MasterData::where('type', 'status_prospek')
             ->where('status', 'Aktif')
-            ->whereNotIn('nama', ['Lost', 'Ditolak/Batal', 'Ditolak / Batal'])
+            ->whereNotIn('nama', ['DINGIN', 'Ditolak/Batal', 'Ditolak / Batal'])
             ->orderBy('id')
             ->pluck('nama')
             ->toArray();
@@ -63,10 +63,17 @@ class PipelineController extends Controller
         }
 
         // Cannot change status of Lost via this endpoint — use markLost
-        if ($prospek->status === 'Lost') {
+        if ($prospek->status === 'DINGIN') {
             return response()->json([
                 'success' => false,
                 'message' => 'Prospek dengan status Lost tidak dapat diubah.',
+            ], 422);
+        }
+
+        if ($request->status === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.',
             ], 422);
         }
 
