@@ -56,14 +56,17 @@ class CalendarController extends Controller
         }
 
         $events = $query->get()->map(function ($event) {
+            $start = \Carbon\Carbon::parse($event->tanggal_mulai);
+            $end = \Carbon\Carbon::parse($event->tanggal_selesai);
+
             return [
                 'id' => $event->id,
-                'title' => $event->name,
-                'start' => $event->tanggal->format('Y-m-d') . 'T' . $event->waktu_mulai->format('H:i:s'),
-                'end' => $event->tanggal->format('Y-m-d') . 'T' . $event->waktu_selesai->format('H:i:s'),
-                'tanggal' => $event->tanggal->format('Y-m-d'),
-                'waktu_mulai' => $event->waktu_mulai->format('H:i'),
-                'waktu_selesai' => $event->waktu_selesai->format('H:i'),
+                'title' => $event->nama,
+                'start' => $start->format('Y-m-d\TH:i:s'),
+                'end' => $end->format('Y-m-d\TH:i:s'),
+                'tanggal' => $start->format('Y-m-d'),
+                'waktu_mulai' => $start->format('H:i'),
+                'waktu_selesai' => $end->format('H:i'),
                 'lokasi' => $event->lokasi,
                 'deskripsi' => $event->deskripsi,
                 'jenis' => $event->type ? $event->type->nama : '-',
