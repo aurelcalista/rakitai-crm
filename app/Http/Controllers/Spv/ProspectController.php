@@ -366,7 +366,7 @@ class ProspectController extends Controller
             'prospek_id'   => $prospek->id,
             'user_id'      => auth()->id(),
             'title'        => 'Re-alokasi Handler oleh SPV',
-            'notes'        => 'SPV mengalihkan penanganan prospek ke ' . $newSales . ' (follow_up_count di-reset ke 0 untuk pemilik baru)' . ($validated['reason'] ? ' (Alasan: ' . $validated['reason'] . ')' : ''),
+            'notes'        => 'SPV mengalihkan penanganan prospek ke ' . $newSales . ' (follow_up_count di-reset ke 0 untuk pemilik baru)' . (!empty($validated['reason']) ? ' (Alasan: ' . $validated['reason'] . ')' : ''),
             'status_after' => $prospek->status,
             'time'         => now(),
         ]);

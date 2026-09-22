@@ -113,6 +113,7 @@
                             <th class="py-3 px-4 border-r border-slate-200">HARI</th>
                             <th class="py-3 px-3 text-center border-r border-slate-200 bg-blue-50/50 text-blue-900">TARGET KONTAK</th>
                             <th class="py-3 px-3 text-center border-r border-slate-200">REALISASI KONTAK</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-rose-50/50 text-rose-800">UTANG ANGKA<br><span class="text-[9px] font-normal lowercase">(carry-over)</span></th>
                             <th class="py-3 px-3 text-center border-r border-slate-200 bg-purple-50/50 text-purple-900">PEMBAYARAN FORMULIR</th>
                             <th class="py-3 px-3 text-center border-r border-slate-200 bg-emerald-50/50 text-emerald-900">MABA LUNAS</th>
                             <th class="py-3 px-4 text-center bg-indigo-50/50 text-indigo-900 font-extrabold">KUMULATIF LUNAS</th>
@@ -120,19 +121,32 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 font-medium">
                         @foreach($teamPerWeek['rows'] as $row)
-                            <tr class="hover:bg-slate-50/80 transition {{ $row['is_today'] ? 'bg-amber-50/40 font-bold' : '' }}">
+                            <tr class="hover:bg-slate-50/80 transition {{ $row['is_today'] ? 'bg-amber-50/60 font-bold border-l-4 border-amber-400' : ($row['is_future'] ? 'opacity-60' : '') }}">
                                 <td class="py-3 px-4 border-r border-slate-200 text-slate-900">
                                     <div class="flex items-center gap-2">
                                         <span class="font-extrabold">{{ $row['hari'] }}</span>
                                         @if($row['is_today'])
-                                            <span class="px-1.5 py-0.2 rounded text-[9px] bg-amber-200 text-amber-900 font-bold">HARI INI</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-300 text-amber-900 font-bold">HARI INI</span>
                                         @endif
                                         <span class="text-[10px] text-slate-400 font-normal">({{ $row['tanggal'] }})</span>
                                     </div>
                                 </td>
                                 <td class="py-3 px-3 text-center border-r border-slate-200 text-blue-800 font-semibold">{{ $row['target_kontak'] }}</td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200 font-bold {{ $row['realisasi_kontak'] >= $row['target_kontak'] && $row['target_kontak'] > 0 ? 'text-emerald-600' : 'text-slate-800' }}">
+                                <td class="py-3 px-3 text-center border-r border-slate-200 font-bold {{ $row['realisasi_kontak'] >= $row['sasaran_kontak'] && $row['sasaran_kontak'] > 0 ? 'text-emerald-600' : 'text-slate-800' }}">
                                     {{ $row['realisasi_kontak'] }}
+                                    @if(!$row['is_future'] && $row['sasaran_kontak'] > $row['target_kontak'])
+                                        <span class="text-[9px] text-rose-500 block">(Sasaran: {{ $row['sasaran_kontak'] }})</span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200">
+                                    @if($row['has_utang'] && !$row['is_future'])
+                                        <span class="inline-flex items-center gap-1">
+                                            <span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+                                            <span class="text-rose-700 font-bold">{{ $row['utang_kontak'] }}</span>
+                                        </span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="py-3 px-3 text-center border-r border-slate-200 text-purple-700 font-bold">{{ $row['pembayaran_formulir'] }}</td>
                                 <td class="py-3 px-3 text-center border-r border-slate-200 text-emerald-700 font-extrabold text-sm">{{ $row['maba_lunas'] }}</td>
@@ -146,6 +160,7 @@
                             </td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-blue-900 font-extrabold">{{ $teamPerWeek['total']['target_kontak'] }}</td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-slate-900 font-extrabold">{{ $teamPerWeek['total']['realisasi_kontak'] }}</td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-rose-700 font-extrabold">{{ $teamPerWeek['total']['utang_kontak'] > 0 ? $teamPerWeek['total']['utang_kontak'] : '-' }}</td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-purple-900 font-extrabold">{{ $teamPerWeek['total']['pembayaran_formulir'] }}</td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-emerald-900 font-extrabold text-base">{{ $teamPerWeek['total']['maba_lunas'] }}</td>
                             <td class="py-3.5 px-4 text-center bg-indigo-100 text-indigo-950 font-black text-base">{{ $teamPerWeek['total']['kumulatif_lunas'] }}</td>
@@ -174,7 +189,7 @@
                 <table class="w-full text-left border-collapse text-xs border border-slate-200">
                     <thead>
                         <tr class="bg-slate-100/90 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-300 text-center">
-                            <th rowspan="2" class="py-3 px-4 border-r border-slate-200 text-left">NAMA SALES</th>
+                            <th rowspan="2" class="py-3 px-4 border-r border-slate-200 text-left">NAMA TIM (SALES / CS)</th>
                             <th rowspan="2" class="py-3 px-3 border-r border-slate-200 bg-blue-50/60 text-blue-900">TARGET NORMAL</th>
                             <th colspan="3" class="py-2 px-3 border-r border-slate-200 bg-slate-200/70 text-slate-800">Capaian Kemarin (kontak/Form/Lunas)</th>
                             <th rowspan="2" class="py-3 px-3 border-r border-slate-200 bg-rose-50/70 text-rose-900">UTANG ANGKA<br><span class="text-[9px] font-normal lowercase">(wajib dibayar)</span></th>
@@ -189,13 +204,18 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 font-medium">
                         @forelse($performaHarian['rows'] as $salesRow)
-                            <tr class="hover:bg-slate-50/80 transition">
+                            <tr class="hover:bg-slate-50/80 transition {{ ($salesRow['is_cs'] ?? false) ? 'bg-violet-50/30' : '' }}">
                                 <td class="py-3.5 px-4 border-r border-slate-200 font-bold text-slate-900">
                                     <div class="flex items-center gap-2.5">
-                                        <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                        <div class="w-7 h-7 rounded-full {{ ($salesRow['is_cs'] ?? false) ? 'bg-purple-600' : 'bg-blue-600' }} text-white font-bold flex items-center justify-center text-xs shrink-0">
                                             {{ $salesRow['avatar'] }}
                                         </div>
-                                        <span>{{ $salesRow['nama_sales'] }}</span>
+                                        <div>
+                                            <span>{{ $salesRow['nama_sales'] ?? $salesRow['nama'] }}</span>
+                                            @if($salesRow['is_cs'] ?? false)
+                                                <span class="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-100 text-violet-700">CS</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-3 text-center border-r border-slate-200 font-semibold text-blue-900 bg-blue-50/20">
@@ -288,7 +308,7 @@
                             <th class="py-3 px-3 text-center">Maba Lunas</th>
                             <th class="py-3 px-3 text-center">Target Lunas</th>
                             <th class="py-3 px-4 text-center w-52">Rasio Capaian (%)</th>
-                            <th class="py-3 px-4 text-right">Status</th>
+                            <th class="py-3 px-4 text-center w-40">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -317,8 +337,9 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-right">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $sb['achievement_pct'] >= 100 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : ($sb['achievement_pct'] >= 50 ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200') }}">
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap border {{ $sb['target_lunas'] <= 0 ? 'bg-slate-50 text-slate-600 border-slate-200' : ($sb['achievement_pct'] >= 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : ($sb['achievement_pct'] >= 50 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200')) }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $sb['target_lunas'] <= 0 ? 'bg-slate-400' : ($sb['achievement_pct'] >= 100 ? 'bg-emerald-500' : ($sb['achievement_pct'] >= 50 ? 'bg-blue-500' : 'bg-amber-500')) }}"></span>
                                         {{ $sb['status'] }}
                                     </span>
                                 </td>

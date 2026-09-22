@@ -13,14 +13,8 @@ class TahunAkademikSeeder extends Seeder
      */
     public function run(): void
     {
-        TahunAkademik::create([
-            'nama' => '2025/2026',
-            'status' => 'Non-Aktif',
-        ]);
-        
-        TahunAkademik::create([
-            'nama' => '2026/2027',
-            'status' => 'Aktif',
-        ]);
+        TahunAkademik::updateOrCreate(['nama' => '2025/2026'], ['status' => 'Non-Aktif']);
+        TahunAkademik::updateOrCreate(['nama' => '2026/2027'], ['status' => 'Non-Aktif']);
+        TahunAkademik::updateOrCreate(['nama' => '2027/2028'], ['status' => 'Aktif']);
     }
 }

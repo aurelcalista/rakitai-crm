@@ -99,21 +99,25 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        // Sales Leaderboard / Team performance summary
-        $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) use ($activeTa) {
-            $prospectCount = Prospek::where('sales_id', $sales->id)
-                ->where(function ($q) use ($activeTa) {
-                    $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
-                })->count();
+        // Team performance summary (Sales & CS under SPV)
+        $teamPerformance = $teamMembers->map(function ($member) use ($activeTa) {
+            $isCs = $member->role === 'CS';
 
-            $closing = Prospek::where('sales_id', $sales->id)
-                ->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])
-                ->where(function ($q) use ($activeTa) {
-                    $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
-                })->count();
-            $visits = Kunjungan::where('sales_id', $sales->id)->count();
+            $prospectQuery = Prospek::where(function ($q) use ($member, $isCs) {
+                if ($isCs) {
+                    $q->where('cs_id', $member->id);
+                } else {
+                    $q->where('sales_id', $member->id);
+                }
+            })->where(function ($q) use ($activeTa) {
+                $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
+            });
 
-            $target = $sales->targets()
+            $prospectCount = (clone $prospectQuery)->count();
+            $closing = (clone $prospectQuery)->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])->count();
+            $visits = $isCs ? 0 : Kunjungan::where('sales_id', $member->id)->count();
+
+            $target = $member->targets()
                 ->where('status', 'Aktif')
                 ->latest()
                 ->first();
@@ -122,12 +126,14 @@ class DashboardController extends Controller
             $achievedPct = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
 
             return [
-                'user'         => $sales,
+                'user'         => $member,
+                'role'         => $member->role,
                 'prospects'    => $prospectCount,
                 'closing'      => $closing,
                 'visits'       => $visits,
                 'target'       => $targetNum,
                 'achieved_pct' => $achievedPct,
+                'wilayah_nama' => $isCs ? 'Centralized (Tanpa Wilayah)' : ($member->wilayah?->nama ?? 'Belum Ditugaskan'),
             ];
         });
 

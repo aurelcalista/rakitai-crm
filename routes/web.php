@@ -120,6 +120,7 @@ Route::middleware('auth')->group(function () {
 
             // Team Structure & Directory
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
+            Route::patch('/tim/{user}/wilayah', [\App\Http\Controllers\Spv\TeamController::class, 'assignWilayah'])->name('tim.wilayah.assign');
 
             // SPV Specialized Actions (P0)
             Route::post('/prospek/{prospek}/closing',       [\App\Http\Controllers\Spv\ProspectController::class, 'closing'])->name('prospek.closing');
