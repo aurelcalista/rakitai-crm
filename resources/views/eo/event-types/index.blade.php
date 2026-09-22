@@ -11,7 +11,7 @@
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">{{ $pageTitle }}</h1>
             <p class="text-sm text-slate-500 mt-1">Kelola jenis event dinamis yang bisa dipilih saat membuat event baru.</p>
         </div>
-        <button @click="modalTambah = true" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition shadow-sm ring-1 ring-emerald-700/50">
+        <button @click="modalTambah = true" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transition shadow-sm ring-1 ring-purple-700/50">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -37,7 +37,7 @@
                             <td class="px-5 py-4 text-center font-medium text-slate-500">{{ $index + 1 }}</td>
                             <td class="px-5 py-4 font-bold text-slate-900">{{ $type->nama }}</td>
                             <td class="px-5 py-4">
-                                <span class="px-2.5 py-1 text-[11px] font-bold rounded-full {{ $type->status == 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                                <span class="px-2.5 py-1 text-[11px] font-bold rounded-full {{ $type->status == 'Aktif' ? 'bg-purple-100 text-purple-800' : 'bg-rose-100 text-rose-800' }}">
                                     {{ $type->status }}
                                 </span>
                             </td>
@@ -81,13 +81,15 @@
                 @csrf
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Jenis Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="nama" required class="w-full rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 text-sm">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1 transition-colors group-focus-within:text-purple-600">Nama Jenis Event <span class="text-rose-500">*</span></label>
+                        <div class="relative group">
+                            <input type="text" name="nama" required placeholder="Contoh: Seminar" class="w-full rounded-xl border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm transition-all duration-300 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 hover:border-purple-300">
+                        </div>
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" @click="modalTambah = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition">Simpan</button>
+                    <button type="button" @click="modalTambah = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 hover:-translate-y-0.5 transition-all duration-300 active:scale-95">Batal</button>
+                    <button type="submit" class="px-5 py-2 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 hover:shadow-lg hover:shadow-purple-600/30 hover:-translate-y-0.5 transition-all duration-300 active:scale-95">Simpan</button>
                 </div>
             </form>
         </div>
@@ -106,20 +108,24 @@
                 @method('PUT')
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Jenis Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="nama" x-model="selectedItem.nama" required class="w-full rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 text-sm">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1 transition-colors group-focus-within:text-purple-600">Nama Jenis Event <span class="text-rose-500">*</span></label>
+                        <div class="relative group">
+                            <input type="text" name="nama" x-model="selectedItem.nama" required class="w-full rounded-xl border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm transition-all duration-300 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 hover:border-purple-300">
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Status <span class="text-rose-500">*</span></label>
-                        <select name="status" x-model="selectedItem.status" required class="w-full rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 text-sm">
-                            <option value="Aktif">Aktif</option>
-                            <option value="Nonaktif">Nonaktif</option>
-                        </select>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1 transition-colors group-focus-within:text-purple-600">Status <span class="text-rose-500">*</span></label>
+                        <div class="relative group">
+                            <select name="status" x-model="selectedItem.status" required class="w-full rounded-xl border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm transition-all duration-300 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 hover:border-purple-300">
+                                <option value="Aktif">Aktif</option>
+                                <option value="Nonaktif">Nonaktif</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" @click="modalEdit = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition">Simpan Perubahan</button>
+                    <button type="button" @click="modalEdit = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 hover:-translate-y-0.5 transition-all duration-300 active:scale-95">Batal</button>
+                    <button type="submit" class="px-5 py-2 text-sm font-semibold text-white bg-purple-600 rounded-xl hover:bg-purple-700 hover:shadow-lg hover:shadow-purple-600/30 hover:-translate-y-0.5 transition-all duration-300 active:scale-95">Simpan Perubahan</button>
                 </div>
             </form>
         </div>
