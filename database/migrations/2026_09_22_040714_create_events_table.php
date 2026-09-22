@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Skip jika tabel sudah ada (dibuat oleh migration sebelumnya)
+        if (Schema::hasTable('events')) {
+            return;
+        }
+
         Schema::create('events', function (Blueprint $table) {
             $table->id();
             $table->string('name');
