@@ -58,11 +58,10 @@ class EventController extends Controller
 
         DB::transaction(function () use ($request) {
             $event = Event::create([
-                'name' => $request->name,
+                'nama' => $request->name,
                 'type_id' => $request->type_id,
-                'tanggal' => $request->tanggal,
-                'waktu_mulai' => $request->waktu_mulai,
-                'waktu_selesai' => $request->waktu_selesai,
+                'tanggal_mulai' => $request->tanggal . ' ' . $request->waktu_mulai . ':00',
+                'tanggal_selesai' => $request->tanggal . ' ' . $request->waktu_selesai . ':00',
                 'lokasi' => $request->lokasi,
                 'deskripsi' => $request->deskripsi,
                 'eo_id' => Auth::id(),
@@ -96,16 +95,18 @@ class EventController extends Controller
         ]);
 
         DB::transaction(function () use ($request, $event) {
-            $isTimeChanged = $event->tanggal->format('Y-m-d') !== $request->tanggal ||
-                             $event->waktu_mulai->format('H:i') !== $request->waktu_mulai ||
-                             $event->waktu_selesai->format('H:i') !== $request->waktu_selesai;
+            $oldStart = \Carbon\Carbon::parse($event->tanggal_mulai);
+            $oldEnd = \Carbon\Carbon::parse($event->tanggal_selesai);
+
+            $isTimeChanged = $oldStart->format('Y-m-d') !== $request->tanggal ||
+                             $oldStart->format('H:i') !== $request->waktu_mulai ||
+                             $oldEnd->format('H:i') !== $request->waktu_selesai;
 
             $event->update([
-                'name' => $request->name,
+                'nama' => $request->name,
                 'type_id' => $request->type_id,
-                'tanggal' => $request->tanggal,
-                'waktu_mulai' => $request->waktu_mulai,
-                'waktu_selesai' => $request->waktu_selesai,
+                'tanggal_mulai' => $request->tanggal . ' ' . $request->waktu_mulai . ':00',
+                'tanggal_selesai' => $request->tanggal . ' ' . $request->waktu_selesai . ':00',
                 'lokasi' => $request->lokasi,
                 'deskripsi' => $request->deskripsi,
             ]);
