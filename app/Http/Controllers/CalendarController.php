@@ -22,7 +22,26 @@ class CalendarController extends Controller
             'avatar' => strtoupper(substr($user->name, 0, 1)),
         ];
 
-        return view('calendar.index', compact('pageTitle', 'currentUser'));
+        $role = strtolower($user->role);
+        $query = Event::query();
+
+        if ($role === 'eo') {
+            $query->where('eo_id', $user->id);
+        } elseif (in_array($role, ['spv', 'supervisor', 'supervisor marketing'])) {
+            $query->whereHas('spvs', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+        } elseif ($role === 'sales') {
+            $query->whereHas('sales', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+        } elseif (!in_array($role, ['hm', 'head marketing', 'admin'])) {
+            $query->where('id', -1);
+        }
+
+        $events = $query->orderBy('tanggal_mulai', 'asc')->get();
+
+        return view('calendar.index', compact('pageTitle', 'currentUser', 'events'));
     }
 
     /**
