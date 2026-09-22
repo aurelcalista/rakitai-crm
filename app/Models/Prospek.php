@@ -15,11 +15,15 @@ class Prospek extends Model
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
         'sekolah_id', 'perusahaan_id',
         'lost_reason', 'lost_note',
+        'follow_up_count', 'tahun_akademik',
     ];
 
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            if (empty($prospek->tahun_akademik)) {
+                $prospek->tahun_akademik = '2027/2028';
+            }
             if ($prospek->sekolah_id) {
                 $sekolah = Sekolah::find($prospek->sekolah_id);
                 if ($sekolah && $sekolah->sales_id) {
@@ -35,25 +39,71 @@ class Prospek extends Model
     }
 
     /**
-     * Stage number map for pipeline transitions.
+     * 8 Status Pipeline Standar PMB & Backward-Compatibility Map
      */
     public const STAGES = [
-        // New MasterData Statuses
+        // 8 Status Resmi SPV P0
+        'BARU'                => 1,
+        'KONTAK'              => 2,
+        'HANGAT'              => 3,
+        'PANAS'               => 4,
+        'FORMULIR'            => 5,
+        'BERKAS'              => 6,
+        'LUNAS'               => 7,
+        'DINGIN'              => 8,
+
+        // Legacy / Backward Compatibility
         'Baru'                => 1,
-        'Follow Up 1'         => 2,
-        'Negosiasi'           => 3,
-        'Mendaftar'           => 4,
-        'Ditolak/Batal'       => 0,
-        
-        // Pipeline Stage Statuses
         'Cold Lead'           => 1,
         'Interested'          => 2,
         'Follow Up'           => 3,
-        'Beli Formulir'       => 4,
-        'Pembayaran Termin 1' => 5,
-        'Closing'             => 6,
-        'Lost'                => 0,
+        'Follow Up 1'         => 3,
+        'Negosiasi'           => 4,
+        'Beli Formulir'       => 5,
+        'Pembayaran Termin 1' => 6,
+        'Mendaftar'           => 7,
+        'Closing'             => 7,
+        'Lost'                => 8,
+        'Ditolak/Batal'       => 8,
+        'Ditolak / Batal'     => 8,
     ];
+
+    public const PIPELINE_8_STAGES = [
+        'BARU',
+        'KONTAK',
+        'HANGAT',
+        'PANAS',
+        'FORMULIR',
+        'BERKAS',
+        'LUNAS',
+        'DINGIN',
+    ];
+
+    /**
+     * Syarat Maba Lunas: Pembayaran Formulir + Pembayaran Termin 1 (Status 07 LUNAS)
+     * Beli formulir saja TIDAK dihitung lunas.
+     */
+    public function isMabaLunas(): bool
+    {
+        $transaksis = $this->relationLoaded('transaksis')
+            ? $this->transaksis
+            : ($this->exists ? $this->transaksis()->get() : collect());
+
+        $hasFormulir = $transaksis->contains('jenis', 'Beli Formulir');
+        $hasTermin1  = $transaksis->contains('jenis', 'Pembayaran Termin 1');
+
+        // Syarat mutlak: Formulir + Termin 1
+        if ($hasFormulir && $hasTermin1) {
+            return true;
+        }
+
+        // Jika status LUNAS / Closing dan sudah ada bukti pembayaran Termin 1
+        if (in_array(strtoupper($this->status), ['LUNAS', '07 LUNAS', 'CLOSING']) && $hasTermin1) {
+            return true;
+        }
+
+        return false;
+    }
 
     public const LOST_REASONS = [
         'Tidak tertarik',

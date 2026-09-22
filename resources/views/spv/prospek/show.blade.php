@@ -8,6 +8,7 @@
     <div class="space-y-6" x-data="{
         modalReassign: false,
         modalStatus: false,
+        modalClosing: false,
         selectedStatus: '{{ $prospect['status'] }}'
     }">
 
@@ -29,7 +30,11 @@
                         <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">{{ $prospect['name'] }}</h2>
                         <x-status-badge :status="$prospect['status']" />
                         <span class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">{{ $prospect['type'] }}</span>
+                        @if(!empty($prospect['sekolah_nama']))
+                            <span class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">{{ $prospect['sekolah_nama'] }}</span>
+                        @endif
                         <span class="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-semibold">Handler: {{ $prospect['takeover_sales'] ?? 'Belum Ada' }}</span>
+                        <span class="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">{{ $prospect['follow_up_count'] ?? 0 }}x Follow Up</span>
                     </div>
                     <div class="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500 font-medium">
                         <span>PIC: <strong class="text-slate-800">{{ $prospect['pic'] }}</strong></span>
@@ -45,6 +50,18 @@
 
                 <!-- SPV Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2">
+                    <!-- Bantu Closing Button (SPV closing power with sales credit intact) -->
+                    @if($prospect['status'] !== 'LUNAS')
+                    <button 
+                        type="button" 
+                        @click="modalClosing = true"
+                        class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>Bantu Closing (Maba Lunas)</span>
+                    </button>
+                    @endif
+
                     <!-- Reassign Handler Button -->
                     <button 
                         type="button" 
@@ -181,8 +198,17 @@
         <!-- MODAL REASSIGN HANDLER -->
         <div x-show="modalReassign" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.away="modalReassign = false">
-                <h3 class="text-base font-bold text-slate-900">Re-assign Prospek ke Handler Baru</h3>
-                <p class="text-xs text-slate-500">Alihkan prospek ini ke anggota tim Sales lain atau serahkan ke CS.</p>
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <h3 class="text-base font-bold text-slate-900">Re-assign Prospek ke Handler Baru</h3>
+                    <button @click="modalReassign = false" class="text-slate-400 hover:text-slate-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+
+                <div class="p-3 bg-amber-50/80 rounded-xl border border-amber-200/70 text-[11px] text-amber-800 leading-relaxed flex items-start gap-2">
+                    <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div>
+                        <strong class="font-bold">Ketentuan Re-alokasi:</strong> Hitungan follow up (<code class="bg-amber-100 px-1 py-0.5 rounded text-[10px] font-mono">follow_up_count</code>) akan direset ke 0 untuk handler baru. Riwayat aktivitas sebelumnya tetap aman di timeline.
+                    </div>
+                </div>
 
                 <form action="{{ route('spv.prospek.reassign', $prospect['id']) }}" method="POST" class="space-y-4">
                     @csrf
@@ -222,16 +248,19 @@
         <!-- MODAL UPDATE STATUS -->
         <div x-show="modalStatus" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.away="modalStatus = false">
-                <h3 class="text-base font-bold text-slate-900">Ubah Status Pipeline Prospek</h3>
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <h3 class="text-base font-bold text-slate-900">Ubah Status Pipeline Prospek</h3>
+                    <button @click="modalStatus = false" class="text-slate-400 hover:text-slate-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
                 
                 <form action="{{ route('spv.prospek.updateStatus', $prospect['id']) }}" method="POST" class="space-y-4">
                     @csrf
                     @method('PATCH')
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Status Baru</label>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Status Baru (8 Tahapan PMB TA 2027/2028)</label>
                         <select name="status" x-model="selectedStatus" class="w-full text-xs px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold">
                             @foreach($allStages as $stage)
-                                <option value="{{ $stage['name'] }}">{{ $stage['name'] }}</option>
+                                <option value="{{ $stage['name'] }}">{{ $stage['name'] }} (Stage {{ $stage['number'] }})</option>
                             @endforeach
                             <option value="Lost">Lost (Arsip)</option>
                         </select>
@@ -240,6 +269,106 @@
                     <div class="flex items-center justify-end gap-2 pt-2">
                         <button type="button" @click="modalStatus = false" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Batal</button>
                         <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">Update Status</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL BANTU CLOSING (MABA LUNAS: FORMULIR + TERMIN 1) -->
+        <div x-show="modalClosing" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-200" @click.away="modalClosing = false">
+                <!-- Header Modal -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </span>
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900">Bantu Closing Prospek (Maba Lunas)</h3>
+                            <p class="text-xs text-slate-500">Pencatatan Transaksi Formulir + Pembayaran Termin 1 oleh SPV</p>
+                        </div>
+                    </div>
+                    <button @click="modalClosing = false" class="text-slate-400 hover:text-slate-600 p-1"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+
+                <!-- Business Rule Warning Alert: Attribution Guarantee -->
+                <div class="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 leading-relaxed space-y-1">
+                    <div class="flex items-center gap-1.5 font-bold text-emerald-800">
+                        <svg class="w-4 h-4 text-emerald-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Jaminan Kepemilikan Lead:</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-700">
+                        Sesuai PRD P0, SPV berwenang membantu closing namun <strong>kredit dan kepemilikan lead (<code class="bg-emerald-100 px-1 py-0.5 rounded font-mono">sales_id</code>) tetap milik {{ $prospect['takeover_sales'] ?? 'Sales Pemilik Awal' }}</strong>.
+                    </p>
+                </div>
+
+                <form action="{{ route('spv.prospek.closing', $prospect['id']) }}" method="POST" class="space-y-4">
+                    @csrf
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                Biaya Beli Formulir (Rp)
+                            </label>
+                            <input 
+                                type="number" 
+                                name="nominal_formulir" 
+                                value="250000" 
+                                min="0" 
+                                step="1000"
+                                class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                placeholder="250000"
+                            >
+                            <span class="text-[10px] text-slate-400 mt-0.5 block">Kosongkan/0 jika sudah bayar sebelumnya</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                Nominal Termin 1 (Rp) <span class="text-rose-500">*</span>
+                            </label>
+                            <input 
+                                type="number" 
+                                name="nominal_termin1" 
+                                value="1500000" 
+                                min="10000" 
+                                step="1000" 
+                                required
+                                class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                placeholder="1500000"
+                            >
+                            <span class="text-[10px] text-slate-400 mt-0.5 block">Wajib ada untuk syarat Maba Lunas</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            Tanggal Transaksi Closing <span class="text-rose-500">*</span>
+                        </label>
+                        <input 
+                            type="date" 
+                            name="tanggal" 
+                            value="{{ date('Y-m-d') }}" 
+                            required
+                            class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Catatan Bantuan Closing</label>
+                        <textarea 
+                            name="notes" 
+                            rows="2" 
+                            placeholder="Catatan SPV (misal: closing via bantuan presentasi di sekolah/kampus)..." 
+                            class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                        ></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button type="button" @click="modalClosing = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            <span>Konfirmasi Closing Maba Lunas</span>
+                        </button>
                     </div>
                 </form>
             </div>

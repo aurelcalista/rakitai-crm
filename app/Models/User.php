@@ -124,23 +124,23 @@ class User extends Authenticatable
     }
 
     /**
-     * Get team member IDs for an SPV (subordinates or same wilayah Sales).
+     * Get team member IDs for an SPV (subordinates or same wilayah Sales/CS).
      */
     public function teamMemberIds(): array
     {
-        $ids = $this->subordinates()->pluck('id')->toArray();
-        if (empty($ids)) {
-            if ($this->wilayah_id) {
-                $ids = User::where('wilayah_id', $this->wilayah_id)
-                    ->whereIn('role', ['Sales', 'CS'])
-                    ->pluck('id')
-                    ->toArray();
-            }
+        $subordinateIds = $this->subordinates()->pluck('id')->toArray();
+        if (!empty($subordinateIds)) {
+            return $subordinateIds;
         }
-        if (empty($ids)) {
-            $ids = User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray();
+
+        if ($this->wilayah_id) {
+            return User::where('wilayah_id', $this->wilayah_id)
+                ->whereIn('role', ['Sales', 'CS'])
+                ->pluck('id')
+                ->toArray();
         }
-        return $ids;
+
+        return User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray();
     }
 
     /**
@@ -150,6 +150,15 @@ class User extends Authenticatable
     {
         $memberIds = $this->teamMemberIds();
         return User::whereIn('id', $memberIds)->where('role', 'Sales');
+    }
+
+    /**
+     * Get CS subordinates for SPV.
+     */
+    public function teamCs()
+    {
+        $memberIds = $this->teamMemberIds();
+        return User::whereIn('id', $memberIds)->where('role', 'CS');
     }
 
     /**

@@ -33,53 +33,49 @@
                 <div class="flex items-center gap-2">
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name ?? 'Supervisor' }} 👋</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Supervisor Marketing</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">TA {{ $activeTa }}</span>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Evaluasi capaian bulanan dan monitoring aktivitas tim Sales & CS.</p>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring performa seluruh tim Sales & CS, alokasi target wilayah, dan pipeline konversi.</p>
             </div>
             
             <!-- Quick Link Actions -->
             <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('spv.performa.index') }}" class="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition flex items-center gap-1.5 border border-indigo-200">
+                    <svg class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    <span>Target & Whiteboard Tracker</span>
+                </a>
                 <a href="{{ route('spv.prospek.create') }}" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-xs flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     <span>+ Tambah Prospek Tim</span>
                 </a>
-                <a href="{{ route('spv.pipeline.index') }}" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5">
-                    <span>Lihat Pipeline Board</span>
-                </a>
             </div>
         </div>
 
-        <!-- SPV Statistic Cards -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <!-- SPV Statistic Cards P0 Focus -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <x-stat-card 
-                title="Total Anggota Tim" 
-                :value="($stats['total_team_members'] ?? $stats['total_sales'] ?? 0) . ' Personil'" 
-                subtitle="Sales & CS Aktif" 
+                title="Tim Sales & CS" 
+                :value="$stats['total_sales'] . ' Sales • ' . $stats['total_cs'] . ' CS'" 
+                subtitle="Personil Wilayah Aktif" 
                 color="blue"
             />
             <x-stat-card 
-                title="Total Prospek Tim" 
-                :value="$stats['total_prospek'] ?? 0" 
-                subtitle="Semua Prospek Tim" 
+                title="Prospek & Follow-up" 
+                :value="$stats['total_prospek'] . ' / ' . $stats['total_follow_up']" 
+                subtitle="Prospek Tim / Aktivitas FU" 
                 color="indigo"
             />
             <x-stat-card 
-                title="Total Kunjungan" 
-                :value="$stats['total_visits'] ?? $stats['total_follow_up'] ?? 0" 
-                subtitle="Kunjungan Lapangan" 
-                color="amber"
-            />
-            <x-stat-card 
-                title="Total Closing" 
-                :value="$stats['closing_count'] ?? $stats['total_closing'] ?? 0" 
-                subtitle="Mahasiswa Terdaftar" 
+                title="Closing & Lost/Dingin" 
+                :value="$stats['closing_count'] . ' Lunas • ' . $stats['lost_count'] . ' Dingin'" 
+                subtitle="Maba Lunas vs Lost" 
                 color="emerald"
             />
             <x-stat-card 
-                title="Konversi Closing" 
-                :value="($stats['conversion_rate'] ?? 0) . '%'" 
-                subtitle="Rasio Closing Tim" 
-                color="rose"
+                title="Target HM & Sisa Target" 
+                :value="$stats['realisasi_tim'] . '/' . $stats['target_tim'] . ' (' . $stats['persentase_tim'] . '%)'" 
+                subtitle="'Sisa Target: ' . $stats['sisa_target'] . ' Mhs'" 
+                color="amber"
             />
         </div>
 
