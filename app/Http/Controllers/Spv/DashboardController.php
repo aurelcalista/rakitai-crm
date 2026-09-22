@@ -34,18 +34,20 @@ class DashboardController extends Controller
         // 8 Pipeline Stages Standar
         $stages = Prospek::PIPELINE_8_STAGES;
 
+        // Ambil ID Tahun Akademik Aktif
+        $activeTaObj = \App\Models\TahunAkademik::getAktif();
+        $activeTaId = $activeTaObj ? $activeTaObj->id : null;
+
         // Query prospek tim terikat TA Aktif
-        $prospekQuery = $user->teamProspeks()->where(function ($q) use ($activeTa) {
-            $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
-        });
+        $prospekQuery = $user->teamProspeks()->where('academic_year_id', $activeTaId);
 
         $totalProspek = (clone $prospekQuery)->count();
-        $closingCount = (clone $prospekQuery)->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])->count();
-        $hotLeads     = (clone $prospekQuery)->whereIn('status', ['PANAS', 'FORMULIR', 'BERKAS', 'Follow Up', 'Beli Formulir', 'Pembayaran Termin 1'])->count();
-        $lostCount    = (clone $prospekQuery)->whereIn('status', ['DINGIN', 'Lost', 'Ditolak/Batal', 'Ditolak / Batal'])->count();
+        $closingCount = (clone $prospekQuery)->where('status', 'LUNAS')->count();
+        $hotLeads     = (clone $prospekQuery)->whereIn('status', ['PANAS', 'FORMULIR', 'BERKAS'])->count();
+        $lostCount    = (clone $prospekQuery)->where('status', 'DINGIN')->count();
         $totalFollowUp = FollowUp::whereIn('user_id', $teamMemberIds)->count();
 
-        // Target Tim dari HM untuk TA Aktif
+        // Target Tim dari HM untuk TA Aktif (diubah ke academic_year_id di dalam service nantinya)
         $targetHm = $this->spvService->getTargetHmForSpv($user, $activeTa);
 
         $conversionRate = $totalProspek > 0 ? round(($closingCount / $totalProspek) * 100, 1) : 0;
@@ -72,16 +74,9 @@ class DashboardController extends Controller
         $pipelineStats = [];
         foreach ($stages as $stageIndex => $stageName) {
             $count = (clone $prospekQuery)->where('status', $stageName)->count();
-            // Handle legacy status mapping if exact stage 0
             if ($count === 0) {
-                if ($stageName === 'BARU') $count = (clone $prospekQuery)->whereIn('status', ['BARU', 'Baru', 'Cold Lead'])->count();
-                elseif ($stageName === 'KONTAK') $count = (clone $prospekQuery)->whereIn('status', ['KONTAK', 'Interested'])->count();
-                elseif ($stageName === 'HANGAT') $count = (clone $prospekQuery)->whereIn('status', ['HANGAT', 'Follow Up', 'Follow Up 1'])->count();
-                elseif ($stageName === 'PANAS') $count = (clone $prospekQuery)->whereIn('status', ['PANAS', 'Negosiasi'])->count();
-                elseif ($stageName === 'FORMULIR') $count = (clone $prospekQuery)->whereIn('status', ['FORMULIR', 'Beli Formulir'])->count();
-                elseif ($stageName === 'BERKAS') $count = (clone $prospekQuery)->whereIn('status', ['BERKAS', 'Pembayaran Termin 1'])->count();
-                elseif ($stageName === 'LUNAS') $count = (clone $prospekQuery)->whereIn('status', ['LUNAS', 'Closing', 'Mendaftar'])->count();
-                elseif ($stageName === 'DINGIN') $count = (clone $prospekQuery)->whereIn('status', ['DINGIN', 'Lost', 'Ditolak/Batal'])->count();
+                // Di P0, kita tidak pakai mapping legacy lagi
+                $count = 0;
             }
 
             $pipelineStats[] = [

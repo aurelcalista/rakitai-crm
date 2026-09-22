@@ -58,12 +58,10 @@ class Prospek extends Model
                 $cs = \App\Models\User::find($prospek->cs_id);
                 \App\Models\ProspekTimeline::create([
                     'prospek_id' => $prospek->id,
-                    'user_id' => auth()->id() ?? $prospek->sales_id,
-                    'title' => 'Auto-Handover ke CS',
-                    'notes' => 'Prospek di-handover otomatis ke CS: ' . ($cs->name ?? 'Unknown'),
-                    'status_before' => $prospek->getOriginal('status') ?? 'Baru',
-                    'status_after' => $prospek->status,
-                    'time' => now(),
+                    'user_id' => $cs?->id,
+                    'action' => 'Handover',
+                    'notes' => 'Prospek dialihkan ke CS: ' . ($cs?->name ?? 'CS Staff'),
+                    'created_at' => now(),
                 ]);
             }
         });
@@ -144,8 +142,8 @@ class Prospek extends Model
             return true;
         }
 
-        // Jika status LUNAS / Closing dan sudah ada bukti pembayaran Termin 1
-        if (in_array(strtoupper($this->status), ['LUNAS', '07 LUNAS', 'CLOSING']) && $hasTermin1) {
+        // Jika status LUNAS dan sudah ada bukti pembayaran Termin 1
+        if (strtoupper($this->status) === 'LUNAS' && $hasTermin1) {
             return true;
         }
 
@@ -298,6 +296,6 @@ class Prospek extends Model
      */
     public function scopeActive($query)
     {
-        return $query->whereNotIn('status', ['Lost', 'Ditolak/Batal', 'Closing', 'Closing (Lunas)']);
+        return $query->whereNotIn('status', ['DINGIN', 'LUNAS']);
     }
 }

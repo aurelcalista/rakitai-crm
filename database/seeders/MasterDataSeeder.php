@@ -27,6 +27,12 @@ class MasterDataSeeder extends Seeder
             // Fakultas
             ['type' => 'fakultas', 'nama' => 'Fakultas Teknologi Informasi', 'kode' => 'F01', 'deskripsi' => 'FTI', 'status' => 'Aktif'],
             ['type' => 'fakultas', 'nama' => 'Fakultas Ekonomi dan Bisnis', 'kode' => 'F02', 'deskripsi' => 'FEB', 'status' => 'Aktif'],
+            
+            // Jenis Event
+            ['type' => 'jenis_event', 'nama' => 'Edu Expo', 'kode' => 'EV01', 'deskripsi' => 'Pameran Pendidikan', 'status' => 'Aktif'],
+            ['type' => 'jenis_event', 'nama' => 'Campus Tour', 'kode' => 'EV02', 'deskripsi' => 'Kunjungan Kampus', 'status' => 'Aktif'],
+            ['type' => 'jenis_event', 'nama' => 'Seminar', 'kode' => 'EV03', 'deskripsi' => 'Seminar Pendidikan', 'status' => 'Aktif'],
+            ['type' => 'jenis_event', 'nama' => 'Lomba', 'kode' => 'EV04', 'deskripsi' => 'Perlombaan Antar Sekolah', 'status' => 'Aktif'],
         ];
 
         foreach ($data as $item) {

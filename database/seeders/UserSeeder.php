@@ -44,6 +44,17 @@ class UserSeeder extends Seeder
             ]
         );
 
+        $eo = User::updateOrCreate(
+            ['email' => 'eo@cic.ac.id'],
+            [
+                'name'              => 'Tim EO CIC',
+                'role'              => 'EO',
+                'password'          => Hash::make('password'),
+                'status'            => 'aktif',
+                'email_verified_at' => now(),
+            ]
+        );
+
         $cs = User::updateOrCreate(
             ['email' => 'cs@cic.ac.id'],
             [

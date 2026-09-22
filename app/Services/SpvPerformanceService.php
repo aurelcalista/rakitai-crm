@@ -132,20 +132,26 @@ class SpvPerformanceService
             ->distinct('prospek_id')
             ->count('prospek_id');
 
-        // Realisasi Maba Lunas = Transaksi Termin 1 (Formulir + Termin 1 = Maba Lunas per PRD)
-        $realisasiLunas = empty($prospekIds) ? 0 : Transaksi::whereIn('prospek_id', $prospekIds)
+        $statusFormulirCount = (clone $prospekQuery)
+            ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS', 'Beli Formulir', 'Pembayaran Termin 1', 'Closing'])
+            ->whereBetween('updated_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->count();
+
+        $realisasiFormulir = max($realisasiFormulir, $statusFormulirCount);
+
+        // Realisasi Maba Lunas = Transaksi Termin 1 + Formulir ATAU status LUNAS
+        $transaksiLunasCount = empty($prospekIds) ? 0 : Transaksi::whereIn('prospek_id', $prospekIds)
             ->where('jenis', 'Pembayaran Termin 1')
             ->whereBetween('tanggal', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->distinct('prospek_id')
             ->count('prospek_id');
 
-        // Fallback: jika tidak ada transaksi, hitung dari status LUNAS
-        if ($realisasiLunas === 0) {
-            $realisasiLunas = (clone $prospekQuery)
-                ->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])
-                ->whereBetween('updated_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-                ->count();
-        }
+        $statusLunasCount = (clone $prospekQuery)
+            ->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])
+            ->whereBetween('updated_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->count();
+
+        $realisasiLunas = max($transaksiLunasCount, $statusLunasCount);
 
         return [
             'kontak'   => $realisasiKontak,

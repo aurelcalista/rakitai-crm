@@ -37,8 +37,8 @@ class Kunjungan extends Model
     protected $casts = [
         'tanggal' => 'date',
         'kesediaan_training_ai' => 'boolean',
-        'is_outside_radius' => 'boolean',
         'is_verified' => 'boolean',
+        'is_outside_radius' => 'boolean',
         'lat' => 'decimal:8',
         'lng' => 'decimal:8',
     ];

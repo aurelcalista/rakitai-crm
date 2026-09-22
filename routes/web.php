@@ -26,6 +26,9 @@ Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->nam
 // Authenticated Routes (all roles)
 // ──────────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
+    // Internal Calendar
+    Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->name('calendar.index');
+    Route::get('/api/calendar/events', [\App\Http\Controllers\CalendarController::class, 'fetchEvents'])->name('api.calendar.events');
 
     // Unified role dashboard dispatcher
     Route::get('/dashboard', function () {
@@ -40,6 +43,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/spv',   [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
         Route::get('/hm',    [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
         Route::get('/admin', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
+        Route::get('/eo',    [\App\Http\Controllers\Eo\DashboardController::class, 'index'])->name('dashboard.eo');
     });
 
     // ──────────────────────────────────────────────────────────────
@@ -122,9 +126,26 @@ Route::middleware('auth')->group(function () {
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
             Route::patch('/tim/{user}/wilayah', [\App\Http\Controllers\Spv\TeamController::class, 'assignWilayah'])->name('tim.wilayah.assign');
 
+            // SPV Event Assignments
+            Route::get('/events', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'index'])->name('events.index');
+            Route::post('/events/{id}/assign', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'assignSales'])->name('events.assign');
+
             // SPV Specialized Actions (P0)
             Route::post('/prospek/{prospek}/closing',       [\App\Http\Controllers\Spv\ProspectController::class, 'closing'])->name('prospek.closing');
             Route::post('/kunjungan/{kunjungan}/verifikasi', [\App\Http\Controllers\Spv\VisitController::class, 'verifikasi'])->name('kunjungan.verifikasi');
+        });
+
+    // ──────────────────────────────────────────────────────────────
+    // EO (Event Organizer) Role Routes
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware('role:EO')
+        ->prefix('eo')
+        ->name('eo.')
+        ->group(function () {
+            Route::get('/events', [\App\Http\Controllers\Eo\EventController::class, 'index'])->name('events.index');
+            Route::post('/events', [\App\Http\Controllers\Eo\EventController::class, 'store'])->name('events.store');
+            Route::put('/events/{id}', [\App\Http\Controllers\Eo\EventController::class, 'update'])->name('events.update');
+            Route::delete('/events/{id}', [\App\Http\Controllers\Eo\EventController::class, 'destroy'])->name('events.destroy');
         });
 
     // ──────────────────────────────────────────────────────────────
@@ -164,37 +185,39 @@ Route::middleware('auth')->group(function () {
     // ──────────────────────────────────────────────────────────────
     // Shared CRM Modules (CS, SPV, HM, Admin, Fallback)
     // ──────────────────────────────────────────────────────────────
-    Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
-    Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
-    Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
-    Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
-    Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
-    Route::post('/prospek/{id}/takeover', [CrmController::class, 'prospekTakeover'])->name('prospek.takeover');
-    Route::post('/prospek/{id}/transaksi', [CrmController::class, 'transaksiStore'])->name('prospek.transaksi');
-    Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
+    Route::middleware(['role:Admin,HM,SPV,CS,Sales'])->group(function () {
+        Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
+        Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
+        Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
+        Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
+        Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
+        Route::post('/prospek/{id}/takeover', [CrmController::class, 'prospekTakeover'])->name('prospek.takeover');
+        Route::post('/prospek/{id}/transaksi', [CrmController::class, 'transaksiStore'])->name('prospek.transaksi');
+        Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
 
-    Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
-    Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');
+        Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
+        Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');
 
-    Route::get('/follow-up',  [CrmController::class, 'followUpIndex'])->name('follow-up.index');
-    Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');
+        Route::get('/follow-up',  [CrmController::class, 'followUpIndex'])->name('follow-up.index');
+        Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');
 
-    Route::get('/pipeline',                [CrmController::class, 'pipelineIndex'])->name('pipeline.index');
-    Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateStatus'])->name('pipeline.update-status');
+        Route::get('/pipeline',                [CrmController::class, 'pipelineIndex'])->name('pipeline.index');
+        Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateStatus'])->name('pipeline.update-status');
 
-    // Management (Head Marketing / Supervisor)
-    Route::get('/wilayah',               [\App\Http\Controllers\WilayahController::class, 'index'])->name('wilayah.index');
-    Route::post('/wilayah',              [\App\Http\Controllers\WilayahController::class, 'store'])->name('wilayah.store');
-    Route::put('/wilayah/{id}',          [\App\Http\Controllers\WilayahController::class, 'update'])->name('wilayah.update');
-    Route::delete('/wilayah/{id}',       [\App\Http\Controllers\WilayahController::class, 'destroy'])->name('wilayah.destroy');
-    Route::patch('/wilayah/{id}/toggle', [\App\Http\Controllers\WilayahController::class, 'toggleStatus'])->name('wilayah.toggle');
+        // Management (Head Marketing / Supervisor)
+        Route::get('/wilayah',               [\App\Http\Controllers\WilayahController::class, 'index'])->name('wilayah.index');
+        Route::post('/wilayah',              [\App\Http\Controllers\WilayahController::class, 'store'])->name('wilayah.store');
+        Route::put('/wilayah/{id}',          [\App\Http\Controllers\WilayahController::class, 'update'])->name('wilayah.update');
+        Route::delete('/wilayah/{id}',       [\App\Http\Controllers\WilayahController::class, 'destroy'])->name('wilayah.destroy');
+        Route::patch('/wilayah/{id}/toggle', [\App\Http\Controllers\WilayahController::class, 'toggleStatus'])->name('wilayah.toggle');
 
-    Route::get('/tim',  [\App\Http\Controllers\TimController::class, 'index'])->name('tim.index');
-    Route::post('/tim', [\App\Http\Controllers\TimController::class, 'store'])->name('tim.store');
+        Route::get('/tim',  [\App\Http\Controllers\TimController::class, 'index'])->name('tim.index');
+        Route::post('/tim', [\App\Http\Controllers\TimController::class, 'store'])->name('tim.store');
 
-    // Performance & Reports
-    Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
-    Route::get('/laporan',         [CrmController::class, 'laporanIndex'])->name('laporan.index');
+        // Performance & Reports
+        Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
+        Route::get('/laporan',         [CrmController::class, 'laporanIndex'])->name('laporan.index');
+    });
 
     // Account & Profile (all roles)
     Route::get('/profil',           [CrmController::class, 'profilIndex'])->name('profil.index');

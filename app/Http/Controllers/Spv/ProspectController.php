@@ -119,7 +119,7 @@ class ProspectController extends Controller
         $teamSales = User::whereIn('id', $user->teamMemberIds())->where('role', 'Sales')->get();
         $sekolahs = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
-        $statuses = Prospek::ACTIVE_STAGES;
+        $statuses = Prospek::PIPELINE_8_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('spv.prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons', 'teamSales'));
@@ -393,7 +393,13 @@ class ProspectController extends Controller
 
         // 1. Catat transaksi formulir jika belum ada
         $hasFormulir = Transaksi::where('prospek_id', $prospek->id)->where('jenis', 'Beli Formulir')->exists();
-        if (!$hasFormulir && !empty($validated['nominal_formulir']) && $validated['nominal_formulir'] > 0) {
+        $isPayingFormulirNow = !empty($validated['nominal_formulir']) && $validated['nominal_formulir'] > 0;
+        
+        if (!$hasFormulir && !$isPayingFormulirNow) {
+            return back()->withErrors(['nominal_formulir' => 'Pembayaran Formulir wajib diselesaikan sebelum bisa Closing LUNAS.']);
+        }
+
+        if (!$hasFormulir && $isPayingFormulirNow) {
             Transaksi::create([
                 'prospek_id' => $prospek->id,
                 'user_id'    => $user->id, // SPV pencatat
