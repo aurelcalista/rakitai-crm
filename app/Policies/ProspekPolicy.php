@@ -133,13 +133,21 @@ class ProspekPolicy
     }
 
     /**
-     * Input manual transaction (Beli Formulir & Pembayaran Termin 1).
-     * Sales and CS can input transaction if they are the active handler.
+     * Input manual transaction (Beli Formulir & Pembayaran Termin 1) / Closing.
+     * SPV dapat membantu closing untuk prospek dalam tim/wilayahnya.
      */
     public function transaction(User $user, Prospek $prospek): bool
     {
-        if (in_array(strtolower($user->role), ['spv', 'hm', 'admin'])) {
+        $role = strtolower($user->role);
+        if (in_array($role, ['hm', 'admin'])) {
             return true;
+        }
+
+        if ($role === 'spv') {
+            return ($prospek->sales_id && $user->isSupervisorOf($prospek->sales_id))
+                || in_array($prospek->sales_id, $user->teamMemberIds())
+                || $prospek->owner_id === $user->id
+                || ($user->wilayah_id && $prospek->wilayah_id === $user->wilayah_id);
         }
 
         return $prospek->isActiveHandler($user);
@@ -159,7 +167,8 @@ class ProspekPolicy
 
         if ($role === 'spv') {
             return ($prospek->sales_id && $user->isSupervisorOf($prospek->sales_id))
-                || in_array($prospek->sales_id, $user->teamMemberIds());
+                || in_array($prospek->sales_id, $user->teamMemberIds())
+                || ($user->wilayah_id && $prospek->wilayah_id === $user->wilayah_id);
         }
 
         return false;
@@ -178,7 +187,8 @@ class ProspekPolicy
 
         if ($role === 'spv') {
             return ($prospek->sales_id && $user->isSupervisorOf($prospek->sales_id))
-                || in_array($prospek->sales_id, $user->teamMemberIds());
+                || in_array($prospek->sales_id, $user->teamMemberIds())
+                || ($user->wilayah_id && $prospek->wilayah_id === $user->wilayah_id);
         }
 
         return $prospek->isActiveHandler($user);
@@ -197,7 +207,8 @@ class ProspekPolicy
 
         if ($role === 'spv') {
             return ($prospek->sales_id && $user->isSupervisorOf($prospek->sales_id))
-                || in_array($prospek->sales_id, $user->teamMemberIds());
+                || in_array($prospek->sales_id, $user->teamMemberIds())
+                || ($user->wilayah_id && $prospek->wilayah_id === $user->wilayah_id);
         }
 
         return false;

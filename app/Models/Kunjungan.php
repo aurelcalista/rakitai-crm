@@ -10,10 +10,11 @@ class Kunjungan extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nomor', 'tanggal', 'waktu', 'sales_id', 'jenis',
+        'nomor', 'tanggal', 'tahun_akademik', 'waktu', 'sales_id', 'jenis',
         'tujuan_id', 'tujuan_kunjungan', 'hasil', 'catatan', 'status',
         // Detail fields added for Sales visit reports
-        'nama_institusi', 'alamat', 'pic_name', 'pic_whatsapp', 'foto_path',
+        'nama_institusi', 'alamat', 'lokasi_penugasan', 'pic_name', 'pic_whatsapp', 'foto_path',
+        'is_outside_radius', 'status_verifikasi',
         // School-specific
         'potensi_mahasiswa', 'detail_potensi_mahasiswa', 'kesediaan_training_ai',
         // Corporate-specific
@@ -37,9 +38,18 @@ class Kunjungan extends Model
         'tanggal' => 'date',
         'kesediaan_training_ai' => 'boolean',
         'is_verified' => 'boolean',
+        'is_outside_radius' => 'boolean',
         'lat' => 'decimal:8',
         'lng' => 'decimal:8',
     ];
+
+    /**
+     * Standard terminology: Potensi Mahasiswa (bukan Potensi Beasiswa)
+     */
+    public function getPotensiMahasiswaAttribute()
+    {
+        return $this->potensi_beasiswa;
+    }
 
     public function sales()
     {

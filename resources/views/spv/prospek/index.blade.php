@@ -40,28 +40,29 @@
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan evaluasi seluruh database prospek anggota tim Sales di bawah wilayah Anda.</p>
             </div>
-            <div>
+            <div class="shrink-0">
                 <a 
                     href="{{ route('spv.prospek.create') }}"
-                    class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>+ Tambah Prospek Baru</span>
+                    <span>Tambah Prospek</span>
                 </a>
             </div>
         </div>
 
         <!-- Search & Filter Controls -->
-        <div class="crm-card bg-white p-4 sm:p-5 space-y-4">
+        <form method="GET" action="{{ route('spv.prospek.index') }}" class="crm-card bg-white p-4 sm:p-5 space-y-4">
             <!-- Search Bar -->
             <div class="relative">
                 <input 
                     type="text" 
-                    x-model="searchQuery"
-                    placeholder="Cari nama prospek/sekolah, kontak PIC, atau nomor WhatsApp..." 
-                    class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs sm:text-sm transition bg-slate-50/50 focus:bg-white"
+                    name="q"
+                    value="{{ request('q') }}"
+                    placeholder="Cari nama prospek/siswa, kontak PIC, atau nomor WhatsApp..." 
+                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs sm:text-sm transition bg-slate-50/50 focus:bg-white"
                 >
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,42 +71,114 @@
                 </div>
             </div>
 
-            <!-- Filter Pills -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <!-- Filter Sales -->
+            <!-- Typeahead Searchable Select Filters -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <!-- Dropdown Typeahead: Sekolah -->
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Sales Penanggung Jawab</label>
-                    <select x-model="selectedSales" class="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                        <option value="all">Semua Sales Tim</option>
-                        @foreach($teamSales as $sales)
-                            <option value="{{ $sales->id }}">{{ $sales->name }}</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        Nama Sekolah
+                    </label>
+                    <x-searchable-select 
+                        name="sekolah_id" 
+                        :options="$sekolahs" 
+                        :value="request('sekolah_id')" 
+                        placeholder="Semua Sekolah..." 
+                    />
                 </div>
 
-                <!-- Filter Status -->
+                <!-- Dropdown Typeahead: Prodi -->
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Status Pipeline</label>
-                    <select x-model="selectedStatus" class="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                        <option value="all">Semua Status</option>
-                        @foreach($statuses as $st)
-                            <option value="{{ $st }}">{{ $st }}</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                        Minat Prodi
+                    </label>
+                    <x-searchable-select 
+                        name="prodi_id" 
+                        :options="$prodis" 
+                        :value="request('prodi_id')" 
+                        placeholder="Semua Program Studi..." 
+                    />
                 </div>
 
-                <!-- Filter Type -->
+                <!-- Dropdown Typeahead: Wilayah -->
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Tipe Entitas</label>
-                    <select x-model="selectedType" class="w-full text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                        <option value="all">Semua Tipe</option>
-                        <option value="Sekolah">Sekolah</option>
-                        <option value="Corporate">Corporate / Mitra</option>
-                        <option value="Individu">Individu / Siswa</option>
-                    </select>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Wilayah / Teritori
+                    </label>
+                    <x-searchable-select 
+                        name="wilayah_id" 
+                        :options="$wilayahs" 
+                        :value="request('wilayah_id')" 
+                        placeholder="Semua Wilayah..." 
+                    />
+                </div>
+
+                <!-- Dropdown Typeahead: Pemilik Lead (Sales/CS) -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        Pemilik Lead (Sales / CS)
+                    </label>
+                    <x-searchable-select 
+                        name="sales_id" 
+                        :options="$teamMembers" 
+                        :value="request('sales_id')" 
+                        placeholder="Semua Handler..." 
+                    />
                 </div>
             </div>
-        </div>
+
+            <!-- Row 3: Status & Tipe & Actions -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-end justify-between gap-3 pt-1 border-t border-slate-100">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+                    <!-- Filter Status (8 Status Pipeline PMB TA 2027/2028) -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Status Pipeline (TA 2027/2028)</label>
+                        <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">Semua Status (8 Tahapan)</option>
+                            @foreach($statuses as $st)
+                                <option value="{{ $st }}" {{ request('status') === $st ? 'selected' : '' }}>
+                                    {{ $st }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Filter Sumber / Source -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Sumber Prospek</label>
+                        <select name="source" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">Semua Sumber</option>
+                            <option value="Sekolah" {{ request('source') === 'Sekolah' ? 'selected' : '' }}>Kunjungan Sekolah</option>
+                            <option value="Expo" {{ request('source') === 'Expo' ? 'selected' : '' }}>Education Expo</option>
+                            <option value="Social Media" {{ request('source') === 'Social Media' ? 'selected' : '' }}>Social Media / Digital</option>
+                            <option value="Referral" {{ request('source') === 'Referral' ? 'selected' : '' }}>Referral / Rekomendasi</option>
+                            <option value="Direct / Walk-in" {{ request('source') === 'Direct / Walk-in' ? 'selected' : '' }}>Direct / Walk-in</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    @if(request()->hasAny(['q', 'sekolah_id', 'prodi_id', 'wilayah_id', 'sales_id', 'status', 'source']))
+                        <a 
+                            href="{{ route('spv.prospek.index') }}" 
+                            class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition"
+                        >
+                            Reset
+                        </a>
+                    @endif
+                    <button 
+                        type="submit" 
+                        class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                        <span>Terapkan Filter</span>
+                    </button>
+                </div>
+            </div>
+        </form>
 
         <!-- Prospects Table -->
         <div class="crm-card bg-white overflow-hidden">
@@ -113,12 +186,12 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
-                            <th class="py-3 px-4">Nama Prospek</th>
-                            <th class="py-3 px-3">PIC & Kontak</th>
-                            <th class="py-3 px-3">Sales Handler</th>
-                            <th class="py-3 px-3 text-center">Status Pipeline</th>
-                            <th class="py-3 px-3">Follow Up Terakhir</th>
-                            <th class="py-3 px-4 text-right">Aksi</th>
+                            <th class="py-3.5 px-4">Nama Prospek & Sekolah</th>
+                            <th class="py-3.5 px-3">PIC & Kontak</th>
+                            <th class="py-3.5 px-3">Pemilik Lead (Handler)</th>
+                            <th class="py-3.5 px-3 text-center">Status Pipeline</th>
+                            <th class="py-3.5 px-3">Follow Up & Respon</th>
+                            <th class="py-3.5 px-4 text-right">Aksi SPV</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -127,46 +200,56 @@
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-slate-900" x-text="p.name"></div>
                                     <div class="flex items-center gap-1.5 mt-0.5">
-                                        <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 text-[10px] font-medium" x-text="p.type"></span>
-                                        <span class="text-slate-400 text-[10px]" x-text="'Dibuat: ' + p.created_at"></span>
+                                        <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold" x-text="p.sekolah_nama || p.type"></span>
+                                        <template x-if="p.wilayah_nama">
+                                            <span class="text-slate-400 text-[10px]" x-text="'• ' + p.wilayah_nama"></span>
+                                        </template>
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-3">
                                     <div class="font-medium text-slate-800" x-text="p.pic"></div>
-                                    <div class="text-[11px] text-emerald-600 font-semibold mt-0.5" x-text="p.whatsapp"></div>
+                                    <template x-if="p.whatsapp && p.whatsapp !== '-'">
+                                        <a :href="'https://wa.me/' + p.whatsapp.replace(/[^0-9]/g, '')" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-bold hover:underline mt-0.5">
+                                            <span x-text="p.whatsapp"></span>
+                                        </a>
+                                    </template>
                                 </td>
                                 <td class="py-3.5 px-3">
-                                    <div class="font-semibold text-slate-700" x-text="p.takeover_sales || 'Belum Ditugaskan'"></div>
-                                     <div class="text-[10px] text-slate-400" x-text="p.active_takeover"></div>
-                                     <template x-if="p.sla_status !== 'N/A'">
-                                         <div class="mt-1 flex items-center justify-center">
-                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-bold"
-                                                 :class="{
-                                                     'bg-emerald-100 text-emerald-800': p.sla_status === 'Dalam SLA',
-                                                     'bg-blue-100 text-blue-800': p.sla_status === 'Sesuai SLA',
-                                                     'bg-rose-100 text-rose-800': p.sla_status === 'Terlambat'
-                                                 }"
-                                                 x-text="p.sla_status"></span>
-                                         </div>
-                                     </template>
-                                 </td>
+                                    <div class="font-bold text-slate-800" x-text="p.takeover_sales || p.takeover_cs || 'Belum Ditugaskan'"></div>
+                                    <div class="text-[10px] text-slate-400" x-text="p.active_takeover"></div>
+                                    <template x-if="p.sla_status !== 'N/A'">
+                                        <div class="mt-1 flex items-center justify-center">
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                                :class="{
+                                                    'bg-emerald-100 text-emerald-800': p.sla_status === 'Dalam SLA',
+                                                    'bg-blue-100 text-blue-800': p.sla_status === 'Sesuai SLA',
+                                                    'bg-rose-100 text-rose-800': p.sla_status === 'Terlambat'
+                                                }"
+                                                x-text="p.sla_status"></span>
+                                        </div>
+                                    </template>
+                                </td>
                                 <td class="py-3.5 px-3 text-center">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold"
+                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block"
                                         :class="{
-                                            'bg-blue-50 text-blue-700 border border-blue-200': p.status === 'Cold Lead',
-                                            'bg-indigo-50 text-indigo-700 border border-indigo-200': p.status === 'Interested',
-                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'Follow Up',
-                                            'bg-purple-50 text-purple-700 border border-purple-200': p.status === 'Beli Formulir',
-                                            'bg-cyan-50 text-cyan-700 border border-cyan-200': p.status === 'Pembayaran Termin 1',
-                                            'bg-emerald-50 text-emerald-700 border border-emerald-200': p.status === 'Closing',
-                                            'bg-rose-50 text-rose-700 border border-rose-200': p.status === 'Lost'
+                                            'bg-slate-100 text-slate-700 border border-slate-200': p.status === 'BARU' || p.status === 'Cold Lead',
+                                            'bg-blue-50 text-blue-700 border border-blue-200': p.status === 'KONTAK' || p.status === 'Interested',
+                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'HANGAT' || p.status === 'Follow Up',
+                                            'bg-orange-50 text-orange-700 border border-orange-200': p.status === 'PANAS',
+                                            'bg-purple-50 text-purple-700 border border-purple-200': p.status === 'FORMULIR' || p.status === 'Beli Formulir',
+                                            'bg-cyan-50 text-cyan-700 border border-cyan-200': p.status === 'BERKAS' || p.status === 'Pembayaran Termin 1',
+                                            'bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold shadow-2xs': p.status === 'LUNAS' || p.status === 'Closing',
+                                            'bg-gray-100 text-gray-600 border border-gray-200': p.status === 'DINGIN' || p.status === 'Lost'
                                         }"
                                         x-text="p.status">
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-600">
-                                    <div class="font-medium" x-text="p.last_contact"></div>
-                                    <div class="text-[10px] text-slate-400" x-text="'Next: ' + p.next_follow_up"></div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200" x-text="(p.follow_up_count || 0) + 'x FU'"></span>
+                                        <span class="text-[11px] font-medium" x-text="p.last_contact !== '-' ? p.last_contact : 'Belum FU'"></span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 mt-0.5" x-text="'Next: ' + p.next_follow_up"></div>
                                 </td>
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1.5">
@@ -242,16 +325,23 @@
                         >
                             @csrf
 
+                            <div class="p-3 bg-amber-50/80 rounded-xl border border-amber-200/70 text-[11px] text-amber-800 leading-relaxed flex items-start gap-2">
+                                <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <div>
+                                    <strong class="font-bold">Aturan Re-alokasi:</strong> Hitungan interaksi (<code class="bg-amber-100 px-1 py-0.5 rounded text-[10px] font-mono">follow_up_count</code>) akan di-reset ke 0 untuk penangan baru, namun seluruh riwayat aktivitas sebelumnya tetap tersimpan di timeline.
+                                </div>
+                            </div>
+
                             <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Sales Baru <span class="text-red-500">*</span></label>
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Pilih Petugas Baru (Sales / CS) <span class="text-red-500">*</span></label>
                                 <select
                                     name="sales_id"
                                     required
                                     class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition"
                                 >
-                                    <option value="">-- Pilih Sales --</option>
-                                    @foreach($teamSales as $s)
-                                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                    <option value="">-- Pilih Sales atau CS --</option>
+                                    @foreach($teamMembers as $m)
+                                        <option value="{{ $m->id }}">[{{ $m->role }}] {{ $m->name }}</option>
                                     @endforeach
                                 </select>
                             </div>

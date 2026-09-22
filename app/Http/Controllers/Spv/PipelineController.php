@@ -40,16 +40,7 @@ class PipelineController extends Controller
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
-        $pipelineStages = MasterData::where('type', 'status_prospek')
-            ->where('status', 'Aktif')
-            ->whereNotIn('nama', ['Lost', 'Ditolak/Batal', 'Ditolak / Batal'])
-            ->orderBy('id')
-            ->pluck('nama')
-            ->toArray();
-
-        if (empty($pipelineStages)) {
-            $pipelineStages = Prospek::ACTIVE_STAGES;
-        }
+        $pipelineStages = Prospek::PIPELINE_8_STAGES;
 
         $teamSales = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->get();
 
@@ -94,6 +85,30 @@ class PipelineController extends Controller
     private function formatProspek(Prospek $p): array
     {
         $latestFU = $p->followUps->first();
+        $normalizedStatus = strtoupper(trim($p->status));
+        $stageMap = [
+            'BARU'                => 'BARU',
+            'COLD LEAD'           => 'BARU',
+            'KONTAK'              => 'KONTAK',
+            'INTERESTED'          => 'KONTAK',
+            'HANGAT'              => 'HANGAT',
+            'FOLLOW UP'           => 'HANGAT',
+            'FOLLOW UP 1'         => 'HANGAT',
+            'PANAS'               => 'PANAS',
+            'NEGOSIASI'           => 'PANAS',
+            'FORMULIR'            => 'FORMULIR',
+            'BELI FORMULIR'       => 'FORMULIR',
+            'BERKAS'              => 'BERKAS',
+            'PEMBAYARAN TERMIN 1' => 'BERKAS',
+            'LUNAS'               => 'LUNAS',
+            'MENDAFTAR'           => 'LUNAS',
+            'CLOSING'             => 'LUNAS',
+            'DINGIN'              => 'DINGIN',
+            'LOST'                => 'DINGIN',
+            'DITOLAK/BATAL'       => 'DINGIN',
+            'DITOLAK / BATAL'     => 'DINGIN',
+        ];
+        $canonicalStatus = $stageMap[$normalizedStatus] ?? (in_array($normalizedStatus, Prospek::PIPELINE_8_STAGES) ? $normalizedStatus : 'BARU');
 
         return [
             'id'             => $p->id,
@@ -101,8 +116,9 @@ class PipelineController extends Controller
             'type'           => $p->type,
             'pic'            => $p->pic ?? '-',
             'whatsapp'       => $p->whatsapp ?? '-',
-            'status'         => $p->status,
-            'stage_number'   => Prospek::STAGES[$p->status] ?? 0,
+            'status'         => $canonicalStatus,
+            'raw_status'     => $p->status,
+            'stage_number'   => Prospek::STAGES[$canonicalStatus] ?? (Prospek::STAGES[$p->status] ?? 1),
             'notes'          => $p->notes ?? '',
             'sales_id'       => $p->sales_id,
             'takeover_sales' => $p->sales ? $p->sales->name : null,

@@ -7,60 +7,83 @@ use App\Models\Prospek;
 use App\Models\Kunjungan;
 use App\Models\User;
 use App\Models\FollowUp;
+use App\Services\SpvPerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(private SpvPerformanceService $spvService)
+    {
+    }
+
     /**
-     * Display SPV Team Analytics Dashboard.
+     * Display SPV Team Analytics Dashboard (Tahun Akademik Aktif TA 2027/2028).
      */
     public function index(Request $request): View
     {
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
+        $activeTa = $request->get('ta', SpvPerformanceService::DEFAULT_TA);
 
         // Team members (Sales & CS under SPV)
         $teamMembers = User::whereIn('id', $teamMemberIds)->with('wilayah')->get();
+        $salesCount  = $teamMembers->where('role', 'Sales')->count();
+        $csCount     = $teamMembers->where('role', 'CS')->count();
 
-        // Pipeline stage counts for team
-        $stages = [
-            'BARU' => 1,
-            'KONTAK' => 2,
-            'HANGAT' => 3,
-            'PANAS' => 4,
-            'FORMULIR' => 5,
-            'BERKAS' => 6,
-            'LUNAS' => 7,
-            'DINGIN' => 8,
-        ];
+        // 8 Pipeline Stages Standar
+        $stages = Prospek::PIPELINE_8_STAGES;
 
-        $totalProspek = $user->teamProspeks()->count();
-        $closingCount = $user->teamProspeks()->where('status', 'LUNAS')->count();
-        $hotLeads = $user->teamProspeks()->whereIn('status', ['PANAS', 'FORMULIR', 'BERKAS'])->count();
-        $lostCount = $user->teamProspeks()->where('status', 'Lost')->count();
+        // Ambil ID Tahun Akademik Aktif
+        $activeTaObj = \App\Models\TahunAkademik::getAktif();
+        $activeTaId = $activeTaObj ? $activeTaObj->id : null;
+
+        // Query prospek tim terikat TA Aktif
+        $prospekQuery = $user->teamProspeks()->where('academic_year_id', $activeTaId);
+
+        $totalProspek = (clone $prospekQuery)->count();
+        $closingCount = (clone $prospekQuery)->where('status', 'LUNAS')->count();
+        $hotLeads     = (clone $prospekQuery)->whereIn('status', ['PANAS', 'FORMULIR', 'BERKAS'])->count();
+        $lostCount    = (clone $prospekQuery)->where('status', 'DINGIN')->count();
+        $totalFollowUp = FollowUp::whereIn('user_id', $teamMemberIds)->count();
+
+        // Target Tim dari HM untuk TA Aktif (diubah ke academic_year_id di dalam service nantinya)
+        $targetHm = $this->spvService->getTargetHmForSpv($user, $activeTa);
 
         $conversionRate = $totalProspek > 0 ? round(($closingCount / $totalProspek) * 100, 1) : 0;
 
         $stats = [
-            'total_prospek' => $totalProspek,
-            'closing_count' => $closingCount,
-            'hot_leads' => $hotLeads,
-            'lost_count' => $lostCount,
-            'conversion_rate' => $conversionRate,
-            'total_visits' => $user->teamKunjungans()->count(),
+            'total_sales'        => $salesCount,
+            'total_cs'           => $csCount,
             'total_team_members' => $teamMembers->count(),
+            'total_prospek'      => $totalProspek,
+            'total_follow_up'    => $totalFollowUp,
+            'closing_count'      => $closingCount,
+            'total_closing'      => $closingCount,
+            'hot_leads'          => $hotLeads,
+            'lost_count'         => $lostCount,
+            'conversion_rate'    => $conversionRate,
+            'total_visits'       => $user->teamKunjungans()->count(),
+            'target_tim'         => $targetHm['target_lunas'],
+            'realisasi_tim'      => $targetHm['realisasi_lunas'],
+            'persentase_tim'     => $targetHm['achieve_pct'],
+            'sisa_target'        => $targetHm['sisa_lunas'],
         ];
 
-        // Pipeline stage distribution
+        // Pipeline stage distribution (8 Status)
         $pipelineStats = [];
-        foreach ($stages as $stageName => $stageNum) {
-            $count = $user->teamProspeks()->where('status', $stageName)->count();
+        foreach ($stages as $stageIndex => $stageName) {
+            $count = (clone $prospekQuery)->where('status', $stageName)->count();
+            if ($count === 0) {
+                // Di P0, kita tidak pakai mapping legacy lagi
+                $count = 0;
+            }
+
             $pipelineStats[] = [
-                'name' => $stageName,
-                'number' => $stageNum,
-                'count' => $count,
-                'pct' => $totalProspek > 0 ? round(($count / $totalProspek) * 100) : 0,
+                'name'   => $stageName,
+                'number' => $stageIndex + 1,
+                'count'  => $count,
+                'pct'    => $totalProspek > 0 ? round(($count / $totalProspek) * 100) : 0,
             ];
         }
 
@@ -72,35 +95,43 @@ class DashboardController extends Controller
             ->get();
 
         // Sales Leaderboard / Team performance summary
-        $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) {
-            $prospectCount = Prospek::where('sales_id', $sales->id)->count();
-            $closing = Prospek::where('sales_id', $sales->id)->where('status', 'LUNAS')->count();
+        $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) use ($activeTaId) {
+            $prospectCount = Prospek::where('sales_id', $sales->id)
+                ->where('academic_year_id', $activeTaId)
+                ->count();
+
+            $closing = Prospek::where('sales_id', $sales->id)
+                ->where('status', 'LUNAS')
+                ->where('academic_year_id', $activeTaId)
+                ->count();
             $visits = Kunjungan::where('sales_id', $sales->id)->count();
+
             $target = $sales->targets()
-                ->where('tipe_periode', 'Bulanan')
-                ->where('tanggal_mulai', '<=', now()->endOfMonth())
-                ->where('tanggal_selesai', '>=', now()->startOfMonth())
                 ->where('status', 'Aktif')
+                ->latest()
                 ->first();
-            $targetNum = $target ? $target->target_kontak : 30;
+
+            $targetNum = $target ? (int)$target->target_lunas : 10;
             $achievedPct = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
 
             return [
-                'user' => $sales,
-                'prospects' => $prospectCount,
-                'closing' => $closing,
-                'visits' => $visits,
-                'target' => $targetNum,
+                'user'         => $sales,
+                'prospects'    => $prospectCount,
+                'closing'      => $closing,
+                'visits'       => $visits,
+                'target'       => $targetNum,
                 'achieved_pct' => $achievedPct,
             ];
         });
 
         return view('spv.dashboard', compact(
             'stats',
+            'targetHm',
             'pipelineStats',
             'teamMembers',
             'teamPerformance',
-            'recentFollowUps'
+            'recentFollowUps',
+            'activeTa'
         ));
     }
 }

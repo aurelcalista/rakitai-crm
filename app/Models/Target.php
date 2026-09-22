@@ -10,8 +10,9 @@ class Target extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sales_id', 'tipe_periode', 'tanggal_mulai', 'tanggal_selesai',
-        'target_kontak', 'target_menghubungi', 'target_followup', 'target_kunjungan', 'status', 'academic_year_id'
+        'sales_id', 'allocated_by', 'tipe_periode', 'academic_year_id', 'tahun_akademik', 'tanggal_mulai', 'tanggal_selesai',
+        'target_kontak', 'target_menghubungi', 'target_followup', 'target_kunjungan',
+        'target_formulir', 'target_lunas', 'status'
     ];
 
     protected static function booted()
@@ -34,5 +35,10 @@ class Target extends Model
     public function sales()
     {
         return $this->belongsTo(User::class, 'sales_id');
+    }
+
+    public function allocator()
+    {
+        return $this->belongsTo(User::class, 'allocated_by');
     }
 }

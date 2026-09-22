@@ -117,6 +117,7 @@ Route::middleware('auth')->group(function () {
 
             // Team Target & Performance
             Route::get('/target-performa', [\App\Http\Controllers\Spv\PerformanceController::class, 'index'])->name('performa.index');
+            Route::post('/target-performa/alokasi', [\App\Http\Controllers\Spv\PerformanceController::class, 'alokasi'])->name('performa.alokasi');
 
             // Team Recap Reports
             Route::get('/laporan', [\App\Http\Controllers\Spv\ReportController::class, 'index'])->name('laporan.index');
@@ -127,19 +128,10 @@ Route::middleware('auth')->group(function () {
             // SPV Event Assignments
             Route::get('/events', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'index'])->name('events.index');
             Route::post('/events/{id}/assign', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'assignSales'])->name('events.assign');
-        });
 
-    // ──────────────────────────────────────────────────────────────
-    // EO (Event Organizer) Role Routes
-    // ──────────────────────────────────────────────────────────────
-    Route::middleware('role:EO')
-        ->prefix('eo')
-        ->name('eo.')
-        ->group(function () {
-            Route::get('/events', [\App\Http\Controllers\Eo\EventController::class, 'index'])->name('events.index');
-            Route::post('/events', [\App\Http\Controllers\Eo\EventController::class, 'store'])->name('events.store');
-            Route::put('/events/{id}', [\App\Http\Controllers\Eo\EventController::class, 'update'])->name('events.update');
-            Route::delete('/events/{id}', [\App\Http\Controllers\Eo\EventController::class, 'destroy'])->name('events.destroy');
+            // SPV Specialized Actions (P0)
+            Route::post('/prospek/{prospek}/closing',       [\App\Http\Controllers\Spv\ProspectController::class, 'closing'])->name('prospek.closing');
+            Route::post('/kunjungan/{kunjungan}/verifikasi', [\App\Http\Controllers\Spv\VisitController::class, 'verifikasi'])->name('kunjungan.verifikasi');
         });
 
     // ──────────────────────────────────────────────────────────────

@@ -34,19 +34,58 @@ class VisitController extends Controller
             $query->whereDate('tanggal', $request->tanggal);
         }
 
-        $visits      = $query->get()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
+        $allVisits = $query->get()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
+        $schoolVisits  = array_values(array_filter($allVisits, fn ($v) => $v['type'] === 'Sekolah'));
+        $companyVisits = array_values(array_filter($allVisits, fn ($v) => $v['type'] === 'Perusahaan'));
+
+        // Counter untuk status "Perlu Verifikasi"
+        $perluVerifikasiCount = count(array_filter($allVisits, fn ($v) => $v['status_verifikasi'] === 'Perlu Verifikasi' || $v['is_outside_radius']));
+
         $teamSales   = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->get();
         $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
 
-        return view('spv.kunjungan.index', compact('visits', 'teamSales', 'sekolahs', 'perusahaans'));
+        return view('spv.kunjungan.index', compact(
+            'allVisits',
+            'schoolVisits',
+            'companyVisits',
+            'perluVerifikasiCount',
+            'teamSales',
+            'sekolahs',
+            'perusahaans'
+        ));
     }
 
     public function show(Kunjungan $kunjungan): View
     {
+        $user = auth()->user();
+        // Strict Backend Scoping
+        if (!in_array($kunjungan->sales_id, $user->teamMemberIds())) {
+            abort(403, 'Anda tidak memiliki otorisasi untuk melihat kunjungan tim di luar cakupan wilayah Anda.');
+        }
+
         $kunjungan->load(['sales', 'sekolah', 'perusahaan']);
         $visit = $this->formatKunjungan($kunjungan);
         return view('spv.kunjungan.show', compact('visit'));
+    }
+
+    /**
+     * Verifikasi Kunjungan oleh SPV (penanganan status Perlu Verifikasi akibat warning radius).
+     */
+    public function verifikasi(Request $request, Kunjungan $kunjungan)
+    {
+        $user = auth()->user();
+        if (!in_array($kunjungan->sales_id, $user->teamMemberIds())) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $kunjungan->update([
+            'status_verifikasi' => 'Terverifikasi',
+            'status'            => 'Selesai',
+            'catatan'           => ($kunjungan->catatan ? $kunjungan->catatan . "\n" : '') . '[Verifikasi SPV ' . $user->name . ' pada ' . now()->translatedFormat('d M Y H:i') . ': Laporan kunjungan telah diverifikasi valid]',
+        ]);
+
+        return redirect()->back()->with('success', 'Kunjungan ' . $kunjungan->nomor . ' berhasil diverifikasi oleh SPV.');
     }
 
     private function formatKunjungan(Kunjungan $k): array
@@ -73,29 +112,33 @@ class VisitController extends Controller
         $photoUrl = $k->foto_path ? Storage::url($k->foto_path) : null;
 
         return [
-            'id'             => $k->id,
-            'name'           => $namaInstitusi,
-            'type'           => $k->jenis ?? '-',
-            'pic'            => $k->pic_name ?? '-',
-            'whatsapp'       => $k->pic_whatsapp ?? '-',
-            'sales'          => $k->sales ? $k->sales->name : '-',
-            'sales_id'       => $k->sales_id,
-            'date'           => $k->tanggal ? Carbon::parse($k->tanggal)->format('d M Y') : '-',
-            'time'           => $k->waktu ? Carbon::parse($k->waktu)->format('H:i') : '-',
-            'address'        => $k->alamat ?? '-',
-            'potential'      => $potential,
-            'photo'          => $photoUrl,
-            'notes'          => $k->catatan ?? $k->hasil ?? '-',
-            'status'         => $k->status,
-            'nomor'          => $k->nomor,
-            'potensi_beasiswa'      => $k->potensi_beasiswa ?? '-',
-            'detail_beasiswa'       => $k->detail_beasiswa ?? '-',
+            'id'                => $k->id,
+            'name'              => $namaInstitusi,
+            'type'              => $k->jenis ?? '-',
+            'pic'               => $k->pic_name ?? '-',
+            'whatsapp'          => $k->pic_whatsapp ?? '-',
+            'sales'             => $k->sales ? $k->sales->name : '-',
+            'sales_id'          => $k->sales_id,
+            'date'              => $k->tanggal ? Carbon::parse($k->tanggal)->format('d M Y') : '-',
+            'time'              => $k->waktu ? Carbon::parse($k->waktu)->format('H:i') : '-',
+            'address'           => $k->alamat ?? '-',
+            'lokasi_penugasan'  => $k->lokasi_penugasan ?? $k->alamat ?? '-',
+            'potential'         => $potential,
+            'photo'             => $photoUrl,
+            'notes'             => $k->catatan ?? $k->hasil ?? '-',
+            'status'            => $k->status,
+            'status_verifikasi' => $k->status_verifikasi ?? 'Terverifikasi',
+            'is_outside_radius' => (bool) $k->is_outside_radius,
+            'nomor'             => $k->nomor,
+            'potensi_mahasiswa' => $k->potensi_beasiswa ?? '-',
+            'potensi_beasiswa'  => $k->potensi_beasiswa ?? '-',
+            'detail_beasiswa'   => $k->detail_beasiswa ?? '-',
             'kesediaan_training_ai' => $k->kesediaan_training_ai,
-            'bidang_usaha' => $k->bidang_usaha ?? '-',
-            'potensi_s1'   => $k->potensi_s1 ?? '-',
-            'potensi_s2'   => $k->potensi_s2 ?? '-',
-            'potensi_csr'  => $k->potensi_csr ?? '-',
-            'created_at'   => $k->created_at ? $k->created_at->format('d M Y, H:i') : '-',
+            'bidang_usaha'      => $k->bidang_usaha ?? '-',
+            'potensi_s1'        => $k->potensi_s1 ?? '-',
+            'potensi_s2'        => $k->potensi_s2 ?? '-',
+            'potensi_csr'       => $k->potensi_csr ?? '-',
+            'created_at'        => $k->created_at ? $k->created_at->format('d M Y, H:i') : '-',
         ];
     }
 }

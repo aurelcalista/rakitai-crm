@@ -14,7 +14,7 @@ class Prospek extends Model
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
         'sekolah_id', 'perusahaan_id',
-        'lost_reason', 'lost_note', 'active_follow_up_count',
+        'lost_reason', 'lost_note', 'active_follow_up_count', 'follow_up_count',
         'handover_at', 'academic_year_id'
     ];
 
@@ -25,6 +25,9 @@ class Prospek extends Model
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            if (empty($prospek->tahun_akademik)) {
+                $prospek->tahun_akademik = '2027/2028';
+            }
             if ($prospek->sekolah_id) {
                 $sekolah = Sekolah::find($prospek->sekolah_id);
                 if ($sekolah && $sekolah->sales_id) {
@@ -38,7 +41,7 @@ class Prospek extends Model
             }
 
             // Auto-handover to CS when status is 'Beli Formulir'
-            if ($prospek->isDirty('status') && $prospek->status === 'Beli Formulir' && is_null($prospek->cs_id)) {
+            if ($prospek->isDirty('status') && $prospek->status === 'FORMULIR' && is_null($prospek->cs_id)) {
                 $cs = \App\Models\User::where('role', 'CS')->first();
                 if ($cs) {
                     $prospek->cs_id = $cs->id;
@@ -74,7 +77,18 @@ class Prospek extends Model
         });
     }
 
-    public const ACTIVE_STAGES = [
+    public const STAGES = [
+        'BARU'      => 1,
+        'KONTAK'    => 2,
+        'HANGAT'    => 3,
+        'PANAS'     => 4,
+        'FORMULIR'  => 5,
+        'BERKAS'    => 6,
+        'LUNAS'     => 7,
+        'DINGIN'    => 8,
+    ];
+
+    public const PIPELINE_8_STAGES = [
         'BARU',
         'KONTAK',
         'HANGAT',
@@ -85,36 +99,31 @@ class Prospek extends Model
         'DINGIN',
     ];
 
-    public const STAGES = [
-        // 8 Pipeline Wajib
-        'BARU'      => 1,
-        'KONTAK'    => 2,
-        'HANGAT'    => 3,
-        'PANAS'     => 4,
-        'FORMULIR'  => 5,
-        'BERKAS'    => 6,
-        'LUNAS'     => 7,
-        'DINGIN'    => 8,
-        
-        // Backward Compatibility (Legacy Statuses)
-        'Lead In'             => 1,
-        'Cold Lead'           => 1,
-        'Warm Lead'           => 3,
-        'Hot Lead'            => 4,
-        'Beli Formulir'       => 5,
-        'Lulus Tes'           => 6,
-        'Pembayaran Termin 1' => 7,
-        'Closing (Lunas)'     => 7,
-        'Follow Up 1'         => 2,
-        'Follow Up'           => 3,
-        'Interested'          => 4,
-        'Negosiasi'           => 4,
-        'Mendaftar'           => 5,
-        'Closing'             => 7,
-        
-        'Ditolak/Batal'       => 0,
-        'Lost'                => 0,
-    ];
+    /**
+     * Syarat Maba Lunas: Pembayaran Formulir + Pembayaran Termin 1 (Status 07 LUNAS)
+     * Beli formulir saja TIDAK dihitung lunas.
+     */
+    public function isMabaLunas(): bool
+    {
+        $transaksis = $this->relationLoaded('transaksis')
+            ? $this->transaksis
+            : ($this->exists ? $this->transaksis()->get() : collect());
+
+        $hasFormulir = $transaksis->contains('jenis', 'Beli Formulir');
+        $hasTermin1  = $transaksis->contains('jenis', 'Pembayaran Termin 1');
+
+        // Syarat mutlak: Formulir + Termin 1
+        if ($hasFormulir && $hasTermin1) {
+            return true;
+        }
+
+        // Jika status LUNAS dan sudah ada bukti pembayaran Termin 1
+        if (strtoupper($this->status) === 'LUNAS' && $hasTermin1) {
+            return true;
+        }
+
+        return false;
+    }
 
     public const LOST_REASONS = [
         'Tidak tertarik',
@@ -262,6 +271,6 @@ class Prospek extends Model
      */
     public function scopeActive($query)
     {
-        return $query->whereNotIn('status', ['Lost', 'Ditolak/Batal', 'Closing', 'Closing (Lunas)']);
+        return $query->whereNotIn('status', ['DINGIN', 'LUNAS']);
     }
 }
