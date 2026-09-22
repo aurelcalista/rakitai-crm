@@ -241,27 +241,6 @@ x-init="
                     </div>
                 </div>
 
-                @if($currentUser['role'] === 'EO')
-                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
-
-                    <!-- Section: EVENT ORGANIZER -->
-                    <div>
-                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Event Management</div>
-                        <div class="space-y-1">
-                            <a 
-                                href="{{ route('eo.events.index') }}" 
-                                title="Kelola Event"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('eo.events.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('eo.events.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Kelola Event</span>
-                            </a>
-                        </div>
-                    </div>
-                @endif
 
                 @if($currentUser['role'] === 'Admin')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
