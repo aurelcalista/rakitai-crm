@@ -176,5 +176,31 @@ class User extends Authenticatable
         $memberIds = $this->teamMemberIds();
         return Kunjungan::whereIn('sales_id', $memberIds);
     }
+
+    /**
+     * Events managed by this user (EO).
+     */
+    public function managedEvents()
+    {
+        return $this->hasMany(Event::class, 'eo_id');
+    }
+
+    /**
+     * Events assigned to this user as SPV.
+     */
+    public function assignedEventsSpv()
+    {
+        return $this->belongsToMany(Event::class, 'event_spv', 'spv_id', 'event_id')->withTimestamps();
+    }
+
+    /**
+     * Events assigned to this user as Sales.
+     */
+    public function assignedEventsSales()
+    {
+        return $this->belongsToMany(Event::class, 'event_sales', 'sales_id', 'event_id')
+            ->withPivot('assigned_by_spv_id')
+            ->withTimestamps();
+    }
 }
 

@@ -217,8 +217,41 @@ x-init="
                             </svg>
                             <span x-show="!sidebarCollapsed">Dashboard</span>
                         </a>
+                        <a 
+                            href="{{ route('calendar.index') }}" 
+                            title="Kalender"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('calendar.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('calendar.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Kalender Internal</span>
+                        </a>
                     </div>
                 </div>
+
+                @if($currentUser['role'] === 'EO')
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: EVENT ORGANIZER -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Event Management</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('eo.events.index') }}" 
+                                title="Kelola Event"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('eo.events.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('eo.events.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Event</span>
+                            </a>
+                        </div>
+                    </div>
+                @endif
 
                 @if($currentUser['role'] === 'Admin')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
@@ -326,7 +359,7 @@ x-init="
                             </a>
                         </div>
                     </div>
-                @else
+                @elseif($currentUser['role'] !== 'EO')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
                     <!-- Section: CRM CORE (Sales, CS, SPV, HM) -->
@@ -461,6 +494,17 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Tim</span>
+                            </a>
+                            <a 
+                                href="{{ route('spv.events.index') }}" 
+                                title="Assignment Event"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('spv.events.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.events.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Assignment Event</span>
                             </a>
                         </div>
                     </div>
