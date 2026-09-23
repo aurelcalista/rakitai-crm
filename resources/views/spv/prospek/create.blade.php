@@ -104,8 +104,17 @@
                     </div>
                 </div>
 
-                <!-- Status & Sumber -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Status, Prodi & Sumber -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="block text-xs font-semibold text-slate-700">Program Studi Diminati <span class="text-rose-500">*</span></label>
+                        <select name="prodi_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
+                            <option value="">-- Pilih Program Studi --</option>
+                            @foreach($prodis as $prd)
+                                <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="space-y-1">
                         <label class="block text-xs font-semibold text-slate-700">Status Awal Pipeline <span class="text-rose-500">*</span></label>
                         <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
@@ -115,12 +124,12 @@
                         </select>
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-xs font-semibold text-slate-700">Sumber Prospek</label>
-                        <select name="source" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
+                        <label class="block text-xs font-semibold text-slate-700">Sumber Prospek <span class="text-rose-500">*</span></label>
+                        <select name="source" required class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
+                            <option value="Guru BK / Sekolah">Guru BK / Sekolah</option>
                             <option value="Sosial Media (IG/FB/TikTok)">Sosial Media (IG/FB/TikTok)</option>
                             <option value="Website UCIC">Website UCIC</option>
                             <option value="Brosur / Spanduk">Brosur / Spanduk</option>
-                            <option value="Guru BK / Sekolah">Guru BK / Sekolah</option>
                             <option value="Teman / Alumni">Teman / Alumni</option>
                             <option value="Event / Expo Pendidikan">Event / Expo Pendidikan</option>
                             <option value="Kanvasing / Presentasi">Kanvasing / Presentasi</option>

@@ -1495,6 +1495,7 @@ x-init="
                             $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+                            $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
                         @endphp
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
@@ -1525,15 +1526,25 @@ x-init="
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati *</label>
+                                <select name="prodi_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Program Studi --</option>
+                                    @foreach($prodisList as $prd)
+                                        <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal *</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     @foreach($statusProspekList as $status)
-                                        <option value="{{ $status->nama }}" {{ $status->nama == 'Interested' ? 'selected' : '' }}>{{ $status->nama }}</option>
+                                        <option value="{{ $status->nama }}" {{ in_array($status->nama, ['BARU', 'Baru', 'Interested']) ? 'selected' : '' }}>{{ $status->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak / PIC *</label>
                                 <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
@@ -1541,8 +1552,8 @@ x-init="
                                 <input type="tel" name="whatsapp" required placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek</label>
-                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>
+                                <select name="source" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Sumber --</option>
                                     @foreach($sumberProspekList as $sumber)
                                         <option value="{{ $sumber->nama }}">{{ $sumber->nama }}</option>

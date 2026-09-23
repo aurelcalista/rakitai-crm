@@ -42,7 +42,7 @@ class EventAssignmentController extends Controller
         ->whereHas('spvs', function($q) use ($user) {
             $q->where('users.id', $user->id);
         })
-        ->orderBy('tanggal', 'desc')
+        ->orderBy('tanggal_mulai', 'desc')
         ->paginate(10);
 
         // SPV's team Sales

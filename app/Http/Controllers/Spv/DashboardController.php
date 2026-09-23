@@ -103,7 +103,7 @@ class DashboardController extends Controller
 
         // Sales Leaderboard / Team performance summary
         // Each Sales scoped to active TA — no double-count (each prospek attributed to one sales_id)
-        $spvRollup = $metricsService->rollUpForSpv($user, null, $activeTaId);
+        $spvRollup = $this->metricsService->rollUpForSpv($user, null, $activeTaId);
 
         $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) use ($activeTaId) {
             $prospectCount = Prospek::where('sales_id', $sales->id)

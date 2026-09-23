@@ -45,7 +45,27 @@ class StoreProspectRequest extends FormRequest
                     }
                 }
             ],
-            'source'   => 'required|in:Teman/Keluarga/Saudara,Sekolah,Sosial Media (FB/IG/X),Website CIC,Brosur/Poster,Sekretariat Kampus (Walk-in),Pameran/Expo/University Day,Acara Kampus,MGBK/Miniclass,Spanduk/Baliho,Lainnya',
+            'source'   => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    $allowed = [
+                        'Teman/Keluarga/Saudara', 'Sekolah', 'Sosial Media (FB/IG/X)', 'Website CIC', 
+                        'Brosur/Poster', 'Sekretariat Kampus (Walk-in)', 'Pameran/Expo/University Day', 
+                        'Acara Kampus', 'MGBK/Miniclass', 'Spanduk/Baliho', 'Lainnya',
+                        'Brosur', 'Kunjungan Sekolah', 'Instagram', 'Sosial Media (IG/FB/TikTok)',
+                        'Website UCIC', 'Brosur / Spanduk', 'Guru BK / Sekolah', 'Teman / Alumni',
+                        'Event / Expo Pendidikan', 'Kanvasing / Presentasi', 'Iklan Online (Ads)',
+                        'Referensi Mitra / Perusahaan', 'Walk-in (Datang Langsung)', 'Supervisor'
+                    ];
+                    $masterDataSources = \App\Models\MasterData::where('type', 'sumber_prospek')->pluck('nama')->toArray();
+                    $allAllowed = array_unique(array_merge($allowed, $masterDataSources));
+                    
+                    if (!in_array($value, $allAllowed)) {
+                        $fail('The selected source is invalid.');
+                    }
+                }
+            ],
             'prodi_id' => 'required|exists:prodis,id',
         ];
     }

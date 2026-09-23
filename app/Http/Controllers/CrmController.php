@@ -776,7 +776,9 @@ class CrmController extends Controller
             'total_prospek'   => $totalProspek,
             'active_prospek'  => $activeProspek,
             'LUNAS'           => $closing,
+            'closing'         => $closing,
             'DINGIN'          => $lost,
+            'lost'            => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
             'total_sales'     => \App\Models\User::where('role', 'Sales')->count(),
             'total_cs'        => \App\Models\User::where('role', 'CS')->count(),
@@ -803,6 +805,7 @@ class CrmController extends Controller
                 'target'      => $targetNum,
                 'prospects'   => $prospectsCount,
                 'LUNAS'       => $closing,
+                'closing'     => $closing,
                 'achievement' => $achievement,
             ];
         })->sortByDesc('achievement')->values()->map(function ($member, $index) {

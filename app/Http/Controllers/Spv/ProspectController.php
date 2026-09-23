@@ -120,8 +120,9 @@ class ProspectController extends Controller
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $statuses = Prospek::PIPELINE_8_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
+        $prodis = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
 
-        return view('spv.prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons', 'teamSales'));
+        return view('spv.prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons', 'teamSales', 'prodis'));
     }
 
     /**
