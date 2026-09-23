@@ -92,7 +92,7 @@
             <x-target-achievement-table 
                 :data="$targetAchievementData" 
                 title="Dashboard Target & Pencapaian Tim SPV" 
-                subtitle="Monitoring real-time target berjenjang tim Sales & CS, kekurangan, sisa hari, dan target harian berjalan"
+                subtitle="Monitoring target berjenjang cascading (Tahunan → Harian), akumulasi realisasi, defisit target, dan indikator warna pencapaian"
             />
         @endif
 

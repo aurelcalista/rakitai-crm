@@ -107,10 +107,104 @@
                 <span class="text-slate-300">•</span>
                 <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold">
                     ⏳ Sisa Waktu: {{ $periode['sisa_hari'] ?? 1 }} Hari
-                </span>
             </div>
         </div>
     </div>
+
+    <!-- CASCADING FLOW INDICATOR & INDIKATOR WARNA DASAR (Tahunan → Bulanan → Mingguan → Harian) -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-xs space-y-3.5 border border-slate-800">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">Hierarki Target Berjenjang & Sistem Defisit</span>
+                <h4 class="text-sm font-bold text-white flex items-center gap-2 mt-0.5">
+                    <span>Target Akumulasi Cascading (Tahunan &rarr; Bulanan &rarr; Mingguan &rarr; Harian)</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 font-semibold">Tersinkronisasi Realtime</span>
+                </h4>
+            </div>
+            
+            <!-- Indikator Warna Dasar Legend -->
+            <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                <span class="text-slate-400 font-medium">Indikator Warna:</span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> &ge;100% Tercapai
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> 70-99% On Track
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> 40-69% Perlu Perhatian
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                    <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> &lt;40% Defisit Target
+                </span>
+            </div>
+        </div>
+
+        <!-- 4 Stepper Level Cascading -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <!-- 1. Tahunan -->
+            <a href="{{ $actionUrl . '?periode=tahunan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
+               class="p-3 rounded-xl border transition relative {{ $currentKey === 'tahunan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 1</span>
+                    @if($currentKey === 'tahunan')
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    @endif
+                </div>
+                <div class="font-extrabold text-sm mt-1">Target Tahunan</div>
+                <div class="text-[10px] text-slate-300 mt-0.5">Akumulasi TA (Basis &times; 12)</div>
+            </a>
+
+            <!-- 2. Bulanan -->
+            <a href="{{ $actionUrl . '?periode=bulanan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
+               class="p-3 rounded-xl border transition relative {{ $currentKey === 'bulanan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 2</span>
+                    @if($currentKey === 'bulanan')
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    @endif
+                </div>
+                <div class="font-extrabold text-sm mt-1">Target Bulanan</div>
+                <div class="text-[10px] text-slate-300 mt-0.5">Basis Evaluasi Utama</div>
+            </a>
+
+            <!-- 3. Mingguan -->
+            <a href="{{ $actionUrl . '?periode=mingguan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
+               class="p-3 rounded-xl border transition relative {{ $currentKey === 'mingguan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 3</span>
+                    @if($currentKey === 'mingguan')
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    @endif
+                </div>
+                <div class="font-extrabold text-sm mt-1">Target Mingguan</div>
+                <div class="text-[10px] text-slate-300 mt-0.5">Monitoring Tim (&divide; 4 Mgg)</div>
+            </a>
+
+            <!-- 4. Harian -->
+            <a href="{{ $actionUrl . '?periode=harian' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
+               class="p-3 rounded-xl border transition relative {{ $currentKey === 'harian' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 4</span>
+                    @if($currentKey === 'harian')
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    @endif
+                </div>
+                <div class="font-extrabold text-sm mt-1">Target Harian</div>
+                <div class="text-[10px] text-slate-300 mt-0.5">Operasional Tim (&divide; 25 Hari)</div>
+            </a>
+        </div>
+    </div>
+
+    @php
+        $periodeLabelNama = match($currentKey) {
+            'tahunan'  => 'Tahunan',
+            'bulanan'  => 'Bulanan',
+            'mingguan' => 'Mingguan',
+            'harian'   => 'Harian',
+            default    => 'Periode'
+        };
+    @endphp
 
     <!-- TABEL 1: METRIK INDIKATOR UTAMA (Per Baris Metrik) -->
     <div class="crm-card bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -118,9 +212,9 @@
             <div>
                 <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                     <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    <span>Monitoring Target & Realisasi Mingguan — {{ $periode['label'] }}</span>
+                    <span>Monitoring Target & Realisasi {{ $periodeLabelNama }} — {{ $periode['label'] }}</span>
                 </h4>
-                <p class="text-[11px] text-slate-500 mt-0.5">Sistem monitoring mingguan: Target | Realisasi | Akumulasi Realisasi | Sisa Target | Defisit Target | Indikator Pencapaian</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sistem monitoring berjenjang: Target | Realisasi | Akumulasi Realisasi | Sisa Target | Defisit Target | Indikator Pencapaian</p>
             </div>
         </div>
 
@@ -129,8 +223,8 @@
                 <thead>
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                         <th class="py-3 px-4">Indikator Kinerja</th>
-                        <th class="py-3 px-3 text-center">Target Mingguan</th>
-                        <th class="py-3 px-3 text-center">Realisasi Mingguan</th>
+                        <th class="py-3 px-3 text-center">Target {{ $periodeLabelNama }}</th>
+                        <th class="py-3 px-3 text-center">Realisasi {{ $periodeLabelNama }}</th>
                         <th class="py-3 px-3 text-center">Akumulasi Realisasi</th>
                         <th class="py-3 px-3 text-center">Sisa Target</th>
                         <th class="py-3 px-3 text-center">Defisit Target</th>
@@ -219,7 +313,7 @@
                         @endif
                     </span>
                 </h4>
-                <p class="text-[11px] text-slate-500 mt-0.5">Pengawasan berjenjang Target Mingguan, Realisasi, Akumulasi, Sisa, dan Defisit per entitas</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Pengawasan berjenjang Target {{ $periodeLabelNama }}, Realisasi, Akumulasi, Sisa, dan Defisit per entitas</p>
             </div>
         </div>
 
@@ -229,8 +323,8 @@
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                         <th class="py-3 px-4">Nama Personil / Teritori</th>
                         <th class="py-3 px-3">Role & Wilayah</th>
-                        <th class="py-3 px-3 text-center">Target Mingguan</th>
-                        <th class="py-3 px-3 text-center">Realisasi Mingguan</th>
+                        <th class="py-3 px-3 text-center">Target {{ $periodeLabelNama }}</th>
+                        <th class="py-3 px-3 text-center">Realisasi {{ $periodeLabelNama }}</th>
                         <th class="py-3 px-3 text-center">Akumulasi Realisasi</th>
                         <th class="py-3 px-3 text-center">Sisa Target</th>
                         <th class="py-3 px-3 text-center">Defisit Target</th>
