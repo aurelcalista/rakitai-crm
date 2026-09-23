@@ -12,7 +12,7 @@ class Kunjungan extends Model
 
     protected $fillable = [
         'nomor', 'tanggal', 'tahun_akademik', 'waktu', 'sales_id', 'prodi_id', 'jenis',
-        'tujuan_id', 'tujuan_kunjungan', 'hasil', 'catatan', 'status',
+        'tujuan_id', 'tujuan_kunjungan', 'hasil', 'catatan', 'status', 'event_id', 'kehadiran',
         // Detail fields added for Sales visit reports
         'nama_institusi', 'tier', 'budget_maksimum', 'alamat', 'lokasi_penugasan', 'pic_name', 'pic_whatsapp', 'foto_path',
         'is_outside_radius', 'status_verifikasi', 'status_lokasi', 'jarak_meter', 'qr_code',
@@ -106,5 +106,10 @@ class Kunjungan extends Model
     public function prospek()
     {
         return $this->belongsTo(Prospek::class, 'tujuan_id');
+    }
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class, 'event_id');
     }
 }
