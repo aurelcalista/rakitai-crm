@@ -154,6 +154,16 @@ class EventController extends Controller
                     $salesUser = User::find($salesId);
                     if ($salesUser) {
                         $this->calendarService->syncSalesEvent($event, $salesUser);
+                        $salesUser->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "📅 Penugasan Event Baru",
+                            message: "Anda ditugaskan ke event '{$event->name}' oleh Event Organizer (" . Auth::user()->name . ").",
+                            type: 'info',
+                            link: '/calendar',
+                            icon: '📅',
+                            senderName: Auth::user()->name,
+                            senderRole: 'EO',
+                            action: 'event_assigned_sales'
+                        ));
                     }
                 }
             }
@@ -161,6 +171,23 @@ class EventController extends Controller
             // Trigger notification to SPVs
             $spvUsers = User::whereIn('id', $request->spvs)->get();
             \Illuminate\Support\Facades\Notification::send($spvUsers, new EventNotification($event, 'assigned_spv'));
+
+            // Notifikasi ke Head of Marketing (HM)
+            $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
+            foreach ($hms as $hm) {
+                if ($hm->id !== Auth::id()) {
+                    $hm->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "📅 Event Baru Dijadwalkan",
+                        message: "EO " . Auth::user()->name . " telah menjadwalkan event baru: '{$event->name}'.",
+                        type: 'info',
+                        link: '/calendar',
+                        icon: '📅',
+                        senderName: Auth::user()->name,
+                        senderRole: 'EO',
+                        action: 'event_created_hm'
+                    ));
+                }
+            }
         });
 
         return back()->with('success', 'Event berhasil dibuat.');

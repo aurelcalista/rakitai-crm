@@ -186,7 +186,7 @@ class ProspectController extends Controller
             'status'        => 'required|string|max:255',
             'source'        => 'required|string|max:100',
             'custom_source' => 'nullable|string|max:100',
-            'assign_type'   => 'required|in:sales,cs,self',
+            'assign_type'   => 'nullable|in:sales,cs,self',
             'sales_id'      => 'nullable|exists:users,id',
             'cs_id'         => 'nullable|exists:users,id',
             'wilayah_id'    => 'nullable|exists:wilayahs,id',
@@ -208,6 +208,13 @@ class ProspectController extends Controller
             $perusahaan = Perusahaan::find($validated['perusahaan_id']);
             if ($perusahaan) $name = $perusahaan->nama;
         }
+        if (empty($name)) {
+            $name = $validated['pic'];
+        }
+
+        // Default assign_type & kelas if omitted
+        $assignType = $validated['assign_type'] ?? (!empty($validated['sales_id']) ? 'sales' : (!empty($validated['cs_id']) ? 'cs' : 'self'));
+        $kelas = $validated['kelas'] ?? 'Reguler';
 
         // 2. Validasi Duplikat HP & Nama (PRD Bab 8.1)
         $cleanWa = preg_replace('/[^0-9]/', '', $validated['whatsapp']);
@@ -244,19 +251,19 @@ class ProspectController extends Controller
         $ownerId = $user->id;
         $handlerLabel = 'Belum Ditugaskan';
 
-        if ($validated['assign_type'] === 'sales') {
+        if ($assignType === 'sales') {
             $salesId = $validated['sales_id'] ?: null;
             if ($salesId) {
                 $ownerId = $salesId;
                 $handlerLabel = User::find($salesId)?->name . ' (Sales)';
             }
-        } elseif ($validated['assign_type'] === 'cs') {
+        } elseif ($assignType === 'cs') {
             $csId = $validated['cs_id'] ?: null;
             if ($csId) {
                 $ownerId = $csId;
                 $handlerLabel = User::find($csId)?->name . ' (CS)';
             }
-        } elseif ($validated['assign_type'] === 'self') {
+        } elseif ($assignType === 'self') {
             $salesId = $user->id;
             $ownerId = $user->id;
             $handlerLabel = $user->name . ' (SPV Penanganan Mandiri)';
@@ -270,7 +277,7 @@ class ProspectController extends Controller
         if ($wilayahId) {
             $wilayahObj = Wilayah::find($wilayahId);
             if ($wilayahObj) {
-                if (!$salesId && $validated['assign_type'] === 'sales') {
+                if (!$salesId && ($validated['assign_type'] ?? '') === 'sales') {
                     $activeSales = $wilayahObj->activeSalesUser();
                     if ($activeSales) {
                         $salesId = $activeSales->id;
@@ -286,7 +293,7 @@ class ProspectController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId) {
+        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
 
             $createdAt = !empty($validated['tanggal_masuk'])

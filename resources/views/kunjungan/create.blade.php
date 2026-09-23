@@ -57,6 +57,40 @@
                 lat: '',
                 lng: '',
                 isTraining: {{ old('kesediaan_training_ai') ? 'true' : 'false' }},
+                selectedSchoolSource: '',
+                prospek_id: '',
+                sekolah_id: '{{ old('sekolah_id', '') }}',
+                nama_institusi: '{{ old('nama_institusi', '') }}',
+                pic_name: '{{ old('pic_name', '') }}',
+                pic_whatsapp: '{{ old('pic_whatsapp', '') }}',
+                prospekMap: {{ json_encode(($prospekSekolah ?? collect())->keyBy('id')->toArray()) }},
+                sekolahMap: {{ json_encode($sekolahs->keyBy('id')->toArray()) }},
+                handleSchoolChange(val) {
+                    if (val && val.startsWith('prospek_')) {
+                        const pid = val.replace('prospek_', '');
+                        const p = this.prospekMap[pid];
+                        if (p) {
+                            this.prospek_id = p.id;
+                            this.sekolah_id = p.sekolah_id || '';
+                            this.nama_institusi = p.name || '';
+                            this.pic_name = p.pic || '';
+                            this.pic_whatsapp = p.whatsapp || '';
+                        }
+                    } else if (val && val.startsWith('sekolah_')) {
+                        const sid = val.replace('sekolah_', '');
+                        this.prospek_id = '';
+                        this.sekolah_id = sid;
+                        const s = this.sekolahMap[sid];
+                        if (s) {
+                            this.nama_institusi = s.nama || '';
+                            this.pic_name = s.pic_name || '';
+                            this.pic_whatsapp = s.pic_phone || '';
+                        }
+                    } else {
+                        this.prospek_id = '';
+                        this.sekolah_id = '';
+                    }
+                },
                 captureGeo() {
                     this.geoStatus = 'loading';
                     navigator.geolocation.getCurrentPosition(
@@ -161,18 +195,39 @@
                             {{-- Sekolah fields --}}
                             <div x-show="jenisTab === 'Sekolah'" x-cloak class="space-y-4">
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Pilih Sekolah <span class="text-slate-400 font-normal">(opsional, jika sudah terdaftar)</span></label>
-                                    <select name="sekolah_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                                        <option value="">-- Pilih Sekolah atau isi manual di bawah --</option>
-                                        @foreach($sekolahs as $s)
-                                            <option value="{{ $s->id }}" {{ old('sekolah_id') == $s->id ? 'selected' : '' }}>{{ $s->nama }}</option>
-                                        @endforeach
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <label class="block text-xs font-semibold text-slate-700">Pilih Nama Sekolah (Sumber: Prospek) <span class="text-rose-500">*</span></label>
+                                        <span class="text-[11px] text-blue-600 font-medium">Terhubung Data Prospek</span>
+                                    </div>
+                                    <select 
+                                        x-model="selectedSchoolSource" 
+                                        @change="handleSchoolChange($event.target.value)"
+                                        class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition font-medium text-slate-800"
+                                    >
+                                        <option value="">-- Pilih Sekolah dari Daftar Prospek --</option>
+                                        @if(isset($prospekSekolah) && $prospekSekolah->isNotEmpty())
+                                            <optgroup label="📋 Prospek Sekolah Anda / Tim">
+                                                @foreach($prospekSekolah as $p)
+                                                    <option value="prospek_{{ $p->id }}">{{ $p->name }} [Status: {{ $p->status }} - PIC: {{ $p->pic }}]</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endif
+                                        @if($sekolahs->isNotEmpty())
+                                            <optgroup label="🏫 Master Database Sekolah">
+                                                @foreach($sekolahs as $s)
+                                                    <option value="sekolah_{{ $s->id }}">{{ $s->nama }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endif
                                     </select>
+                                    <input type="hidden" name="prospek_id" :value="prospek_id">
+                                    <input type="hidden" name="sekolah_id" :value="sekolah_id">
+                                    <p class="text-[11px] text-slate-500 mt-1">Memilih sekolah otomatis memuat data PIC, no. WA, dan nama instansi.</p>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Nama Instansi (jika tidak ada di daftar)</label>
-                                    <input type="text" name="nama_institusi_sekolah" value="{{ old('nama_institusi') }}"
-                                        placeholder="Contoh: SMK Cinta Rakyat 3"
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Nama Instansi</label>
+                                    <input type="text" name="nama_institusi" x-model="namaInstitusi"
+                                        placeholder="Nama sekolah atau instansi"
                                         class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
                                 </div>
                             </div>
@@ -208,14 +263,14 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">Nama PIC / Guru BK <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="pic_name" value="{{ old('pic_name') }}" required
+                                    <input type="text" name="pic_name" x-model="pic_name" required
                                         placeholder="Contoh: Budi Santoso"
                                         class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition @error('pic_name') border-rose-300 @enderror">
                                     @error('pic_name')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">No. WhatsApp PIC <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="pic_whatsapp" value="{{ old('pic_whatsapp') }}" required
+                                    <input type="text" name="pic_whatsapp" x-model="pic_whatsapp" required
                                         placeholder="08123456789"
                                         class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition @error('pic_whatsapp') border-rose-300 @enderror">
                                     @error('pic_whatsapp')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror

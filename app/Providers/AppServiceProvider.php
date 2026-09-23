@@ -79,6 +79,12 @@ class AppServiceProvider extends ServiceProvider
                         $followUpQuery->whereHas('prospek', function($q) use ($user) {
                             $q->where('cs_id', $user->id);
                         });
+                    } elseif ($role === 'spv') {
+                        $teamIds = $user->teamMemberIds();
+                        $followUpQuery->where(function($q) use ($teamIds) {
+                            $q->whereIn('user_id', $teamIds)
+                              ->orWhereHas('prospek', fn($pq) => $pq->whereIn('sales_id', $teamIds));
+                        });
                     }
 
                     $followUpHariIni = $followUpQuery->count();
@@ -95,7 +101,8 @@ class AppServiceProvider extends ServiceProvider
                         'time'    => $notif->created_at->diffForHumans(),
                         'type'    => $notif->data['type'] ?? 'info',
                         'read'    => $notif->read_at !== null,
-                        'link'    => $notif->data['link'] ?? '#',
+                        'link'    => $notif->data['link'] ?? $notif->data['url'] ?? '#',
+                        'icon'    => $notif->data['icon'] ?? '🔔',
                     ];
                 });
 

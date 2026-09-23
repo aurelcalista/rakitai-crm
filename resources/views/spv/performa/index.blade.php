@@ -1,6 +1,6 @@
 @php
     $pageTitle = 'Target & Performa Tim (SPV)';
-    $pageSubtitle = 'Evaluasi Pencapaian, Whiteboard Tracker & Alokasi Target';
+    $pageSubtitle = 'Evaluasi Pencapaian, Performa Tim & Alokasi Target';
 @endphp
 
 <x-app-layout :title="'Target & Performa Tim - Supervisor CRM'">
@@ -25,7 +25,7 @@
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Pengawasan SPV</span>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">TA {{ $ta }}</span>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Memonitor target dari HM, alokasi target Sales/CS, Target Team per Week, dan Utang Angka harian.</p>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Memonitor target mingguan dari HM, akumulasi realisasi, defisit target, alokasi target Sales/CS, dan performa tim.</p>
             </div>
             
             <div class="flex flex-wrap items-center gap-2">
@@ -100,94 +100,12 @@
             </div>
         </div>
 
-        <!-- 2. TABEL TARGET TEAM PER WEEK (Whiteboard Image 1) -->
-        <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 uppercase tracking-wider">Whiteboard #1</span>
-                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">TARGET TEAM PER WEEK</h3>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-0.5">Monitoring mingguan: Target Kontak, Realisasi Kontak, Pembayaran Formulir, dan Maba Lunas Kumulatif (Periode: {{ $teamPerWeek['periode_label'] }})</p>
-                </div>
-                <div class="text-[11px] text-slate-400 font-medium">
-                    Syarat Maba Lunas: <strong class="text-emerald-700">Formulir + Termin 1 Lunas</strong>
-                </div>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs border border-slate-200">
-                    <thead>
-                        <tr class="bg-slate-100/80 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-300">
-                            <th class="py-3 px-4 border-r border-slate-200">HARI</th>
-                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-blue-50/50 text-blue-900">TARGET KONTAK</th>
-                            <th class="py-3 px-3 text-center border-r border-slate-200">REALISASI KONTAK</th>
-                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-rose-50/50 text-rose-800">UTANG ANGKA<br><span class="text-[9px] font-normal lowercase">(carry-over)</span></th>
-                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-purple-50/50 text-purple-900">PEMBAYARAN FORMULIR</th>
-                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-emerald-50/50 text-emerald-900">MABA LUNAS</th>
-                            <th class="py-3 px-4 text-center bg-indigo-50/50 text-indigo-900 font-extrabold">KUMULATIF LUNAS</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200 font-medium">
-                        @foreach($teamPerWeek['rows'] as $row)
-                            <tr class="hover:bg-slate-50/80 transition {{ $row['is_today'] ? 'bg-amber-50/60 font-bold border-l-4 border-amber-400' : ($row['is_future'] ? 'opacity-60' : '') }}">
-                                <td class="py-3 px-4 border-r border-slate-200 text-slate-900">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-extrabold">{{ $row['hari'] }}</span>
-                                        @if($row['is_today'])
-                                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-300 text-amber-900 font-bold">HARI INI</span>
-                                        @endif
-                                        <span class="text-[10px] text-slate-400 font-normal">({{ $row['tanggal'] }})</span>
-                                    </div>
-                                </td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200 text-blue-800 font-semibold">{{ $row['target_kontak'] }}</td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200 font-bold {{ $row['realisasi_kontak'] >= $row['sasaran_kontak'] && $row['sasaran_kontak'] > 0 ? 'text-emerald-600' : 'text-slate-800' }}">
-                                    {{ $row['realisasi_kontak'] }}
-                                    @if(!$row['is_future'] && $row['sasaran_kontak'] > $row['target_kontak'])
-                                        <span class="text-[9px] text-rose-500 block">(Sasaran: {{ $row['sasaran_kontak'] }})</span>
-                                    @endif
-                                </td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200">
-                                    @if($row['has_utang'] && !$row['is_future'])
-                                        <span class="inline-flex items-center gap-1">
-                                            <span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
-                                            <span class="text-rose-700 font-bold">{{ $row['utang_kontak'] }}</span>
-                                        </span>
-                                    @else
-                                        <span class="text-slate-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200 text-purple-700 font-bold">{{ $row['pembayaran_formulir'] }}</td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200 text-emerald-700 font-extrabold text-sm">{{ $row['maba_lunas'] }}</td>
-                                <td class="py-3 px-4 text-center bg-indigo-50/20 text-indigo-900 font-black text-sm">{{ $row['kumulatif_lunas'] }}</td>
-                            </tr>
-                        @endforeach
-                        <!-- Row TOTAL -->
-                        <tr class="bg-slate-200/90 font-black text-slate-900 border-t-2 border-slate-300">
-                            <td class="py-3.5 px-4 border-r border-slate-300 text-slate-900 font-extrabold text-sm tracking-wider">
-                                {{ $teamPerWeek['total']['hari'] }}
-                            </td>
-                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-blue-900 font-extrabold">{{ $teamPerWeek['total']['target_kontak'] }}</td>
-                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-slate-900 font-extrabold">{{ $teamPerWeek['total']['realisasi_kontak'] }}</td>
-                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-rose-700 font-extrabold">{{ $teamPerWeek['total']['utang_kontak'] > 0 ? $teamPerWeek['total']['utang_kontak'] : '-' }}</td>
-                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-purple-900 font-extrabold">{{ $teamPerWeek['total']['pembayaran_formulir'] }}</td>
-                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-emerald-900 font-extrabold text-base">{{ $teamPerWeek['total']['maba_lunas'] }}</td>
-                            <td class="py-3.5 px-4 text-center bg-indigo-100 text-indigo-950 font-black text-base">{{ $teamPerWeek['total']['kumulatif_lunas'] }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 3. TABEL PERFORMA HARIAN / PERORANG (Whiteboard Image 2) -->
+        <!-- 2. TABEL PERFORMA HARIAN / PERORANG -->
         <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 uppercase tracking-wider">Whiteboard #2</span>
-                        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">PERORANG (PERFORMA HARIAN & UTANG ANGKA)</h3>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Otorisasi Kunci Defisit oleh SPV (P0 Bab 6.1), Sasaran Hari Ini, dan Lokasi Penugasan.</p>
+                    <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">PERORANG (PERFORMA HARIAN & UTANG ANGKA)</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Otorisasi Kunci Defisit oleh SPV, Sasaran Hari Ini, dan Lokasi Penugasan.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="text-[11px] text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
@@ -307,6 +225,82 @@
                                 <td colspan="8" class="py-8 text-center text-slate-400 text-xs">Belum ada personil Sales dalam tim.</td>
                             </tr>
                         @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. TABEL TARGET TEAM PER WEEK -->
+        <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">TARGET TEAM PER WEEK</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Monitoring mingguan: Target Kontak, Realisasi Kontak, Pembayaran Formulir, dan Maba Lunas Kumulatif (Periode: {{ $teamPerWeek['periode_label'] }})</p>
+                </div>
+                <div class="text-[11px] text-slate-400 font-medium">
+                    Syarat Maba Lunas: <strong class="text-emerald-700">Formulir + Termin 1 Lunas</strong>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs border border-slate-200">
+                    <thead>
+                        <tr class="bg-slate-100/80 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-300">
+                            <th class="py-3 px-4 border-r border-slate-200">HARI</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-blue-50/50 text-blue-900">TARGET KONTAK</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200">REALISASI KONTAK</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-rose-50/50 text-rose-800">UTANG ANGKA<br><span class="text-[9px] font-normal lowercase">(carry-over)</span></th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-purple-50/50 text-purple-900">PEMBAYARAN FORMULIR</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-emerald-50/50 text-emerald-900">MABA LUNAS</th>
+                            <th class="py-3 px-4 text-center bg-indigo-50/50 text-indigo-900 font-extrabold">KUMULATIF LUNAS</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 font-medium">
+                        @foreach($teamPerWeek['rows'] as $row)
+                            <tr class="hover:bg-slate-50/80 transition {{ $row['is_today'] ? 'bg-amber-50/60 font-bold border-l-4 border-amber-400' : ($row['is_future'] ? 'opacity-60' : '') }}">
+                                <td class="py-3 px-4 border-r border-slate-200 text-slate-900">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-extrabold">{{ $row['hari'] }}</span>
+                                        @if($row['is_today'])
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-300 text-amber-900 font-bold">HARI INI</span>
+                                        @endif
+                                        <span class="text-[10px] text-slate-400 font-normal">({{ $row['tanggal'] }})</span>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200 text-blue-800 font-semibold">{{ $row['target_kontak'] }}</td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200 font-bold {{ $row['realisasi_kontak'] >= $row['sasaran_kontak'] && $row['sasaran_kontak'] > 0 ? 'text-emerald-600' : 'text-slate-800' }}">
+                                    {{ $row['realisasi_kontak'] }}
+                                    @if(!$row['is_future'] && $row['sasaran_kontak'] > $row['target_kontak'])
+                                        <span class="text-[9px] text-rose-500 block">(Sasaran: {{ $row['sasaran_kontak'] }})</span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200">
+                                    @if($row['has_utang'] && !$row['is_future'])
+                                        <span class="inline-flex items-center gap-1">
+                                            <span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+                                            <span class="text-rose-700 font-bold">{{ $row['utang_kontak'] }}</span>
+                                        </span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                     @endif
+                                </td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200 text-purple-700 font-bold">{{ $row['pembayaran_formulir'] }}</td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200 text-emerald-700 font-extrabold text-sm">{{ $row['maba_lunas'] }}</td>
+                                <td class="py-3 px-4 text-center bg-indigo-50/20 text-indigo-900 font-black text-sm">{{ $row['kumulatif_lunas'] }}</td>
+                            </tr>
+                        @endforeach
+                        <!-- Row TOTAL -->
+                        <tr class="bg-slate-200/90 font-black text-slate-900 border-t-2 border-slate-300">
+                            <td class="py-3.5 px-4 border-r border-slate-300 text-slate-900 font-extrabold text-sm tracking-wider">
+                                {{ $teamPerWeek['total']['hari'] }}
+                            </td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-blue-900 font-extrabold">{{ $teamPerWeek['total']['target_kontak'] }}</td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-slate-900 font-extrabold">{{ $teamPerWeek['total']['realisasi_kontak'] }}</td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-rose-700 font-extrabold">{{ $teamPerWeek['total']['utang_kontak'] > 0 ? $teamPerWeek['total']['utang_kontak'] : '-' }}</td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-purple-900 font-extrabold">{{ $teamPerWeek['total']['pembayaran_formulir'] }}</td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-emerald-900 font-extrabold text-base">{{ $teamPerWeek['total']['maba_lunas'] }}</td>
+                            <td class="py-3.5 px-4 text-center bg-indigo-100 text-indigo-950 font-black text-base">{{ $teamPerWeek['total']['kumulatif_lunas'] }}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

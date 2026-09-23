@@ -29,18 +29,17 @@ class DashboardController extends Controller
 
         // Metrics
         $totalEvents = (clone $baseQuery)->count();
-        $todayEventsCount = (clone $baseQuery)->whereDate('tanggal', $today)->count();
-        $upcomingEventsCount = (clone $baseQuery)->whereDate('tanggal', '>', $today)->where('status', 'Scheduled')->count();
-        $completedEventsCount = (clone $baseQuery)->where('status', 'Completed')->count();
-        $cancelledEventsCount = (clone $baseQuery)->where('status', 'Cancelled')->count();
+        $todayEventsCount = (clone $baseQuery)->whereDate('tanggal_mulai', $today)->count();
+        $upcomingEventsCount = (clone $baseQuery)->whereDate('tanggal_mulai', '>', $today)->whereNotIn('status', ['Selesai', 'Completed', 'Cancelled', 'Batal'])->count();
+        $completedEventsCount = (clone $baseQuery)->whereIn('status', ['Selesai', 'Completed'])->count();
+        $cancelledEventsCount = (clone $baseQuery)->whereIn('status', ['Batal', 'Cancelled'])->count();
 
         // Upcoming events
         $upcomingEvents = (clone $baseQuery)
             ->with(['type', 'spvs', 'sales'])
-            ->whereDate('tanggal', '>=', $today)
-            ->where('status', 'Scheduled')
-            ->orderBy('tanggal', 'asc')
-            ->orderBy('waktu_mulai', 'asc')
+            ->whereDate('tanggal_mulai', '>=', $today)
+            ->whereNotIn('status', ['Selesai', 'Completed', 'Cancelled', 'Batal'])
+            ->orderBy('tanggal_mulai', 'asc')
             ->take(5)
             ->get();
 

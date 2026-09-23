@@ -125,11 +125,11 @@
 }
 "
 x-init="
-    @if(session('success')) setTimeout(() => $store.crm.showToast('{{ session('success') }}', 'success'), 100); @endif
-    @if(session('error')) setTimeout(() => $store.crm.showToast('{{ session('error') }}', 'error'), 100); @endif
+    @if(session('success')) setTimeout(() => $store.crm.showToast({!! json_encode(session('success')) !!}, 'success'), 100); @endif
+    @if(session('error')) setTimeout(() => $store.crm.showToast({!! json_encode(session('error')) !!}, 'error'), 100); @endif
     @if($errors->any())
         @foreach($errors->all() as $error)
-            setTimeout(() => $store.crm.showToast('{{ $error }}', 'error'), 100);
+            setTimeout(() => $store.crm.showToast({!! json_encode($error) !!}, 'error'), 100);
         @endforeach
     @endif
 ">
@@ -787,10 +787,38 @@ x-init="
                         >
                             <!-- Dropdown Header -->
                             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <span class="font-bold text-xs text-slate-900">Notifikasi Terbaru</span>
-                                <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-xs text-slate-900">Notifikasi Terbaru</span>
+                                    <!-- Sound Controls -->
+                                    <button 
+                                        @click.stop="$store.crm.toggleSound()"
+                                        type="button"
+                                        class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                                        :title="$store.crm.soundEnabled ? 'Suara Aktif (Klik untuk mematikan)' : 'Suara Dimatikan (Klik untuk menyalakan)'"
+                                    >
+                                        <template x-if="$store.crm.soundEnabled">
+                                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                            </svg>
+                                        </template>
+                                        <template x-if="!$store.crm.soundEnabled">
+                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                            </svg>
+                                        </template>
+                                    </button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button 
+                                        @click.stop="$store.crm.testSound()" 
+                                        type="button"
+                                        class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer flex items-center gap-1"
+                                        title="Uji coba suara lonceng notifikasi"
+                                    >
+                                        <span>🔔 Tes Suara</span>
+                                    </button>
                                     <template x-if="$store.crm.unreadCount > 0">
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Belum Dibaca'"></span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Baru'"></span>
                                     </template>
                                     <button 
                                         @click="$store.crm.markAllAsRead()" 
@@ -824,7 +852,7 @@ x-init="
                             <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                                 <template x-for="item in $store.crm.notifications.filter(n => filter === 'all' || !n.read)" :key="item.id">
                                     <div 
-                                        @click="$store.crm.markAsRead(item.id); if(item.link) window.location.href = item.link;"
+                                        @click="$store.crm.markAsRead(item.id); if(item.link && item.link !== '#') window.location.href = item.link;"
                                         class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer flex items-start justify-between gap-3 group"
                                         :class="!item.read ? 'bg-blue-50/40' : ''"
                                     >
@@ -840,7 +868,12 @@ x-init="
                                                 }"
                                             ></span>
                                             <div>
-                                                <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-blue-600 transition" x-text="item.title"></p>
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <template x-if="item.icon">
+                                                        <span class="text-xs" x-text="item.icon"></span>
+                                                    </template>
+                                                    <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-blue-600 transition" x-text="item.title"></p>
+                                                </div>
                                                 <p class="text-[11px] text-slate-500 mt-0.5 leading-normal" x-text="item.message"></p>
                                                 <span class="text-[10px] text-slate-400 mt-1 block" x-text="item.time"></span>
                                             </div>
@@ -1561,8 +1594,35 @@ x-init="
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
                             $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+                            $currentUser = auth()->user();
+                            $canAssignSales = in_array($currentUser->role ?? '', ['SPV', 'Admin', 'Head Marketing']);
+                            $salesAssignees = [];
+                            if ($canAssignSales) {
+                                if ($currentUser->role === 'SPV') {
+                                    $salesAssignees = \App\Models\User::where('supervisor_id', $currentUser->id)->where('role', 'Sales')->where('status', 'Aktif')->get();
+                                    if ($salesAssignees->isEmpty()) {
+                                        $salesAssignees = \App\Models\User::where('role', 'Sales')->where('status', 'Aktif')->get();
+                                    }
+                                } else {
+                                    $salesAssignees = \App\Models\User::where('role', 'Sales')->where('status', 'Aktif')->get();
+                                }
+                            }
                         @endphp
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @if($canAssignSales)
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Assign ke Sales *</label>
+                                    <select name="sales_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                        <option value="">-- Pilih Personil Sales --</option>
+                                        @foreach($salesAssignees as $sUser)
+                                            <option value="{{ $sUser->id }}">{{ $sUser->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @else
+                                <input type="hidden" name="sales_id" value="{{ auth()->id() }}">
+                            @endif
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe Prospek *</label>
                                 <select name="type" x-model="prospekType" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
@@ -1832,9 +1892,12 @@ x-init="
                     eventTempat: '',
                     kunjunganType: 'sekolah', 
                     photoPreview: null,
+                    selectedSchoolSource: '',
                     selectedSekolahId: '',
                     selectedPerusahaanId: '',
+                    prospek_id: '',
                     sekolahPicMap: {},
+                    prospekPicMap: {},
                     perusahaanPicMap: {},
                     picName: '',
                     picWhatsapp: '',
@@ -1878,9 +1941,32 @@ x-init="
                 }"
                 x-init="
                     @php
+                        $userVisit = auth()->user();
+                        $prospekSekolahQuery = \App\Models\Prospek::query()->where('type', 'Sekolah');
+                        if ($userVisit && $userVisit->role === 'Sales') {
+                            $prospekSekolahQuery->where('sales_id', $userVisit->id);
+                        } elseif ($userVisit && $userVisit->role === 'SPV') {
+                            $subIds = \App\Models\User::where('supervisor_id', $userVisit->id)->pluck('id')->push($userVisit->id);
+                            $prospekSekolahQuery->whereIn('sales_id', $subIds);
+                        }
+                        $availProspeks = $prospekSekolahQuery->orderBy('name')->get();
+
+                        $pMap = [];
+                        foreach($availProspeks as $ps) {
+                            $pMap[$ps->id] = [
+                                'id' => $ps->id,
+                                'name' => $ps->name,
+                                'sekolah_id' => $ps->sekolah_id,
+                                'pic' => $ps->pic,
+                                'whatsapp' => $ps->whatsapp,
+                                'prodi_id' => $ps->prodi_id,
+                                'status' => $ps->status,
+                            ];
+                        }
+
                         $sPicMap = [];
-                        foreach(\App\Models\Sekolah::where('status', 'Aktif')->whereNotNull('pic_name')->get() as $p) {
-                            $sPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
+                        foreach(\App\Models\Sekolah::where('status', 'Aktif')->get() as $p) {
+                            $sPicMap[$p->id] = ['nama' => $p->nama, 'pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
                         }
                         
                         $pPicMap = [];
@@ -1888,15 +1974,36 @@ x-init="
                             $pPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
                         }
                     @endphp
+                    prospekPicMap = {{ json_encode($pMap) }};
                     sekolahPicMap = {{ json_encode($sPicMap) }};
                     perusahaanPicMap = {{ json_encode($pPicMap) }};
-                    
-                    $watch('selectedSekolahId', value => {
+
+                    $watch('selectedSchoolSource', value => {
                         if (kunjunganType === 'sekolah' && !isEventMode) {
-                            if (value && sekolahPicMap[value]) {
-                                picName = sekolahPicMap[value].pic;
-                                picWhatsapp = sekolahPicMap[value].whatsapp;
+                            if (value && value.startsWith('prospek_')) {
+                                const pid = value.replace('prospek_', '');
+                                const item = prospekPicMap[pid];
+                                if (item) {
+                                    prospek_id = item.id;
+                                    selectedSekolahId = item.sekolah_id || '';
+                                    namaInstitusi = item.name;
+                                    picName = item.pic || '';
+                                    picWhatsapp = item.whatsapp || '';
+                                }
+                            } else if (value && value.startsWith('sekolah_')) {
+                                const sid = value.replace('sekolah_', '');
+                                prospek_id = '';
+                                selectedSekolahId = sid;
+                                const item = sekolahPicMap[sid];
+                                if (item) {
+                                    namaInstitusi = item.nama;
+                                    picName = item.pic || '';
+                                    picWhatsapp = item.whatsapp || '';
+                                }
                             } else {
+                                prospek_id = '';
+                                selectedSekolahId = '';
+                                namaInstitusi = '';
                                 picName = '';
                                 picWhatsapp = '';
                             }
@@ -2029,16 +2136,43 @@ x-init="
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah</h4>
                                 <div class="grid grid-cols-1 gap-4">
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Sekolah *</label>
+                                        <div class="flex items-center justify-between mb-1">
+                                            <label class="block text-xs font-semibold text-slate-700">Nama Sekolah (Sumber: Prospek) *</label>
+                                            <span class="text-[11px] text-blue-600 font-medium">Terhubung dengan Data Prospek</span>
+                                        </div>
                                         @php
-                                            $sekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
+                                            $userVisit = auth()->user();
+                                            $prospekSekolahQuery = \App\Models\Prospek::query()->where('type', 'Sekolah');
+                                            if ($userVisit && $userVisit->role === 'Sales') {
+                                                $prospekSekolahQuery->where('sales_id', $userVisit->id);
+                                            } elseif ($userVisit && $userVisit->role === 'SPV') {
+                                                $subIds = \App\Models\User::where('supervisor_id', $userVisit->id)->pluck('id')->push($userVisit->id);
+                                                $prospekSekolahQuery->whereIn('sales_id', $subIds);
+                                            }
+                                            $modalAvailProspeks = $prospekSekolahQuery->orderBy('name')->get();
+                                            $modalSekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
                                         @endphp
-                                        <select name="sekolah_id" id="sekolah_id_select" x-model="selectedSekolahId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah' && !isEventMode">
-                                            <option value="">-- Pilih Sekolah --</option>
-                                            @foreach($sekolahsList as $sek)
-                                                <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
-                                            @endforeach
+                                        <select x-model="selectedSchoolSource" class="w-full text-xs sm:text-sm px-3 py-2.5 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah' && !isEventMode">
+                                            <option value="">-- Pilih Sekolah dari Daftar Prospek --</option>
+                                            @if($modalAvailProspeks->isNotEmpty())
+                                                <optgroup label="📋 Prospek Sekolah Tersedia (Data Anda / Tim)">
+                                                    @foreach($modalAvailProspeks as $p)
+                                                        <option value="prospek_{{ $p->id }}">{{ $p->name }} [Prospek: {{ $p->status }} - PIC: {{ $p->pic }}]</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
+                                            @if($modalSekolahsList->isNotEmpty())
+                                                <optgroup label="🏫 Master Database Sekolah">
+                                                    @foreach($modalSekolahsList as $sek)
+                                                        <option value="sekolah_{{ $sek->id }}">{{ $sek->nama }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
                                         </select>
+                                        <input type="hidden" name="prospek_id" x-model="prospek_id">
+                                        <input type="hidden" name="sekolah_id" x-model="selectedSekolahId">
+                                        <input type="hidden" name="nama_institusi" x-model="namaInstitusi">
+                                        <p class="text-[11px] text-slate-500 mt-1">Memilih nama sekolah akan otomatis mengisi data PIC & nomor WhatsApp di bawah.</p>
                                     </div>
                                 </div>
                             </div>
@@ -2395,7 +2529,7 @@ x-init="
                     Swal.fire({
                         icon: 'error',
                         title: 'Validasi Gagal',
-                        html: '<ul class="text-left text-xs text-rose-700 space-y-1 list-disc pl-5 mt-2">@foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach</ul>',
+                        html: '<ul class="text-left text-xs text-rose-700 space-y-1 list-disc pl-5 mt-2">@foreach($errors->all() as $err)<li>{!! json_encode($err) !!}</li>@endforeach</ul>',
                         confirmButtonColor: '#e11d48',
                         confirmButtonText: 'Tutup',
                         customClass: {

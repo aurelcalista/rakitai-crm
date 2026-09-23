@@ -80,7 +80,17 @@ class VisitController extends Controller
             }
         }
 
-        return view('kunjungan.create', compact('sekolahs', 'perusahaans', 'prodis', 'dosens', 'event'));
+        $user = auth()->user();
+        $prospekQuery = Prospek::where('type', 'Sekolah');
+        if ($user && $user->role === 'Sales') {
+            $prospekQuery->where('sales_id', $user->id);
+        } elseif ($user && $user->role === 'SPV') {
+            $subIds = User::where('supervisor_id', $user->id)->pluck('id')->push($user->id);
+            $prospekQuery->whereIn('sales_id', $subIds);
+        }
+        $prospekSekolah = $prospekQuery->orderBy('name')->get();
+
+        return view('kunjungan.create', compact('sekolahs', 'perusahaans', 'prodis', 'dosens', 'event', 'prospekSekolah'));
     }
 
     /**
@@ -283,7 +293,26 @@ class VisitController extends Controller
         ]);
 
         // Clear needs_visit_report for matching prospect owned by this sales user
-        if ($tujuanId > 0) {
+        if ($request->filled('prospek_id')) {
+            $matchedProspek = Prospek::find($request->prospek_id);
+            if ($matchedProspek) {
+                $matchedProspek->needs_visit_report = false;
+                if ($matchedProspek->status === 'BARU') {
+                    $matchedProspek->status = 'KONTAK';
+                    $matchedProspek->stage_number = 2;
+                }
+                $matchedProspek->save();
+
+                ProspekTimeline::create([
+                    'prospek_id'   => $matchedProspek->id,
+                    'user_id'      => $user->id,
+                    'title'        => 'Laporan Kunjungan Selesai',
+                    'notes'        => 'Kunjungan langsung telah dilaporkan (' . $nomor . ')',
+                    'status_after' => $matchedProspek->status,
+                    'time'         => now(),
+                ]);
+            }
+        } elseif ($tujuanId > 0) {
             $column = $validated['jenis'] === 'Sekolah' ? 'sekolah_id' : 'perusahaan_id';
             Prospek::where('sales_id', $user->id)
                 ->where($column, $tujuanId)

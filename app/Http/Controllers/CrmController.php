@@ -1066,20 +1066,28 @@ class CrmController extends Controller
     public function prospekStore(Request $request)
     {
         $request->validate([
-            'name' => 'nullable|string|max:255',
-            'type' => 'required|string',
-            'status' => 'required|string',
-            'pic' => 'required|string',
-            'whatsapp' => 'required|string',
+            'name'          => 'nullable|string|max:255',
+            'type'          => 'required|string',
+            'status'        => 'required|string',
+            'pic'           => 'required|string',
+            'whatsapp'      => 'required|string',
+            'prodi_id'      => 'nullable|exists:prodis,id',
+            'sekolah_id'    => 'nullable|exists:sekolahs,id',
+            'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'sales_id'      => 'nullable|exists:users,id',
         ]);
 
         DB::transaction(function () use ($request) {
             $ownerId = auth()->id() ?? 1;
             $user = \App\Models\User::find($ownerId);
             
-            $salesId = $request->sales_id ?? ($user && $user->role === 'Sales' ? $user->id : null);
+            $salesId = $request->sales_id;
+            if (!$salesId && $user && $user->role === 'Sales') {
+                $salesId = $user->id;
+            }
+
             $csId = $request->cs_id ?? ($user && $user->role === 'CS' ? $user->id : null);
-            $wilayahId = null;
+            $wilayahId = $user?->wilayah_id;
 
             if ($salesId) {
                 $sales = \App\Models\User::find($salesId);
@@ -1089,35 +1097,63 @@ class CrmController extends Controller
                 }
             }
 
-            $stageNumber = \App\Models\Prospek::STAGES[$request->status] ?? 0;
+            // Resolve name
+            $name = trim($request->name ?: '');
+            if ($request->type === 'Sekolah' && !empty($request->sekolah_id)) {
+                $sek = \App\Models\Sekolah::find($request->sekolah_id);
+                if ($sek) $name = $sek->nama;
+            } elseif ($request->type === 'Corporate' && !empty($request->perusahaan_id)) {
+                $per = \App\Models\Perusahaan::find($request->perusahaan_id);
+                if ($per) $name = $per->nama;
+            }
+            if (empty($name)) {
+                $name = $request->pic;
+            }
+
+            $prodi = $request->prodi_id ? \App\Models\Prodi::find($request->prodi_id) : null;
+            $stageNumber = \App\Models\Prospek::STAGES[$request->status] ?? 1;
 
             $prospek = Prospek::create([
-                'name' => $request->name ?: $request->pic,
-                'type' => $request->type,
-                'status' => $request->status,
-                'stage_number' => $stageNumber,
-                'pic' => $request->pic,
-                'whatsapp' => $request->whatsapp,
-                'sales_id' => $salesId,
-                'cs_id' => $csId,
-                'wilayah_id' => $wilayahId,
-                'notes' => $request->notes,
-                'owner_id' => $ownerId,
-                'sekolah_id' => $request->sekolah_id,
-                'perusahaan_id' => $request->perusahaan_id,
+                'name'               => $name,
+                'type'               => $request->type,
+                'status'             => $request->status,
+                'stage_number'       => $stageNumber,
+                'pic'                => $request->pic,
+                'pic_phone'          => $request->pic_phone ?? null,
+                'whatsapp'           => $request->whatsapp,
+                'sales_id'           => $salesId,
+                'cs_id'              => $csId,
+                'wilayah_id'         => $wilayahId,
+                'prodi_id'           => $prodi?->id,
+                'category'           => $request->category ?? ($prodi?->nama ?? '-'),
+                'source'             => $request->source ?? 'Inbound Direct',
+                'kelas'              => $request->kelas ?? 'Reguler',
+                'notes'              => $request->notes,
+                'owner_id'           => $ownerId,
+                'sekolah_id'         => $request->type === 'Sekolah' ? $request->sekolah_id : null,
+                'perusahaan_id'      => $request->type === 'Corporate' ? $request->perusahaan_id : null,
             ]);
 
+            $assignLabel = $salesId ? (\App\Models\User::find($salesId)?->name . ' (Sales)') : 'Mandiri/Sistem';
+
             ProspekTimeline::create([
-                'prospek_id' => $prospek->id,
-                'user_id' => auth()->id() ?? 1,
-                'title' => 'Prospek Dibuat',
-                'notes' => 'Prospek baru ditambahkan',
+                'prospek_id'   => $prospek->id,
+                'user_id'      => $ownerId,
+                'title'        => 'Prospek Dibuat',
+                'notes'        => "Prospek baru dibuat oleh {$user?->name} dan ditugaskan ke {$assignLabel}",
                 'status_after' => $prospek->status,
-                'time' => now(),
+                'time'         => now(),
             ]);
         });
 
-        return redirect()->route('prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
+        $userRole = auth()->user()?->role;
+        if ($userRole === 'SPV') {
+            return redirect()->route('spv.prospek.index')->with('success', 'Prospek baru berhasil ditambahkan dan ditugaskan ke tim Sales!');
+        } elseif ($userRole === 'Sales') {
+            return redirect()->route('sales.prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
+        }
+
+        return redirect()->back()->with('success', 'Prospek baru berhasil ditambahkan!');
     }
 
     /**
@@ -1365,6 +1401,28 @@ class CrmController extends Controller
 
     public function kunjunganStore(Request $request)
     {
+        $user = auth()->user();
+
+        // Resolve nama_institusi from prospek or sekolah if not directly filled
+        if (!$request->filled('nama_institusi')) {
+            if ($request->filled('prospek_id')) {
+                $prospek = \App\Models\Prospek::find($request->prospek_id);
+                if ($prospek) {
+                    $request->merge(['nama_institusi' => $prospek->name]);
+                }
+            } elseif ($request->filled('sekolah_id')) {
+                $sek = \App\Models\Sekolah::find($request->sekolah_id);
+                if ($sek) {
+                    $request->merge(['nama_institusi' => $sek->nama]);
+                }
+            } elseif ($request->filled('perusahaan_id')) {
+                $per = \App\Models\Perusahaan::find($request->perusahaan_id);
+                if ($per) {
+                    $request->merge(['nama_institusi' => $per->nama]);
+                }
+            }
+        }
+
         $request->validate([
             'nama_institusi' => 'required|string|max:255',
             'jenis'          => 'required|in:Sekolah,Perusahaan',
@@ -1375,40 +1433,79 @@ class CrmController extends Controller
             'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
-        $user = auth()->user();
         $fotoPath = null;
         if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
             $fotoPath = $request->file('foto')->store('kunjungan', 'public');
         }
 
-        \App\Models\Kunjungan::create([
-            'nomor'            => 'KNJ-' . ($user->id ?? 1) . '-' . now()->format('YmdHis'),
-            'tanggal'          => $request->tanggal,
-            'waktu'            => now()->format('H:i:s'),
-            'sales_id'         => $user->id ?? 1,
-            'jenis'            => $request->jenis,
-            'tujuan_id'        => 0,
-            'tujuan_kunjungan' => $request->nama_institusi,
-            'hasil'            => 'Kunjungan ' . $request->jenis,
-            'catatan'          => $request->catatan,
-            'status'           => 'Selesai',
-            'nama_institusi'   => $request->nama_institusi,
-            'alamat'           => $request->alamat,
-            'pic_name'         => $request->pic_name,
-            'pic_whatsapp'     => $request->pic_whatsapp,
-            'foto_path'        => $fotoPath,
+        $tujuanId = 0;
+        if ($request->jenis === 'Sekolah' && $request->filled('sekolah_id')) {
+            $tujuanId = $request->sekolah_id;
+        } elseif ($request->jenis === 'Perusahaan' && $request->filled('perusahaan_id')) {
+            $tujuanId = $request->perusahaan_id;
+        }
+
+        $salesId = $request->input('sales_id');
+        if (empty($salesId) || $user->role === 'Sales') {
+            $salesId = $user->id;
+        }
+
+        $activeTa = \App\Models\TahunAkademik::getAktif();
+
+        $kunjungan = \App\Models\Kunjungan::create([
+            'nomor'                 => 'KNJ-' . ($salesId ?? 1) . '-' . now()->format('YmdHis'),
+            'tanggal'               => $request->tanggal,
+            'waktu'                 => $request->input('waktu', now()->format('H:i:s')),
+            'sales_id'              => $salesId,
+            'prodi_id'              => $request->input('prodi_id') ?? \App\Models\Prodi::first()?->id ?? 1,
+            'jenis'                 => $request->jenis,
+            'tujuan_id'             => $tujuanId,
+            'tujuan_kunjungan'      => $request->nama_institusi,
+            'hasil'                 => 'Kunjungan ' . $request->jenis . ' — ' . $request->nama_institusi,
+            'catatan'               => $request->catatan,
+            'status'                => 'Selesai',
+            'status_verifikasi'     => 'Valid',
+            'is_verified'           => true,
+            'academic_year_id'      => $activeTa?->id,
+            'nama_institusi'        => $request->nama_institusi,
+            'alamat'                => $request->alamat,
+            'lokasi_penugasan'      => $request->lokasi_penugasan,
+            'pic_name'              => $request->pic_name,
+            'pic_whatsapp'          => $request->pic_whatsapp,
+            'foto_path'             => $fotoPath,
+            'lat'                   => $request->input('lat'),
+            'lng'                   => $request->input('lng'),
             // School-specific
-            'potensi_beasiswa'      => $request->potensi_beasiswa,
-            'detail_beasiswa'       => $request->detail_beasiswa,
-            'kesediaan_training_ai' => $request->boolean('kesediaan_training_ai'),
+            'potensi_mahasiswa'       => $request->input('potensi_mahasiswa') ?? $request->input('potensi_beasiswa'),
+            'detail_potensi_mahasiswa'=> $request->input('detail_potensi_mahasiswa') ?? $request->input('detail_beasiswa'),
+            'kesediaan_training_ai'   => $request->boolean('kesediaan_training_ai'),
             // Corporate-specific
-            'bidang_usaha' => $request->bidang_usaha,
-            'potensi_s1'   => $request->potensi_s1,
-            'potensi_s2'   => $request->potensi_s2,
-            'potensi_csr'  => $request->potensi_csr,
+            'bidang_usaha'          => $request->bidang_usaha,
+            'potensi_s1'            => $request->potensi_s1,
+            'potensi_s2'            => $request->potensi_s2,
+            'potensi_csr'           => $request->potensi_csr,
         ]);
 
-        return redirect()->back()->with('success', 'Kunjungan berhasil disimpan!');
+        if ($request->filled('prospek_id')) {
+            $prospek = \App\Models\Prospek::find($request->prospek_id);
+            if ($prospek) {
+                if ($prospek->status === 'BARU') {
+                    $prospek->status = 'KONTAK';
+                    $prospek->stage_number = 2;
+                    $prospek->save();
+                }
+                \App\Models\ProspekTimeline::create([
+                    'prospek_id'   => $prospek->id,
+                    'user_id'      => $salesId,
+                    'title'        => 'Laporan Kunjungan Selesai',
+                    'notes'        => 'Kunjungan langsung telah dilaporkan (' . $kunjungan->nomor . ')',
+                    'status_after' => $prospek->status,
+                    'time'         => now(),
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Laporan kunjungan berhasil disimpan!');
     }
 
     /**

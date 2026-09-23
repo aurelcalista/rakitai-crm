@@ -189,6 +189,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
         Route::resource('perusahaan',  \App\Http\Controllers\Admin\AdminPerusahaanController::class, $except);
 
+        Route::post('tahun-akademik',                          [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'storeTahunAkademik'])->name('tahun-akademik.store');
+        Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'activateTahunAkademik'])->name('tahun-akademik.activate');
+        Route::delete('tahun-akademik/{tahunAkademik}',        [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'destroyTahunAkademik'])->name('tahun-akademik.destroy');
+
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
@@ -243,7 +247,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/pengaturan',       [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
 
     // Notifications (all roles)
+    Route::get('/notifications/latest',         [NotificationController::class, 'getLatest'])->name('notifications.latest');
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
     Route::post('/notifications/read-all',      [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
     Route::post('/notifications/{id}/read',     [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
+});
+
+// ──────────────────────────────────────────────────────────────────
+// Mobile Platform Form Lapangan (Flutter WebView Integration)
+// ──────────────────────────────────────────────────────────────────
+Route::prefix('mobile')->name('mobile.')->group(function () {
+    Route::get('/prospek/create',   [\App\Http\Controllers\MobileFormController::class, 'prospekCreate'])->name('prospek.create');
+    Route::post('/prospek',         [\App\Http\Controllers\MobileFormController::class, 'prospekStore'])->name('prospek.store');
+
+    Route::get('/kunjungan/create', [\App\Http\Controllers\MobileFormController::class, 'kunjunganCreate'])->name('kunjungan.create');
+    Route::post('/kunjungan',       [\App\Http\Controllers\MobileFormController::class, 'kunjunganStore'])->name('kunjungan.store');
+
+    Route::get('/sukses',           [\App\Http\Controllers\MobileFormController::class, 'sukses'])->name('sukses');
 });

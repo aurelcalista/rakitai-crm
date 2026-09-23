@@ -190,28 +190,52 @@ class TargetAchievementService
     }
 
     /**
-     * Hitung metrik baris standar (Target | Pencapaian | Kekurangan | % Achievement | Sisa Hari | Target Harian Berjalan).
+     * Hitung metrik baris standar (Target | Realisasi | Akumulasi Realisasi | Sisa Target | Defisit Target | Indikator Pencapaian).
      */
     public function formatMetricRow(string $label, int $target, int $pencapaian, int $sisaHari, array $meta = []): array
     {
         $kekurangan = max(0, $target - $pencapaian);
+        $sisaTarget = $kekurangan;
+        $defisitTarget = $pencapaian < $target ? ($target - $pencapaian) : 0;
+        $akumulasi = $meta['akumulasi'] ?? $pencapaian;
+
         $percent = $target > 0
             ? round(($pencapaian / $target) * 100, 1)
             : ($pencapaian > 0 ? 100.0 : 0.0);
 
-        // Target Harian Berjalan (Kekurangan / Sisa Hari)
-        $targetHarianBerjalan = ($kekurangan > 0 && $sisaHari > 0)
-            ? round($kekurangan / $sisaHari, 1)
-            : 0;
+        if ($percent >= 100) {
+            $statusLabel = 'Tercapai';
+            $statusBadge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            $statusDot   = 'bg-emerald-500';
+        } elseif ($percent >= 70) {
+            $statusLabel = 'Sesuai Target (On Track)';
+            $statusBadge = 'bg-blue-100 text-blue-800 border-blue-300';
+            $statusDot   = 'bg-blue-500';
+        } elseif ($percent >= 40) {
+            $statusLabel = 'Perlu Perhatian';
+            $statusBadge = 'bg-amber-100 text-amber-800 border-amber-300';
+            $statusDot   = 'bg-amber-500';
+        } else {
+            $statusLabel = 'Dibawah Target (Defisit)';
+            $statusBadge = 'bg-rose-100 text-rose-800 border-rose-300';
+            $statusDot   = 'bg-rose-500';
+        }
 
         return array_merge([
             'label'                  => $label,
             'target'                 => $target,
             'pencapaian'             => $pencapaian,
+            'akumulasi_realisasi'    => $akumulasi,
+            'sisa_target'            => $sisaTarget,
+            'defisit_target'         => $defisitTarget,
             'kekurangan'             => $kekurangan,
             'achievement_pct'        => $percent,
+            'status_label'           => $statusLabel,
+            'status_badge'           => $statusBadge,
+            'status_dot'             => $statusDot,
             'sisa_hari'              => $sisaHari,
-            'target_harian_berjalan' => $targetHarianBerjalan,
+            // Keep legacy key for safe backward compatibility
+            'target_harian_berjalan' => 0,
         ], $meta);
     }
 
@@ -262,12 +286,36 @@ class TargetAchievementService
             ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
             ->count();
 
+        // Akumulasi Realisasi Periode Tahun Akademik Berjalan
+        $activeTa = TahunAkademik::getAktif();
+        $taId = $activeTa?->id;
+
+        $akLunas = Prospek::where('sales_id', $sales->id)
+            ->where('status', 'LUNAS')
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
+        $akFormulir = Prospek::where('sales_id', $sales->id)
+            ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
+        $akKontak = Prospek::where('sales_id', $sales->id)
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
+        $akFollowup = FollowUp::where('user_id', $sales->id)->count();
+
+        $akKunjungan = Kunjungan::where('sales_id', $sales->id)
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
         $kpiRows = [
-            $this->formatMetricRow('Maba Lunas (Closing)', $tLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'Utama']),
-            $this->formatMetricRow('Beli Formulir PMB', $tFormulir, $pFormulir, $sisa, ['icon' => 'formulir']),
-            $this->formatMetricRow('Kontak / Database Baru', $tKontak, $pKontak, $sisa, ['icon' => 'kontak']),
-            $this->formatMetricRow('Follow Up Prospek', $tFollowup, $pFollowup, $sisa, ['icon' => 'followup']),
-            $this->formatMetricRow('Kunjungan Lapangan', $tKunjungan, $pKunjungan, $sisa, ['icon' => 'kunjungan']),
+            $this->formatMetricRow('Maba Lunas (Closing)', $tLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'Utama', 'akumulasi' => $akLunas]),
+            $this->formatMetricRow('Beli Formulir PMB', $tFormulir, $pFormulir, $sisa, ['icon' => 'formulir', 'akumulasi' => $akFormulir]),
+            $this->formatMetricRow('Kontak / Database Baru', $tKontak, $pKontak, $sisa, ['icon' => 'kontak', 'akumulasi' => $akKontak]),
+            $this->formatMetricRow('Follow Up Prospek', $tFollowup, $pFollowup, $sisa, ['icon' => 'followup', 'akumulasi' => $akFollowup]),
+            $this->formatMetricRow('Kunjungan Lapangan', $tKunjungan, $pKunjungan, $sisa, ['icon' => 'kunjungan', 'akumulasi' => $akKunjungan]),
         ];
 
         $hierarchyRows = [
@@ -277,6 +325,7 @@ class TargetAchievementService
                 'role'        => $sales->role,
                 'wilayah'     => $sales->wilayah?->nama ?? 'Wilayah Personal',
                 'allocator'   => $target?->allocator?->name ?? 'Supervisor',
+                'akumulasi'   => $akLunas,
             ]),
         ];
 
@@ -343,12 +392,38 @@ class TargetAchievementService
             ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
             ->count();
 
+        // Akumulasi Realisasi Tim Periode Tahun Akademik Berjalan
+        $activeTa = TahunAkademik::getAktif();
+        $taId = $activeTa?->id;
+
+        $akLunas = Prospek::whereIn('sales_id', $teamMemberIds)
+            ->where('status', 'LUNAS')
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
+        $akFormulir = Prospek::where(function($q) use ($teamMemberIds) {
+                $q->whereIn('sales_id', $teamMemberIds)->orWhereIn('cs_id', $teamMemberIds);
+            })
+            ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
+        $akKontak = Prospek::whereIn('sales_id', $teamMemberIds)
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
+        $akFollowup = FollowUp::whereIn('user_id', $teamMemberIds)->count();
+
+        $akKunjungan = Kunjungan::whereIn('sales_id', $teamMemberIds)
+            ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+            ->count();
+
         $kpiRows = [
-            $this->formatMetricRow('Maba Lunas (Closing Tim)', $tLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'Utama HM']),
-            $this->formatMetricRow('Pembelian Formulir Tim', $tFormulir, $pFormulir, $sisa, ['icon' => 'formulir']),
-            $this->formatMetricRow('Kontak / Database Baru', $tKontak, $pKontak, $sisa, ['icon' => 'kontak']),
-            $this->formatMetricRow('Follow Up Tim (Sales & CS)', $tFollowup, $pFollowup, $sisa, ['icon' => 'followup']),
-            $this->formatMetricRow('Kunjungan Sekolah/Corporate', $tKunjungan, $pKunjungan, $sisa, ['icon' => 'kunjungan']),
+            $this->formatMetricRow('Maba Lunas (Closing Tim)', $tLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'Utama HM', 'akumulasi' => $akLunas]),
+            $this->formatMetricRow('Pembelian Formulir Tim', $tFormulir, $pFormulir, $sisa, ['icon' => 'formulir', 'akumulasi' => $akFormulir]),
+            $this->formatMetricRow('Kontak / Database Baru', $tKontak, $pKontak, $sisa, ['icon' => 'kontak', 'akumulasi' => $akKontak]),
+            $this->formatMetricRow('Follow Up Tim (Sales & CS)', $tFollowup, $pFollowup, $sisa, ['icon' => 'followup', 'akumulasi' => $akFollowup]),
+            $this->formatMetricRow('Kunjungan Sekolah/Corporate', $tKunjungan, $pKunjungan, $sisa, ['icon' => 'kunjungan', 'akumulasi' => $akKunjungan]),
         ];
 
         // Hierarchy Rows: Breakdown Per Anggota Tim
@@ -362,6 +437,7 @@ class TargetAchievementService
             'is_total'    => true,
             'wilayah'     => $spv->wilayah?->nama ?? 'Wilayah SPV',
             'allocated_by'=> $targetHm?->allocator?->name ?? 'Head of Marketing (HM)',
+            'akumulasi'   => $akLunas,
         ]);
 
         foreach ($teamMembers as $member) {
@@ -382,10 +458,20 @@ class TargetAchievementService
                     ->where('status', 'LUNAS')
                     ->whereBetween('updated_at', [$start, $end])
                     ->count();
+
+                $mAkumulasi = Prospek::where('cs_id', $member->id)
+                    ->where('status', 'LUNAS')
+                    ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+                    ->count();
             } else {
                 $mPencapaian = Prospek::where('sales_id', $member->id)
                     ->where('status', 'LUNAS')
                     ->whereBetween('updated_at', [$start, $end])
+                    ->count();
+
+                $mAkumulasi = Prospek::where('sales_id', $member->id)
+                    ->where('status', 'LUNAS')
+                    ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
                     ->count();
             }
 
@@ -395,6 +481,7 @@ class TargetAchievementService
                 'role'        => $member->role,
                 'wilayah'     => $member->wilayah?->nama ?? ($spv->wilayah?->nama ?? '-'),
                 'allocated_by'=> $spv->name . ' (SPV)',
+                'akumulasi'   => $mAkumulasi,
             ]);
         }
 
@@ -447,6 +534,16 @@ class TargetAchievementService
         $pFollowup = (clone $fuQuery)->whereBetween('tanggal', [$start, $end])->count();
         $pKunjungan = (clone $visitQuery)->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])->count();
 
+        // Akumulasi Realisasi Periode Tahun Akademik Berjalan
+        $activeTa = TahunAkademik::getAktif();
+        $taId = $activeTa?->id;
+
+        $akLunas = (clone $prospekQuery)->where('status', 'LUNAS')->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+        $akFormulir = (clone $prospekQuery)->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+        $akKontak = (clone $prospekQuery)->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+        $akFollowup = FollowUp::count();
+        $akKunjungan = (clone $visitQuery)->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+
         // Total target yang diberikan HM ke seluruh SPV
         $targetSpvQuery = Target::whereIn('sales_id', $spvs->pluck('id'))
             ->where('status', 'Aktif')
@@ -459,11 +556,11 @@ class TargetAchievementService
         $totTgtKontak   = $this->prorateTarget($targetSpvQuery->sum('target_kontak') ?: 400, $period);
 
         $kpiRows = [
-            $this->formatMetricRow('Maba Lunas (Closing Kampus)', $totTgtLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'KPI Utama HM']),
-            $this->formatMetricRow('Pembelian Formulir PMB', $totTgtFormulir, $pFormulir, $sisa, ['icon' => 'formulir']),
-            $this->formatMetricRow('Database Prospek Masuk', $totTgtKontak, $pKontak, $sisa, ['icon' => 'kontak']),
-            $this->formatMetricRow('Follow Up Total Tim', $this->prorateTarget(500, $period), $pFollowup, $sisa, ['icon' => 'followup']),
-            $this->formatMetricRow('Kunjungan Tim Lapangan', $this->prorateTarget(80, $period), $pKunjungan, $sisa, ['icon' => 'kunjungan']),
+            $this->formatMetricRow('Maba Lunas (Closing Kampus)', $totTgtLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'KPI Utama HM', 'akumulasi' => $akLunas]),
+            $this->formatMetricRow('Pembelian Formulir PMB', $totTgtFormulir, $pFormulir, $sisa, ['icon' => 'formulir', 'akumulasi' => $akFormulir]),
+            $this->formatMetricRow('Database Prospek Masuk', $totTgtKontak, $pKontak, $sisa, ['icon' => 'kontak', 'akumulasi' => $akKontak]),
+            $this->formatMetricRow('Follow Up Total Tim', $this->prorateTarget(500, $period), $pFollowup, $sisa, ['icon' => 'followup', 'akumulasi' => $akFollowup]),
+            $this->formatMetricRow('Kunjungan Tim Lapangan', $this->prorateTarget(80, $period), $pKunjungan, $sisa, ['icon' => 'kunjungan', 'akumulasi' => $akKunjungan]),
         ];
 
         // Hierarchy Rows: Baris per SPV & Teritori
@@ -475,6 +572,7 @@ class TargetAchievementService
             'is_total'    => true,
             'wilayah'     => $selectedWilayah ? $selectedWilayah->nama : 'Seluruh Wilayah',
             'allocated_by'=> 'Head of Marketing',
+            'akumulasi'   => $akLunas,
         ]);
 
         foreach ($spvs as $spv) {
@@ -496,6 +594,11 @@ class TargetAchievementService
                 ->whereBetween('updated_at', [$start, $end])
                 ->count();
 
+            $spvAkLunas = Prospek::whereIn('sales_id', $teamIds)
+                ->where('status', 'LUNAS')
+                ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+                ->count();
+
             $hierarchyRows[] = $this->formatMetricRow('Wilayah: ' . ($spv->wilayah?->nama ?? 'Wilayah ' . $spv->name) . ' (' . $spv->name . ')', $spvTgtLunas, $spvReal, $sisa, [
                 'entity_id'   => $spv->id,
                 'entity_type' => 'spv',
@@ -504,6 +607,7 @@ class TargetAchievementService
                 'allocated_by'=> $spvTarget?->allocator?->name ?? 'HM',
                 'spv_name'    => $spv->name,
                 'team_count'  => count($spv->teamMemberIds()),
+                'akumulasi'   => $spvAkLunas,
             ]);
         }
 
@@ -538,16 +642,26 @@ class TargetAchievementService
         $pFollowup = FollowUp::whereBetween('tanggal', [$start, $end])->count();
         $pKunjungan = Kunjungan::whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])->count();
 
+        // Akumulasi Realisasi Periode Tahun Akademik Berjalan
+        $activeTa = TahunAkademik::getAktif();
+        $taId = $activeTa?->id;
+
+        $akLunas = (clone $prospekQuery)->where('status', 'LUNAS')->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+        $akFormulir = (clone $prospekQuery)->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+        $akKontak = (clone $prospekQuery)->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+        $akFollowup = FollowUp::count();
+        $akKunjungan = Kunjungan::when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
+
         $totTgtLunas    = $this->prorateTarget(150, $period);
         $totTgtFormulir = $this->prorateTarget(300, $period);
         $totTgtKontak   = $this->prorateTarget(600, $period);
 
         $kpiRows = [
-            $this->formatMetricRow('Maba Lunas (Global Closing)', $totTgtLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'Global']),
-            $this->formatMetricRow('Pembelian Formulir PMB', $totTgtFormulir, $pFormulir, $sisa, ['icon' => 'formulir']),
-            $this->formatMetricRow('Database Prospek Masuk', $totTgtKontak, $pKontak, $sisa, ['icon' => 'kontak']),
-            $this->formatMetricRow('Total Follow Up CRM', $this->prorateTarget(800, $period), $pFollowup, $sisa, ['icon' => 'followup']),
-            $this->formatMetricRow('Total Kunjungan Lapangan', $this->prorateTarget(120, $period), $pKunjungan, $sisa, ['icon' => 'kunjungan']),
+            $this->formatMetricRow('Maba Lunas (Global Closing)', $totTgtLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'Global', 'akumulasi' => $akLunas]),
+            $this->formatMetricRow('Pembelian Formulir PMB', $totTgtFormulir, $pFormulir, $sisa, ['icon' => 'formulir', 'akumulasi' => $akFormulir]),
+            $this->formatMetricRow('Database Prospek Masuk', $totTgtKontak, $pKontak, $sisa, ['icon' => 'kontak', 'akumulasi' => $akKontak]),
+            $this->formatMetricRow('Total Follow Up CRM', $this->prorateTarget(800, $period), $pFollowup, $sisa, ['icon' => 'followup', 'akumulasi' => $akFollowup]),
+            $this->formatMetricRow('Total Kunjungan Lapangan', $this->prorateTarget(120, $period), $pKunjungan, $sisa, ['icon' => 'kunjungan', 'akumulasi' => $akKunjungan]),
         ];
 
         // Breakdown per Teritori / Wilayah
@@ -559,11 +673,13 @@ class TargetAchievementService
             'is_total'    => true,
             'wilayah'     => $selectedWilayah ? $selectedWilayah->nama : 'Seluruh Wilayah',
             'allocated_by'=> 'Sistem & Rektorat',
+            'akumulasi'   => $akLunas,
         ]);
 
         $wilayahsToInspect = $wilayahId ? Wilayah::where('id', $wilayahId)->get() : Wilayah::orderBy('nama')->get();
         foreach ($wilayahsToInspect as $w) {
             $wLunas = Prospek::where('wilayah_id', $w->id)->where('status', 'LUNAS')->whereBetween('updated_at', [$start, $end])->count();
+            $wAkLunas = Prospek::where('wilayah_id', $w->id)->where('status', 'LUNAS')->when($taId, fn($q) => $q->where('academic_year_id', $taId))->count();
             $wTgt   = $this->prorateTarget(30, $period);
 
             $spvInWilayah = User::where('role', 'SPV')->where('wilayah_id', $w->id)->first();
@@ -575,6 +691,7 @@ class TargetAchievementService
                 'wilayah'     => $w->nama,
                 'spv_name'    => $spvInWilayah?->name ?? 'Belum ada SPV',
                 'allocated_by'=> 'Head Marketing',
+                'akumulasi'   => $wAkLunas,
             ]);
         }
 
@@ -722,12 +839,10 @@ class TargetAchievementService
                             ->exists();
 
                         if (!$alreadyNotifiedWarning) {
-                            $targetHarianBerjalan = (int)ceil($kekurangan / max(1, $sisaHari));
-
                             // Notifikasi ke staf / SPV yang belum tuntas
                             $u->notify(new \App\Notifications\TargetNotification(
                                 title: "⚠️ Evaluasi Target: Belum Tuntas (Defisit {$kekurangan} {$indikator})",
-                                message: "Perhatian: Target {$t->tipe_periode} Anda tersisa {$sisaHari} hari dengan kekurangan {$kekurangan} {$indikator}. Diperlukan {$targetHarianBerjalan} {$indikator} per hari untuk menutup target.",
+                                message: "Perhatian: Target {$t->tipe_periode} Anda tersisa {$sisaHari} hari dengan defisit {$kekurangan} {$indikator}. Segera lakukan koordinasi dan tindak lanjut untuk mengejar target.",
                                 type: 'warning',
                                 link: route($u->role === 'SPV' ? 'spv.performa.index' : 'performa.index'),
                                 icon: '⚠️',

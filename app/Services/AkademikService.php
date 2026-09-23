@@ -96,9 +96,10 @@ class AkademikService
                 ->where('status', 'Aktif')
                 ->update(['status' => 'Non-Aktif']);
 
-            // Activate the target TA
+            // Activate the target TA directly in DB and sync model instance
+            TahunAkademik::where('id', $ta->id)->update(['status' => 'Aktif']);
             $ta->status = 'Aktif';
-            $ta->saveQuietly(); // skip booted() observer to avoid double-update
+            $ta->syncOriginal();
         });
 
         // Bust the per-request cache after activation
