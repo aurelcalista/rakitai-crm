@@ -172,16 +172,30 @@
 
         <!-- 3. TABEL PERFORMA HARIAN / PERORANG (Whiteboard Image 2) -->
         <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 uppercase tracking-wider">Whiteboard #2</span>
                         <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">PERORANG (PERFORMA HARIAN & UTANG ANGKA)</h3>
                     </div>
-                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Utang Angka (carry-over otomatis), Sasaran Hari Ini, dan Lokasi Penugasan.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Otorisasi Kunci Defisit oleh SPV (P0 Bab 6.1), Sasaran Hari Ini, dan Lokasi Penugasan.</p>
                 </div>
-                <div class="text-[11px] text-slate-500 font-medium">
-                    Hari ini: <strong class="text-slate-800">{{ $performaHarian['tanggal_hari_ini'] }}</strong> (Kemarin: {{ $performaHarian['tanggal_kemarin'] }})
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="text-[11px] text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                        Hari ini: <strong class="text-slate-800">{{ $performaHarian['tanggal_hari_ini'] }}</strong> (Kemarin: {{ $performaHarian['tanggal_kemarin'] }})
+                    </div>
+                    @if($performaHarian['any_deficit_unlocked'] ?? false)
+                        <form action="{{ route('spv.performa.kunciDefisit') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="sales_id" value="all">
+                            <input type="hidden" name="tanggal" value="{{ $performaHarian['tanggal_kemarin_raw'] }}">
+                            <input type="hidden" name="action" value="lock">
+                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Kunci Defisit Kemarin ({{ $performaHarian['total_utang_kontak'] }} Kontak)
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
 
@@ -231,9 +245,41 @@
                                 <td class="py-3.5 px-2.5 text-center border-r border-slate-200 font-bold text-emerald-700">
                                     {{ $salesRow['capaian_kemarin']['lunas'] }}
                                 </td>
-                                <!-- Utang Angka (Carry Over) -->
-                                <td class="py-3.5 px-3 text-center border-r border-slate-200 font-bold {{ $salesRow['utang_angka']['has_utang'] ? 'bg-rose-50 text-rose-700 font-extrabold' : 'text-slate-400' }}">
-                                    {{ $salesRow['utang_angka']['summary'] }}
+                                <!-- Utang Angka (Carry Over & Kunci SPV) -->
+                                <td class="py-3.5 px-3 text-center border-r border-slate-200 {{ $salesRow['utang_angka']['has_utang'] ? 'bg-rose-50/60' : 'text-slate-400' }}">
+                                    <div class="space-y-1">
+                                        <span class="block font-bold text-xs {{ $salesRow['utang_angka']['has_utang'] ? 'text-rose-700' : 'text-slate-400' }}">
+                                            {{ $salesRow['utang_angka']['summary'] }}
+                                        </span>
+                                        @if($salesRow['utang_angka']['has_utang'])
+                                            @if($salesRow['defisit_lock']['is_locked'] ?? false)
+                                                <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                    <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                    Terkunci SPV
+                                                </div>
+                                                <form action="{{ route('spv.performa.kunciDefisit') }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <input type="hidden" name="sales_id" value="{{ $salesRow['member_id'] }}">
+                                                    <input type="hidden" name="tanggal" value="{{ $salesRow['defisit_lock']['tanggal'] }}">
+                                                    <input type="hidden" name="action" value="unlock">
+                                                    <button type="submit" class="text-[9px] text-slate-400 hover:text-rose-600 underline block mx-auto mt-0.5" title="Buka Kuncian Defisit">buka</button>
+                                                </form>
+                                            @else
+                                                <form action="{{ route('spv.performa.kunciDefisit') }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="sales_id" value="{{ $salesRow['member_id'] }}">
+                                                    <input type="hidden" name="tanggal" value="{{ $salesRow['defisit_lock']['tanggal'] }}">
+                                                    <input type="hidden" name="action" value="lock">
+                                                    <input type="hidden" name="defisit_kontak" value="{{ $salesRow['utang_angka']['kontak'] }}">
+                                                    <input type="hidden" name="defisit_formulir" value="{{ $salesRow['utang_angka']['formulir'] }}">
+                                                    <input type="hidden" name="defisit_lunas" value="{{ $salesRow['utang_angka']['lunas'] }}">
+                                                    <button type="submit" class="px-2 py-0.5 rounded text-[9px] font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-2xs transition inline-flex items-center gap-0.5">
+                                                        <span>Kunci Defisit</span>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                                 <!-- Sasaran Hari Ini -->
                                 <td class="py-3.5 px-3 text-center border-r border-slate-200 font-extrabold bg-indigo-50/30 text-indigo-950">

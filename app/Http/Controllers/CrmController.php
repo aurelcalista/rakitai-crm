@@ -41,6 +41,25 @@ class CrmController extends Controller
             $words = array_values(array_filter(explode(' ', trim($name))));
             $avatar = strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
 
+            $wilayahNama = null;
+            if ($user->wilayah) {
+                $wilayahNama = $user->wilayah->nama . ($user->wilayah->parent ? ' (' . $user->wilayah->parent->nama . ')' : '');
+            } else {
+                if ($roleKey === 'admin') {
+                    $wilayahNama = 'Semua Wilayah (Pusat Kampus UCIC)';
+                } elseif ($roleKey === 'hm') {
+                    $wilayahNama = 'Seluruh Wilayah Operasional (Regional & Nasional)';
+                } elseif ($roleKey === 'cs') {
+                    $wilayahNama = 'Kampus Utama UCIC (Inbound CS)';
+                } elseif ($roleKey === 'eo') {
+                    $wilayahNama = 'Wilayah Promosi & Event Kampus';
+                } elseif ($roleKey === 'spv') {
+                    $wilayahNama = 'Wilayah Cirebon & Sekitarnya (Supervisi)';
+                } else {
+                    $wilayahNama = 'Wilayah Cirebon & Sekitarnya';
+                }
+            }
+
             return [
                 'id'              => $user->id,
                 'name'            => $name,
@@ -50,6 +69,7 @@ class CrmController extends Controller
                 'phone'           => $user->phone ?? '081234567890',
                 'nik'             => '202408' . str_pad($user->id ?? 1, 3, '0', STR_PAD_LEFT),
                 'avatar'          => $avatar ?: 'AD',
+                'wilayah'         => $wilayahNama,
                 'division'        => $roleKey === 'admin' 
                     ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
                     : 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
@@ -70,6 +90,7 @@ class CrmController extends Controller
                 'email'           => 'aurel.calista@cic.ac.id',
                 'phone'           => '081298765432',
                 'nik'             => '202408119',
+                'wilayah'         => 'Wilayah Cirebon & Sekitarnya',
                 'avatar'          => 'AC',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.sales',
@@ -82,6 +103,7 @@ class CrmController extends Controller
                 'email'           => 'dina.cs@cic.ac.id',
                 'phone'           => '082199887766',
                 'nik'             => '202408104',
+                'wilayah'         => 'Kampus Utama UCIC (Inbound CS)',
                 'avatar'          => 'DM',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.cs',
@@ -94,11 +116,12 @@ class CrmController extends Controller
                 'email'           => 'hendra.spv@cic.ac.id',
                 'phone'           => '085277889911',
                 'nik'             => '202408106',
+                'wilayah'         => 'Indramayu & Cirebon (Supervisi)',
                 'avatar'          => 'HS',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.spv',
             ],
-                'hm' => [
+            'hm' => [
                 'id'              => 7,
                 'name'            => 'Dr. Rahmat Hidayat, M.M',
                 'role'            => 'Head Marketing',
@@ -106,6 +129,7 @@ class CrmController extends Controller
                 'email'           => 'head.marketing@cic.ac.id',
                 'phone'           => '081122334455',
                 'nik'             => '202408107',
+                'wilayah'         => 'Seluruh Wilayah Operasional (Regional & Nasional)',
                 'avatar'          => 'RH',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.hm',
@@ -118,6 +142,7 @@ class CrmController extends Controller
                 'email'           => 'eo@cic.ac.id',
                 'phone'           => '085344556677',
                 'nik'             => '202408109',
+                'wilayah'         => 'Wilayah Promosi & Event Kampus',
                 'avatar'          => 'FS',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.eo',
@@ -130,6 +155,7 @@ class CrmController extends Controller
                 'email'           => 'admin@cic.ac.id',
                 'phone'           => '081234567890',
                 'nik'             => '202408001',
+                'wilayah'         => 'Semua Wilayah (Pusat Kampus UCIC)',
                 'avatar'          => 'AD',
                 'division'        => 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.admin',

@@ -21,6 +21,7 @@ use Illuminate\Notifications\Notifiable;
     'password',
     'wilayah_id',
     'supervisor_id',
+    'lokasi_penugasan',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable

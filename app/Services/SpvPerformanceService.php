@@ -6,6 +6,7 @@ use App\Models\FollowUp;
 use App\Models\Kunjungan;
 use App\Models\Prospek;
 use App\Models\Target;
+use App\Models\TargetDefisit;
 use App\Models\Transaksi;
 use App\Models\User;
 use Carbon\Carbon;
@@ -348,6 +349,15 @@ class SpvPerformanceService
                 }
             }
 
+            // Cek apakah defisit kemarin sudah dikunci resmi oleh SPV
+            $existingLock = TargetDefisit::where('spv_id', $spv->id)
+                ->where('sales_id', $member->id)
+                ->where('tanggal', $yesterday->toDateString())
+                ->first();
+
+            $isDefisitLocked = $existingLock ? (bool)$existingLock->is_locked : false;
+            $lockedAt = $existingLock && $existingLock->locked_at ? $existingLock->locked_at->translatedFormat('d M H:i') : null;
+
             $rows[] = [
                 'member_id'        => $member->id,
                 'nama_sales'       => $member->name,  // legacy key compat
@@ -376,6 +386,12 @@ class SpvPerformanceService
                         ? "{$utangKontak} Ktk, {$utangFormulir} Frm, {$utangLunas} Lns"
                         : '0 (Lunas)',
                 ],
+                'defisit_lock'     => [
+                    'is_locked' => $isDefisitLocked,
+                    'locked_at' => $lockedAt,
+                    'record_id' => $existingLock?->id,
+                    'tanggal'   => $yesterday->toDateString(),
+                ],
                 'sasaran_hari_ini' => [
                     'kontak'   => $sasaranHariIniKontak,
                     'formulir' => $sasaranHariIniFormulir,
@@ -386,11 +402,56 @@ class SpvPerformanceService
             ];
         }
 
+        $anyDeficitUnlocked = collect($rows)->contains(fn($r) => $r['utang_angka']['has_utang'] && !$r['defisit_lock']['is_locked']);
+        $totalUtangKontak   = collect($rows)->sum(fn($r) => $r['utang_angka']['kontak']);
+
         return [
-            'tanggal_hari_ini' => $today->translatedFormat('l, d F Y'),
-            'tanggal_kemarin'  => $yesterday->translatedFormat('d F Y'),
-            'rows'             => $rows,
+            'tanggal_hari_ini'       => $today->translatedFormat('l, d F Y'),
+            'tanggal_kemarin'        => $yesterday->translatedFormat('d F Y'),
+            'tanggal_kemarin_raw'    => $yesterday->toDateString(),
+            'any_deficit_unlocked'   => $anyDeficitUnlocked,
+            'total_utang_kontak'     => $totalUtangKontak,
+            'rows'                   => $rows,
         ];
+    }
+
+    /**
+     * Kunci defisit target Sales harian oleh SPV (P0 Bab 6.1).
+     */
+    public function lockDailyDeficit(User $spv, int $salesId, string $date, int $kontak, int $formulir = 0, int $lunas = 0, ?string $catatan = null): TargetDefisit
+    {
+        return TargetDefisit::updateOrCreate(
+            [
+                'spv_id'   => $spv->id,
+                'sales_id' => $salesId,
+                'tanggal'  => $date,
+            ],
+            [
+                'defisit_kontak'   => $kontak,
+                'defisit_formulir' => $formulir,
+                'defisit_lunas'    => $lunas,
+                'is_locked'        => true,
+                'locked_at'        => now(),
+                'catatan'          => $catatan ?: ('Defisit dikunci resmi oleh SPV ' . $spv->name),
+            ]
+        );
+    }
+
+    /**
+     * Buka kunci defisit harian Sales.
+     */
+    public function unlockDailyDeficit(User $spv, int $salesId, string $date): bool
+    {
+        $record = TargetDefisit::where('spv_id', $spv->id)
+            ->where('sales_id', $salesId)
+            ->where('tanggal', $date)
+            ->first();
+
+        if ($record) {
+            return $record->update(['is_locked' => false]);
+        }
+
+        return false;
     }
 
     /**

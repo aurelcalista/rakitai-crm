@@ -132,6 +132,23 @@ class DashboardController extends Controller
             ];
         });
 
+        // P0 Bab 8.6: Deteksi Prospek FORMULIR yang melanggar SLA 2 jam serah terima CS
+        $overdueHandovers = (clone $prospekQuery)
+            ->where(function ($q) {
+                $q->where('status', 'FORMULIR')->orWhere('status', '05 FORMULIR');
+            })
+            ->whereNotNull('handover_at')
+            ->where('handover_at', '<=', now()->subHours(2))
+            ->with(['sales', 'cs'])
+            ->get()
+            ->filter(function ($p) {
+                return !FollowUp::where('prospek_id', $p->id)
+                    ->where('created_at', '>=', $p->handover_at)
+                    ->whereHas('user', function ($q) { $q->where('role', 'CS'); })
+                    ->exists();
+            })
+            ->values();
+
         return view('spv.dashboard', compact(
             'stats',
             'targetHm',
@@ -139,7 +156,8 @@ class DashboardController extends Controller
             'teamMembers',
             'teamPerformance',
             'recentFollowUps',
-            'activeTa'
+            'activeTa',
+            'overdueHandovers'
         ));
     }
 }

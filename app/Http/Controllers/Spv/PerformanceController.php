@@ -130,4 +130,76 @@ class PerformanceController extends Controller
 
         return redirect()->route('spv.performa.index')->with('success', "Target berhasil dialokasikan kepada {$roleLabel}: " . ($assignedUser ? $assignedUser->name : 'anggota tim') . '.');
     }
+
+    /**
+     * Otorisasi / Kunci Defisit Harian oleh SPV (P0 Bab 6.1).
+     * SPV menetapkan/mengunci penambahan defisit kemarin ke sasaran hari ini.
+     */
+    public function kunciDefisit(Request $request): RedirectResponse
+    {
+        $user = auth()->user();
+        $validated = $request->validate([
+            'sales_id'         => 'required', // specific id or 'all'
+            'tanggal'          => 'required|date',
+            'action'           => 'required|in:lock,unlock',
+            'defisit_kontak'   => 'nullable|integer|min:0',
+            'defisit_formulir' => 'nullable|integer|min:0',
+            'defisit_lunas'    => 'nullable|integer|min:0',
+            'catatan'          => 'nullable|string|max:255',
+        ]);
+
+        $tanggal = $validated['tanggal'];
+        $teamMemberIds = $user->teamMemberIds();
+
+        // Batch lock all sales with deficits
+        if ($validated['sales_id'] === 'all') {
+            $performa = $this->spvService->getPerformaHarianPerorang($user, Carbon::parse($tanggal)->addDay(), $this->spvService->getActiveTa());
+            $lockedCount = 0;
+            foreach ($performa['rows'] as $row) {
+                if ($row['utang_angka']['has_utang']) {
+                    $this->spvService->lockDailyDeficit(
+                        $user,
+                        $row['member_id'],
+                        $tanggal,
+                        $row['utang_angka']['kontak'],
+                        $row['utang_angka']['formulir'],
+                        $row['utang_angka']['lunas'],
+                        $validated['catatan'] ?? 'Batch lock defisit oleh SPV'
+                    );
+                    $lockedCount++;
+                }
+            }
+
+            return redirect()->route('spv.performa.index')
+                ->with('success', "Berhasil! {$lockedCount} defisit personil tim untuk tanggal " . Carbon::parse($tanggal)->translatedFormat('d M Y') . ' resmi dikunci sebagai sasaran hari ini.');
+        }
+
+        // Single sales
+        $salesId = (int)$validated['sales_id'];
+        if (!in_array($salesId, $teamMemberIds)) {
+            abort(403, 'Anggota tim di luar cakupan otorisasi Anda.');
+        }
+
+        $sales = User::find($salesId);
+
+        if ($validated['action'] === 'unlock') {
+            $this->spvService->unlockDailyDeficit($user, $salesId, $tanggal);
+            return redirect()->route('spv.performa.index')
+                ->with('success', "Kuncian defisit untuk {$sales?->name} berhasil dibuka.");
+        }
+
+        $this->spvService->lockDailyDeficit(
+            $user,
+            $salesId,
+            $tanggal,
+            (int)($validated['defisit_kontak'] ?? 0),
+            (int)($validated['defisit_formulir'] ?? 0),
+            (int)($validated['defisit_lunas'] ?? 0),
+            $validated['catatan'] ?? null
+        );
+
+        return redirect()->route('spv.performa.index')
+            ->with('success', "Defisit target {$sales?->name} resmi dikunci oleh SPV untuk beban sasaran hari ini.");
+    }
 }
+

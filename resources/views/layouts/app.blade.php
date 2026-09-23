@@ -88,10 +88,25 @@
     <script>
         window.__NOTIFICATIONS__ = @json($globalNotifications ?? []);
     </script>
+    @php
+        if (!isset($currentUser) && auth()->check()) {
+            $u = auth()->user();
+            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer'];
+            $currentUser = [
+                'name' => $u->name,
+                'avatar' => substr($u->name, 0, 2),
+                'role' => $u->role,
+                'role_label' => $roleLabels[$u->role] ?? $u->role,
+            ];
+        }
+        $rawRole = strtolower($currentUser['role'] ?? auth()->user()->role ?? 'sales');
+        $userRole = in_array($rawRole, ['spv', 'supervisor', 'supervisor marketing']) ? 'spv' : (in_array($rawRole, ['hm', 'head marketing']) ? 'hm' : $rawRole);
+        $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
+    @endphp
 </head>
 <body class="h-full bg-slate-50 font-sans text-slate-800" x-data="{ 
     sidebarCollapsed: false, 
-    activeMobileSection: null,
+    mobileMenuOpen: false,
     modalTambahProspek: false,
     modalFollowUp: false,
     modalUpdateStatus: false,
@@ -142,22 +157,6 @@ x-init="
             </div>
         </template>
     </div>
-
-    @php
-        if (!isset($currentUser) && auth()->check()) {
-            $u = auth()->user();
-            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer'];
-            $currentUser = [
-                'name' => $u->name,
-                'avatar' => substr($u->name, 0, 2),
-                'role' => $u->role,
-                'role_label' => $roleLabels[$u->role] ?? $u->role,
-            ];
-        }
-        $rawRole = strtolower($currentUser['role'] ?? auth()->user()->role ?? 'sales');
-        $userRole = in_array($rawRole, ['spv', 'supervisor', 'supervisor marketing']) ? 'spv' : (in_array($rawRole, ['hm', 'head marketing']) ? 'hm' : $rawRole);
-        $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
-    @endphp
 
     <!-- Main Container -->
     <div class="min-h-full flex flex-col md:flex-row">
@@ -640,22 +639,35 @@ x-init="
         <!-- ============================================================== -->
         <div 
             :class="sidebarCollapsed ? 'md:pl-20' : 'md:pl-64'"
-            class="flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out pb-mobile-nav md:pb-8"
+            class="flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out pb-8"
         >
             
             <!-- TOPBAR (Desktop & Mobile) - TANPA MENU PINDAH ROLE -->
             <header class="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5 sm:py-4 min-h-[4.5rem] sm:min-h-[5rem] flex items-center justify-between shadow-xs">
                 
                 <!-- Left: Mobile Brand Logo / Desktop Page Title -->
-                <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="flex items-center gap-2 sm:gap-3">
                     <div class="md:hidden flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                            U
-                        </div>
-                        <div>
-                            <span class="font-bold text-slate-900 text-sm block leading-tight">CRM UCIC</span>
-                            <span class="text-[10px] text-blue-600 font-semibold truncate block">{{ $currentUser['role_label'] }}</span>
-                        </div>
+                        <button 
+                            type="button" 
+                            @click="mobileMenuOpen = true" 
+                            class="p-2 -ml-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                            title="Buka Menu Navigasi"
+                            aria-label="Buka Menu"
+                        >
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                        <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                                U
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-900 text-sm block leading-tight">CRM UCIC</span>
+                                <span class="text-[10px] text-blue-600 font-semibold truncate block">{{ $currentUser['role_label'] }}</span>
+                            </div>
+                        </a>
                     </div>
 
                     <div class="hidden md:block">
@@ -849,599 +861,583 @@ x-init="
         </div>
 
         <!-- ============================================================== -->
-        <!-- MOBILE SUBMENU POPUP SHEETS (Triggered from Parent Sections)   -->
+        <!-- MOBILE DRAWER NAVIGATION (Hamburger Menu + Live Search)        -->
         <!-- ============================================================== -->
         
         <!-- Backdrop Overlay -->
         <div 
-            x-show="activeMobileSection !== null" 
+            x-show="mobileMenuOpen" 
             x-cloak 
-            x-transition:enter="transition-opacity ease-out duration-200"
+            x-transition:enter="transition-opacity ease-out duration-300"
             x-transition:enter-start="opacity-0"
             x-transition:enter-end="opacity-100"
-            x-transition:leave="transition-opacity ease-in duration-150"
+            x-transition:leave="transition-opacity ease-in duration-200"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-35 md:hidden"
-            @click="activeMobileSection = null"
+            class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 md:hidden"
+            @click="mobileMenuOpen = false"
         ></div>
 
-        <!-- Popup Bottom Sheet Container -->
-        <div 
-            x-show="activeMobileSection !== null" 
+        <!-- Offcanvas Drawer -->
+        <aside 
+            x-show="mobileMenuOpen" 
             x-cloak 
-            x-transition:enter="transition ease-out duration-250 transform"
-            x-transition:enter-start="opacity-0 translate-y-8 scale-95"
-            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-            x-transition:leave="transition ease-in duration-150 transform"
-            x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-            x-transition:leave-end="opacity-0 translate-y-8 scale-95"
-            class="fixed inset-x-3 bottom-[4.5rem] z-40 md:hidden bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden max-h-[75vh] flex flex-col"
-            @click.away="activeMobileSection = null"
+            x-transition:enter="transition ease-out duration-300 transform"
+            x-transition:enter-start="-translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition ease-in duration-200 transform"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="-translate-x-full"
+            class="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-50 md:hidden flex flex-col border-r border-slate-200"
+            @keydown.escape.window="mobileMenuOpen = false"
+            x-data="{
+                searchQuery: '',
+                matches(keywords) {
+                    if (!this.searchQuery || !this.searchQuery.trim()) return true;
+                    return keywords.toLowerCase().includes(this.searchQuery.toLowerCase().trim());
+                },
+                hasMatches() {
+                    if (!this.searchQuery || !this.searchQuery.trim()) return true;
+                    const q = this.searchQuery.toLowerCase().trim();
+                    const items = this.$el.querySelectorAll('[data-menu-keywords]');
+                    for (let el of items) {
+                        if ((el.getAttribute('data-menu-keywords') || '').toLowerCase().includes(q)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }"
         >
-            <!-- 1. POPUP FOR CRM INBOUND -->
-            <template x-if="activeMobileSection === 'crm_inbound'">
-                <div class="flex flex-col">
-                    <!-- Calendar / Event -->
-                    <a href="{{ route('sales.event.index') }}" title="Jadwal Event" class="flex items-center p-3 rounded-xl text-sm font-semibold transition group {{ request()->routeIs('sales.event.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                        <svg class="w-5 h-5 shrink-0 transition-transform group-hover:scale-110 {{ request()->routeIs('sales.event.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            <!-- Drawer Header: Brand & Close -->
+            <div class="h-16 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+                <a href="{{ route('dashboard') }}" @click="mobileMenuOpen = false" class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 tracking-wider">
+                        U
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-sm font-bold text-slate-900 tracking-tight leading-tight">UCIC CRM</div>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 font-semibold border border-blue-200 mt-0.5 leading-none">
+                            {{ $currentUser['role_label'] }}
+                        </span>
+                    </div>
+                </a>
+                <button 
+                    type="button" 
+                    @click="mobileMenuOpen = false" 
+                    class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                    title="Tutup Menu"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Drawer Search Bar -->
+            <div class="p-3 border-b border-slate-100 bg-white shrink-0">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <span class="ml-3 transition-opacity duration-300 whitespace-nowrap" :class="sidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'">Jadwal Event</span>
-                    </a>
-                    <!-- Sheet Header -->
-                    <div class="px-4 py-3 border-b border-slate-100 bg-blue-50/60 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            </span>
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-900">CRM Inbound</h4>
-                                <p class="text-[10px] text-slate-500">Pilih menu aktivitas prospek & pipeline</p>
-                            </div>
-                        </div>
-                        <button @click="activeMobileSection = null" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white transition cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
                     </div>
+                    <input 
+                        type="text" 
+                        x-model="searchQuery" 
+                        placeholder="Cari menu..." 
+                        class="w-full pl-9 pr-8 py-2 text-xs bg-slate-100/90 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition"
+                    >
+                    <button 
+                        x-show="searchQuery.length > 0" 
+                        @click="searchQuery = ''" 
+                        type="button"
+                        class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
-                    <!-- Submenu Links Grid -->
-                    <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
+            <!-- Drawer Menu List (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-4">
+
+                <!-- SECTION: MENU UTAMA -->
+                <div x-show="matches('dashboard kalender internal utama agenda')">
+                    <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Menu Utama</div>
+                    <div class="space-y-1">
                         <a 
-                            href="{{ route($routePrefix . 'prospek.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            href="{{ route('dashboard') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="dashboard beranda home utama"
+                            x-show="matches('dashboard beranda home utama')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('dashboard*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                         >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Daftar Prospek</div>
-                                    <div class="text-[10px] text-slate-500">Database prospek & kontak</div>
-                                </div>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">{{ $globalProspekCount ?? 0 }}</span>
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('dashboard*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            <span class="flex-1">Dashboard</span>
                         </a>
 
-                        @if($currentUser['role'] !== 'CS')
+                        <a 
+                            href="{{ route('calendar.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="kalender internal agenda jadwal kegiatan"
+                            x-show="matches('kalender internal agenda jadwal kegiatan')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('calendar.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('calendar.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="flex-1">Kalender Internal</span>
+                        </a>
+                    </div>
+                </div>
+
+                @if($currentUser['role'] === 'EO')
+                    <!-- SECTION: EVENT ORGANIZER -->
+                    <div x-show="matches('kelola event acara agenda eo management')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Event Management</div>
+                        <div class="space-y-1">
                             <a 
-                                href="{{ route($routePrefix . 'kunjungan.index') }}" 
-                                class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                                href="{{ route('eo.events.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola event acara agenda manajemen eo"
+                                x-show="matches('kelola event acara agenda manajemen eo')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('eo.events.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                             >
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-bold text-slate-800">Laporan Kunjungan</div>
-                                        <div class="text-[10px] text-slate-500">Dokumentasi audiensi offline</div>
-                                    </div>
-                                </div>
-                                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('eo.events.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <span class="flex-1">Kelola Event</span>
                             </a>
-                        @endif
-
-                        @if($userRole === 'sales')
-                        <a 
-                            href="{{ route('sales.follow-up.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('sales.follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Follow Up</div>
-                                    <div class="text-[10px] text-slate-500">Jadwal interaksi harian prospek</div>
-                                </div>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
-                        </a>
-                        @elseif($userRole !== 'spv')
-                        <a 
-                            href="{{ route('follow-up.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Follow Up</div>
-                                    <div class="text-[10px] text-slate-500">Jadwal interaksi harian prospek</div>
-                                </div>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
-                        </a>
-                        @endif
-
-                        @if($userRole === 'spv')
-                        <a 
-                            href="{{ route('spv.tim.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('spv.tim.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Tim</div>
-                                    <div class="text-[10px] text-slate-500">Anggota Tim Sales & CS</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-                        @endif
-
-                        <a 
-                            href="{{ route($routePrefix . 'pipeline.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'pipeline.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Pipeline Board</div>
-                                    <div class="text-[10px] text-slate-500">Kanban tahapan closing siswa</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
+                        </div>
                     </div>
-                </div>
-            </template>
+                @endif
 
-            <!-- 2. POPUP FOR PERFORMANCE -->
-            <template x-if="activeMobileSection === 'performance'">
-                <div class="flex flex-col">
-                    <div class="px-4 py-3 border-b border-slate-100 bg-blue-50/60 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                            </span>
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-900">Performance</h4>
-                                <p class="text-[10px] text-slate-500">Target pencapaian & laporan analitik</p>
+                @if($currentUser['role'] === 'Admin')
+                    <!-- SECTION: ADMIN PANEL -->
+                    <div x-show="matches('admin control kelola pengguna user kunjungan target')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-purple-700 uppercase tracking-wider">Admin Control</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('admin.users.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola pengguna user akun staf pegawai admin"
+                                x-show="matches('kelola pengguna user akun staf pegawai admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.users.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.users.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span class="flex-1">Kelola Pengguna</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.kunjungan.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola kunjungan visit sekolah instansi admin"
+                                x-show="matches('kelola kunjungan visit sekolah instansi admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.kunjungan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.kunjungan.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span class="flex-1">Kelola Kunjungan</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.target.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola target sasaran kpi performa admin"
+                                x-show="matches('kelola target sasaran kpi performa admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.target.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.target.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <span class="flex-1">Kelola Target</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: DATA MASTER -->
+                    <div x-show="matches('data master wilayah sekolah prodi jurusan perusahaan audit log')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-purple-700 uppercase tracking-wider">Data Master</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('admin.master-data.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data master pusat referensi"
+                                x-show="matches('data master pusat referensi')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.master-data.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.master-data.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                </svg>
+                                <span class="flex-1">Data Master</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.wilayah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data wilayah kota kabupaten zonasi daerah"
+                                x-show="matches('data wilayah kota kabupaten zonasi daerah')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span class="flex-1">Data Wilayah</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.sekolah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data sekolah sma smk ma institusi pendidikan"
+                                x-show="matches('data sekolah sma smk ma institusi pendidikan')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.sekolah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.sekolah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                </svg>
+                                <span class="flex-1">Data Sekolah</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.prodi.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data prodi program studi jurusan fakultas"
+                                x-show="matches('data prodi program studi jurusan fakultas')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.prodi.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.prodi.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                <span class="flex-1">Data Prodi</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.perusahaan.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data perusahaan instansi mitra kantor corporate"
+                                x-show="matches('data perusahaan instansi mitra kantor corporate')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.perusahaan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.perusahaan.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span class="flex-1">Data Perusahaan</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.audit-logs.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="audit log log aktivitas riwayat sistem keamanan"
+                                x-show="matches('audit log log aktivitas riwayat sistem keamanan')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.audit-logs.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span class="flex-1">Log Aktivitas</span>
+                            </a>
+                        </div>
+                    </div>
+                @elseif($currentUser['role'] !== 'EO')
+                    <!-- SECTION: CRM INBOUND (Sales, CS, SPV, HM) -->
+                    @php
+                        $prospekMobileTitle = 'Prospek';
+                        if ($userRole === 'sales') $prospekMobileTitle = 'Data Prospek';
+                        if ($userRole === 'cs') $prospekMobileTitle = 'Data Kontak';
+                    @endphp
+                    <div x-show="matches('crm inbound prospek kontak kunjungan follow up event pipeline')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route($routePrefix . 'prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="prospek data prospek kontak leads inbound database"
+                                x-show="matches('prospek data prospek kontak leads inbound database')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'prospek.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">{{ $prospekMobileTitle }}</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
+
+                            @if($currentUser['role'] !== 'CS')
+                                <a 
+                                    href="{{ route($routePrefix . 'kunjungan.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="kunjungan visit sekolah instansi audiensi"
+                                    x-show="matches('kunjungan visit sekolah instansi audiensi')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                    <span class="flex-1">Kunjungan</span>
+                                </a>
+                            @endif
+
+                            @if($userRole === 'sales')
+                                <a 
+                                    href="{{ route('sales.follow-up.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="follow up penindaklanjutan kontak prospek telepon chat whatsapp hari ini"
+                                    x-show="matches('follow up penindaklanjutan kontak prospek telepon chat whatsapp hari ini')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                    </svg>
+                                    <span class="flex-1">Follow Up</span>
+                                    @if(isset($globalFollowUpTodayCount) && $globalFollowUpTodayCount > 0)
+                                        <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">{{ $globalFollowUpTodayCount }} Hari Ini</span>
+                                    @endif
+                                </a>
+
+                                <a 
+                                    href="{{ route('sales.event.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="jadwal event acara kegiatan pameran sosialisasi"
+                                    x-show="matches('jadwal event acara kegiatan pameran sosialisasi')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.event.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.event.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span class="flex-1">Jadwal Event</span>
+                                </a>
+                            @elseif($userRole !== 'spv')
+                                <a 
+                                    href="{{ route('follow-up.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="follow up penindaklanjutan kontak prospek telepon chat whatsapp"
+                                    x-show="matches('follow up penindaklanjutan kontak prospek telepon chat whatsapp')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('follow-up.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('follow-up.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                    </svg>
+                                    <span class="flex-1">Follow Up</span>
+                                </a>
+                            @endif
+
+                            <a 
+                                href="{{ route($routePrefix . 'pipeline.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="pipeline board alur prospek prospek funnel kanban closing"
+                                x-show="matches('pipeline board alur prospek prospek funnel kanban closing')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'pipeline.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'pipeline.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                                </svg>
+                                <span class="flex-1">Pipeline Board</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: PERFORMANCE -->
+                    <div x-show="matches('performance performa target kpi laporan report')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Performance</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route($routePrefix . 'performa.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="target performa capaian penjualan sales kpi"
+                                x-show="matches('target performa capaian penjualan sales kpi')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'performa.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'performa.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                                <span class="flex-1">Target & Performa</span>
+                            </a>
+
+                            <a 
+                                href="{{ route($routePrefix . 'laporan.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="laporan report rekap export unduh analisa"
+                                x-show="matches('laporan report rekap export unduh analisa')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'laporan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span class="flex-1">Laporan</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    @if($userRole === 'spv')
+                        <!-- SECTION: TIM SPV -->
+                        <div x-show="matches('manajemen tim spv assignment event penugasan supervisor')">
+                            <div class="px-3 mb-1.5 text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Manajemen Tim</div>
+                            <div class="space-y-1">
+                                <a 
+                                    href="{{ route('spv.tim.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="tim spv manajemen tim supervisor sales staf"
+                                    x-show="matches('tim spv manajemen tim supervisor sales staf')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('spv.tim.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.tim.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    <span class="flex-1">Tim Sales</span>
+                                </a>
+
+                                <a 
+                                    href="{{ route('spv.events.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="assignment event penugasan acara spv jadwal tim"
+                                    x-show="matches('assignment event penugasan acara spv jadwal tim')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('spv.events.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.events.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span class="flex-1">Assignment Event</span>
+                                </a>
                             </div>
                         </div>
-                        <button @click="activeMobileSection = null" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white transition cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
+                    @endif
+                @endif
 
-                    <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
-                        <a 
-                            href="{{ route($routePrefix . 'performa.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'performa.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Target & Performa</div>
-                                    <div class="text-[10px] text-slate-500">KPI closing & progres target tim</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
+                @if($currentUser['role'] === 'Head Marketing')
+                    <!-- SECTION: MANAGEMENT (Head Marketing) -->
+                    <div x-show="matches('management kelola wilayah tim target head marketing')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('wilayah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola wilayah zonasi daerah marketing"
+                                x-show="matches('kelola wilayah zonasi daerah marketing')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="flex-1">Kelola Wilayah</span>
+                            </a>
 
-                        <a 
-                            href="{{ route($routePrefix . 'laporan.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs($routePrefix . 'laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Laporan Analitik</div>
-                                    <div class="text-[10px] text-slate-500">Rekap konversi & export data</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-                    </div>
-                </div>
-            </template>
+                            <a 
+                                href="{{ route('tim.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola tim sales marketing head"
+                                x-show="matches('kelola tim sales marketing head')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('tim.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('tim.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span class="flex-1">Kelola Tim</span>
+                            </a>
 
-            <!-- 3. POPUP FOR ADMIN CONTROL -->
-            <template x-if="activeMobileSection === 'admin_control'">
-                <div class="flex flex-col">
-                    <div class="px-4 py-3 border-b border-slate-100 bg-purple-50/60 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                            </span>
-                            <div>
-                                <h4 class="text-xs font-bold text-purple-900">Admin Control</h4>
-                                <p class="text-[10px] text-purple-600 font-medium">Manajemen user, target, & audit log</p>
-                            </div>
+                            <a 
+                                href="{{ route('admin.target.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola target sasaran kpi marketing"
+                                x-show="matches('kelola target sasaran kpi marketing')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.target.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.target.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <span class="flex-1">Kelola Target</span>
+                            </a>
                         </div>
-                        <button @click="activeMobileSection = null" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white transition cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
                     </div>
+                @endif
 
-                    <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
-                        <a 
-                            href="{{ route('admin.users.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.users.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Kelola Pengguna</div>
-                                    <div class="text-[10px] text-slate-500">Akun Sales, CS, SPV, & Head Marketing</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.kunjungan.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.kunjungan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Kelola Kunjungan</div>
-                                    <div class="text-[10px] text-slate-500">Monitoring laporan offline tim sales</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.target.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.target.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Kelola Target Tim</div>
-                                    <div class="text-[10px] text-slate-500">Setting target bulanan personil</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.audit-logs.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Audit Logs</div>
-                                    <div class="text-[10px] text-slate-500">Histori aktivitas login & sistem</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-                    </div>
-                </div>
-            </template>
-
-            <!-- 4. POPUP FOR DATA MASTER -->
-            <template x-if="activeMobileSection === 'master_data'">
-                <div class="flex flex-col">
-                    <div class="px-4 py-3 border-b border-slate-100 bg-purple-50/60 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                            </span>
-                            <div>
-                                <h4 class="text-xs font-bold text-purple-900">Data Master</h4>
-                                <p class="text-[10px] text-purple-600 font-medium">Database referensi wilayah, sekolah, & prodi</p>
-                            </div>
-                        </div>
-                        <button @click="activeMobileSection = null" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white transition cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-
-                    <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
-                        <a 
-                            href="{{ route('admin.master-data.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.master-data.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Semua Data Master</div>
-                                    <div class="text-[10px] text-slate-500">Pusat ringkasan master data</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.wilayah.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Data Wilayah</div>
-                                    <div class="text-[10px] text-slate-500">Zona dan cakupan wilayah sales</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.sekolah.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.sekolah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Data Sekolah</div>
-                                    <div class="text-[10px] text-slate-500">Daftar SMA / SMK / MA mitra</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.prodi.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.prodi.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Data Program Studi</div>
-                                    <div class="text-[10px] text-slate-500">Fakultas & program studi UCIC</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-
-                        <a 
-                            href="{{ route('admin.perusahaan.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('admin.perusahaan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Data Perusahaan</div>
-                                    <div class="text-[10px] text-slate-500">Mitra industri & kelas karyawan</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
-                    </div>
-                </div>
-            </template>
-
-            <!-- 5. POPUP FOR ACCOUNT -->
-            <template x-if="activeMobileSection === 'account'">
-                <div class="flex flex-col">
-                    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                            </span>
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-900">Account</h4>
-                                <p class="text-[10px] text-slate-500">Profil & preferensi akun login</p>
-                            </div>
-                        </div>
-                        <button @click="activeMobileSection = null" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white transition cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-
-                    <div class="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
+                <!-- SECTION: AKUN & PENGATURAN -->
+                <div x-show="matches('account profil saya profil akun pengaturan sistem settings password')">
+                    <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Akun & Pengaturan</div>
+                    <div class="space-y-1">
                         <a 
                             href="{{ route('profil.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('profil.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="profil saya profil akun biodata data diri password"
+                            x-show="matches('profil saya profil akun biodata data diri password')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('profil.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                         >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Profil Saya</div>
-                                    <div class="text-[10px] text-slate-500">{{ $currentUser['name'] }} ({{ $currentUser['role_label'] }})</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('profil.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span class="flex-1">Profil Saya</span>
                         </a>
 
                         <a 
                             href="{{ route('pengaturan.index') }}" 
-                            class="flex items-center justify-between p-3 rounded-xl transition {{ request()->routeIs('pengaturan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'bg-slate-50/70 hover:bg-slate-100 text-slate-700 border border-slate-100' }}"
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="pengaturan sistem settings preferensi notifikasi keamanan"
+                            x-show="matches('pengaturan sistem settings preferensi notifikasi keamanan')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pengaturan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                         >
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                </div>
-                                <div>
-                                    <div class="text-xs font-bold text-slate-800">Pengaturan Sistem</div>
-                                    <div class="text-[10px] text-slate-500">Notifikasi & preferensi akun</div>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pengaturan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span class="flex-1">Pengaturan</span>
                         </a>
-
-                        <div class="pt-2 border-t border-slate-100">
-                            <button 
-                                type="button" 
-                                onclick="activeMobileSection = null; confirmLogout()"
-                                class="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50/60 hover:bg-rose-100/80 text-rose-700 transition border border-rose-100 cursor-pointer text-left"
-                            >
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-bold text-rose-800">Ganti Akun / Logout</div>
-                                        <div class="text-[10px] text-rose-500">Keluar dari sesi akun saat ini</div>
-                                    </div>
-                                </div>
-                                <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                            </button>
-                        </div>
                     </div>
                 </div>
-            </template>
-        </div>
 
-        <!-- ============================================================== -->
-        <!-- MOBILE FIXED BOTTOM NAVIGATION (Parent Sections)               -->
-        <!-- ============================================================== -->
-        <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 z-40 px-2 py-2 pb-4 shadow-xl">
-            @if($currentUser['role'] === 'Admin')
-                <div class="grid grid-cols-4 gap-1 items-center">
-                    <!-- 1. Dashboard -->
-                    <a 
-                        href="{{ route('dashboard') }}" 
-                        @click="activeMobileSection = null"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === null && {{ request()->routeIs('dashboard*') ? 'true' : 'false' }}) ? 'text-purple-700 font-bold bg-purple-50/90' : 'text-slate-500 hover:text-slate-900'"
-                    >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === null && {{ request()->routeIs('dashboard*') ? 'true' : 'false' }}) ? 'text-purple-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <!-- Empty Search State -->
+                <div x-show="searchQuery.trim().length > 0 && !hasMatches()" class="py-10 px-4 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Dashboard</span>
-                    </a>
-
-                    <!-- 2. Admin Control -->
+                    </div>
+                    <div class="text-xs font-bold text-slate-700">Menu tidak ditemukan</div>
+                    <p class="text-[11px] text-slate-400 mt-1 max-w-[200px] mx-auto">
+                        Tidak ada menu yang sesuai dengan kata kunci "<span class="font-semibold text-slate-600" x-text="searchQuery"></span>"
+                    </p>
                     <button 
                         type="button" 
-                        @click="activeMobileSection = activeMobileSection === 'admin_control' ? null : 'admin_control'"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === 'admin_control' || (activeMobileSection === null && {{ (request()->routeIs('admin.users.*') || request()->routeIs('admin.kunjungan.*') || request()->routeIs('admin.target.*') || request()->routeIs('admin.audit-logs.*')) ? 'true' : 'false' }})) ? 'text-purple-700 font-bold bg-purple-50/90' : 'text-slate-500 hover:text-slate-900'"
+                        @click="searchQuery = ''" 
+                        class="mt-3 px-3 py-1.5 text-xs text-blue-600 font-semibold bg-blue-50 hover:bg-blue-100 rounded-lg transition cursor-pointer"
                     >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === 'admin_control' || (activeMobileSection === null && {{ (request()->routeIs('admin.users.*') || request()->routeIs('admin.kunjungan.*') || request()->routeIs('admin.target.*') || request()->routeIs('admin.audit-logs.*')) ? 'true' : 'false' }})) ? 'text-purple-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Admin Control</span>
-                    </button>
-
-                    <!-- 3. Data Master -->
-                    <button 
-                        type="button" 
-                        @click="activeMobileSection = activeMobileSection === 'master_data' ? null : 'master_data'"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === 'master_data' || (activeMobileSection === null && {{ (request()->routeIs('admin.master-data.*') || request()->routeIs('admin.wilayah.*') || request()->routeIs('admin.sekolah.*') || request()->routeIs('admin.prodi.*') || request()->routeIs('admin.perusahaan.*')) ? 'true' : 'false' }})) ? 'text-purple-700 font-bold bg-purple-50/90' : 'text-slate-500 hover:text-slate-900'"
-                    >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === 'master_data' || (activeMobileSection === null && {{ (request()->routeIs('admin.master-data.*') || request()->routeIs('admin.wilayah.*') || request()->routeIs('admin.sekolah.*') || request()->routeIs('admin.prodi.*') || request()->routeIs('admin.perusahaan.*')) ? 'true' : 'false' }})) ? 'text-purple-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Data Master</span>
-                    </button>
-
-                    <!-- 4. Account -->
-                    <button 
-                        type="button" 
-                        @click="activeMobileSection = activeMobileSection === 'account' ? null : 'account'"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === 'account' || (activeMobileSection === null && {{ (request()->routeIs('profil.*') || request()->routeIs('pengaturan.*')) ? 'true' : 'false' }})) ? 'text-purple-700 font-bold bg-purple-50/90' : 'text-slate-500 hover:text-slate-900'"
-                    >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === 'account' || (activeMobileSection === null && {{ (request()->routeIs('profil.*') || request()->routeIs('pengaturan.*')) ? 'true' : 'false' }})) ? 'text-purple-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Account</span>
+                        Hapus pencarian
                     </button>
                 </div>
-            @else
-                <div class="grid grid-cols-4 gap-1 items-center">
-                    <!-- 1. Dashboard -->
-                    <a 
-                        href="{{ route('dashboard') }}" 
-                        @click="activeMobileSection = null"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === null && {{ request()->routeIs('dashboard*') ? 'true' : 'false' }}) ? 'text-blue-600 font-bold bg-blue-50/90' : 'text-slate-500 hover:text-slate-900'"
-                    >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === null && {{ request()->routeIs('dashboard*') ? 'true' : 'false' }}) ? 'text-blue-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Dashboard</span>
+
+            </div>
+
+            <!-- Drawer Footer: User Profile Card & Logout -->
+            <div class="border-t border-slate-100 bg-slate-50/70 p-3 shrink-0">
+                <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-xl border border-slate-200/80 shadow-xs">
+                    <a href="{{ route('profil.index') }}" @click="mobileMenuOpen = false" class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs">
+                            {{ $currentUser['avatar'] }}
+                        </div>
+                        <div class="min-w-0 flex-1 truncate">
+                            <div class="text-xs font-bold text-slate-800 truncate">{{ $currentUser['name'] }}</div>
+                            <div class="text-[10px] text-blue-600 font-medium truncate">{{ $currentUser['role_label'] }}</div>
+                        </div>
                     </a>
-
-                    <!-- 2. CRM Inbound -->
                     <button 
                         type="button" 
-                        @click="activeMobileSection = activeMobileSection === 'crm_inbound' ? null : 'crm_inbound'"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === 'crm_inbound' || (activeMobileSection === null && {{ (request()->routeIs('prospek.*') || request()->routeIs('kunjungan.*') || request()->routeIs('follow-up.*') || request()->routeIs('pipeline.*')) ? 'true' : 'false' }})) ? 'text-blue-600 font-bold bg-blue-50/90' : 'text-slate-500 hover:text-slate-900'"
+                        onclick="confirmLogout()" 
+                        title="Logout / Keluar" 
+                        class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
                     >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === 'crm_inbound' || (activeMobileSection === null && {{ (request()->routeIs('prospek.*') || request()->routeIs('kunjungan.*') || request()->routeIs('follow-up.*') || request()->routeIs('pipeline.*')) ? 'true' : 'false' }})) ? 'text-blue-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">CRM Inbound</span>
-                    </button>
-
-                    <!-- 3. Performance -->
-                    <button 
-                        type="button" 
-                        @click="activeMobileSection = activeMobileSection === 'performance' ? null : 'performance'"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === 'performance' || (activeMobileSection === null && {{ (request()->routeIs('performa.*') || request()->routeIs('laporan.*')) ? 'true' : 'false' }})) ? 'text-blue-600 font-bold bg-blue-50/90' : 'text-slate-500 hover:text-slate-900'"
-                    >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === 'performance' || (activeMobileSection === null && {{ (request()->routeIs('performa.*') || request()->routeIs('laporan.*')) ? 'true' : 'false' }})) ? 'text-blue-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Performance</span>
-                    </button>
-
-                    <!-- 4. Account -->
-                    <button 
-                        type="button" 
-                        @click="activeMobileSection = activeMobileSection === 'account' ? null : 'account'"
-                        class="flex flex-col items-center justify-center py-1.5 rounded-xl transition cursor-pointer relative"
-                        :class="(activeMobileSection === 'account' || (activeMobileSection === null && {{ (request()->routeIs('profil.*') || request()->routeIs('pengaturan.*')) ? 'true' : 'false' }})) ? 'text-blue-600 font-bold bg-blue-50/90' : 'text-slate-500 hover:text-slate-900'"
-                    >
-                        <svg class="w-5 h-5" :class="(activeMobileSection === 'account' || (activeMobileSection === null && {{ (request()->routeIs('profil.*') || request()->routeIs('pengaturan.*')) ? 'true' : 'false' }})) ? 'text-blue-600' : 'text-slate-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span class="text-[10px] mt-0.5 font-medium">Account</span>
                     </button>
                 </div>
-            @endif
-        </nav>
+            </div>
+        </aside>
 
     </div>
 

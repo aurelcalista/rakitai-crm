@@ -118,6 +118,7 @@ Route::middleware('auth')->group(function () {
             // Team Target & Performance
             Route::get('/target-performa', [\App\Http\Controllers\Spv\PerformanceController::class, 'index'])->name('performa.index');
             Route::post('/target-performa/alokasi', [\App\Http\Controllers\Spv\PerformanceController::class, 'alokasi'])->name('performa.alokasi');
+            Route::post('/target-performa/kunci-defisit', [\App\Http\Controllers\Spv\PerformanceController::class, 'kunciDefisit'])->name('performa.kunciDefisit');
 
             // Team Recap Reports
             Route::get('/laporan', [\App\Http\Controllers\Spv\ReportController::class, 'index'])->name('laporan.index');

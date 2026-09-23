@@ -152,12 +152,37 @@
                     :action="`/spv/tim/${selectedMemberId}/wilayah`"
                     method="POST"
                     class="space-y-4"
+                    x-data="{ useOtherCity: member.is_other_city, customCity: member.lokasi_penugasan || '' }"
                 >
                     @csrf
                     @method('PATCH')
-                    <div>
+
+                    <!-- Opsi Penugasan: Master vs Di Kota Lainnya (PRD Bab 3 & 9) -->
+                    <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+                        <button
+                            type="button"
+                            @click="useOtherCity = false"
+                            class="py-1.5 px-2 rounded-lg text-center transition"
+                            :class="!useOtherCity ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+                        >
+                            Master Kecamatan
+                        </button>
+                        <button
+                            type="button"
+                            @click="useOtherCity = true"
+                            class="py-1.5 px-2 rounded-lg text-center transition"
+                            :class="useOtherCity ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
+                        >
+                            Di Kota Lainnya ✨
+                        </button>
+                    </div>
+
+                    <input type="hidden" name="is_other_city" :value="useOtherCity ? '1' : '0'">
+
+                    <!-- 1. Pilihan Master Kecamatan -->
+                    <div x-show="!useOtherCity">
                         <label class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Kecamatan</label>
-                        <select name="wilayah_id" required
+                        <select name="wilayah_id" :required="!useOtherCity"
                             class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         >
                             <option value="">-- Pilih Kecamatan --</option>
@@ -165,10 +190,25 @@
                                 <option value="{{ $kec->id }}" :selected="member.wilayah_id == {{ $kec->id }}">{{ $kec->nama }}</option>
                             @endforeach
                         </select>
-                        <p class="text-[10px] text-slate-400 mt-1">SPV hanya dapat menugaskan wilayah Kecamatan (bukan Kota/Kabupaten) ke Sales.</p>
+                        <p class="text-[10px] text-slate-400 mt-1">SPV hanya dapat menugaskan wilayah Kecamatan ke Sales dari master data aktif.</p>
                     </div>
+
+                    <!-- 2. Pilihan Di Kota Lainnya -->
+                    <div x-show="useOtherCity" x-cloak>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Kota / Wilayah Khusus</label>
+                        <input
+                            type="text"
+                            name="custom_city"
+                            x-model="customCity"
+                            :required="useOtherCity"
+                            placeholder="Contoh: Majalengka Kota, Brebes, Tegal, Subang..."
+                            class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <p class="text-[10px] text-amber-700 mt-1">Gunakan opsi ini jika wilayah penugasan belum terdaftar di master data kota/kecamatan.</p>
+                    </div>
+
                     <div class="flex gap-2 pt-2">
-                        <button type="submit" class="flex-1 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition">Simpan Wilayah</button>
+                        <button type="submit" class="flex-1 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition">Simpan Penugasan</button>
                         <button type="button" @click="assignModal = false" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">Batal</button>
                     </div>
                 </form>

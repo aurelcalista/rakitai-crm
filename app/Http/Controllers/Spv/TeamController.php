@@ -42,9 +42,11 @@ class TeamController extends Controller
                 'role'          => $member->role,
                 'status'        => $member->status,
                 'is_cs'         => $member->role === 'CS',
-                'wilayah'       => $member->role === 'CS' ? 'Centralized (Tanpa Wilayah)' : ($member->wilayah ? $member->wilayah->nama : 'Belum Ditugaskan'),
+                'wilayah'       => $member->role === 'CS' ? 'Centralized (Tanpa Wilayah)' : ($member->wilayah ? $member->wilayah->nama : ($member->lokasi_penugasan ? 'Kota Lainnya (' . $member->lokasi_penugasan . ')' : 'Belum Ditugaskan')),
                 'wilayah_id'    => $member->wilayah_id,
-                'kota'          => $member->wilayah && $member->wilayah->parent ? $member->wilayah->parent->nama : '-',
+                'lokasi_penugasan' => $member->lokasi_penugasan,
+                'is_other_city' => !empty($member->lokasi_penugasan) && empty($member->wilayah_id),
+                'kota'          => $member->wilayah && $member->wilayah->parent ? $member->wilayah->parent->nama : ($member->lokasi_penugasan ?: '-'),
                 'prospects'     => $prospectCount,
                 'closings'      => $closingCount,
                 'visits'        => $visitCount,
@@ -80,6 +82,7 @@ class TeamController extends Controller
     /**
      * Assign Kecamatan (wilayah) ke Sales oleh SPV.
      * CS tidak boleh mendapat wilayah — ditolak.
+     * Mendukung opsi "Di Kota Lainnya" (P0 Bab 3 & Bab 9).
      */
     public function assignWilayah(Request $request, User $user): RedirectResponse
     {
@@ -96,6 +99,21 @@ class TeamController extends Controller
                 ->with('error', 'CS bekerja secara Centralized dan tidak memiliki wilayah kecamatan.');
         }
 
+        // Opsi "Di Kota Lainnya" (P0 Bab 3 & Bab 9)
+        if ($request->boolean('is_other_city')) {
+            $request->validate([
+                'custom_city' => 'required|string|max:255',
+            ]);
+
+            $user->update([
+                'wilayah_id'       => null,
+                'lokasi_penugasan' => $request->custom_city,
+            ]);
+
+            return redirect()->route('spv.tim.index')
+                ->with('success', "Wilayah {$user->name} berhasil ditugaskan di Kota Lainnya: {$request->custom_city}.");
+        }
+
         $request->validate([
             'wilayah_id' => 'required|exists:wilayahs,id',
         ]);
@@ -108,7 +126,10 @@ class TeamController extends Controller
                 ->with('error', 'SPV hanya dapat menugaskan Kecamatan ke Sales, bukan Kota/Kabupaten.');
         }
 
-        $user->update(['wilayah_id' => $wilayah->id]);
+        $user->update([
+            'wilayah_id'       => $wilayah->id,
+            'lokasi_penugasan' => null,
+        ]);
 
         return redirect()->route('spv.tim.index')
             ->with('success', "Wilayah {$user->name} berhasil diperbarui ke {$wilayah->nama}.");

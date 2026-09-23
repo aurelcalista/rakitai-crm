@@ -20,7 +20,17 @@
                         {{ $user['role_label'] }}
                     </span>
                 </div>
-                <p class="text-xs text-slate-500 font-medium">{{ $user['email'] }} &bull; NIK: {{ $user['nik'] }}</p>
+                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-x-2 gap-y-1 text-xs text-slate-500 font-medium pt-0.5">
+                    <span>{{ $user['email'] }}</span>
+                    <span class="hidden sm:inline text-slate-300">&bull;</span>
+                    <span class="inline-flex items-center gap-1.5 text-blue-800 font-semibold bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+                        <svg class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Penempatan: {{ $user['wilayah'] ?? ($user['user']->wilayah->nama ?? 'Wilayah Cirebon & Sekitarnya') }}</span>
+                    </span>
+                </div>
                 <p class="text-xs text-slate-600 pt-1">{{ $user['division'] }}</p>
             </div>
             <div>
@@ -132,6 +142,19 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Role / Jabatan</label>
                         <input type="text" value="{{ $user['role_label'] }}" readonly class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 cursor-not-allowed">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Wilayah Penempatan / Cakupan Kerja</label>
+                        <div class="relative">
+                            <input type="text" value="{{ $user['wilayah'] ?? ($user['user']->wilayah->nama ?? 'Wilayah Cirebon & Sekitarnya') }}" readonly class="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold cursor-not-allowed">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-blue-600">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">Wilayah penempatan role ini ditetapkan oleh pimpinan/administrator sesuai zonasi kerja.</p>
                     </div>
                 </div>
 
