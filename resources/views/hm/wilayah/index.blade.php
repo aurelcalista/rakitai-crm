@@ -6,6 +6,82 @@
         modalSpv: false,
         modalTarget: false,
         selectedWil: null,
+        spvForm: {
+            spv_id: '',
+        },
+        targetForm: {
+            target_id: '',
+            spv_id: '',
+            tipe_periode: 'Bulanan',
+            tanggal_mulai: '{{ now()->startOfMonth()->toDateString() }}',
+            tanggal_selesai: '{{ now()->endOfMonth()->toDateString() }}',
+            target_kontak: 1000,
+            target_formulir: 300,
+            target_lunas: 100,
+        },
+        openSpvModal(wilayah, currentSpvId) {
+            this.selectedWil = wilayah;
+            this.spvForm.spv_id = currentSpvId ? String(currentSpvId) : '';
+            this.modalSpv = true;
+        },
+        openTargetModal(wilayah, target, assignedSpvId) {
+            this.selectedWil = wilayah;
+            if (target) {
+                this.targetForm.target_id = target.id || '';
+                this.targetForm.spv_id = target.spv_id ? String(target.spv_id) : (assignedSpvId ? String(assignedSpvId) : '');
+                this.targetForm.tipe_periode = target.tipe_periode || 'Bulanan';
+                this.targetForm.tanggal_mulai = target.tanggal_mulai ? String(target.tanggal_mulai).substring(0, 10) : '{{ now()->startOfMonth()->toDateString() }}';
+                this.targetForm.tanggal_selesai = target.tanggal_selesai ? String(target.tanggal_selesai).substring(0, 10) : '{{ now()->endOfMonth()->toDateString() }}';
+                this.targetForm.target_kontak = target.target_kontak ?? 1000;
+                this.targetForm.target_formulir = target.target_formulir ?? 300;
+                this.targetForm.target_lunas = target.target_lunas ?? 100;
+            } else {
+                this.targetForm.target_id = '';
+                this.targetForm.spv_id = assignedSpvId ? String(assignedSpvId) : '';
+                this.targetForm.tipe_periode = 'Bulanan';
+                this.targetForm.tanggal_mulai = '{{ now()->startOfMonth()->toDateString() }}';
+                this.targetForm.target_kontak = 1000;
+                this.targetForm.target_formulir = 300;
+                this.targetForm.target_lunas = 100;
+                this.calculateEndDate();
+            }
+            this.modalTarget = true;
+        },
+        calculateEndDate() {
+            if (!this.targetForm.tanggal_mulai) return;
+            const parts = this.targetForm.tanggal_mulai.split('-').map(Number);
+            if (parts.length < 3) return;
+            const year = parts[0];
+            const month = parts[1];
+            const day = parts[2];
+
+            if (this.targetForm.tipe_periode === 'Bulanan') {
+                // Last day of the selected month
+                const lastDay = new Date(year, month, 0);
+                const yyyy = lastDay.getFullYear();
+                const mm = String(lastDay.getMonth() + 1).padStart(2, '0');
+                const dd = String(lastDay.getDate()).padStart(2, '0');
+                this.targetForm.tanggal_selesai = `${yyyy}-${mm}-${dd}`;
+            } else if (this.targetForm.tipe_periode === 'Mingguan') {
+                // 7 days total (start date + 6 days)
+                const d = new Date(year, month - 1, day);
+                d.setDate(d.getDate() + 6);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                this.targetForm.tanggal_selesai = `${yyyy}-${mm}-${dd}`;
+            } else if (this.targetForm.tipe_periode === 'Tahunan') {
+                // 1 full year period (e.g. 2026-09-01 to 2027-08-31)
+                const d = new Date(year + 1, month - 1, day);
+                d.setDate(d.getDate() - 1);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                this.targetForm.tanggal_selesai = `${yyyy}-${mm}-${dd}`;
+            } else if (this.targetForm.tipe_periode === 'Harian') {
+                this.targetForm.tanggal_selesai = this.targetForm.tanggal_mulai;
+            }
+        }
     }">
 
         <!-- Header -->
@@ -40,7 +116,7 @@
             @foreach($wilayahs as $w)
                 @php
                     $targetWil = \App\Models\Target::where('target_type', 'Wilayah')->where('wilayah_id', $w->id)->where('status', 'Aktif')->latest()->first();
-                    $assignedSpv = $w->users->where('role', 'SPV')->first();
+                    $assignedSpv = $w->users->where('role', 'SPV')->first() ?? ($targetWil && $targetWil->spv_id ? \App\Models\User::find($targetWil->spv_id) : null);
                 @endphp
                 <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
                     <div class="flex items-start justify-between border-b border-slate-100 pb-4">
@@ -65,7 +141,7 @@
                                 <div class="text-[10px] text-slate-500">{{ $assignedSpv->email }}</div>
                             @endif
                         </div>
-                        <button type="button" @click="selectedWil = {{ json_encode($w) }}; modalSpv = true" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer">
+                        <button type="button" @click="openSpvModal({{ json_encode($w) }}, '{{ $assignedSpv ? $assignedSpv->id : '' }}')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer">
                             {{ $assignedSpv ? 'Ganti SPV' : '+ Penunjukan SPV' }}
                         </button>
                     </div>
@@ -73,7 +149,7 @@
                     <!-- Target Wilayah -->
                     <div class="p-4 rounded-xl bg-purple-50/50 border border-purple-100/80 space-y-3">
                         <div class="flex items-center justify-between">
-                            <span class="text-[10px] uppercase font-bold text-purple-700 tracking-wider">Target Wilayah (HM $\rightarrow$ SPV)</span>
+                            <span class="text-[10px] uppercase font-bold text-purple-700 tracking-wider">Target Wilayah (HM &rarr; SPV)</span>
                             @if($targetWil && $targetWil->is_locked)
                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🔒 DIKUNCI HM</span>
                             @endif
@@ -94,7 +170,14 @@
                             </div>
                         </div>
 
-                        <button type="button" @click="selectedWil = {{ json_encode($w) }}; modalTarget = true" class="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold transition cursor-pointer">
+                        @if($targetWil)
+                            <div class="text-[11px] text-slate-500 flex items-center justify-between px-1">
+                                <span>Periode: <strong class="text-slate-700">{{ $targetWil->tipe_periode }}</strong></span>
+                                <span>{{ \Carbon\Carbon::parse($targetWil->tanggal_mulai)->format('d/m/Y') }} – {{ \Carbon\Carbon::parse($targetWil->tanggal_selesai)->format('d/m/Y') }}</span>
+                            </div>
+                        @endif
+
+                        <button type="button" @click="openTargetModal({{ json_encode($w) }}, {{ json_encode($targetWil) }}, '{{ $assignedSpv ? $assignedSpv->id : '' }}')" class="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold transition cursor-pointer">
                             {{ $targetWil ? 'Edit & Lock Target Wilayah' : '+ Tentukan Target Wilayah' }}
                         </button>
                     </div>
@@ -117,7 +200,7 @@
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Pilih SPV Penanggung Jawab *</label>
-                                <select name="spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
+                                <select name="spv_id" x-model="spvForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
                                     <option value="">-- Pilih SPV --</option>
                                     @foreach($spvCandidates as $cand)
                                         <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
@@ -139,58 +222,62 @@
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalTarget = false"></div>
                 <div class="inline-block w-full max-w-md p-6 my-8 bg-white shadow-2xl rounded-2xl relative z-10">
-                    <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Tentukan Target Wilayah (HM)</h3>
+                    <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3" x-text="targetForm.target_id ? 'Edit & Lock Target Wilayah' : 'Tentukan Target Wilayah (HM)'"></h3>
                     <template x-if="selectedWil">
                         <form :action="'/hm/wilayah/' + selectedWil.id + '/target'" method="POST" class="mt-4 space-y-3 text-xs">
                             @csrf
+                            <input type="hidden" name="target_id" :value="targetForm.target_id">
+
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Wilayah *</label>
                                 <input type="text" readonly :value="selectedWil.nama" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-200 font-bold text-slate-800">
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">SPV Penanggung Jawab *</label>
-                                <select name="spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
+                                <select name="spv_id" x-model="targetForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
                                     <option value="">-- Pilih SPV --</option>
                                     @foreach($spvCandidates as $cand)
-                                        <option value="{{ $cand->id }}">{{ $cand->name }}</option>
+                                        <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1">Periode *</label>
-                                    <select name="tipe_periode" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
+                                    <select name="tipe_periode" x-model="targetForm.tipe_periode" @change="calculateEndDate()" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
                                         <option value="Bulanan">Bulanan</option>
                                         <option value="Tahunan">Tahunan</option>
                                         <option value="Mingguan">Mingguan</option>
+                                        <option value="Harian">Harian</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1">Tgl Mulai *</label>
-                                    <input type="date" name="tanggal_mulai" required value="{{ now()->startOfMonth()->toDateString() }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
+                                    <input type="date" name="tanggal_mulai" x-model="targetForm.tanggal_mulai" @change="calculateEndDate()" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
                                 </div>
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Tgl Selesai *</label>
-                                <input type="date" name="tanggal_selesai" required value="{{ now()->endOfMonth()->toDateString() }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
+                                <input type="date" name="tanggal_selesai" x-model="targetForm.tanggal_selesai" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
+                                <p class="text-[10px] text-slate-400 mt-0.5">Otomatis dihitung sesuai periode & tgl mulai (dapat disesuaikan jika perlu).</p>
                             </div>
                             <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1">Target Kontak</label>
-                                    <input type="number" name="target_kontak" required min="0" value="1000" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
+                                    <input type="number" name="target_kontak" x-model="targetForm.target_kontak" required min="0" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1">Target Formulir</label>
-                                    <input type="number" name="target_formulir" required min="0" value="300" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
+                                    <input type="number" name="target_formulir" x-model="targetForm.target_formulir" required min="0" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
                                 </div>
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1">Target Lunas</label>
-                                    <input type="number" name="target_lunas" required min="0" value="100" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
+                                    <input type="number" name="target_lunas" x-model="targetForm.target_lunas" required min="0" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200">
                                 </div>
                             </div>
                             <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
                                 <button type="button" @click="modalTarget = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600">Batal</button>
-                                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 text-white">Simpan & Lock Target</button>
+                                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 text-white" x-text="targetForm.target_id ? 'Update & Lock Target' : 'Simpan & Lock Target'"></button>
                             </div>
                         </form>
                     </template>

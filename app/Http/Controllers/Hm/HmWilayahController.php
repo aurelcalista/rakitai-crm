@@ -22,21 +22,38 @@ class HmWilayahController extends Controller
         $user = auth()->user();
 
         $mainWilayah = $user->wilayah_id ? Wilayah::find($user->wilayah_id) : null;
-        $descendantIds = $mainWilayah ? $mainWilayah->getDescendantIds() : Wilayah::whereNull('parent_id')->pluck('id')->toArray();
 
-        $wilayahs = Wilayah::whereNull('parent_id')
-            ->whereIn('id', $descendantIds)
-            ->with(['children', 'users' => function($q) {
-                $q->whereIn('role', ['SPV', 'Sales', 'CS']);
-            }])
-            ->withCount(['sekolahs', 'perusahaans'])
-            ->get();
+        if ($mainWilayah) {
+            $descendantIds = $mainWilayah->getDescendantIds();
+            $wilayahs = Wilayah::whereIn('id', $descendantIds)
+                ->where(function($q) use ($mainWilayah) {
+                    $q->where('id', $mainWilayah->id)->orWhere('parent_id', $mainWilayah->id);
+                })
+                ->with(['children', 'users' => function($q) {
+                    $q->whereIn('role', ['SPV', 'Sales', 'CS']);
+                }])
+                ->withCount(['sekolahs', 'perusahaans'])
+                ->get();
 
-        $spvCandidates = User::where('role', 'SPV')
-            ->where(function($q) use ($descendantIds) {
-                $q->whereIn('wilayah_id', $descendantIds)->orWhereNull('wilayah_id');
-            })
-            ->get();
+            $spvCandidates = User::where('role', 'SPV')
+                ->where(function($q) use ($descendantIds) {
+                    $q->whereIn('wilayah_id', $descendantIds)->orWhereNull('wilayah_id');
+                })
+                ->orderBy('name')
+                ->get();
+        } else {
+            // Global HM / Admin
+            $wilayahs = Wilayah::whereNull('parent_id')
+                ->with(['children', 'users' => function($q) {
+                    $q->whereIn('role', ['SPV', 'Sales', 'CS']);
+                }])
+                ->withCount(['sekolahs', 'perusahaans'])
+                ->get();
+
+            $spvCandidates = User::where('role', 'SPV')
+                ->orderBy('name')
+                ->get();
+        }
 
         $activeTA = AkademikService::getAktif();
 
@@ -77,6 +94,7 @@ class HmWilayahController extends Controller
         $user = auth()->user();
 
         $request->validate([
+            'target_id'      => 'nullable|exists:targets,id',
             'spv_id'         => 'required|exists:users,id',
             'tipe_periode'   => 'required|in:Harian,Mingguan,Bulanan,Tahunan',
             'tanggal_mulai'  => 'required|date',
@@ -91,31 +109,55 @@ class HmWilayahController extends Controller
         Gate::authorize('assignSpv', [$spv, $wilayah]);
         Gate::authorize('createWilayahTarget', [\App\Models\Target::class, $wilayah->id]);
 
+        if (strtolower($spv->role) !== 'spv') {
+            abort(403, 'User selected is not an SPV.');
+        }
+
         $activeTA = AkademikService::getAktifOrFail();
 
-        Target::updateOrCreate(
-            [
-                'target_type'      => 'Wilayah',
-                'wilayah_id'       => $wilayah->id,
-                'spv_id'           => $spv->id,
-                'academic_year_id' => $activeTA->id,
-                'tipe_periode'     => $request->tipe_periode,
-                'tanggal_mulai'    => $request->tanggal_mulai,
-                'tanggal_selesai'  => $request->tanggal_selesai,
-            ],
-            [
-                'allocated_by'    => $user->id,
-                'tahun_akademik'  => $activeTA->nama,
-                'target_kontak'   => $request->target_kontak,
-                'target_formulir' => $request->target_formulir,
-                'target_lunas'    => $request->target_lunas,
-                'target_followup' => (int) round($request->target_kontak * 0.8),
-                'status'          => 'Aktif',
-                'is_locked'       => true,
-                'locked_at'       => now(),
-                'locked_by'       => $user->id,
-            ]
-        );
+        // If target_id is provided, find it; otherwise find existing active target for this wilayah & TA
+        $target = null;
+        if ($request->filled('target_id')) {
+            $target = Target::find($request->target_id);
+        }
+
+        if (!$target) {
+            $target = Target::where('target_type', 'Wilayah')
+                ->where('wilayah_id', $wilayah->id)
+                ->where('academic_year_id', $activeTA->id)
+                ->where('status', 'Aktif')
+                ->latest()
+                ->first();
+        }
+
+        $targetData = [
+            'target_type'      => 'Wilayah',
+            'wilayah_id'       => $wilayah->id,
+            'spv_id'           => $spv->id,
+            'academic_year_id' => $activeTA->id,
+            'tahun_akademik'   => $activeTA->nama,
+            'allocated_by'     => $user->id,
+            'tipe_periode'     => $request->tipe_periode,
+            'tanggal_mulai'    => $request->tanggal_mulai,
+            'tanggal_selesai'  => $request->tanggal_selesai,
+            'target_kontak'    => $request->target_kontak,
+            'target_formulir'  => $request->target_formulir,
+            'target_lunas'     => $request->target_lunas,
+            'target_followup'  => (int) round($request->target_kontak * 0.8),
+            'status'           => 'Aktif',
+            'is_locked'        => true,
+            'locked_at'        => now(),
+            'locked_by'        => $user->id,
+        ];
+
+        if ($target) {
+            $target->update($targetData);
+        } else {
+            Target::create($targetData);
+        }
+
+        // Also ensure SPV is linked to this Wilayah
+        $spv->update(['wilayah_id' => $wilayah->id]);
 
         return redirect()->back()->with('success', "Target Wilayah {$wilayah->nama} berhasil ditetapkan dan dikunci oleh HM!");
     }

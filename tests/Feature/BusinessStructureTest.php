@@ -339,4 +339,58 @@ class BusinessStructureTest extends TestCase
         // Tidak ada error session -> alokasi baru tetap diterima meski achievement sebelumnya melebihi target
         $res->assertSessionHasNoErrors();
     }
+
+    public function test_L_hm_can_edit_existing_target_wilayah_and_change_spv()
+    {
+        $this->actingAs($this->hm);
+
+        // 1. Initial Target creation
+        $res = $this->post(route('hm.wilayah.setTarget', $this->kotaCirebon->id), [
+            'spv_id'          => $this->spv->id,
+            'tipe_periode'    => 'Bulanan',
+            'tanggal_mulai'   => '2026-09-01',
+            'tanggal_selesai' => '2026-09-30',
+            'target_kontak'   => 500,
+            'target_formulir' => 200,
+            'target_lunas'    => 50,
+        ]);
+        $res->assertRedirect();
+
+        $initialTarget = \App\Models\Target::where('target_type', 'Wilayah')
+            ->where('wilayah_id', $this->kotaCirebon->id)
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($initialTarget);
+        $this->assertEquals($this->spv->id, $initialTarget->spv_id);
+        $this->assertEquals(500, $initialTarget->target_kontak);
+
+        // 2. Create another SPV candidate within scope
+        $spv2 = \App\Models\User::factory()->create([
+            'role' => 'SPV',
+            'status' => 'Aktif',
+            'wilayah_id' => $this->kotaCirebon->id,
+        ]);
+
+        // 3. Edit the Target Wilayah with target_id and change SPV to spv2
+        $res2 = $this->post(route('hm.wilayah.setTarget', $this->kotaCirebon->id), [
+            'target_id'       => $initialTarget->id,
+            'spv_id'          => $spv2->id,
+            'tipe_periode'    => 'Bulanan',
+            'tanggal_mulai'   => '2026-09-01',
+            'tanggal_selesai' => '2026-09-30',
+            'target_kontak'   => 1200,
+            'target_formulir' => 400,
+            'target_lunas'    => 150,
+        ]);
+        $res2->assertRedirect();
+
+        $initialTarget->refresh();
+        $this->assertEquals($spv2->id, $initialTarget->spv_id);
+        $this->assertEquals(1200, $initialTarget->target_kontak);
+        $this->assertEquals(400, $initialTarget->target_formulir);
+        $this->assertEquals(150, $initialTarget->target_lunas);
+
+        $spv2->refresh();
+        $this->assertEquals($this->kotaCirebon->id, $spv2->wilayah_id);
+    }
 }
