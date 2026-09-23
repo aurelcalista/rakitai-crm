@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Sales;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\Kunjungan;
 use App\Models\Sekolah;
 use App\Models\Perusahaan;
@@ -27,7 +28,7 @@ class VisitController extends Controller
     {
         $user = auth()->user();
 
-        $query = Kunjungan::with(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen'])
+        $query = Kunjungan::with(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event'])
             ->where('sales_id', $user->id)
             ->orderBy('tanggal', 'desc');
 
@@ -48,21 +49,46 @@ class VisitController extends Controller
 
     /**
      * Show form to create a new visit.
+     * 
+     * ALUR 1 — DARI EVENT: GET /sales/kunjungan/create?event_id=25
+     *   → $event diisi, form menampilkan data event read-only.
+     * 
+     * ALUR 2 — MANDIRI: GET /sales/kunjungan/create
+     *   → $event = null, form menampilkan dropdown sekolah/perusahaan.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $dosens      = User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
 
-        return view('kunjungan.create', compact('sekolahs', 'perusahaans', 'prodis', 'dosens'));
+        $event = null;
+
+        // Load event jika ada event_id di query string (Alur 1: Kunjungan dari Event)
+        if ($request->filled('event_id')) {
+            $eventId = $request->event_id;
+
+            // Pastikan Sales ini memang ditugaskan ke event tersebut
+            $isAssigned = \DB::table('event_sales')
+                ->where('event_id', $eventId)
+                ->where('sales_id', auth()->id())
+                ->exists();
+
+            if ($isAssigned) {
+                $event = Event::with(['sekolah', 'perusahaan', 'type'])->find($eventId);
+            }
+        }
+
+        return view('kunjungan.create', compact('sekolahs', 'perusahaans', 'prodis', 'dosens', 'event'));
     }
 
     /**
      * Store a new field visit.
-     * Handles photo upload to storage/app/public/kunjungan/
-     * Validates geo-tagging radius, Prodi, and Dosen Pemateri for Training.
+     * 
+     * Menangani dua alur:
+     * 1. event_id diisi   → Kunjungan dari Event (data instansi/PIC berasal dari Event)
+     * 2. event_id = null  → Kunjungan Mandiri (Sales memilih instansi manual)
      */
     public function store(Request $request): RedirectResponse
     {
@@ -71,15 +97,41 @@ class VisitController extends Controller
             'prodi_id'       => 'required|exists:prodis,id',
             'tanggal'        => 'required|date',
             'waktu'          => 'required|date_format:H:i',
-            'pic_name'       => 'required|string|max:255',
-            'pic_whatsapp'   => 'required|string|max:20',
             'catatan'        => 'nullable|string|max:2000',
             'foto'           => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // 5MB max
             'lat'            => 'required|numeric',
             'lng'            => 'required|numeric',
             'dosen_id'       => 'nullable|exists:users,id',
             'dosen_pemateri' => 'nullable|string|max:255',
+            'event_id'       => 'nullable|exists:events,id',
+            'lokasi_penugasan' => 'nullable|string|max:1000',
         ];
+
+        // ─── Alur 1: Kunjungan dari Event ───────────────────────────────────────
+        $event = null;
+        if ($request->filled('event_id')) {
+            // Authorization: Sales harus ditugaskan ke event ini
+            $isAssigned = \DB::table('event_sales')
+                ->where('event_id', $request->event_id)
+                ->where('sales_id', auth()->id())
+                ->exists();
+
+            if (!$isAssigned) {
+                throw ValidationException::withMessages([
+                    'event_id' => 'Anda tidak ditugaskan pada Event ini.',
+                ]);
+            }
+
+            $event = Event::find($request->event_id);
+
+            // PIC wajib dari event (sudah ada), jadi tidak perlu required dari input
+            $rules['pic_name']     = 'nullable|string|max:255';
+            $rules['pic_whatsapp'] = 'nullable|string|max:20';
+        } else {
+            // ─── Alur 2: Kunjungan Mandiri ──────────────────────────────────────
+            $rules['pic_name']     = 'required|string|max:255';
+            $rules['pic_whatsapp'] = 'required|string|max:20';
+        }
 
         // Conditional rules based on jenis
         if ($request->input('jenis') === 'Sekolah') {
@@ -101,6 +153,23 @@ class VisitController extends Controller
 
         $validated = $request->validate($rules);
 
+        // ─── Override data instansi dari Event (Alur 1) ─────────────────────────
+        if ($event) {
+            // Merge sekolah_id / perusahaan_id dari event agar relasi tersimpan
+            if ($event->sekolah_id) {
+                $validated['sekolah_id'] = $event->sekolah_id;
+                $request->merge(['sekolah_id' => $event->sekolah_id]);
+            }
+            if ($event->perusahaan_id) {
+                $validated['perusahaan_id'] = $event->perusahaan_id;
+                $request->merge(['perusahaan_id' => $event->perusahaan_id]);
+            }
+
+            // PIC dan WA berasal dari Event
+            $validated['pic_name']     = $event->pic_name ?: ($validated['pic_name'] ?? '-');
+            $validated['pic_whatsapp'] = $event->pic_whatsapp ?: ($validated['pic_whatsapp'] ?? '-');
+        }
+
         // Validation: Training requires Dosen Pemateri
         $isTraining = $request->boolean('kesediaan_training_ai') || $request->input('is_training');
         if ($isTraining && empty($validated['dosen_id']) && empty($validated['dosen_pemateri'])) {
@@ -120,27 +189,38 @@ class VisitController extends Controller
         // Generate unique visit number
         $nomor = 'KNJ-' . $user->id . '-' . now()->format('YmdHis') . '-' . strtoupper(\Illuminate\Support\Str::random(4));
 
-        // Determine destination target
-        $tujuanId = 0;
-        $namaInstitusi = $validated['nama_institusi'] ?? 'Kunjungan';
-        $tujuan = null;
-        $tier = null;
-        $budget = null;
+        // Determine destination target (tujuan)
+        $tujuanId      = 0;
+        $namaInstitusi = $validated['nama_institusi'] ?? null;
+        $tujuan        = null;
+        $tier          = null;
+        $budget        = null;
 
-        if ($validated['jenis'] === 'Sekolah' && $request->filled('sekolah_id')) {
-            $tujuan = Sekolah::find($request->sekolah_id);
-        } elseif ($validated['jenis'] === 'Perusahaan' && $request->filled('perusahaan_id')) {
-            $tujuan = Perusahaan::find($request->perusahaan_id);
+        if ($validated['jenis'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
+            $tujuan = Sekolah::find($validated['sekolah_id']);
+        } elseif ($validated['jenis'] === 'Perusahaan' && !empty($validated['perusahaan_id'])) {
+            $tujuan = Perusahaan::find($validated['perusahaan_id']);
         }
 
         if ($tujuan) {
             $tujuanId = $tujuan->id;
-            $namaInstitusi = $tujuan->nama;
-
+            // Jika nama_institusi belum ada dari form, pakai nama dari master data
+            if (!$namaInstitusi) {
+                $namaInstitusi = $tujuan->nama;
+            }
             if ($validated['jenis'] === 'Sekolah') {
-                $tier = $tujuan->tier ?? 'B';
+                $tier   = $tujuan->tier ?? 'B';
                 $budget = $tujuan->max_budget;
             }
+        }
+
+        // Jika dari Event: nama institusi dari event jika belum ada
+        if ($event && !$namaInstitusi) {
+            $namaInstitusi = $event->nama_institusi ?: $event->lokasi ?: 'Kunjungan Event';
+        }
+
+        if (!$namaInstitusi) {
+            $namaInstitusi = 'Kunjungan';
         }
 
         // Validate Geolocation via GeoLocationService
@@ -165,7 +245,7 @@ class VisitController extends Controller
             'sales_id'                 => $user->id,
             'prodi_id'                 => $validated['prodi_id'],
             'jenis'                    => $validated['jenis'],
-            'tujuan_id'                => $tujuanId,
+            'tujuan_id'                => $tujuanId > 0 ? $tujuanId : 0,
             'tujuan_kunjungan'         => $namaInstitusi,
             'hasil'                    => 'Kunjungan ' . $validated['jenis'] . ' — ' . $namaInstitusi,
             'catatan'                  => $validated['catatan'] ?? null,
@@ -180,8 +260,11 @@ class VisitController extends Controller
             'tier'                     => $tier,
             'budget_maksimum'          => $budget,
             'alamat'                   => $validated['alamat'] ?? null,
-            'pic_name'                 => $validated['pic_name'],
-            'pic_whatsapp'             => $validated['pic_whatsapp'],
+            'lokasi_penugasan'         => $validated['lokasi_penugasan'] ?? null,
+            // event_id: diisi untuk Alur 1, NULL untuk Alur 2
+            'event_id'                 => $validated['event_id'] ?? null,
+            'pic_name'                 => $validated['pic_name'] ?? '-',
+            'pic_whatsapp'             => $validated['pic_whatsapp'] ?? '-',
             'foto_path'                => $fotoPath,
             'lat'                      => $validated['lat'],
             'lng'                      => $validated['lng'],
@@ -215,11 +298,11 @@ class VisitController extends Controller
                 'name'         => $namaInstitusi,
                 'type'         => $validated['jenis'],
                 'category'     => null,
-                'sekolah_id'   => $validated['jenis'] === 'Sekolah' ? ($request->sekolah_id ?? null) : null,
-                'perusahaan_id'=> $validated['jenis'] === 'Perusahaan' || $validated['jenis'] === 'Corporate' ? ($request->perusahaan_id ?? null) : null,
+                'sekolah_id'   => $validated['jenis'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
+                'perusahaan_id'=> in_array($validated['jenis'], ['Perusahaan', 'Corporate']) ? ($validated['perusahaan_id'] ?? null) : null,
                 'prodi_id'     => $validated['prodi_id'],
-                'pic'          => $validated['pic_name'],
-                'whatsapp'     => $validated['pic_whatsapp'],
+                'pic'          => $validated['pic_name'] ?? '-',
+                'whatsapp'     => $validated['pic_whatsapp'] ?? '-',
                 'status'       => 'BARU',
                 'stage_number' => 1,
                 'potential'    => $validated['jenis'] === 'Sekolah' ? $request->input('potensi_mahasiswa') : ($request->input('potensi_s1') . ' ' . $request->input('potensi_csr')),
@@ -232,10 +315,10 @@ class VisitController extends Controller
             ]);
 
             ProspekTimeline::create([
-                'prospek_id'  => $prospek->id,
-                'user_id'     => $user->id,
-                'title'       => 'Prospek Dibuat dari Kunjungan',
-                'notes'       => 'Prospek baru ditambahkan otomatis dari pelaporan kunjungan (' . $nomor . ')',
+                'prospek_id'   => $prospek->id,
+                'user_id'      => $user->id,
+                'title'        => 'Prospek Dibuat dari Kunjungan',
+                'notes'        => 'Prospek baru ditambahkan otomatis dari pelaporan kunjungan (' . $nomor . ')',
                 'status_after' => $prospek->status,
                 'time'         => now(),
             ]);
@@ -243,6 +326,38 @@ class VisitController extends Controller
 
         return redirect()->route('sales.kunjungan.index')
             ->with('success', 'Kunjungan berhasil disimpan!');
+    }
+
+    /**
+     * Confirm event attendance.
+     */
+    public function confirmEvent(Request $request, $eventId): RedirectResponse
+    {
+        $request->validate([
+            'kehadiran' => 'required|in:Hadir,Tidak Hadir',
+            'catatan'   => 'nullable|string|max:2000',
+            'foto'      => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+        ]);
+
+        $event = \App\Models\Event::findOrFail($eventId);
+        $user = auth()->user();
+
+        // Handle photo upload
+        $fotoPath = null;
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
+            $fotoPath = $request->file('foto')->store('kunjungan', 'public');
+        }
+
+        \Illuminate\Support\Facades\DB::table('event_sales')
+            ->where('event_id', $eventId)
+            ->where('sales_id', $user->id)
+            ->update([
+                'kehadiran'         => $request->kehadiran,
+                'catatan_kehadiran' => $request->catatan,
+                'foto_kehadiran'    => $fotoPath,
+            ]);
+
+        return redirect()->back()->with('success', 'Kehadiran event berhasil dikonfirmasi.');
     }
 
     /**
@@ -256,7 +371,7 @@ class VisitController extends Controller
             abort(403, 'Anda tidak memiliki akses ke kunjungan ini.');
         }
 
-        $kunjungan->load(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen']);
+        $kunjungan->load(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event']);
         $visit = $this->formatKunjungan($kunjungan);
         return view('kunjungan.show', compact('visit'));
     }
@@ -301,43 +416,46 @@ class VisitController extends Controller
         $photoUrl = $k->foto_path ? Storage::url($k->foto_path) : null;
 
         return [
-            'id'                      => $k->id,
-            'name'                    => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
-            'type'                    => $k->jenis ?? '-',
-            'pic'                     => $k->pic_name ?? '-',
-            'whatsapp'                => $k->pic_whatsapp ?? '-',
-            'sales'                   => $k->sales ? $k->sales->name : '-',
-            'prodi'                   => $k->prodi ? $k->prodi->nama : '-',
-            'prodi_id'                => $k->prodi_id,
-            'dosen'                   => $k->dosen ? $k->dosen->name : ($k->dosen_pemateri ?? '-'),
-            'dosen_id'                => $k->dosen_id,
-            'dosen_pemateri'          => $k->dosen_pemateri,
-            'date'                    => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
-            'time'                    => $k->waktu ?? '-',
-            'address'                 => $k->alamat ?? '-',
-            'potential'               => $potential,
-            'photo'                   => $photoUrl,
-            'notes'                   => $k->catatan ?? $k->hasil ?? '-',
-            'status'                  => $k->status,
-            'status_lokasi'           => $k->status_lokasi ?? ($k->is_verified ? 'Valid' : 'Perlu Verifikasi'),
-            'status_verifikasi'       => $k->status_verifikasi ?? ($k->is_verified ? 'Valid' : 'Perlu Verifikasi'),
-            'jarak_meter'             => (float) ($k->jarak_meter ?? 0),
-            'is_outside_radius'       => (bool) $k->is_outside_radius,
-            'is_verified'             => (bool) $k->is_verified,
-            'nomor'                   => $k->nomor,
-            'qr_code'                 => $k->qr_code,
-            'tier'                    => $k->tier,
-            'budget_maksimum'         => $k->budget_maksimum,
+            'id'                       => $k->id,
+            'name'                     => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
+            'type'                     => $k->jenis ?? '-',
+            'pic'                      => $k->pic_name ?? '-',
+            'whatsapp'                 => $k->pic_whatsapp ?? '-',
+            'sales'                    => $k->sales ? $k->sales->name : '-',
+            'prodi'                    => $k->prodi ? $k->prodi->nama : '-',
+            'prodi_id'                 => $k->prodi_id,
+            'dosen'                    => $k->dosen ? $k->dosen->name : ($k->dosen_pemateri ?? '-'),
+            'dosen_id'                 => $k->dosen_id,
+            'dosen_pemateri'           => $k->dosen_pemateri,
+            'date'                     => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
+            'time'                     => $k->waktu ?? '-',
+            'address'                  => $k->alamat ?? '-',
+            'potential'                => $potential,
+            'photo'                    => $photoUrl,
+            'notes'                    => $k->catatan ?? $k->hasil ?? '-',
+            'status'                   => $k->status,
+            'status_lokasi'            => $k->status_lokasi ?? ($k->is_verified ? 'Valid' : 'Perlu Verifikasi'),
+            'status_verifikasi'        => $k->status_verifikasi ?? ($k->is_verified ? 'Valid' : 'Perlu Verifikasi'),
+            'jarak_meter'              => (float) ($k->jarak_meter ?? 0),
+            'is_outside_radius'        => (bool) $k->is_outside_radius,
+            'is_verified'              => (bool) $k->is_verified,
+            'nomor'                    => $k->nomor,
+            'qr_code'                  => $k->qr_code,
+            'tier'                     => $k->tier,
+            'budget_maksimum'          => $k->budget_maksimum,
+            // Event linkage (Alur 1)
+            'event_id'                 => $k->event_id,
+            'event_name'               => $k->event ? ($k->event->nama ?? $k->event->name) : null,
             // School-specific
-            'potensi_mahasiswa'       => $k->potensi_mahasiswa ?? '-',
-            'detail_potensi_mahasiswa'=> $k->detail_potensi_mahasiswa ?? '-',
-            'kesediaan_training_ai'   => $k->kesediaan_training_ai,
+            'potensi_mahasiswa'        => $k->potensi_mahasiswa ?? '-',
+            'detail_potensi_mahasiswa' => $k->detail_potensi_mahasiswa ?? '-',
+            'kesediaan_training_ai'    => $k->kesediaan_training_ai,
             // Corporate-specific
-            'bidang_usaha'            => $k->bidang_usaha ?? '-',
-            'potensi_s1'              => $k->potensi_s1 ?? '-',
-            'potensi_s2'              => $k->potensi_s2 ?? '-',
-            'potensi_csr'             => $k->potensi_csr ?? '-',
-            'created_at'              => $k->created_at ? $k->created_at->format('d M Y, H:i') : '-',
+            'bidang_usaha'             => $k->bidang_usaha ?? '-',
+            'potensi_s1'               => $k->potensi_s1 ?? '-',
+            'potensi_s2'               => $k->potensi_s2 ?? '-',
+            'potensi_csr'              => $k->potensi_csr ?? '-',
+            'created_at'               => $k->created_at ? $k->created_at->format('d M Y, H:i') : '-',
         ];
     }
 }

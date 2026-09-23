@@ -11,6 +11,28 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('events')) {
+            Schema::table('events', function (Blueprint $table) {
+                if (!Schema::hasColumn('events', 'nama')) {
+                    $table->string('nama')->nullable();
+                }
+                if (!Schema::hasColumn('events', 'tanggal_mulai')) {
+                    $table->dateTime('tanggal_mulai')->nullable();
+                }
+                if (!Schema::hasColumn('events', 'tanggal_selesai')) {
+                    $table->dateTime('tanggal_selesai')->nullable();
+                }
+                if (!Schema::hasColumn('events', 'dokumentasi')) {
+                    $table->string('dokumentasi')->nullable();
+                }
+                if (!Schema::hasColumn('events', 'absen_peserta')) {
+                    $table->string('absen_peserta')->nullable();
+                }
+                // Status column already exists in 040714 with different enums, we'll avoid redefining it here.
+            });
+            return;
+        }
+
         Schema::create('events', function (Blueprint $table) {
             $table->id();
             $table->string('nama');

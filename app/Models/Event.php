@@ -13,6 +13,7 @@ class Event extends Model
     use HasFactory;
 
     protected $fillable = [
+        'name',
         'nama',
         'type_id',
         'tanggal',
@@ -33,6 +34,11 @@ class Event extends Model
         'perusahaan_id',
         'qr_code',
         'academic_year_id',
+        'jenis_institusi',
+        'nama_institusi',
+        'alamat',
+        'pic_name',
+        'pic_whatsapp',
     ];
 
     protected static function booted()
@@ -130,5 +136,13 @@ class Event extends Model
         return $this->belongsToMany(User::class, 'event_sales', 'event_id', 'sales_id')
             ->withPivot(['assigned_by_spv_id', 'google_event_id'])
             ->withTimestamps();
+    }
+
+    /**
+     * Get the kunjungans associated with this event.
+     */
+    public function kunjungans()
+    {
+        return $this->hasMany(Kunjungan::class, 'event_id');
     }
 }

@@ -83,6 +83,11 @@ class EventController extends Controller
             'prodi_id'       => 'nullable|exists:prodis,id',
             'sekolah_id'     => 'nullable|exists:sekolahs,id',
             'perusahaan_id'  => 'nullable|exists:perusahaans,id',
+            'jenis_institusi'=> 'nullable|in:Sekolah,Perusahaan',
+            'nama_institusi' => 'nullable|string|max:255',
+            'alamat'         => 'nullable|string|max:500',
+            'pic_name'       => 'nullable|string|max:255',
+            'pic_whatsapp'   => 'nullable|string|max:20',
         ], [
             'waktu_selesai.after' => 'Waktu selesai harus setelah waktu mulai.',
             'spvs.required'       => 'Minimal satu SPV harus dipilih.',
@@ -103,19 +108,28 @@ class EventController extends Controller
 
         DB::transaction(function () use ($request) {
             $event = Event::create([
+                'name'            => $request->name,
                 'nama'            => $request->name,
                 'type_id'         => $request->type_id,
+                'tanggal'         => $request->tanggal,
+                'waktu_mulai'     => $request->waktu_mulai,
+                'waktu_selesai'   => $request->waktu_selesai,
                 'tanggal_mulai'   => $request->tanggal . ' ' . $request->waktu_mulai . ':00',
                 'tanggal_selesai' => $request->tanggal . ' ' . $request->waktu_selesai . ':00',
                 'lokasi'          => $request->lokasi,
                 'deskripsi'       => $request->deskripsi,
                 'eo_id'           => Auth::id(),
-                'status'          => 'Rencana',
+                'status'          => 'Scheduled',
                 'dosen_id'        => $request->dosen_id,
                 'dosen_pemateri'  => $request->dosen_pemateri,
                 'prodi_id'        => $request->prodi_id,
                 'sekolah_id'      => $request->sekolah_id,
                 'perusahaan_id'   => $request->perusahaan_id,
+                'jenis_institusi' => $request->jenis_institusi,
+                'nama_institusi'  => $request->nama_institusi,
+                'alamat'          => $request->alamat,
+                'pic_name'        => $request->pic_name,
+                'pic_whatsapp'    => $request->pic_whatsapp,
                 'qr_code'         => Event::generateUniqueQrToken(),
             ]);
 
@@ -167,6 +181,11 @@ class EventController extends Controller
             'prodi_id'       => 'nullable|exists:prodis,id',
             'sekolah_id'     => 'nullable|exists:sekolahs,id',
             'perusahaan_id'  => 'nullable|exists:perusahaans,id',
+            'jenis_institusi'=> 'nullable|in:Sekolah,Perusahaan',
+            'nama_institusi' => 'nullable|string|max:255',
+            'alamat'         => 'nullable|string|max:500',
+            'pic_name'       => 'nullable|string|max:255',
+            'pic_whatsapp'   => 'nullable|string|max:20',
         ]);
 
         // Check if event type is Training
@@ -190,8 +209,12 @@ class EventController extends Controller
                              $oldEnd->format('H:i') !== $request->waktu_selesai;
 
             $event->update([
+                'name'            => $request->name,
                 'nama'            => $request->name,
                 'type_id'         => $request->type_id,
+                'tanggal'         => $request->tanggal,
+                'waktu_mulai'     => $request->waktu_mulai,
+                'waktu_selesai'   => $request->waktu_selesai,
                 'tanggal_mulai'   => $request->tanggal . ' ' . $request->waktu_mulai . ':00',
                 'tanggal_selesai' => $request->tanggal . ' ' . $request->waktu_selesai . ':00',
                 'lokasi'          => $request->lokasi,
@@ -201,6 +224,11 @@ class EventController extends Controller
                 'prodi_id'        => $request->prodi_id,
                 'sekolah_id'      => $request->sekolah_id,
                 'perusahaan_id'   => $request->perusahaan_id,
+                'jenis_institusi' => $request->jenis_institusi,
+                'nama_institusi'  => $request->nama_institusi,
+                'alamat'          => $request->alamat,
+                'pic_name'        => $request->pic_name,
+                'pic_whatsapp'    => $request->pic_whatsapp,
             ]);
 
             $oldSpvs = $event->spvs->pluck('id')->toArray();
