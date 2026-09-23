@@ -12,13 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->text('google_access_token')->nullable()->after('status');
-            $table->text('google_refresh_token')->nullable()->after('google_access_token');
-            $table->timestamp('google_token_expires_at')->nullable()->after('google_refresh_token');
+            if (!Schema::hasColumn('users', 'google_access_token')) {
+                $table->text('google_access_token')->nullable();
+            }
+            if (!Schema::hasColumn('users', 'google_refresh_token')) {
+                $table->text('google_refresh_token')->nullable();
+            }
+            if (!Schema::hasColumn('users', 'google_token_expires_at')) {
+                $table->timestamp('google_token_expires_at')->nullable();
+            }
         });
 
         Schema::table('event_sales', function (Blueprint $table) {
-            $table->string('google_event_id')->nullable()->after('assigned_by_spv_id');
+            if (!Schema::hasColumn('event_sales', 'google_event_id')) {
+                $table->string('google_event_id')->nullable();
+            }
         });
     }
 

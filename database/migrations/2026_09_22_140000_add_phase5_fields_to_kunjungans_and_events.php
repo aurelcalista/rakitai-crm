@@ -40,22 +40,22 @@ return new class extends Migration
 
         Schema::table('events', function (Blueprint $table) {
             if (!Schema::hasColumn('events', 'dosen_id')) {
-                $table->foreignId('dosen_id')->nullable()->after('sales_id')->constrained('users')->nullOnDelete();
+                $table->foreignId('dosen_id')->nullable()->constrained('users')->nullOnDelete();
             }
             if (!Schema::hasColumn('events', 'dosen_pemateri')) {
-                $table->string('dosen_pemateri')->nullable()->after('dosen_id');
+                $table->string('dosen_pemateri')->nullable();
             }
             if (!Schema::hasColumn('events', 'prodi_id')) {
-                $table->foreignId('prodi_id')->nullable()->after('type_id')->constrained('prodis')->nullOnDelete();
+                $table->foreignId('prodi_id')->nullable()->constrained('prodis')->nullOnDelete();
             }
             if (!Schema::hasColumn('events', 'sekolah_id')) {
-                $table->foreignId('sekolah_id')->nullable()->after('eo_id')->constrained('sekolahs')->nullOnDelete();
+                $table->foreignId('sekolah_id')->nullable()->constrained('sekolahs')->nullOnDelete();
             }
             if (!Schema::hasColumn('events', 'perusahaan_id')) {
-                $table->foreignId('perusahaan_id')->nullable()->after('sekolah_id')->constrained('perusahaans')->nullOnDelete();
+                $table->foreignId('perusahaan_id')->nullable()->constrained('perusahaans')->nullOnDelete();
             }
             if (!Schema::hasColumn('events', 'qr_code')) {
-                $table->string('qr_code')->nullable()->unique()->after('status');
+                $table->string('qr_code')->nullable()->unique();
             }
         });
 
