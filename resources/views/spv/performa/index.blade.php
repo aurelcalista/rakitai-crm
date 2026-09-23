@@ -105,7 +105,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                     <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">PERORANG (PERFORMA HARIAN & UTANG ANGKA)</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Otorisasi Kunci Defisit oleh SPV (P0 Bab 6.1), Sasaran Hari Ini, dan Lokasi Penugasan.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Otorisasi Kunci Defisit oleh SPV, Sasaran Hari Ini, dan Lokasi Penugasan.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="text-[11px] text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">

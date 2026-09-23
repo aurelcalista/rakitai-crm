@@ -776,10 +776,38 @@ x-init="
                         >
                             <!-- Dropdown Header -->
                             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <span class="font-bold text-xs text-slate-900">Notifikasi Terbaru</span>
-                                <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-xs text-slate-900">Notifikasi Terbaru</span>
+                                    <!-- Sound Controls -->
+                                    <button 
+                                        @click.stop="$store.crm.toggleSound()"
+                                        type="button"
+                                        class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                                        :title="$store.crm.soundEnabled ? 'Suara Aktif (Klik untuk mematikan)' : 'Suara Dimatikan (Klik untuk menyalakan)'"
+                                    >
+                                        <template x-if="$store.crm.soundEnabled">
+                                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                            </svg>
+                                        </template>
+                                        <template x-if="!$store.crm.soundEnabled">
+                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                            </svg>
+                                        </template>
+                                    </button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button 
+                                        @click.stop="$store.crm.testSound()" 
+                                        type="button"
+                                        class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer flex items-center gap-1"
+                                        title="Uji coba suara lonceng notifikasi"
+                                    >
+                                        <span>🔔 Tes Suara</span>
+                                    </button>
                                     <template x-if="$store.crm.unreadCount > 0">
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Belum Dibaca'"></span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Baru'"></span>
                                     </template>
                                     <button 
                                         @click="$store.crm.markAllAsRead()" 
@@ -813,7 +841,7 @@ x-init="
                             <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                                 <template x-for="item in $store.crm.notifications.filter(n => filter === 'all' || !n.read)" :key="item.id">
                                     <div 
-                                        @click="$store.crm.markAsRead(item.id); if(item.link) window.location.href = item.link;"
+                                        @click="$store.crm.markAsRead(item.id); if(item.link && item.link !== '#') window.location.href = item.link;"
                                         class="px-4 py-3 hover:bg-slate-50 transition cursor-pointer flex items-start justify-between gap-3 group"
                                         :class="!item.read ? 'bg-blue-50/40' : ''"
                                     >
@@ -829,7 +857,12 @@ x-init="
                                                 }"
                                             ></span>
                                             <div>
-                                                <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-blue-600 transition" x-text="item.title"></p>
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <template x-if="item.icon">
+                                                        <span class="text-xs" x-text="item.icon"></span>
+                                                    </template>
+                                                    <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-blue-600 transition" x-text="item.title"></p>
+                                                </div>
                                                 <p class="text-[11px] text-slate-500 mt-0.5 leading-normal" x-text="item.message"></p>
                                                 <span class="text-[10px] text-slate-400 mt-1 block" x-text="item.time"></span>
                                             </div>

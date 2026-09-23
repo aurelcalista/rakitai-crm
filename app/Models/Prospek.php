@@ -75,26 +75,162 @@ class Prospek extends Model
             }
         });
 
-        static::updated(function ($prospek) {
-            // Log handover to Timeline if it just happened
-            if ($prospek->wasChanged('cs_id') && $prospek->cs_id) {
-                $cs = \App\Models\User::find($prospek->cs_id);
-                \App\Models\ProspekTimeline::create([
-                    'prospek_id' => $prospek->id,
-                    'user_id' => $cs?->id,
-                    'title' => 'Handover',
-                    'notes' => 'Prospek dialihkan ke CS: ' . ($cs?->name ?? 'CS Staff'),
-                    'time' => now(),
-                ]);
-            }
-        });
-
         static::creating(function ($model) {
             if (!$model->academic_year_id) {
                 $aktif = TahunAkademik::getAktif();
                 if ($aktif) {
                     $model->academic_year_id = $aktif->id;
                 }
+            }
+        });
+
+        static::created(function ($prospek) {
+            try {
+                $auth = auth()->user();
+                $actorName = $auth ? "{$auth->name} ({$auth->role})" : "Sistem";
+
+                // Notifikasi ke Sales jika prospek di-assign ke Sales oleh user lain (SPV/Admin/dll)
+                if ($prospek->sales_id && (!$auth || $auth->id !== (int)$prospek->sales_id)) {
+                    $sales = \App\Models\User::find($prospek->sales_id);
+                    if ($sales) {
+                        $sekolahName = $prospek->sekolah?->nama ?? $prospek->perusahaan?->nama ?? '';
+                        $infoText = $sekolahName ? " ({$sekolahName})" : '';
+                        $sales->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "👤 Prospek Baru Ditugaskan",
+                            message: "{$actorName} menugaskan prospek baru: {$prospek->name}{$infoText}.",
+                            type: 'info',
+                            link: '/prospek',
+                            icon: '👤',
+                            senderName: $auth?->name,
+                            senderRole: $auth?->role,
+                            action: 'prospek_assigned'
+                        ));
+                    }
+                }
+
+                // Notifikasi ke CS jika prospek langsung di-assign ke CS
+                if ($prospek->cs_id && (!$auth || $auth->id !== (int)$prospek->cs_id)) {
+                    $cs = \App\Models\User::find($prospek->cs_id);
+                    if ($cs) {
+                        $cs->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "📋 Prospek Baru (CS)",
+                            message: "{$actorName} menugaskan prospek baru: {$prospek->name}.",
+                            type: 'info',
+                            link: '/prospek',
+                            icon: '📋',
+                            senderName: $auth?->name,
+                            senderRole: $auth?->role,
+                            action: 'prospek_assigned_cs'
+                        ));
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending prospek created notification: ' . $e->getMessage());
+            }
+        });
+
+        static::updated(function ($prospek) {
+            try {
+                $auth = auth()->user();
+                $actorName = $auth ? $auth->name : 'Sistem';
+
+                // Log handover to Timeline if it just happened
+                if ($prospek->wasChanged('cs_id') && $prospek->cs_id) {
+                    $cs = \App\Models\User::find($prospek->cs_id);
+                    \App\Models\ProspekTimeline::create([
+                        'prospek_id' => $prospek->id,
+                        'user_id' => $cs?->id,
+                        'title' => 'Handover',
+                        'notes' => 'Prospek dialihkan ke CS: ' . ($cs?->name ?? 'CS Staff'),
+                        'time' => now(),
+                    ]);
+
+                    // 1. Notifikasi ke CS penerima pelimpahan
+                    if ($cs && (!$auth || $auth->id !== $cs->id)) {
+                        $cs->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "📋 Pelimpahan Prospek (Handover CS)",
+                            message: "Prospek '{$prospek->name}' telah dilimpahkan ke Anda untuk tahapan formulir/pendaftaran.",
+                            type: 'warning',
+                            link: '/prospek',
+                            icon: '📋',
+                            senderName: $auth?->name,
+                            senderRole: $auth?->role,
+                            action: 'cs_handover'
+                        ));
+                    }
+
+                    // 2. Notifikasi ke SPV yang membawahi Sales prospek ini
+                    $sales = $prospek->sales ?? \App\Models\User::find($prospek->sales_id);
+                    $spv = $sales?->supervisor;
+                    if ($spv && (!$auth || $auth->id !== $spv->id)) {
+                        $spv->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "✨ Handover Prospek ke CS",
+                            message: "Prospek '{$prospek->name}' (" . ($sales?->name ?? 'Sales') . ") masuk tahap Formulir dan dilimpahkan ke CS " . ($cs?->name ?? 'Staff CS') . ".",
+                            type: 'info',
+                            link: '/spv/prospek',
+                            icon: '✨',
+                            senderName: $sales?->name,
+                            senderRole: 'Sales',
+                            action: 'cs_handover_spv'
+                        ));
+                    }
+                }
+
+                // Notifikasi pengalihan sales_id ke Sales baru
+                if ($prospek->wasChanged('sales_id') && $prospek->sales_id) {
+                    $newSales = \App\Models\User::find($prospek->sales_id);
+                    if ($newSales && (!$auth || $auth->id !== $newSales->id)) {
+                        $newSales->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "👤 Pengalihan Prospek",
+                            message: "Prospek '{$prospek->name}' telah dialihkan kepada Anda oleh {$actorName}.",
+                            type: 'info',
+                            link: '/prospek',
+                            icon: '👤',
+                            senderName: $auth?->name,
+                            senderRole: $auth?->role,
+                            action: 'prospek_reassigned'
+                        ));
+                    }
+                }
+
+                // Notifikasi Closing / LUNAS ke SPV & Head of Marketing (HM)
+                if ($prospek->wasChanged('status') && strtoupper((string)$prospek->status) === 'LUNAS') {
+                    $sales = $prospek->sales ?? \App\Models\User::find($prospek->sales_id);
+                    $spv = $sales?->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
+
+                    // Notifikasi ke SPV
+                    if ($spv && (!$auth || $auth->id !== $spv->id)) {
+                        $spv->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "🎉 Closing Berhasil!",
+                            message: "Selamat! Prospek '{$prospek->name}' berhasil LUNAS melalui {$actorName}.",
+                            type: 'success',
+                            link: '/spv/pipeline',
+                            icon: '🎓',
+                            senderName: $actorName,
+                            senderRole: $auth?->role ?? 'Sales',
+                            action: 'closing_lunas'
+                        ));
+                    }
+
+                    // Notifikasi ke semua HM
+                    $hms = \App\Models\User::where('role', 'HM')->where('status', 'Aktif')->get();
+                    foreach ($hms as $hm) {
+                        if (!$auth || $auth->id !== $hm->id) {
+                            $hm->notify(new \App\Notifications\CrmActivityNotification(
+                                title: "🎉 Closing PMB Baru!",
+                                message: "{$actorName} berhasil closing calon mahasiswa '{$prospek->name}' (LUNAS).",
+                                type: 'success',
+                                link: '/hm/pipeline',
+                                icon: '🎓',
+                                senderName: $actorName,
+                                senderRole: $auth?->role ?? 'Sales',
+                                action: 'closing_lunas_hm'
+                            ));
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending prospek updated notification: ' . $e->getMessage());
             }
         });
     }

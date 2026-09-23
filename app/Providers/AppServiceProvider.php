@@ -95,7 +95,8 @@ class AppServiceProvider extends ServiceProvider
                         'time'    => $notif->created_at->diffForHumans(),
                         'type'    => $notif->data['type'] ?? 'info',
                         'read'    => $notif->read_at !== null,
-                        'link'    => $notif->data['link'] ?? '#',
+                        'link'    => $notif->data['link'] ?? $notif->data['url'] ?? '#',
+                        'icon'    => $notif->data['icon'] ?? '🔔',
                     ];
                 });
 

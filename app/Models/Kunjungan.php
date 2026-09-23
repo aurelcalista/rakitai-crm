@@ -38,6 +38,33 @@ class Kunjungan extends Model
             if (!$model->qr_code) {
                 $model->qr_code = self::generateUniqueQrToken($model);
             }
+
+            if (!$model->waktu) {
+                $model->waktu = now()->format('H:i:s');
+            }
+        });
+
+        static::created(function ($kunjungan) {
+            try {
+                $sales = $kunjungan->sales ?? \App\Models\User::find($kunjungan->sales_id);
+                $spv = $sales?->supervisor;
+                $instName = $kunjungan->nama_institusi ?? $kunjungan->sekolah?->nama ?? $kunjungan->perusahaan?->nama ?? 'Institusi';
+
+                if ($spv && (!auth()->check() || auth()->id() !== $spv->id)) {
+                    $spv->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "📍 Laporan Kunjungan Baru",
+                        message: "Sales " . ($sales?->name ?? 'Sales') . " telah melaporkan kunjungan ke {$instName}.",
+                        type: 'success',
+                        link: '/spv/kunjungan',
+                        icon: '📍',
+                        senderName: $sales?->name,
+                        senderRole: 'Sales',
+                        action: 'kunjungan_created'
+                    ));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending kunjungan notification: ' . $e->getMessage());
+            }
         });
     }
 
