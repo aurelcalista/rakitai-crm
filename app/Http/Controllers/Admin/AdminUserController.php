@@ -13,7 +13,8 @@ class AdminUserController extends Controller
     public function index(Request $request): View
     {
         $users = User::latest()->get()->map(function ($user) {
-            $user->avatar = strtoupper(substr($user->name, 0, 2));
+            $user->avatar_url = $user->avatar_url;
+            $user->avatar = $user->initials;
             return $user;
         });
 

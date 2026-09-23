@@ -41,6 +41,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Target & Pencapaian Sales Pribadi" 
+                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, realtime, kekurangan, dan target harian berjalan"
+            />
+        @endif
+
         <!-- Big Progress Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <x-stat-card 

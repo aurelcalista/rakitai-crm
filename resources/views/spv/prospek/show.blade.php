@@ -33,7 +33,12 @@
                         @if(!empty($prospect['sekolah_nama']))
                             <span class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">{{ $prospect['sekolah_nama'] }}</span>
                         @endif
-                        <span class="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-semibold">Handler: {{ $prospect['takeover_sales'] ?? 'Belum Ada' }}</span>
+                        @if(!empty($prospect['prodi_nama']) && $prospect['prodi_nama'] !== '-')
+                            <span class="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+                                Prodi: {{ $prospect['prodi_nama'] }} ({{ $prospect['kelas'] ?? 'Reguler' }})
+                            </span>
+                        @endif
+                        <span class="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-xs font-semibold">Handler: {{ $prospect['takeover_sales'] ?? ($prospect['takeover_cs'] ?? 'Belum Ditugaskan') }}</span>
                         <span class="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">{{ $prospect['follow_up_count'] ?? 0 }}x Follow Up</span>
                     </div>
                     <div class="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500 font-medium">
@@ -138,8 +143,24 @@
                     
                     <div class="space-y-3 text-xs">
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sales Penanggung Jawab</span>
-                            <p class="font-bold text-slate-900 mt-0.5">{{ $prospect['takeover_sales'] ?? 'Belum Ditugaskan' }}</p>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Program Studi Diminati</span>
+                            <p class="font-bold text-blue-900 mt-0.5 text-sm">{{ $prospect['prodi_nama'] ?? '-' }}</p>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pilihan Kelas</span>
+                            <p class="font-semibold text-slate-800 mt-0.5 inline-block px-2 py-0.5 bg-slate-100 rounded text-xs">{{ $prospect['kelas'] ?? 'Reguler' }}</p>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pemilik Lead & Handler</span>
+                            <p class="font-bold text-slate-900 mt-0.5">{{ $prospect['takeover_sales'] ? $prospect['takeover_sales'] . ' (Sales)' : ($prospect['takeover_cs'] ? $prospect['takeover_cs'] . ' (CS)' : 'Belum Ditugaskan') }}</p>
+                            <span class="text-[10px] text-slate-400">Owner Lead: {{ $prospect['owner'] ?? '-' }}</span>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Wilayah / Teritori</span>
+                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['wilayah_nama'] ?? '-' }}</p>
                         </div>
 
                         <div>
@@ -298,7 +319,7 @@
                         <span>Jaminan Kepemilikan Lead:</span>
                     </div>
                     <p class="text-[11px] text-emerald-700">
-                        Sesuai PRD P0, SPV berwenang membantu closing namun <strong>kredit dan kepemilikan lead (<code class="bg-emerald-100 px-1 py-0.5 rounded font-mono">sales_id</code>) tetap milik {{ $prospect['takeover_sales'] ?? 'Sales Pemilik Awal' }}</strong>.
+                        SPV berwenang membantu closing, namun <strong>kredit dan kepemilikan lead (<code class="bg-emerald-100 px-1 py-0.5 rounded font-mono">sales_id</code>) tetap menjadi hak milik {{ $prospect['takeover_sales'] ?? 'Sales Pemilik Awal' }}</strong>.
                     </p>
                 </div>
 

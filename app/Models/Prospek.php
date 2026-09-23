@@ -13,9 +13,10 @@ class Prospek extends Model
         'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp',
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
-        'sekolah_id', 'perusahaan_id',
-        'lost_reason', 'lost_note', 'active_follow_up_count', 'follow_up_count',
-        'handover_at', 'academic_year_id', 'prodi_id'
+        'sekolah_id', 'perusahaan_id', 'prodi_id',
+        'lost_reason', 'lost_note',
+        'follow_up_count', 'active_follow_up_count',
+        'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',
     ];
 
     protected $casts = [
@@ -71,11 +72,9 @@ class Prospek extends Model
                 $cs = \App\Models\User::find($prospek->cs_id);
                 \App\Models\ProspekTimeline::create([
                     'prospek_id' => $prospek->id,
-                    'user_id' => auth()->id() ?? $prospek->sales_id,
-                    'title' => 'Auto-Handover ke CS',
-                    'notes' => 'Prospek di-handover otomatis ke CS: ' . ($cs->name ?? 'Unknown'),
-                    'status_before' => $prospek->getOriginal('status') ?? 'Baru',
-                    'status_after' => $prospek->status,
+                    'user_id' => $cs?->id,
+                    'title' => 'Handover',
+                    'notes' => 'Prospek dialihkan ke CS: ' . ($cs?->name ?? 'CS Staff'),
                     'time' => now(),
                 ]);
             }
@@ -91,18 +90,7 @@ class Prospek extends Model
         });
     }
 
-    public const STAGES = [
-        'BARU'      => 1,
-        'KONTAK'    => 2,
-        'HANGAT'    => 3,
-        'PANAS'     => 4,
-        'FORMULIR'  => 5,
-        'BERKAS'    => 6,
-        'LUNAS'     => 7,
-        'DINGIN'    => 8,
-    ];
-
-    public const PIPELINE_8_STAGES = [
+    public const ACTIVE_STAGES = [
         'BARU',
         'KONTAK',
         'HANGAT',
@@ -113,7 +101,59 @@ class Prospek extends Model
         'DINGIN',
     ];
 
-    public const ACTIVE_STAGES = self::PIPELINE_8_STAGES;
+    public const PIPELINE_8_STAGES = self::ACTIVE_STAGES;
+
+    /**
+     * 10 Opsi Baku Dropdown Sumber Informasi Resmi PRD Bab 8.1.1
+     */
+    public const SOURCES = [
+        'Teman/Keluarga/Saudara',
+        'Sekolah',
+        'Sosial Media (Facebook, Instagram, X)',
+        'Website CIC',
+        'Brosur/Poster',
+        'Sekretariat Kampus (Walk-in)',
+        'Pameran/Expo/University Day',
+        'Acara Kampus',
+        'MGBK/Miniclass',
+        'Spanduk/Baliho',
+        'Lainnya',
+    ];
+
+    /**
+     * 8 Status Pipeline Standar PMB & Backward-Compatibility Map
+     */
+    public const STAGES = [
+        // 8 Pipeline Wajib Resmi PMB TA 2027/2028
+        'BARU'                => 1,
+        'KONTAK'              => 2,
+        'HANGAT'              => 3,
+        'PANAS'               => 4,
+        'FORMULIR'            => 5,
+        'BERKAS'              => 6,
+        'LUNAS'               => 7,
+        'DINGIN'              => 8,
+
+        // Legacy / Backward Compatibility
+        'Baru'                => 1,
+        'Lead In'             => 1,
+        'Cold Lead'           => 1,
+        'Interested'          => 2,
+        'Follow Up 1'         => 2,
+        'Follow Up'           => 3,
+        'Warm Lead'           => 3,
+        'Hot Lead'            => 4,
+        'Negosiasi'           => 4,
+        'Beli Formulir'       => 5,
+        'Mendaftar'           => 5,
+        'Lulus Tes'           => 6,
+        'Pembayaran Termin 1' => 7,
+        'Closing (Lunas)'     => 7,
+        'Closing'             => 7,
+        'Lost'                => 8,
+        'Ditolak/Batal'       => 8,
+        'Ditolak / Batal'     => 8,
+    ];
 
     /**
      * Syarat Maba Lunas: Pembayaran Formulir + Pembayaran Termin 1 (Status 07 LUNAS)
@@ -199,6 +239,11 @@ class Prospek extends Model
     public function sekolah()
     {
         return $this->belongsTo(Sekolah::class);
+    }
+
+    public function prodi()
+    {
+        return $this->belongsTo(Prodi::class, 'prodi_id');
     }
 
     public function perusahaan()

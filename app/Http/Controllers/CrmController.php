@@ -7,6 +7,7 @@ use Illuminate\View\View;
 use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CrmController extends Controller
 {
@@ -41,6 +42,25 @@ class CrmController extends Controller
             $words = array_values(array_filter(explode(' ', trim($name))));
             $avatar = strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
 
+            $wilayahNama = null;
+            if ($user->wilayah) {
+                $wilayahNama = $user->wilayah->nama . ($user->wilayah->parent ? ' (' . $user->wilayah->parent->nama . ')' : '');
+            } else {
+                if ($roleKey === 'admin') {
+                    $wilayahNama = 'Semua Wilayah (Pusat Kampus UCIC)';
+                } elseif ($roleKey === 'hm') {
+                    $wilayahNama = 'Seluruh Wilayah Operasional (Regional & Nasional)';
+                } elseif ($roleKey === 'cs') {
+                    $wilayahNama = 'Kampus Utama UCIC (Inbound CS)';
+                } elseif ($roleKey === 'eo') {
+                    $wilayahNama = 'Wilayah Promosi & Event Kampus';
+                } elseif ($roleKey === 'spv') {
+                    $wilayahNama = 'Wilayah Cirebon & Sekitarnya (Supervisi)';
+                } else {
+                    $wilayahNama = 'Wilayah Cirebon & Sekitarnya';
+                }
+            }
+
             return [
                 'id'              => $user->id,
                 'name'            => $name,
@@ -50,6 +70,8 @@ class CrmController extends Controller
                 'phone'           => $user->phone ?? '081234567890',
                 'nik'             => '202408' . str_pad($user->id ?? 1, 3, '0', STR_PAD_LEFT),
                 'avatar'          => $avatar ?: 'AD',
+                'avatar_url'      => $user->avatar_url,
+                'wilayah'         => $wilayahNama,
                 'division'        => $roleKey === 'admin' 
                     ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
                     : 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
@@ -70,6 +92,7 @@ class CrmController extends Controller
                 'email'           => 'aurel.calista@cic.ac.id',
                 'phone'           => '081298765432',
                 'nik'             => '202408119',
+                'wilayah'         => 'Wilayah Cirebon & Sekitarnya',
                 'avatar'          => 'AC',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.sales',
@@ -82,6 +105,7 @@ class CrmController extends Controller
                 'email'           => 'dina.cs@cic.ac.id',
                 'phone'           => '082199887766',
                 'nik'             => '202408104',
+                'wilayah'         => 'Kampus Utama UCIC (Inbound CS)',
                 'avatar'          => 'DM',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.cs',
@@ -94,11 +118,12 @@ class CrmController extends Controller
                 'email'           => 'hendra.spv@cic.ac.id',
                 'phone'           => '085277889911',
                 'nik'             => '202408106',
+                'wilayah'         => 'Indramayu & Cirebon (Supervisi)',
                 'avatar'          => 'HS',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.spv',
             ],
-                'hm' => [
+            'hm' => [
                 'id'              => 7,
                 'name'            => 'Dr. Rahmat Hidayat, M.M',
                 'role'            => 'Head Marketing',
@@ -106,6 +131,7 @@ class CrmController extends Controller
                 'email'           => 'head.marketing@cic.ac.id',
                 'phone'           => '081122334455',
                 'nik'             => '202408107',
+                'wilayah'         => 'Seluruh Wilayah Operasional (Regional & Nasional)',
                 'avatar'          => 'RH',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.hm',
@@ -118,6 +144,7 @@ class CrmController extends Controller
                 'email'           => 'eo@cic.ac.id',
                 'phone'           => '085344556677',
                 'nik'             => '202408109',
+                'wilayah'         => 'Wilayah Promosi & Event Kampus',
                 'avatar'          => 'FS',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.eo',
@@ -130,6 +157,7 @@ class CrmController extends Controller
                 'email'           => 'admin@cic.ac.id',
                 'phone'           => '081234567890',
                 'nik'             => '202408001',
+                'wilayah'         => 'Semua Wilayah (Pusat Kampus UCIC)',
                 'avatar'          => 'AD',
                 'division'        => 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.admin',
@@ -503,10 +531,32 @@ class CrmController extends Controller
     }
 
     /**
-     * Get mock audit logs dataset.
+     * Get dynamic audit logs dataset from database with fallback.
      */
     private function getAuditLogs(): array
     {
+        $dbTimelines = \App\Models\ProspekTimeline::with(['user', 'prospek'])
+            ->latest('time')
+            ->limit(100)
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'id'     => $t->id,
+                    'user'   => $t->user?->name ?? 'Sistem',
+                    'role'   => $t->user?->role ?? 'System',
+                    'action' => $t->title ?? 'Aktivitas Prospek',
+                    'target' => $t->prospek?->name ?? ('Prospek #' . $t->prospek_id),
+                    'detail' => $t->notes ?? ($t->status_before ? "Status: {$t->status_before} → {$t->status_after}" : 'Pencatatan aktivitas'),
+                    'ip'     => '127.0.0.1',
+                    'time'   => \Carbon\Carbon::parse($t->time ?? $t->created_at)->translatedFormat('d M Y, H:i:s'),
+                ];
+            })
+            ->toArray();
+
+        if (!empty($dbTimelines)) {
+            return $dbTimelines;
+        }
+
         return [
             ['id' => 101, 'user' => 'Aurel Calista', 'role' => 'Sales', 'action' => 'Update Status Prospek', 'target' => 'SMK Negeri 1 Cirebon', 'detail' => 'Status diubah dari Cold Lead menjadi Interested', 'ip' => '180.252.164.12', 'time' => '11 Sep 2026, 09:30:14'],
             ['id' => 102, 'user' => 'Dina Marlina', 'role' => 'CS', 'action' => 'Takeover Penugasan', 'target' => 'SMA Negeri 2 Majalengka', 'detail' => 'Pelimpahan prospek dari Sales ke CS untuk verifikasi formulir', 'ip' => '180.252.164.88', 'time' => '11 Sep 2026, 08:45:22'],
@@ -632,7 +682,9 @@ class CrmController extends Controller
      */
     public function dashboardCs(Request $request): View
     {
-        $request->session()->put('user_role', 'cs');
+        if ($request->hasSession()) {
+            $request->session()->put('user_role', 'cs');
+        }
         
         $prospects = $this->getDbProspects();
         
@@ -657,7 +709,7 @@ class CrmController extends Controller
 
         $stats = [
             'total_prospek' => count($prospects),
-            'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'], 'CS'))),
+            'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'] ?? '', 'CS'))),
             'follow_up_today' => $followUpTodayCount,
             'follow_up_pending' => $followUpPendingCount,
             'closing' => $lunasCount,
@@ -666,7 +718,12 @@ class CrmController extends Controller
             'DINGIN' => $dinginCount,
         ];
 
-        return view('cs.dashboard', compact('stats', 'followUpsToday'));
+        $targetAchievementService = app(\App\Services\TargetAchievementService::class);
+        $period = request('periode', 'bulanan');
+        $wilayahId = request('wilayah_id');
+        $targetAchievementData = $targetAchievementService->getDashboardTargetData(auth()->user(), $period, $wilayahId);
+
+        return view('cs.dashboard', compact('stats', 'followUpsToday', 'targetAchievementData'));
     }
 
     /**
@@ -756,21 +813,29 @@ class CrmController extends Controller
      */
     public function dashboardHm(Request $request): View
     {
-        $request->session()->put('user_role', 'hm');
+        if ($request->hasSession()) {
+            $request->session()->put('user_role', 'hm');
+        }
 
+        $user = auth()->user();
+
+        // Active Tahun Akademik
         $activeAyId = \App\Services\AkademikService::getAktifId();
-        $targetService = app(\App\Services\SalesTargetService::class);
-        $metricsService = app(\App\Services\TargetMetricsService::class);
+        $targetService = app(\App\Services\TargetAchievementService::class);
 
-        // Global rollup for HM (all Sales, scoped to active TA)
-        $globalRollup = $metricsService->rollUpGlobal(null, $activeAyId);
+        // Global stats (all prospects)
+        $totalProspek  = Prospek::count();
+        $closing       = Prospek::where('status', 'LUNAS')->count();
+        $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $lost          = Prospek::where('status', 'DINGIN')->count();
 
-        $totalProspek  = $globalRollup['achievement_kontak'];
-        $closing       = $globalRollup['achievement_lunas'];
-        $activeProspek = Prospek::when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
-            ->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
-        $lost = Prospek::when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
-            ->where('status', 'DINGIN')->count();
+        // Global target rollup (sum of all active Sales targets)
+        $totalTargetLunas = \App\Models\Target::where('status', 'Aktif')
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->sum('target_lunas');
+        $sisaTarget = max(0, $totalTargetLunas - $closing);
+        $pctLunas   = $totalTargetLunas > 0 ? round(($closing / $totalTargetLunas) * 100, 1) : 0;
+        $colorStatus = $pctLunas >= 100 ? 'green' : ($pctLunas >= 70 ? 'yellow' : 'red');
 
         $stats = [
             'total_prospek'   => $totalProspek,
@@ -782,20 +847,22 @@ class CrmController extends Controller
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
             'total_sales'     => \App\Models\User::where('role', 'Sales')->count(),
             'total_cs'        => \App\Models\User::where('role', 'CS')->count(),
-            'target_global'   => $globalRollup['target_lunas'],
-            'sisa_target'     => $globalRollup['deficit_lunas'],
-            'pct_lunas'       => $globalRollup['pct_lunas'],
-            'color_status'    => $globalRollup['color_status'],
+            'target_global'   => $totalTargetLunas,
+            'sisa_target'     => $sisaTarget,
+            'pct_lunas'       => $pctLunas,
+            'color_status'    => $colorStatus,
         ];
 
         $salesUsers = \App\Models\User::where('role', 'Sales')->get();
-        $team = $salesUsers->map(function ($s) use ($targetService, $activeAyId) {
+        $team = $salesUsers->map(function ($s) use ($activeAyId) {
             $closing        = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
             $prospectsCount = Prospek::where('sales_id', $s->id)
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
-            // Use actual target_lunas from active target (no hardcode fallback to 50)
-            $activeTarget   = $targetService->getActiveTarget($s);
+            $activeTarget   = \App\Models\Target::where('sales_id', $s->id)
+                ->where('status', 'Aktif')
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+                ->latest()->first();
             $targetNum      = $activeTarget ? (int)$activeTarget->target_lunas : 0;
             $achievement    = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
             return [
@@ -833,7 +900,15 @@ class CrmController extends Controller
             ];
         })->values()->toArray();
 
-        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages'));
+        // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = app(\App\Services\TargetAchievementService::class)->getDashboardTargetData(
+            auth()->user(),
+            $request->get('periode', 'bulanan'),
+            $request->get('wilayah_id') ? (int)$request->get('wilayah_id') : null,
+            $request->get('ta')
+        );
+
+        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData'));
     }
 
     /**
@@ -1516,9 +1591,9 @@ class CrmController extends Controller
                 'prospects'   => $stats['total_prospek'],
                 'follow_up'   => $stats['follow_up'],
                 'closing'     => $stats['realisasi_closing'],
-                'lost'        => $stats['DINGIN'],
+                'lost'        => $stats['realisasi_closing'] - $stats['realisasi_closing'], // placeholder
                 'LUNAS'       => $stats['realisasi_closing'],
-                'DINGIN'      => $stats['DINGIN'],
+                'DINGIN'      => $stats['DINGIN'] ?? 0,
                 'achievement' => $achievement,
                 'avatar'      => strtoupper(substr($s->name, 0, 2)),
                 'status'      => $stats['realisasi_closing'] >= $targetAmount ? 'Target Achieved' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan')
@@ -1526,7 +1601,7 @@ class CrmController extends Controller
         })->toArray();
 
         $totalTarget = count($team) > 0 ? array_sum(array_column($team, 'target')) : 0;
-        $totalRealisasi = array_sum(array_column($team, 'LUNAS'));
+        $totalRealisasi = array_sum(array_column($team, 'closing'));
 
         $breakdown = [
             'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'LUNAS')->count(),
@@ -1543,7 +1618,12 @@ class CrmController extends Controller
             'periode_label' => \Carbon\Carbon::now()->locale('id')->isoFormat('MMMM YYYY'),
         ];
 
-        return view('performa.index', compact('team', 'summary'));
+        $targetAchievementService = app(\App\Services\TargetAchievementService::class);
+        $period = request('periode', 'bulanan');
+        $wilayahId = request('wilayah_id');
+        $targetAchievementData = $targetAchievementService->getDashboardTargetData($user, $period, $wilayahId);
+
+        return view('performa.index', compact('team', 'summary', 'targetAchievementData'));
     }
 
     /**
@@ -1571,6 +1651,7 @@ class CrmController extends Controller
             'total_prospek'   => $totalProspek,
             'active'          => $active,
             'closing'         => $closing,
+
             'lost'            => $lost,
             'LUNAS'           => $closing,
             'DINGIN'          => $lost,
@@ -1595,16 +1676,33 @@ class CrmController extends Controller
     public function profilUpdate(Request $request)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'name'          => 'required|string|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
+            'remove_avatar' => 'nullable',
         ]);
 
         if (auth()->check()) {
             $user = auth()->user();
-            $user->update([
+            $dataToUpdate = [
                 'name'  => $validated['name'],
                 'phone' => $validated['phone'] ?? $user->phone,
-            ]);
+            ];
+
+            if ($request->filled('remove_avatar') && $request->remove_avatar == '1') {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $dataToUpdate['avatar'] = null;
+            } elseif ($request->hasFile('avatar')) {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $dataToUpdate['avatar'] = $path;
+            }
+
+            $user->update($dataToUpdate);
         } else {
             $role = strtolower($request->session()->get('user_role', 'sales'));
             $request->session()->put('custom_profile_' . $role, [
@@ -1613,7 +1711,7 @@ class CrmController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Profil berhasil diperbarui!');
+        return back()->with('success', 'Profil dan foto berhasil diperbarui!');
     }
 
     /**

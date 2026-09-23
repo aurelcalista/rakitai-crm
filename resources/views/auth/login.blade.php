@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Login - CRM Marketing & Sales Inbound UCIC</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo-ucic.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-ucic.png') }}">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,9 +36,9 @@
             <div class="max-w-md w-full mx-auto my-auto py-2">
                 
                 <!-- Brand Header -->
-                <div class="flex items-center gap-3 mb-5 sm:mb-6 animate-fade-in-up">
-                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 via-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl sm:text-2xl shadow-lg shadow-blue-500/25 transform transition-transform hover:scale-105 duration-200">
-                        U
+                <div class="flex items-center gap-3.5 mb-5 sm:mb-6 animate-fade-in-up">
+                    <div class="shrink-0 flex items-center">
+                        <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-11 sm:h-13 w-auto object-contain">
                     </div>
                     <div>
                         <span class="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/70 border border-blue-200/90 px-2 py-0.5 rounded-full mb-0.5">

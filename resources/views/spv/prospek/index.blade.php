@@ -151,11 +151,9 @@
                         <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Sumber Prospek</label>
                         <select name="source" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
                             <option value="">Semua Sumber</option>
-                            <option value="Sekolah" {{ request('source') === 'Sekolah' ? 'selected' : '' }}>Kunjungan Sekolah</option>
-                            <option value="Expo" {{ request('source') === 'Expo' ? 'selected' : '' }}>Education Expo</option>
-                            <option value="Social Media" {{ request('source') === 'Social Media' ? 'selected' : '' }}>Social Media / Digital</option>
-                            <option value="Referral" {{ request('source') === 'Referral' ? 'selected' : '' }}>Referral / Rekomendasi</option>
-                            <option value="Direct / Walk-in" {{ request('source') === 'Direct / Walk-in' ? 'selected' : '' }}>Direct / Walk-in</option>
+                            @foreach($sources as $src)
+                                <option value="{{ $src }}" {{ request('source') === $src ? 'selected' : '' }}>{{ $src }}</option>
+                            @endforeach
                         </select>
                     </div>
                 </div>
@@ -199,8 +197,11 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-slate-900" x-text="p.name"></div>
-                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                    <div class="flex flex-wrap items-center gap-1.5 mt-1">
                                         <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold" x-text="p.sekolah_nama || p.type"></span>
+                                        <template x-if="p.prodi_nama && p.prodi_nama !== '-'">
+                                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" x-text="p.prodi_nama + ' (' + p.kelas + ')'"></span>
+                                        </template>
                                         <template x-if="p.wilayah_nama">
                                             <span class="text-slate-400 text-[10px]" x-text="'• ' + p.wilayah_nama"></span>
                                         </template>
@@ -217,8 +218,8 @@
                                 <td class="py-3.5 px-3">
                                     <div class="font-bold text-slate-800" x-text="p.takeover_sales || p.takeover_cs || 'Belum Ditugaskan'"></div>
                                     <div class="text-[10px] text-slate-400" x-text="p.active_takeover"></div>
-                                    <template x-if="p.sla_status !== 'N/A'">
-                                        <div class="mt-1 flex items-center justify-center">
+                                    <template x-if="p.sla_status && p.sla_status !== 'N/A'">
+                                        <div class="mt-1 flex items-center">
                                             <span class="px-1.5 py-0.5 rounded text-[9px] font-bold"
                                                 :class="{
                                                     'bg-emerald-100 text-emerald-800': p.sla_status === 'Dalam SLA',

@@ -118,6 +118,7 @@ Route::middleware('auth')->group(function () {
             // Team Target & Performance
             Route::get('/target-performa', [\App\Http\Controllers\Spv\PerformanceController::class, 'index'])->name('performa.index');
             Route::post('/target-performa/alokasi', [\App\Http\Controllers\Spv\PerformanceController::class, 'alokasi'])->name('performa.alokasi');
+            Route::post('/target-performa/kunci-defisit', [\App\Http\Controllers\Spv\PerformanceController::class, 'kunciDefisit'])->name('performa.kunciDefisit');
 
             // Team Recap Reports
             Route::get('/laporan', [\App\Http\Controllers\Spv\ReportController::class, 'index'])->name('laporan.index');
@@ -125,6 +126,7 @@ Route::middleware('auth')->group(function () {
             // Team Structure & Directory
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
             Route::post('/tim/assign', [\App\Http\Controllers\Spv\TeamController::class, 'assignMember'])->name('tim.assign');
+            Route::patch('/tim/{user}/wilayah', [\App\Http\Controllers\Spv\TeamController::class, 'assignWilayah'])->name('tim.wilayah.assign');
 
             // SPV Event Assignments
             Route::get('/events', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'index'])->name('events.index');
@@ -179,7 +181,6 @@ Route::middleware('auth')->group(function () {
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
         Route::resource('perusahaan',  \App\Http\Controllers\Admin\AdminPerusahaanController::class, $except);
 
-        Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
@@ -187,6 +188,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['role:Admin,HM'])->prefix('admin')->name('admin.')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
         Route::resource('target', \App\Http\Controllers\Admin\AdminTargetController::class, $except);
+        Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
     });
 
     // ──────────────────────────────────────────────────────────────

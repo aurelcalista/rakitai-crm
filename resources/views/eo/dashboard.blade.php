@@ -1,8 +1,18 @@
 <x-app-layout title="Dashboard Event Organizer">
 <!-- Page Header -->
-<div class="mb-6">
-    <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard Event Organizer</h1>
-    <p class="text-sm text-slate-500 mt-1">Ringkasan aktivitas dan jadwal event Anda.</p>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs mb-6">
+    <div class="flex items-center gap-3.5 sm:gap-4">
+        <div class="h-12 w-14 sm:h-14 sm:w-16 rounded-2xl bg-blue-50/80 p-2 border border-blue-100/80 shrink-0 flex items-center justify-center shadow-xs">
+            <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
+        </div>
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard Event Organizer 🎪</h1>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Event Organizer</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Ringkasan aktivitas dan jadwal event Universitas Catur Insan Cendekia.</p>
+        </div>
+    </div>
 </div>
 
 <!-- Metrics Cards -->

@@ -29,12 +29,17 @@
 
         <!-- Header Greeting -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }} 👋</h2>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">Customer Service Lead</span>
+            <div class="flex items-center gap-3.5 sm:gap-4">
+                <div class="h-12 w-14 sm:h-14 sm:w-16 rounded-2xl bg-teal-50/80 p-2 border border-teal-100/80 shrink-0 flex items-center justify-center shadow-xs">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Fokus hari ini: Follow-up cepat prospek inbound dan koordinasi takeover dengan tim Sales.</p>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }} 👋</h2>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">Customer Service Lead</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Fokus hari ini: Follow-up cepat prospek inbound dan koordinasi takeover dengan tim Sales.</p>
+                </div>
             </div>
             <div class="flex items-center gap-2">
                 <a 
@@ -48,6 +53,15 @@
                 </a>
             </div>
         </div>
+
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Target & Pencapaian Customer Service" 
+                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, realtime, kekurangan, dan target harian berjalan"
+            />
+        @endif
 
         <!-- Statistic Cards for CS -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -77,7 +91,7 @@
             />
             <x-stat-card 
                 title="Closing" 
-                :value="$stats['closing']" 
+                :value="$stats['closing'] ?? $stats['Closing (Lunas)'] ?? 0" 
                 subtitle="Formulir lunas" 
                 color="emerald"
             />

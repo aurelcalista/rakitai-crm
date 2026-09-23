@@ -40,6 +40,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Tim SPV" 
+                subtitle="Filter periode Harian, Mingguan, Bulanan, Tahunan, dan Realtime dengan rincian metrik per baris"
+            />
+        @endif
+
         <!-- 1. RINGKASAN TARGET HM KE SPV & ALOKASI TIM -->
         <div class="crm-card bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-md space-y-5">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
@@ -113,6 +122,7 @@
                             <th class="py-3 px-4 border-r border-slate-200">HARI</th>
                             <th class="py-3 px-3 text-center border-r border-slate-200 bg-blue-50/50 text-blue-900">TARGET KONTAK</th>
                             <th class="py-3 px-3 text-center border-r border-slate-200">REALISASI KONTAK</th>
+                            <th class="py-3 px-3 text-center border-r border-slate-200 bg-rose-50/50 text-rose-800">UTANG ANGKA<br><span class="text-[9px] font-normal lowercase">(carry-over)</span></th>
                             <th class="py-3 px-3 text-center border-r border-slate-200 bg-purple-50/50 text-purple-900">PEMBAYARAN FORMULIR</th>
                             <th class="py-3 px-3 text-center border-r border-slate-200 bg-emerald-50/50 text-emerald-900">MABA LUNAS</th>
                             <th class="py-3 px-4 text-center bg-indigo-50/50 text-indigo-900 font-extrabold">KUMULATIF LUNAS</th>
@@ -120,19 +130,32 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 font-medium">
                         @foreach($teamPerWeek['rows'] as $row)
-                            <tr class="hover:bg-slate-50/80 transition {{ $row['is_today'] ? 'bg-amber-50/40 font-bold' : '' }}">
+                            <tr class="hover:bg-slate-50/80 transition {{ $row['is_today'] ? 'bg-amber-50/60 font-bold border-l-4 border-amber-400' : ($row['is_future'] ? 'opacity-60' : '') }}">
                                 <td class="py-3 px-4 border-r border-slate-200 text-slate-900">
                                     <div class="flex items-center gap-2">
                                         <span class="font-extrabold">{{ $row['hari'] }}</span>
                                         @if($row['is_today'])
-                                            <span class="px-1.5 py-0.2 rounded text-[9px] bg-amber-200 text-amber-900 font-bold">HARI INI</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-amber-300 text-amber-900 font-bold">HARI INI</span>
                                         @endif
                                         <span class="text-[10px] text-slate-400 font-normal">({{ $row['tanggal'] }})</span>
                                     </div>
                                 </td>
                                 <td class="py-3 px-3 text-center border-r border-slate-200 text-blue-800 font-semibold">{{ $row['target_kontak'] }}</td>
-                                <td class="py-3 px-3 text-center border-r border-slate-200 font-bold {{ $row['realisasi_kontak'] >= $row['target_kontak'] && $row['target_kontak'] > 0 ? 'text-emerald-600' : 'text-slate-800' }}">
+                                <td class="py-3 px-3 text-center border-r border-slate-200 font-bold {{ $row['realisasi_kontak'] >= $row['sasaran_kontak'] && $row['sasaran_kontak'] > 0 ? 'text-emerald-600' : 'text-slate-800' }}">
                                     {{ $row['realisasi_kontak'] }}
+                                    @if(!$row['is_future'] && $row['sasaran_kontak'] > $row['target_kontak'])
+                                        <span class="text-[9px] text-rose-500 block">(Sasaran: {{ $row['sasaran_kontak'] }})</span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-3 text-center border-r border-slate-200">
+                                    @if($row['has_utang'] && !$row['is_future'])
+                                        <span class="inline-flex items-center gap-1">
+                                            <span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+                                            <span class="text-rose-700 font-bold">{{ $row['utang_kontak'] }}</span>
+                                        </span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="py-3 px-3 text-center border-r border-slate-200 text-purple-700 font-bold">{{ $row['pembayaran_formulir'] }}</td>
                                 <td class="py-3 px-3 text-center border-r border-slate-200 text-emerald-700 font-extrabold text-sm">{{ $row['maba_lunas'] }}</td>
@@ -146,6 +169,7 @@
                             </td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-blue-900 font-extrabold">{{ $teamPerWeek['total']['target_kontak'] }}</td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-slate-900 font-extrabold">{{ $teamPerWeek['total']['realisasi_kontak'] }}</td>
+                            <td class="py-3.5 px-3 text-center border-r border-slate-300 text-rose-700 font-extrabold">{{ $teamPerWeek['total']['utang_kontak'] > 0 ? $teamPerWeek['total']['utang_kontak'] : '-' }}</td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-purple-900 font-extrabold">{{ $teamPerWeek['total']['pembayaran_formulir'] }}</td>
                             <td class="py-3.5 px-3 text-center border-r border-slate-300 text-emerald-900 font-extrabold text-base">{{ $teamPerWeek['total']['maba_lunas'] }}</td>
                             <td class="py-3.5 px-4 text-center bg-indigo-100 text-indigo-950 font-black text-base">{{ $teamPerWeek['total']['kumulatif_lunas'] }}</td>
@@ -157,16 +181,30 @@
 
         <!-- 3. TABEL PERFORMA HARIAN / PERORANG (Whiteboard Image 2) -->
         <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 uppercase tracking-wider">Whiteboard #2</span>
                         <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">PERORANG (PERFORMA HARIAN & UTANG ANGKA)</h3>
                     </div>
-                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Utang Angka (carry-over otomatis), Sasaran Hari Ini, dan Lokasi Penugasan.</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Evaluasi perorangan Sales: Target Normal, Capaian Kemarin, Otorisasi Kunci Defisit oleh SPV (P0 Bab 6.1), Sasaran Hari Ini, dan Lokasi Penugasan.</p>
                 </div>
-                <div class="text-[11px] text-slate-500 font-medium">
-                    Hari ini: <strong class="text-slate-800">{{ $performaHarian['tanggal_hari_ini'] }}</strong> (Kemarin: {{ $performaHarian['tanggal_kemarin'] }})
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="text-[11px] text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                        Hari ini: <strong class="text-slate-800">{{ $performaHarian['tanggal_hari_ini'] }}</strong> (Kemarin: {{ $performaHarian['tanggal_kemarin'] }})
+                    </div>
+                    @if($performaHarian['any_deficit_unlocked'] ?? false)
+                        <form action="{{ route('spv.performa.kunciDefisit') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="sales_id" value="all">
+                            <input type="hidden" name="tanggal" value="{{ $performaHarian['tanggal_kemarin_raw'] }}">
+                            <input type="hidden" name="action" value="lock">
+                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Kunci Defisit Kemarin ({{ $performaHarian['total_utang_kontak'] }} Kontak)
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
 
@@ -174,7 +212,7 @@
                 <table class="w-full text-left border-collapse text-xs border border-slate-200">
                     <thead>
                         <tr class="bg-slate-100/90 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-300 text-center">
-                            <th rowspan="2" class="py-3 px-4 border-r border-slate-200 text-left">NAMA SALES</th>
+                            <th rowspan="2" class="py-3 px-4 border-r border-slate-200 text-left">NAMA TIM (SALES / CS)</th>
                             <th rowspan="2" class="py-3 px-3 border-r border-slate-200 bg-blue-50/60 text-blue-900">TARGET NORMAL</th>
                             <th colspan="3" class="py-2 px-3 border-r border-slate-200 bg-slate-200/70 text-slate-800">Capaian Kemarin (kontak/Form/Lunas)</th>
                             <th rowspan="2" class="py-3 px-3 border-r border-slate-200 bg-rose-50/70 text-rose-900">UTANG ANGKA<br><span class="text-[9px] font-normal lowercase">(wajib dibayar)</span></th>
@@ -189,13 +227,18 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 font-medium">
                         @forelse($performaHarian['rows'] as $salesRow)
-                            <tr class="hover:bg-slate-50/80 transition">
+                            <tr class="hover:bg-slate-50/80 transition {{ ($salesRow['is_cs'] ?? false) ? 'bg-violet-50/30' : '' }}">
                                 <td class="py-3.5 px-4 border-r border-slate-200 font-bold text-slate-900">
                                     <div class="flex items-center gap-2.5">
-                                        <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                        <div class="w-7 h-7 rounded-full {{ ($salesRow['is_cs'] ?? false) ? 'bg-purple-600' : 'bg-blue-600' }} text-white font-bold flex items-center justify-center text-xs shrink-0">
                                             {{ $salesRow['avatar'] }}
                                         </div>
-                                        <span>{{ $salesRow['nama_sales'] }}</span>
+                                        <div>
+                                            <span>{{ $salesRow['nama_sales'] ?? $salesRow['nama'] }}</span>
+                                            @if($salesRow['is_cs'] ?? false)
+                                                <span class="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-100 text-violet-700">CS</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-3 text-center border-r border-slate-200 font-semibold text-blue-900 bg-blue-50/20">
@@ -211,9 +254,41 @@
                                 <td class="py-3.5 px-2.5 text-center border-r border-slate-200 font-bold text-emerald-700">
                                     {{ $salesRow['capaian_kemarin']['lunas'] }}
                                 </td>
-                                <!-- Utang Angka (Carry Over) -->
-                                <td class="py-3.5 px-3 text-center border-r border-slate-200 font-bold {{ $salesRow['utang_angka']['has_utang'] ? 'bg-rose-50 text-rose-700 font-extrabold' : 'text-slate-400' }}">
-                                    {{ $salesRow['utang_angka']['summary'] }}
+                                <!-- Utang Angka (Carry Over & Kunci SPV) -->
+                                <td class="py-3.5 px-3 text-center border-r border-slate-200 {{ $salesRow['utang_angka']['has_utang'] ? 'bg-rose-50/60' : 'text-slate-400' }}">
+                                    <div class="space-y-1">
+                                        <span class="block font-bold text-xs {{ $salesRow['utang_angka']['has_utang'] ? 'text-rose-700' : 'text-slate-400' }}">
+                                            {{ $salesRow['utang_angka']['summary'] }}
+                                        </span>
+                                        @if($salesRow['utang_angka']['has_utang'])
+                                            @if($salesRow['defisit_lock']['is_locked'] ?? false)
+                                                <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                    <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                    Terkunci SPV
+                                                </div>
+                                                <form action="{{ route('spv.performa.kunciDefisit') }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <input type="hidden" name="sales_id" value="{{ $salesRow['member_id'] }}">
+                                                    <input type="hidden" name="tanggal" value="{{ $salesRow['defisit_lock']['tanggal'] }}">
+                                                    <input type="hidden" name="action" value="unlock">
+                                                    <button type="submit" class="text-[9px] text-slate-400 hover:text-rose-600 underline block mx-auto mt-0.5" title="Buka Kuncian Defisit">buka</button>
+                                                </form>
+                                            @else
+                                                <form action="{{ route('spv.performa.kunciDefisit') }}" method="POST">
+                                                    @csrf
+                                                    <input type="hidden" name="sales_id" value="{{ $salesRow['member_id'] }}">
+                                                    <input type="hidden" name="tanggal" value="{{ $salesRow['defisit_lock']['tanggal'] }}">
+                                                    <input type="hidden" name="action" value="lock">
+                                                    <input type="hidden" name="defisit_kontak" value="{{ $salesRow['utang_angka']['kontak'] }}">
+                                                    <input type="hidden" name="defisit_formulir" value="{{ $salesRow['utang_angka']['formulir'] }}">
+                                                    <input type="hidden" name="defisit_lunas" value="{{ $salesRow['utang_angka']['lunas'] }}">
+                                                    <button type="submit" class="px-2 py-0.5 rounded text-[9px] font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-2xs transition inline-flex items-center gap-0.5">
+                                                        <span>Kunci Defisit</span>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                                 <!-- Sasaran Hari Ini -->
                                 <td class="py-3.5 px-3 text-center border-r border-slate-200 font-extrabold bg-indigo-50/30 text-indigo-950">
@@ -288,7 +363,7 @@
                             <th class="py-3 px-3 text-center">Maba Lunas</th>
                             <th class="py-3 px-3 text-center">Target Lunas</th>
                             <th class="py-3 px-4 text-center w-52">Rasio Capaian (%)</th>
-                            <th class="py-3 px-4 text-right">Status</th>
+                            <th class="py-3 px-4 text-center w-40">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -317,8 +392,9 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-right">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $sb['achievement_pct'] >= 100 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : ($sb['achievement_pct'] >= 50 ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200') }}">
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap border {{ $sb['target_lunas'] <= 0 ? 'bg-slate-50 text-slate-600 border-slate-200' : ($sb['achievement_pct'] >= 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : ($sb['achievement_pct'] >= 50 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200')) }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $sb['target_lunas'] <= 0 ? 'bg-slate-400' : ($sb['achievement_pct'] >= 100 ? 'bg-emerald-500' : ($sb['achievement_pct'] >= 50 ? 'bg-blue-500' : 'bg-amber-500')) }}"></span>
                                         {{ $sb['status'] }}
                                     </span>
                                 </td>

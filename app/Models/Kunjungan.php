@@ -67,7 +67,7 @@ class Kunjungan extends Model
      */
     public function getPotensiMahasiswaAttribute()
     {
-        return $this->potensi_beasiswa ?? $this->attributes['potensi_mahasiswa'] ?? null;
+        return $this->attributes['potensi_mahasiswa'] ?? $this->attributes['potensi_beasiswa'] ?? null;
     }
 
     public function sales()

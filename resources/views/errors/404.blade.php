@@ -1,9 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id" class="h-full bg-slate-50 antialiased">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>404 — Halaman Tidak Ditemukan | CRM UCIC</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo-ucic.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-ucic.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -102,6 +105,9 @@
     <div class="blob blob-2"></div>
     <div class="blob blob-3"></div>
     <div class="card">
+        <div style="display: flex; justify-content: center; margin-bottom: 1.25rem;">
+            <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" style="height: 48px; width: auto; object-fit: contain;">
+        </div>
         <div class="badge"><div class="badge-dot"></div>Error 404</div>
         <div class="error-code">404</div>
         <div class="icon-ring">

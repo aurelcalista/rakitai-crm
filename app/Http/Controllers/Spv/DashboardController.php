@@ -9,7 +9,7 @@ use App\Models\User;
 use App\Models\FollowUp;
 use App\Services\AkademikService;
 use App\Services\SpvPerformanceService;
-use App\Services\TargetMetricsService;
+use App\Services\TargetAchievementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -17,7 +17,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private SpvPerformanceService $spvService,
-        private TargetMetricsService $metricsService,
+        private TargetAchievementService $targetAchievementService
     ) {
     }
 
@@ -101,23 +101,29 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        // Sales Leaderboard / Team performance summary
-        // Each Sales scoped to active TA — no double-count (each prospek attributed to one sales_id)
-        $spvRollup = $this->metricsService->rollUpForSpv($user, null, $activeTaId);
+        // Team performance summary (Sales & CS under SPV)
+        $teamPerformance = $teamMembers->map(function ($member) use ($activeTa, $activeTaId) {
+            $isCs = $member->role === 'CS';
 
-        $teamPerformance = $teamMembers->where('role', 'Sales')->map(function ($sales) use ($activeTaId) {
-            $prospectCount = Prospek::where('sales_id', $sales->id)
-                ->where('academic_year_id', $activeTaId)
-                ->count();
+            $prospectQuery = Prospek::where(function ($q) use ($member, $isCs) {
+                if ($isCs) {
+                    $q->where('cs_id', $member->id);
+                } else {
+                    $q->where('sales_id', $member->id);
+                }
+            })->where(function ($q) use ($activeTa, $activeTaId) {
+                if ($activeTaId) {
+                    $q->where('academic_year_id', $activeTaId);
+                } else {
+                    $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
+                }
+            });
 
-            $closing = Prospek::where('sales_id', $sales->id)
-                ->where('status', 'LUNAS')
-                ->where('academic_year_id', $activeTaId)
-                ->count();
-            $visits = Kunjungan::where('sales_id', $sales->id)->count();
+            $prospectCount = (clone $prospectQuery)->count();
+            $closing = (clone $prospectQuery)->where('status', 'LUNAS')->count();
+            $visits = $isCs ? 0 : Kunjungan::where('sales_id', $member->id)->count();
 
-            // Use target_lunas (target_closing does not exist in DB)
-            $target = $sales->targets()
+            $target = $member->targets()
                 ->where('status', 'Aktif')
                 ->when($activeTaId, fn($q) => $q->where('academic_year_id', $activeTaId))
                 ->latest()
@@ -127,18 +133,44 @@ class DashboardController extends Controller
             $achievedPct = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
 
             return [
-                'user'         => $sales,
+                'user'         => $member,
+                'role'         => $member->role,
                 'prospects'    => $prospectCount,
                 'closing'      => $closing,
                 'visits'       => $visits,
                 'target'       => $targetNum,
                 'achieved_pct' => $achievedPct,
-                'color_status' => \App\Services\TargetMetricsService::YELLOW_THRESHOLD <= $achievedPct
-                    ? ($achievedPct >= 100 ? 'green' : 'yellow')
-                    : 'red',
+                'wilayah_nama' => $isCs ? 'Centralized (Tanpa Wilayah)' : ($member->wilayah?->nama ?? 'Belum Ditugaskan'),
             ];
         });
 
+        // P0 Bab 8.6: Deteksi Prospek FORMULIR yang melanggar SLA 2 jam serah terima CS
+        $overdueHandovers = (clone $prospekQuery)
+            ->where(function ($q) {
+                $q->where('status', 'FORMULIR')->orWhere('status', '05 FORMULIR');
+            })
+            ->whereNotNull('handover_at')
+            ->where('handover_at', '<=', now()->subHours(2))
+            ->with(['sales', 'cs'])
+            ->get()
+            ->filter(function ($p) {
+                return !FollowUp::where('prospek_id', $p->id)
+                    ->where('created_at', '>=', $p->handover_at)
+                    ->whereHas('user', function ($q) { $q->where('role', 'CS'); })
+                    ->exists();
+            })
+            ->values();
+
+        // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = $this->targetAchievementService->getDashboardTargetData(
+            $user,
+            $request->get('periode', 'bulanan'),
+            $request->get('wilayah_id') ? (int)$request->get('wilayah_id') : null,
+            $activeTa
+        );
+
+        // spvRollup placeholder for view compatibility
+        $spvRollup = [];
 
         return view('spv.dashboard', compact(
             'stats',
@@ -148,7 +180,9 @@ class DashboardController extends Controller
             'teamPerformance',
             'spvRollup',
             'recentFollowUps',
-            'activeTa'
+            'activeTa',
+            'overdueHandovers',
+            'targetAchievementData'
         ));
     }
 }
