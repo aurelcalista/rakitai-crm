@@ -6,6 +6,8 @@
 <x-app-layout :title="'Pipeline Tim (8 Status) - Supervisor CRM'">
 
     <div class="space-y-6" x-data="{
+        searchQuery: '',
+        filterType: 'all',
         selectedSales: 'all',
         prospectsList: {{ json_encode($prospects) }},
         stageConfigs: {
@@ -21,10 +23,23 @@
         pipelineList: {{ json_encode($pipelineStages) }},
         
         get filteredProspects() {
-            if (this.selectedSales === 'all') {
-                return this.prospectsList;
+            let list = this.prospectsList;
+            if (this.selectedSales !== 'all') {
+                list = list.filter(p => String(p.sales_id) === String(this.selectedSales));
             }
-            return this.prospectsList.filter(p => String(p.sales_id) === String(this.selectedSales));
+            if (this.filterType !== 'all') {
+                list = list.filter(p => p.type === this.filterType);
+            }
+            if (this.searchQuery.trim() !== '') {
+                const q = this.searchQuery.toLowerCase();
+                list = list.filter(p => 
+                    (p.name && p.name.toLowerCase().includes(q)) ||
+                    (p.pic && p.pic.toLowerCase().includes(q)) ||
+                    (p.whatsapp && String(p.whatsapp).includes(q)) ||
+                    (p.takeover_sales && p.takeover_sales.toLowerCase().includes(q))
+                );
+            }
+            return list;
         },
 
         getProspectsByStage(stageName) {
@@ -33,35 +48,89 @@
     }">
 
         <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div>
-                <div class="flex items-center gap-2.5">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Tim</h2>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">8 Status PMB</span>
+        <div class="flex flex-col gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Tim</h2>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">8 Status PMB</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan evaluasi alur pergerakan prospek tim Sales.</p>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan evaluasi alur pergerakan prospek tim Sales.</p>
+                
+                <div class="flex items-center gap-3 shrink-0">
+                    <a 
+                        href="{{ route('spv.prospek.create') }}"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Tambah Prospek</span>
+                    </a>
+                </div>
             </div>
-            
-            <!-- Filter by Sales Personil & Action -->
-            <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-500 whitespace-nowrap">Filter Sales:</span>
-                    <select x-model="selectedSales" class="text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
-                        <option value="all">Semua Personil Sales ({{ count($prospects) }} Prospek)</option>
-                        @foreach($teamSales as $sales)
-                            <option value="{{ $sales->id }}">{{ $sales->name }}</option>
-                        @endforeach
-                    </select>
+
+            <!-- Filter & Search Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+                    <!-- Search Input -->
+                    <div class="relative w-full sm:w-72">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <input 
+                            type="text" 
+                            x-model="searchQuery" 
+                            placeholder="Cari prospek, sekolah, PIC, WA..." 
+                            class="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                        />
+                        <button 
+                            x-show="searchQuery.length > 0" 
+                            @click="searchQuery = ''" 
+                            class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <!-- Filter Sales Personil -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-500 whitespace-nowrap">Sales:</span>
+                        <select x-model="selectedSales" class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                            <option value="all">Semua Personil</option>
+                            @foreach($teamSales as $sales)
+                                <option value="{{ $sales->id }}">{{ $sales->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Filter Tipe -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-500 whitespace-nowrap">Tipe:</span>
+                        <select x-model="filterType" class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer">
+                            <option value="all">Semua Tipe</option>
+                            <option value="Sekolah">Sekolah</option>
+                            <option value="Corporate">Corporate</option>
+                            <option value="Individu">Individu</option>
+                        </select>
+                    </div>
                 </div>
-                <a 
-                    href="{{ route('spv.prospek.create') }}"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <span>Tambah Prospek</span>
-                </a>
+
+                <!-- Match counter & Reset -->
+                <div class="flex items-center gap-2 text-xs text-slate-500 shrink-0">
+                    <span class="font-medium">Menampilkan <strong class="text-slate-800" x-text="filteredProspects.length"></strong> dari <span x-text="prospectsList.length"></span> prospek</span>
+                    <button 
+                        type="button" 
+                        x-show="searchQuery !== '' || selectedSales !== 'all' || filterType !== 'all'" 
+                        @click="searchQuery = ''; selectedSales = 'all'; filterType = 'all';" 
+                        class="text-blue-600 hover:text-blue-700 underline text-xs font-medium ml-1 cursor-pointer"
+                    >
+                        Reset Filter
+                    </button>
+                </div>
             </div>
         </div>
 

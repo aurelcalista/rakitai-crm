@@ -25,7 +25,7 @@
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Pengawasan SPV</span>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">TA {{ $ta }}</span>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Memonitor target dari HM, alokasi target Sales/CS, Target Team per Week, dan Utang Angka harian.</p>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Memonitor target mingguan dari HM, akumulasi realisasi, defisit target, alokasi target Sales/CS, dan performa tim.</p>
             </div>
             
             <div class="flex flex-wrap items-center gap-2">

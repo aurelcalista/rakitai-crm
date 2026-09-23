@@ -25,7 +25,49 @@ class AdminMasterDataController extends Controller
             });
         }
 
-        return view('admin.master-data.index', compact('masterData'));
+        $tahunAkademiks = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+
+        return view('admin.master-data.index', compact('masterData', 'tahunAkademiks'));
+    }
+
+    public function storeTahunAkademik(Request $request)
+    {
+        $request->validate([
+            'nama'   => ['required', 'string', 'max:20', 'unique:tahun_akademiks,nama', 'regex:/^\d{4}\/\d{4}$/'],
+            'status' => 'required|in:Aktif,Non-Aktif',
+        ], [
+            'nama.regex' => 'Format Tahun Akademik harus YYYY/YYYY (contoh: 2028/2029)',
+        ]);
+
+        if ($request->status === 'Aktif') {
+            $ta = \App\Models\TahunAkademik::create([
+                'nama'   => $request->nama,
+                'status' => 'Non-Aktif',
+            ]);
+            \App\Services\AkademikService::activate($ta);
+        } else {
+            \App\Models\TahunAkademik::create([
+                'nama'   => $request->nama,
+                'status' => 'Non-Aktif',
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Tahun Akademik {$request->nama} berhasil ditambahkan!");
+    }
+
+    public function activateTahunAkademik(\App\Models\TahunAkademik $tahunAkademik)
+    {
+        \App\Services\AkademikService::activate($tahunAkademik);
+        return redirect()->back()->with('success', "Tahun Akademik {$tahunAkademik->nama} sekarang menjadi SATU-SATUNYA yang aktif sebagai dasar data sistem!");
+    }
+
+    public function destroyTahunAkademik(\App\Models\TahunAkademik $tahunAkademik)
+    {
+        if ($tahunAkademik->status === 'Aktif') {
+            return redirect()->back()->with('error', 'Tidak dapat menghapus Tahun Akademik yang sedang AKTIF.');
+        }
+        $tahunAkademik->delete();
+        return redirect()->back()->with('success', "Tahun Akademik {$tahunAkademik->nama} berhasil dihapus.");
     }
 
     public function store(Request $request)

@@ -118,9 +118,9 @@
             <div>
                 <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                     <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    <span>Ringkasan Indikator Kunci — {{ $periode['label'] }}</span>
+                    <span>Monitoring Target & Realisasi Mingguan — {{ $periode['label'] }}</span>
                 </h4>
-                <p class="text-[11px] text-slate-500 mt-0.5">Metrik baris: Target | Pencapaian | Kekurangan | % Achievement | Sisa Hari | Target Harian Berjalan</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sistem monitoring mingguan: Target | Realisasi | Akumulasi Realisasi | Sisa Target | Defisit Target | Indikator Pencapaian</p>
             </div>
         </div>
 
@@ -129,12 +129,12 @@
                 <thead>
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                         <th class="py-3 px-4">Indikator Kinerja</th>
-                        <th class="py-3 px-3 text-center">Target</th>
-                        <th class="py-3 px-3 text-center">Pencapaian</th>
-                        <th class="py-3 px-3 text-center">Kekurangan</th>
-                        <th class="py-3 px-4 text-center min-w-[140px]">% Achievement</th>
-                        <th class="py-3 px-3 text-center">Sisa Hari</th>
-                        <th class="py-3 px-4 text-right">Target Harian Berjalan</th>
+                        <th class="py-3 px-3 text-center">Target Mingguan</th>
+                        <th class="py-3 px-3 text-center">Realisasi Mingguan</th>
+                        <th class="py-3 px-3 text-center">Akumulasi Realisasi</th>
+                        <th class="py-3 px-3 text-center">Sisa Target</th>
+                        <th class="py-3 px-3 text-center">Defisit Target</th>
+                        <th class="py-3 px-4 text-center min-w-[160px]">Indikator Pencapaian</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -143,6 +143,9 @@
                             $achieve = $row['achievement_pct'];
                             $colorClass = $achieve >= 100 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($achieve >= 70 ? 'text-blue-700 bg-blue-50 border-blue-200' : ($achieve >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
                             $barColor = $achieve >= 100 ? 'bg-emerald-500' : ($achieve >= 70 ? 'bg-blue-600' : ($achieve >= 40 ? 'bg-amber-500' : 'bg-rose-500'));
+                            $defisit = $row['defisit_target'] ?? ($row['pencapaian'] < $row['target'] ? ($row['target'] - $row['pencapaian']) : 0);
+                            $sisaTgt = $row['sisa_target'] ?? max(0, $row['target'] - $row['pencapaian']);
+                            $akumulasi = $row['akumulasi_realisasi'] ?? $row['pencapaian'];
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition">
                             <td class="py-3.5 px-4">
@@ -159,35 +162,32 @@
                             <td class="py-3.5 px-3 text-center font-extrabold text-blue-900 text-xs">
                                 {{ number_format($row['pencapaian']) }}
                             </td>
-                            <td class="py-3.5 px-3 text-center font-bold text-xs {{ $row['kekurangan'] > 0 ? 'text-rose-600' : 'text-slate-400' }}">
-                                {{ $row['kekurangan'] > 0 ? '-' . number_format($row['kekurangan']) : '0 (Tercapai)' }}
+                            <td class="py-3.5 px-3 text-center font-bold text-xs">
+                                <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 font-extrabold">
+                                    {{ number_format($akumulasi) }}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-3 text-center font-semibold text-xs text-slate-600">
+                                {{ number_format($sisaTgt) }}
+                            </td>
+                            <td class="py-3.5 px-3 text-center font-bold text-xs">
+                                @if($defisit > 0)
+                                    <span class="px-2 py-0.5 rounded-md font-extrabold text-[11px] bg-rose-50 text-rose-700 border border-rose-200 inline-block">
+                                        -{{ number_format($defisit) }}
+                                    </span>
+                                @else
+                                    <span class="text-emerald-600 font-bold text-[11px]">
+                                        0 (Surplus)
+                                    </span>
+                                @endif
                             </td>
                             <td class="py-3.5 px-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-extrabold border {{ $colorClass }}">
-                                        {{ $row['achievement_pct'] }}%
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border inline-flex items-center gap-1.5 {{ $row['status_badge'] ?? $colorClass }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $row['status_dot'] ?? 'bg-blue-500' }}"></span>
+                                        {{ $row['status_label'] ?? ($achieve . '%') }} ({{ $achieve }}%)
                                     </span>
-                                    <div class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden shrink-0 hidden sm:block">
-                                        <div class="h-full {{ $barColor }}" style="width: {{ min(100, $achieve) }}%"></div>
-                                    </div>
                                 </div>
-                            </td>
-                            <td class="py-3.5 px-3 text-center text-slate-600 font-semibold">
-                                <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
-                                    {{ $row['sisa_hari'] }} Hari
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-4 text-right">
-                                @if($row['kekurangan'] > 0)
-                                    <div class="font-black text-rose-600 text-xs">
-                                        {{ $row['target_harian_berjalan'] }} / hari
-                                    </div>
-                                    <span class="text-[10px] text-slate-400">untuk capai target</span>
-                                @else
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                                        Target Terpenuhi ✓
-                                    </span>
-                                @endif
                             </td>
                         </tr>
                     @empty
@@ -209,17 +209,17 @@
                     <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                     <span>
                         @if($level === 'SPV')
-                            Breakdown Anggota Tim Sales & CS (Alokasi SPV vs HM)
+                            Monitoring Target Mingguan Tim Sales & CS (SPV)
                         @elseif($level === 'HM')
                             Breakdown Target & Performa Per-Wilayah Teritori & SPV
                         @elseif($level === 'Global')
                             Breakdown Per-Wilayah Kampus UCIC
                         @else
-                            Ringkasan Tanggung Jawab Lead
+                            Ringkasan Tanggung Jawab Personal
                         @endif
                     </span>
                 </h4>
-                <p class="text-[11px] text-slate-500 mt-0.5">Pengawasan berjenjang Target Maba Lunas, kekurangan, dan defisit berjalan per entitas</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Pengawasan berjenjang Target Mingguan, Realisasi, Akumulasi, Sisa, dan Defisit per entitas</p>
             </div>
         </div>
 
@@ -229,12 +229,12 @@
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                         <th class="py-3 px-4">Nama Personil / Teritori</th>
                         <th class="py-3 px-3">Role & Wilayah</th>
-                        <th class="py-3 px-3 text-center">Target Lunas</th>
-                        <th class="py-3 px-3 text-center">Pencapaian</th>
-                        <th class="py-3 px-3 text-center">Kekurangan</th>
-                        <th class="py-3 px-4 text-center min-w-[140px]">% Achievement</th>
-                        <th class="py-3 px-3 text-center">Sisa Hari</th>
-                        <th class="py-3 px-4 text-right">Target Harian Berjalan</th>
+                        <th class="py-3 px-3 text-center">Target Mingguan</th>
+                        <th class="py-3 px-3 text-center">Realisasi Mingguan</th>
+                        <th class="py-3 px-3 text-center">Akumulasi Realisasi</th>
+                        <th class="py-3 px-3 text-center">Sisa Target</th>
+                        <th class="py-3 px-3 text-center">Defisit Target</th>
+                        <th class="py-3 px-4 text-center min-w-[160px]">Indikator Pencapaian</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -244,6 +244,9 @@
                             $hAchieve = $hRow['achievement_pct'];
                             $hColorClass = $hAchieve >= 100 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($hAchieve >= 70 ? 'text-blue-700 bg-blue-50 border-blue-200' : ($hAchieve >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
                             $hBarColor = $hAchieve >= 100 ? 'bg-emerald-500' : ($hAchieve >= 70 ? 'bg-blue-600' : ($hAchieve >= 40 ? 'bg-amber-500' : 'bg-rose-500'));
+                            $hDefisit = $hRow['defisit_target'] ?? ($hRow['pencapaian'] < $hRow['target'] ? ($hRow['target'] - $hRow['pencapaian']) : 0);
+                            $hSisaTgt = $hRow['sisa_target'] ?? max(0, $hRow['target'] - $hRow['pencapaian']);
+                            $hAkumulasi = $hRow['akumulasi_realisasi'] ?? $hRow['pencapaian'];
                         @endphp
                         <tr class="{{ $isTotal ? 'bg-slate-50 font-bold border-y-2 border-slate-200' : 'hover:bg-slate-50/80 transition' }}">
                             <td class="py-3.5 px-4">
@@ -273,35 +276,32 @@
                             <td class="py-3.5 px-3 text-center font-extrabold text-blue-900 text-xs">
                                 {{ number_format($hRow['pencapaian']) }}
                             </td>
-                            <td class="py-3.5 px-3 text-center font-bold text-xs {{ $hRow['kekurangan'] > 0 ? 'text-rose-600' : 'text-slate-400' }}">
-                                {{ $hRow['kekurangan'] > 0 ? '-' . number_format($hRow['kekurangan']) : '0' }}
+                            <td class="py-3.5 px-3 text-center font-bold text-xs">
+                                <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 font-extrabold">
+                                    {{ number_format($hAkumulasi) }}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-3 text-center font-semibold text-xs text-slate-600">
+                                {{ number_format($hSisaTgt) }}
+                            </td>
+                            <td class="py-3.5 px-3 text-center font-bold text-xs">
+                                @if($hDefisit > 0)
+                                    <span class="px-2 py-0.5 rounded-md font-extrabold text-[11px] bg-rose-50 text-rose-700 border border-rose-200 inline-block">
+                                        -{{ number_format($hDefisit) }}
+                                    </span>
+                                @else
+                                    <span class="text-emerald-600 font-bold text-[11px]">
+                                        0 (Surplus)
+                                    </span>
+                                @endif
                             </td>
                             <td class="py-3.5 px-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-extrabold border {{ $hColorClass }}">
-                                        {{ $hRow['achievement_pct'] }}%
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border inline-flex items-center gap-1.5 {{ $hRow['status_badge'] ?? $hColorClass }}">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ $hRow['status_dot'] ?? 'bg-blue-500' }}"></span>
+                                        {{ $hRow['status_label'] ?? ($hAchieve . '%') }} ({{ $hAchieve }}%)
                                     </span>
-                                    <div class="w-14 h-2 bg-slate-100 rounded-full overflow-hidden shrink-0 hidden sm:block">
-                                        <div class="h-full {{ $hBarColor }}" style="width: {{ min(100, $hAchieve) }}%"></div>
-                                    </div>
                                 </div>
-                            </td>
-                            <td class="py-3.5 px-3 text-center text-slate-600 font-semibold">
-                                <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px]">
-                                    {{ $hRow['sisa_hari'] }} Hari
-                                </span>
-                            </td>
-                            <td class="py-3.5 px-4 text-right">
-                                @if($hRow['kekurangan'] > 0)
-                                    <div class="font-black text-rose-600 text-xs">
-                                        {{ $hRow['target_harian_berjalan'] }} / hari
-                                    </div>
-                                    <span class="text-[10px] text-slate-400">sisa beban berjalan</span>
-                                @else
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                                        Tercapai ✓
-                                    </span>
-                                @endif
                             </td>
                         </tr>
                     @endforeach

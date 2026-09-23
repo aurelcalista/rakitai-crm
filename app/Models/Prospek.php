@@ -33,15 +33,24 @@ class Prospek extends Model
                     $prospek->tahun_akademik = $aktivNama;
                 }
             }
-            if ($prospek->sekolah_id) {
-                $sekolah = Sekolah::find($prospek->sekolah_id);
-                if ($sekolah && $sekolah->sales_id) {
-                    $prospek->sales_id = $sekolah->sales_id;
+            if (empty($prospek->academic_year_id)) {
+                $aktifTa = \App\Models\TahunAkademik::getAktif();
+                if ($aktifTa) {
+                    $prospek->academic_year_id = $aktifTa->id;
                 }
-            } elseif ($prospek->perusahaan_id) {
-                $perusahaan = Perusahaan::find($prospek->perusahaan_id);
-                if ($perusahaan && $perusahaan->sales_id) {
-                    $prospek->sales_id = $perusahaan->sales_id;
+            }
+
+            if (empty($prospek->sales_id)) {
+                if ($prospek->sekolah_id) {
+                    $sekolah = Sekolah::find($prospek->sekolah_id);
+                    if ($sekolah && $sekolah->sales_id) {
+                        $prospek->sales_id = $sekolah->sales_id;
+                    }
+                } elseif ($prospek->perusahaan_id) {
+                    $perusahaan = Perusahaan::find($prospek->perusahaan_id);
+                    if ($perusahaan && $perusahaan->sales_id) {
+                        $prospek->sales_id = $perusahaan->sales_id;
+                    }
                 }
             }
 

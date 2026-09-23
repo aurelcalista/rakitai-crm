@@ -153,7 +153,7 @@ class ProspectController extends Controller
     {
         $validated = $request->validate([
             'tanggal_masuk' => 'nullable|date',
-            'name'          => 'required|string|max:255',
+            'name'          => 'nullable|string|max:255',
             'type'          => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
@@ -161,11 +161,11 @@ class ProspectController extends Controller
             'pic_phone'     => 'nullable|string|max:20',
             'whatsapp'      => 'required|string|max:20',
             'prodi_id'      => 'required|exists:prodis,id',
-            'kelas'         => 'required|in:Reguler,Karyawan',
+            'kelas'         => 'nullable|in:Reguler,Karyawan',
             'status'        => 'required|string|max:255',
             'source'        => 'required|string|max:100',
             'custom_source' => 'nullable|string|max:100',
-            'assign_type'   => 'required|in:sales,cs,self',
+            'assign_type'   => 'nullable|in:sales,cs,self',
             'sales_id'      => 'nullable|exists:users,id',
             'cs_id'         => 'nullable|exists:users,id',
             'wilayah_id'    => 'nullable|exists:wilayahs,id',
@@ -175,7 +175,7 @@ class ProspectController extends Controller
         $user = auth()->user();
 
         // 1. Resolve Nama Prospek
-        $name = trim($validated['name']);
+        $name = trim($validated['name'] ?? '');
         if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
             $sekolah = Sekolah::find($validated['sekolah_id']);
             if ($sekolah) $name = $sekolah->nama;
@@ -183,6 +183,13 @@ class ProspectController extends Controller
             $perusahaan = Perusahaan::find($validated['perusahaan_id']);
             if ($perusahaan) $name = $perusahaan->nama;
         }
+        if (empty($name)) {
+            $name = $validated['pic'];
+        }
+
+        // Default assign_type & kelas if omitted
+        $assignType = $validated['assign_type'] ?? (!empty($validated['sales_id']) ? 'sales' : (!empty($validated['cs_id']) ? 'cs' : 'self'));
+        $kelas = $validated['kelas'] ?? 'Reguler';
 
         // 2. Validasi Duplikat HP & Nama (PRD Bab 8.1)
         $cleanWa = preg_replace('/[^0-9]/', '', $validated['whatsapp']);
@@ -219,19 +226,19 @@ class ProspectController extends Controller
         $ownerId = $user->id;
         $handlerLabel = 'Belum Ditugaskan';
 
-        if ($validated['assign_type'] === 'sales') {
+        if ($assignType === 'sales') {
             $salesId = $validated['sales_id'] ?: null;
             if ($salesId) {
                 $ownerId = $salesId;
                 $handlerLabel = User::find($salesId)?->name . ' (Sales)';
             }
-        } elseif ($validated['assign_type'] === 'cs') {
+        } elseif ($assignType === 'cs') {
             $csId = $validated['cs_id'] ?: null;
             if ($csId) {
                 $ownerId = $csId;
                 $handlerLabel = User::find($csId)?->name . ' (CS)';
             }
-        } elseif ($validated['assign_type'] === 'self') {
+        } elseif ($assignType === 'self') {
             $salesId = $user->id;
             $ownerId = $user->id;
             $handlerLabel = $user->name . ' (SPV Penanganan Mandiri)';
@@ -241,7 +248,7 @@ class ProspectController extends Controller
         $prodiNama = $prodi ? $prodi->nama : null;
         $wilayahId = $validated['wilayah_id'] ?? $user->wilayah_id;
 
-        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId) {
+        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
 
             $createdAt = !empty($validated['tanggal_masuk'])
@@ -253,8 +260,8 @@ class ProspectController extends Controller
                 'type'               => $validated['type'],
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,
-                'kelas'              => $validated['kelas'],
-                'potential'          => "{$validated['kelas']} — {$prodiNama}",
+                'kelas'              => $kelas,
+                'potential'          => "{$kelas} — {$prodiNama}",
                 'sekolah_id'         => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'      => $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'                => $validated['pic'],

@@ -25,6 +25,8 @@
 
     <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
+        searchQuery: '',
+        filterType: 'all',
         prospectsList: {{ json_encode($prospects) }},
         stages: {{ json_encode(collect($pipelineStages)->map(function($stage, $index) {
             $colors = [
@@ -42,35 +44,100 @@
             ];
         })->values()->toArray()) }},
         
+        get filteredProspects() {
+            let list = this.prospectsList;
+            if (this.searchQuery.trim() !== '') {
+                const q = this.searchQuery.toLowerCase();
+                list = list.filter(p => 
+                    (p.name && p.name.toLowerCase().includes(q)) ||
+                    (p.pic && p.pic.toLowerCase().includes(q)) ||
+                    (p.whatsapp && String(p.whatsapp).includes(q)) ||
+                    (p.sekolah_name && p.sekolah_name.toLowerCase().includes(q)) ||
+                    (p.category && p.category.toLowerCase().includes(q))
+                );
+            }
+            if (this.filterType !== 'all') {
+                list = list.filter(p => p.type === this.filterType);
+            }
+            return list;
+        },
+
         getProspectsByStage(stageName) {
-            return this.prospectsList.filter(p => p.status.toLowerCase() === stageName.toLowerCase());
+            return this.filteredProspects.filter(p => (p.status || '').toLowerCase() === stageName.toLowerCase());
         },
 
         get lostProspects() {
-            return this.prospectsList.filter(p => p.status.toLowerCase() === 'lost' || p.status.toLowerCase() === 'ditolak/batal' || p.status.toLowerCase() === 'ditolak / batal');
+            return this.filteredProspects.filter(p => {
+                const s = (p.status || '').toLowerCase();
+                return s === 'lost' || s === 'ditolak/batal' || s === 'ditolak / batal' || s === 'dingin';
+            });
         }
     }">
 
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div>
-                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Inbound</h2>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau perpindahan prospek dari kontak awal hingga registrasi resmi.</p>
+        <!-- Header with Search & Filter -->
+        <div class="flex flex-col gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Inbound</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau perpindahan prospek dari kontak awal hingga registrasi resmi.</p>
+                </div>
+                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'SPV', 'Admin']))
+                <div>
+                    <button 
+                        type="button" 
+                        @click="modalTambahProspek = true"
+                        class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Prospek Baru</span>
+                    </button>
+                </div>
+                @endif
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
-            <div>
-                <button 
-                    type="button" 
-                    @click="modalTambahProspek = true"
-                    class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
-                >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Prospek Baru</span>
-                </button>
+
+            <!-- Search & Filter Controls Bar -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                <div class="flex flex-1 items-center gap-2">
+                    <div class="relative flex-1 max-w-md">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </span>
+                        <input 
+                            type="text" 
+                            x-model="searchQuery" 
+                            placeholder="Cari nama prospek, sekolah, PIC, no. WA..." 
+                            class="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                        >
+                    </div>
+
+                    <!-- Filter Tipe Prospek -->
+                    <select 
+                        x-model="filterType" 
+                        class="text-xs px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition cursor-pointer"
+                    >
+                        <option value="all">Semua Tipe</option>
+                        <option value="Sekolah">Sekolah</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Individu">Individu</option>
+                    </select>
+
+                    <button 
+                        type="button" 
+                        x-show="searchQuery || filterType !== 'all'" 
+                        @click="searchQuery = ''; filterType = 'all'" 
+                        class="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 py-1 transition cursor-pointer"
+                        x-cloak
+                    >
+                        Reset Filter
+                    </button>
+                </div>
+
+                <div class="text-xs text-slate-500">
+                    Menampilkan <span class="font-bold text-slate-800" x-text="filteredProspects.length"></span> dari <span class="font-bold text-slate-800" x-text="prospectsList.length"></span> prospek
+                </div>
             </div>
-            @endif
         </div>
 
         <!-- Visual Kanban Board (Horizontal Scroll on Mobile/Desktop) -->

@@ -1534,8 +1534,35 @@ x-init="
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
                             $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+                            $currentUser = auth()->user();
+                            $canAssignSales = in_array($currentUser->role ?? '', ['SPV', 'Admin', 'Head Marketing']);
+                            $salesAssignees = [];
+                            if ($canAssignSales) {
+                                if ($currentUser->role === 'SPV') {
+                                    $salesAssignees = \App\Models\User::where('supervisor_id', $currentUser->id)->where('role', 'Sales')->where('status', 'Aktif')->get();
+                                    if ($salesAssignees->isEmpty()) {
+                                        $salesAssignees = \App\Models\User::where('role', 'Sales')->where('status', 'Aktif')->get();
+                                    }
+                                } else {
+                                    $salesAssignees = \App\Models\User::where('role', 'Sales')->where('status', 'Aktif')->get();
+                                }
+                            }
                         @endphp
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            @if($canAssignSales)
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Assign ke Sales *</label>
+                                    <select name="sales_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                        <option value="">-- Pilih Personil Sales --</option>
+                                        @foreach($salesAssignees as $sUser)
+                                            <option value="{{ $sUser->id }}">{{ $sUser->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @else
+                                <input type="hidden" name="sales_id" value="{{ auth()->id() }}">
+                            @endif
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe Prospek *</label>
                                 <select name="type" x-model="prospekType" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
@@ -1807,9 +1834,12 @@ x-init="
                     eventTempat: '',
                     kunjunganType: 'sekolah', 
                     photoPreview: null,
+                    selectedSchoolSource: '',
                     selectedSekolahId: '',
                     selectedPerusahaanId: '',
+                    prospek_id: '',
                     sekolahPicMap: {},
+                    prospekPicMap: {},
                     perusahaanPicMap: {},
                     picName: '',
                     picWhatsapp: '',
@@ -1853,9 +1883,32 @@ x-init="
                 }"
                 x-init="
                     @php
+                        $userVisit = auth()->user();
+                        $prospekSekolahQuery = \App\Models\Prospek::query()->where('type', 'Sekolah');
+                        if ($userVisit && $userVisit->role === 'Sales') {
+                            $prospekSekolahQuery->where('sales_id', $userVisit->id);
+                        } elseif ($userVisit && $userVisit->role === 'SPV') {
+                            $subIds = \App\Models\User::where('supervisor_id', $userVisit->id)->pluck('id')->push($userVisit->id);
+                            $prospekSekolahQuery->whereIn('sales_id', $subIds);
+                        }
+                        $availProspeks = $prospekSekolahQuery->orderBy('name')->get();
+
+                        $pMap = [];
+                        foreach($availProspeks as $ps) {
+                            $pMap[$ps->id] = [
+                                'id' => $ps->id,
+                                'name' => $ps->name,
+                                'sekolah_id' => $ps->sekolah_id,
+                                'pic' => $ps->pic,
+                                'whatsapp' => $ps->whatsapp,
+                                'prodi_id' => $ps->prodi_id,
+                                'status' => $ps->status,
+                            ];
+                        }
+
                         $sPicMap = [];
-                        foreach(\App\Models\Sekolah::where('status', 'Aktif')->whereNotNull('pic_name')->get() as $p) {
-                            $sPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
+                        foreach(\App\Models\Sekolah::where('status', 'Aktif')->get() as $p) {
+                            $sPicMap[$p->id] = ['nama' => $p->nama, 'pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
                         }
                         
                         $pPicMap = [];
@@ -1863,15 +1916,36 @@ x-init="
                             $pPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
                         }
                     @endphp
+                    prospekPicMap = {{ json_encode($pMap) }};
                     sekolahPicMap = {{ json_encode($sPicMap) }};
                     perusahaanPicMap = {{ json_encode($pPicMap) }};
-                    
-                    $watch('selectedSekolahId', value => {
+
+                    $watch('selectedSchoolSource', value => {
                         if (kunjunganType === 'sekolah' && !isEventMode) {
-                            if (value && sekolahPicMap[value]) {
-                                picName = sekolahPicMap[value].pic;
-                                picWhatsapp = sekolahPicMap[value].whatsapp;
+                            if (value && value.startsWith('prospek_')) {
+                                const pid = value.replace('prospek_', '');
+                                const item = prospekPicMap[pid];
+                                if (item) {
+                                    prospek_id = item.id;
+                                    selectedSekolahId = item.sekolah_id || '';
+                                    namaInstitusi = item.name;
+                                    picName = item.pic || '';
+                                    picWhatsapp = item.whatsapp || '';
+                                }
+                            } else if (value && value.startsWith('sekolah_')) {
+                                const sid = value.replace('sekolah_', '');
+                                prospek_id = '';
+                                selectedSekolahId = sid;
+                                const item = sekolahPicMap[sid];
+                                if (item) {
+                                    namaInstitusi = item.nama;
+                                    picName = item.pic || '';
+                                    picWhatsapp = item.whatsapp || '';
+                                }
                             } else {
+                                prospek_id = '';
+                                selectedSekolahId = '';
+                                namaInstitusi = '';
                                 picName = '';
                                 picWhatsapp = '';
                             }
@@ -2004,16 +2078,43 @@ x-init="
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah</h4>
                                 <div class="grid grid-cols-1 gap-4">
                                     <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Sekolah *</label>
+                                        <div class="flex items-center justify-between mb-1">
+                                            <label class="block text-xs font-semibold text-slate-700">Nama Sekolah (Sumber: Prospek) *</label>
+                                            <span class="text-[11px] text-blue-600 font-medium">Terhubung dengan Data Prospek</span>
+                                        </div>
                                         @php
-                                            $sekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
+                                            $userVisit = auth()->user();
+                                            $prospekSekolahQuery = \App\Models\Prospek::query()->where('type', 'Sekolah');
+                                            if ($userVisit && $userVisit->role === 'Sales') {
+                                                $prospekSekolahQuery->where('sales_id', $userVisit->id);
+                                            } elseif ($userVisit && $userVisit->role === 'SPV') {
+                                                $subIds = \App\Models\User::where('supervisor_id', $userVisit->id)->pluck('id')->push($userVisit->id);
+                                                $prospekSekolahQuery->whereIn('sales_id', $subIds);
+                                            }
+                                            $modalAvailProspeks = $prospekSekolahQuery->orderBy('name')->get();
+                                            $modalSekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
                                         @endphp
-                                        <select name="sekolah_id" id="sekolah_id_select" x-model="selectedSekolahId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah' && !isEventMode">
-                                            <option value="">-- Pilih Sekolah --</option>
-                                            @foreach($sekolahsList as $sek)
-                                                <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
-                                            @endforeach
+                                        <select x-model="selectedSchoolSource" class="w-full text-xs sm:text-sm px-3 py-2.5 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah' && !isEventMode">
+                                            <option value="">-- Pilih Sekolah dari Daftar Prospek --</option>
+                                            @if($modalAvailProspeks->isNotEmpty())
+                                                <optgroup label="📋 Prospek Sekolah Tersedia (Data Anda / Tim)">
+                                                    @foreach($modalAvailProspeks as $p)
+                                                        <option value="prospek_{{ $p->id }}">{{ $p->name }} [Prospek: {{ $p->status }} - PIC: {{ $p->pic }}]</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
+                                            @if($modalSekolahsList->isNotEmpty())
+                                                <optgroup label="🏫 Master Database Sekolah">
+                                                    @foreach($modalSekolahsList as $sek)
+                                                        <option value="sekolah_{{ $sek->id }}">{{ $sek->nama }}</option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
                                         </select>
+                                        <input type="hidden" name="prospek_id" x-model="prospek_id">
+                                        <input type="hidden" name="sekolah_id" x-model="selectedSekolahId">
+                                        <input type="hidden" name="nama_institusi" x-model="namaInstitusi">
+                                        <p class="text-[11px] text-slate-500 mt-1">Memilih nama sekolah akan otomatis mengisi data PIC & nomor WhatsApp di bawah.</p>
                                     </div>
                                 </div>
                             </div>
