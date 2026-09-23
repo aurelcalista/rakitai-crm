@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Models\Prospek;
 use App\Services\SalesTargetService;
+use App\Services\TargetAchievementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PerformanceController extends Controller
 {
-    public function __construct(private SalesTargetService $targetService)
-    {
+    public function __construct(
+        private SalesTargetService $targetService,
+        private TargetAchievementService $targetAchievementService
+    ) {
     }
 
     /**
@@ -71,6 +74,14 @@ class PerformanceController extends Controller
             'periode_label' => \Carbon\Carbon::now()->locale('id')->isoFormat('MMMM YYYY'),
         ];
 
-        return view('performa.index', compact('team', 'summary'));
+        // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = $this->targetAchievementService->getDashboardTargetData(
+            $user,
+            $request->get('periode', 'bulanan'),
+            null,
+            $request->get('ta')
+        );
+
+        return view('performa.index', compact('team', 'summary', 'targetAchievementData'));
     }
 }

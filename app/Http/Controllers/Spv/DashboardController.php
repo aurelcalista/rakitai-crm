@@ -8,13 +8,16 @@ use App\Models\Kunjungan;
 use App\Models\User;
 use App\Models\FollowUp;
 use App\Services\SpvPerformanceService;
+use App\Services\TargetAchievementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private SpvPerformanceService $spvService)
-    {
+    public function __construct(
+        private SpvPerformanceService $spvService,
+        private TargetAchievementService $targetAchievementService
+    ) {
     }
 
     /**
@@ -149,6 +152,14 @@ class DashboardController extends Controller
             })
             ->values();
 
+        // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = $this->targetAchievementService->getDashboardTargetData(
+            $user,
+            $request->get('periode', 'bulanan'),
+            $request->get('wilayah_id') ? (int)$request->get('wilayah_id') : null,
+            $activeTa
+        );
+
         return view('spv.dashboard', compact(
             'stats',
             'targetHm',
@@ -157,7 +168,8 @@ class DashboardController extends Controller
             'teamPerformance',
             'recentFollowUps',
             'activeTa',
-            'overdueHandovers'
+            'overdueHandovers',
+            'targetAchievementData'
         ));
     }
 }

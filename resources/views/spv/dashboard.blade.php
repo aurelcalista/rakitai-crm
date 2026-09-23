@@ -64,7 +64,7 @@
                                 <span>⚠️ ALARM SLA: Serah Terima CS Belum Direspons (> 2 Jam)</span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-600 text-white">{{ count($overdueHandovers) }} Prospek</span>
                             </h3>
-                            <span class="text-[11px] text-amber-700 font-semibold">SLA Maksimal: 2 Jam (PRD Bab 8.6)</span>
+                            <span class="text-[11px] text-amber-700 font-semibold">SLA Maksimal: 2 Jam</span>
                         </div>
                         <p class="text-xs text-amber-800/90 mt-1">
                             Prospek berikut telah berstatus <strong>FORMULIR</strong> lebih dari 2 jam tetapi belum menerima follow-up / pesan sambutan dari CS. Segera koordinasikan dengan CS terkait:
@@ -85,6 +85,15 @@
                     </div>
                 </div>
             </div>
+        @endif
+
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Tim SPV" 
+                subtitle="Monitoring real-time target berjenjang tim Sales & CS, kekurangan, sisa hari, dan target harian berjalan"
+            />
         @endif
 
         <!-- SPV Statistic Cards P0 Focus -->

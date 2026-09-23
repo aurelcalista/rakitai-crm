@@ -62,6 +62,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Sales Pribadi" 
+                subtitle="Filter periode Harian, Mingguan, Bulanan, Tahunan, dan Realtime dengan rincian metrik per baris"
+            />
+        @endif
+
         <!-- Statistic Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             <x-stat-card 

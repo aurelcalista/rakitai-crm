@@ -39,6 +39,15 @@
             
             <div class="flex items-center gap-2">
                 <a 
+                    href="{{ route('admin.target.index') }}"
+                    class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+                >
+                    <svg class="w-4 h-4 text-purple-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span>Kelola & Beri Target SPV</span>
+                </a>
+                <a 
                     href="{{ route('laporan.index') }}"
                     class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
                 >
@@ -49,6 +58,15 @@
                 </a>
             </div>
         </div>
+
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Head of Marketing (HM)" 
+                subtitle="Monitoring berjenjang seluruh wilayah teritori, kekurangan, sisa hari, dan target harian berjalan"
+            />
+        @endif
 
         <!-- Executive Statistic Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">

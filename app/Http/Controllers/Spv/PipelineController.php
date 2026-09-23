@@ -75,6 +75,18 @@ class PipelineController extends Controller
             'time'          => now(),
         ]);
 
+        if (in_array(strtoupper($prospek->status), ['LUNAS', 'CLOSING'])) {
+            try {
+                $targetService = app(\App\Services\TargetAchievementService::class);
+                if ($prospek->sales) {
+                    $targetService->checkAndNotifyTargetStatus($prospek->sales);
+                }
+                $targetService->checkAndNotifyTargetStatus($user);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Gagal evaluasi target SPV: " . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Status berhasil diubah menjadi {$prospek->status}",

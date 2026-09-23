@@ -13,10 +13,10 @@ class Prospek extends Model
         'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp',
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
-        'sekolah_id', 'perusahaan_id',
+        'sekolah_id', 'perusahaan_id', 'prodi_id',
         'lost_reason', 'lost_note',
         'follow_up_count', 'active_follow_up_count',
-        'handover_at', 'academic_year_id', 'tahun_akademik',
+        'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',
     ];
 
     protected $casts = [
@@ -88,6 +88,23 @@ class Prospek extends Model
     ];
 
     public const PIPELINE_8_STAGES = self::ACTIVE_STAGES;
+
+    /**
+     * 10 Opsi Baku Dropdown Sumber Informasi Resmi PRD Bab 8.1.1
+     */
+    public const SOURCES = [
+        'Teman/Keluarga/Saudara',
+        'Sekolah',
+        'Sosial Media (Facebook, Instagram, X)',
+        'Website CIC',
+        'Brosur/Poster',
+        'Sekretariat Kampus (Walk-in)',
+        'Pameran/Expo/University Day',
+        'Acara Kampus',
+        'MGBK/Miniclass',
+        'Spanduk/Baliho',
+        'Lainnya',
+    ];
 
     /**
      * 8 Status Pipeline Standar PMB & Backward-Compatibility Map
@@ -208,6 +225,11 @@ class Prospek extends Model
     public function sekolah()
     {
         return $this->belongsTo(Sekolah::class);
+    }
+
+    public function prodi()
+    {
+        return $this->belongsTo(Prodi::class, 'prodi_id');
     }
 
     public function perusahaan()

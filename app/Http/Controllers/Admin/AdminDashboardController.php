@@ -17,7 +17,9 @@ class AdminDashboardController extends Controller
 {
     public function index(Request $request): View
     {
-        $request->session()->put('user_role', 'admin');
+        if ($request->hasSession()) {
+            $request->session()->put('user_role', 'admin');
+        }
 
         $totalUsers = User::count();
         $stats = [
@@ -94,6 +96,21 @@ class AdminDashboardController extends Controller
             ['user' => 'Hendra Setiawan', 'role' => 'SPV', 'action' => 'Export Laporan Rekap', 'target' => 'Periode September', 'time' => 'Kemarin'],
         ];
 
-        return view('admin.dashboard', compact('stats', 'userSlides', 'recentUsers', 'activeTargets', 'recentActivities'));
+        // Data Dashboard Target & Pencapaian Berjenjang Global (PRD Bab 6.2)
+        $targetAchievementData = app(\App\Services\TargetAchievementService::class)->getDashboardTargetData(
+            auth()->user(),
+            $request->get('periode', 'bulanan'),
+            $request->get('wilayah_id') ? (int)$request->get('wilayah_id') : null,
+            $request->get('ta')
+        );
+
+        return view('admin.dashboard', compact(
+            'stats',
+            'userSlides',
+            'recentUsers',
+            'activeTargets',
+            'recentActivities',
+            'targetAchievementData'
+        ));
     }
 }

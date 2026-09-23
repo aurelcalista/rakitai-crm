@@ -159,7 +159,7 @@
             />
             <x-stat-card 
                 title="Total Closing" 
-                :value="$summary['closing']" 
+                :value="$summary['closing'] ?? $summary['Closing (Lunas)'] ?? 0" 
                 subtitle="Mahasiswa Resmi" 
                 color="emerald"
             />
@@ -193,7 +193,7 @@
                     <tr class="font-extrabold text-sm text-slate-900 bg-white">
                         <td class="py-2.5 px-2 border border-slate-400">{{ $summary['total_prospek'] }} Prospek</td>
                         <td class="py-2.5 px-2 border border-slate-400 text-blue-700">{{ $summary['active'] }} Lead</td>
-                        <td class="py-2.5 px-2 border border-slate-400 text-emerald-700">{{ $summary['closing'] }} Mhs</td>
+                        <td class="py-2.5 px-2 border border-slate-400 text-emerald-700">{{ $summary['closing'] ?? $summary['Closing (Lunas)'] ?? 0 }} Mhs</td>
                         <td class="py-2.5 px-2 border border-slate-400 text-rose-700">{{ $summary['lost'] }} Lead</td>
                         <td class="py-2.5 px-2 border border-slate-400 text-purple-700">{{ $summary['conversion_rate'] }}%</td>
                     </tr>

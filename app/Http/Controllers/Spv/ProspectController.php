@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Carbon\Carbon;
 
 class ProspectController extends Controller
 {
@@ -27,7 +28,7 @@ class ProspectController extends Controller
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
 
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'followUps' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->limit(1);
         }])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
@@ -58,16 +59,16 @@ class ProspectController extends Controller
             $query->where('wilayah_id', $request->wilayah_id);
         }
 
-        // Filter by Prodi
+        // Filter by Prodi (PRD Bab 7.2)
         if ($request->filled('prodi_id') && $request->prodi_id !== 'all') {
-            $prodi = Prodi::find($request->prodi_id);
-            if ($prodi) {
-                $query->where(function ($q) use ($prodi) {
-                    $q->where('potential', 'like', '%' . $prodi->nama . '%')
-                      ->orWhere('category', 'like', '%' . $prodi->nama . '%')
-                      ->orWhere('notes', 'like', '%' . $prodi->nama . '%');
-                });
-            }
+            $query->where(function ($q) use ($request) {
+                $q->where('prodi_id', $request->prodi_id);
+                $prodi = Prodi::find($request->prodi_id);
+                if ($prodi) {
+                    $q->orWhere('category', 'like', '%' . $prodi->nama . '%')
+                      ->orWhere('potential', 'like', '%' . $prodi->nama . '%');
+                }
+            });
         }
 
         // Filter by Sumber / Source
@@ -96,6 +97,7 @@ class ProspectController extends Controller
         $prodis      = Prodi::orderBy('nama')->get();
         $statuses    = Prospek::PIPELINE_8_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
+        $sources     = Prospek::SOURCES;
 
         return view('spv.prospek.index', compact(
             'prospects',
@@ -106,50 +108,74 @@ class ProspectController extends Controller
             'wilayahs',
             'prodis',
             'statuses',
-            'lostReasons'
+            'lostReasons',
+            'sources'
         ));
     }
 
     /**
-     * Show form to create a new prospect for team.
+     * Show form to create a new prospect for team (PRD Bab 7.2 & Bab 8.1).
      */
     public function create(): View
     {
         $user = auth()->user();
-        $teamSales = User::whereIn('id', $user->teamMemberIds())->where('role', 'Sales')->get();
-        $sekolahs = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
+        $teamMemberIds = $user->teamMemberIds();
+
+        $teamSales   = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->where('status', 'Aktif')->get();
+        $teamCs      = User::where('role', 'CS')->where('status', 'Aktif')->get();
+        $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
-        $statuses = Prospek::PIPELINE_8_STAGES;
+        $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $wilayahs    = Wilayah::where('status', 'Aktif')->orderBy('nama')->get();
+        $statuses    = Prospek::PIPELINE_8_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
-        return view('spv.prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons', 'teamSales'));
+        // 10 Opsi Baku Dropdown Sumber Informasi (PRD Bab 8.1.1)
+        $sources = Prospek::SOURCES;
+
+        return view('spv.prospek.create', compact(
+            'sekolahs',
+            'perusahaans',
+            'prodis',
+            'wilayahs',
+            'statuses',
+            'lostReasons',
+            'teamSales',
+            'teamCs',
+            'sources'
+        ));
     }
 
     /**
-     * Store new prospect and assign to Sales.
+     * Store new prospect according to PRD v4.0 specifications.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'          => 'nullable|string|max:255',
+            'tanggal_masuk' => 'nullable|date',
+            'name'          => 'required|string|max:255',
             'type'          => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
-            'sales_id'      => 'nullable|exists:users,id',
-            'category'      => 'nullable|string|max:100',
             'pic'           => 'required|string|max:255',
             'pic_phone'     => 'nullable|string|max:20',
             'whatsapp'      => 'required|string|max:20',
+            'prodi_id'      => 'required|exists:prodis,id',
+            'kelas'         => 'required|in:Reguler,Karyawan',
             'status'        => 'required|string|max:255',
-            'potential'     => 'nullable|string|max:500',
-            'ai_training'   => 'nullable|string|max:255',
-            'notes'         => 'nullable|string',
             'source'        => 'required|string|max:100',
+            'custom_source' => 'nullable|string|max:100',
+            'assign_type'   => 'required|in:sales,cs,self',
+            'sales_id'      => 'nullable|exists:users,id',
+            'cs_id'         => 'nullable|exists:users,id',
+            'wilayah_id'    => 'nullable|exists:wilayahs,id',
+            'notes'         => 'nullable|string|max:500',
         ]);
 
         $user = auth()->user();
 
-        $name = $validated['name'] ?? 'Prospek Baru';
+        // 1. Resolve Nama Prospek
+        $name = trim($validated['name']);
         if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
             $sekolah = Sekolah::find($validated['sekolah_id']);
             if ($sekolah) $name = $sekolah->nama;
@@ -158,34 +184,77 @@ class ProspectController extends Controller
             if ($perusahaan) $name = $perusahaan->nama;
         }
 
-        $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {
+        // 2. Validasi Duplikat HP & Nama (PRD Bab 8.1)
+        $cleanWa = preg_replace('/[^0-9]/', '', $validated['whatsapp']);
+        $duplicate = Prospek::with(['owner', 'sales', 'cs'])->where(function($query) use ($validated, $name, $cleanWa) {
             $query->where('whatsapp', $validated['whatsapp'])
                   ->orWhere('name', $name);
+            if (!empty($cleanWa)) {
+                $query->orWhereRaw("REPLACE(REPLACE(REPLACE(whatsapp, '-', ''), ' ', ''), '+', '') = ?", [$cleanWa]);
+            }
         })->first();
 
         if ($duplicate) {
-            $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
+            $errorField = ($duplicate->whatsapp === $validated['whatsapp'] || (strlen($cleanWa) > 6 && str_contains($duplicate->whatsapp, $cleanWa))) ? 'whatsapp' : 'name';
             $ownerName = $duplicate->owner ? $duplicate->owner->name : 'Sistem';
-            $salesName = $duplicate->sales ? $duplicate->sales->name : 'Belum Ada Sales';
+            $handlerName = $duplicate->sales ? ($duplicate->sales->name . ' (Sales)') : ($duplicate->cs ? ($duplicate->cs->name . ' (CS)') : 'Belum Ada Handler');
             
-            $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}).\n"
-                          . "Prospek ini dimiliki oleh: {$ownerName}\n"
-                          . "Sedang ditangani oleh: {$salesName}\n"
+            $errorMessage = "Data prospek sudah ada di sistem (Duplicate {$errorField}).\n"
+                          . "Pemilik Lead: {$ownerName}\n"
+                          . "Handler aktif: {$handlerName}\n"
                           . "Status saat ini: {$duplicate->status}";
                           
             return back()->withInput()->withErrors([$errorField => $errorMessage]);
         }
 
-        $assignedSalesId = $validated['sales_id'] ?? null;
-        $wilayahId = $user->wilayah_id;
+        // 3. Sumber Informasi (PRD Bab 8.1.1)
+        $source = $validated['source'];
+        if ($source === 'Lainnya' && !empty($validated['custom_source'])) {
+            $source = 'Lainnya: ' . trim($validated['custom_source']);
+        }
 
-        DB::transaction(function () use ($validated, $user, $name, $assignedSalesId, $wilayahId) {
+        // 4. Penugasan Handler (Sales / CS / SPV Mandiri)
+        $salesId = null;
+        $csId    = null;
+        $ownerId = $user->id;
+        $handlerLabel = 'Belum Ditugaskan';
+
+        if ($validated['assign_type'] === 'sales') {
+            $salesId = $validated['sales_id'] ?: null;
+            if ($salesId) {
+                $ownerId = $salesId;
+                $handlerLabel = User::find($salesId)?->name . ' (Sales)';
+            }
+        } elseif ($validated['assign_type'] === 'cs') {
+            $csId = $validated['cs_id'] ?: null;
+            if ($csId) {
+                $ownerId = $csId;
+                $handlerLabel = User::find($csId)?->name . ' (CS)';
+            }
+        } elseif ($validated['assign_type'] === 'self') {
+            $salesId = $user->id;
+            $ownerId = $user->id;
+            $handlerLabel = $user->name . ' (SPV Penanganan Mandiri)';
+        }
+
+        $prodi = Prodi::find($validated['prodi_id']);
+        $prodiNama = $prodi ? $prodi->nama : null;
+        $wilayahId = $validated['wilayah_id'] ?? $user->wilayah_id;
+
+        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
+
+            $createdAt = !empty($validated['tanggal_masuk'])
+                ? Carbon::parse($validated['tanggal_masuk'])->setTimeFrom(now())
+                : now();
 
             $prospek = Prospek::create([
                 'name'               => $name,
                 'type'               => $validated['type'],
-                'category'           => $validated['category'] ?? null,
+                'category'           => $prodiNama,
+                'prodi_id'           => $prodi?->id,
+                'kelas'              => $validated['kelas'],
+                'potential'          => "{$validated['kelas']} — {$prodiNama}",
                 'sekolah_id'         => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'      => $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'                => $validated['pic'],
@@ -193,29 +262,31 @@ class ProspectController extends Controller
                 'whatsapp'           => $validated['whatsapp'],
                 'status'             => $validated['status'],
                 'stage_number'       => $stageNumber,
-                'potential'          => $validated['potential'] ?? null,
-                'ai_training'        => $validated['ai_training'] ?? null,
                 'notes'              => $validated['notes'] ?? null,
-                'source'             => $validated['source'] ?? 'Supervisor',
-                'sales_id'           => $assignedSalesId,
-                'cs_id'              => null,
+                'source'             => $source,
+                'sales_id'           => $salesId,
+                'cs_id'              => $csId,
                 'wilayah_id'         => $wilayahId,
-                'owner_id'           => $user->id,
+                'owner_id'           => $ownerId,
+                'created_at'         => $createdAt,
             ]);
 
-            $assignedSalesName = $assignedSalesId ? User::find($assignedSalesId)?->name : 'Belum Ditugaskan';
+            // Jika status langsung FORMULIR dan di-assign ke CS, catat handover_at
+            if (in_array($validated['status'], ['FORMULIR', '05 FORMULIR']) && $csId) {
+                $prospek->update(['handover_at' => now()]);
+            }
 
             ProspekTimeline::create([
                 'prospek_id'   => $prospek->id,
                 'user_id'      => $user->id,
                 'title'        => 'Prospek Dibuat oleh SPV',
-                'notes'        => 'Prospek dibuat oleh Supervisor ' . $user->name . ' dan di-assign ke ' . $assignedSalesName,
+                'notes'        => "Prospek dibuat oleh Supervisor {$user->name} (Prodi: {$prodiNama}, Kelas: {$validated['kelas']}, Sumber: {$source}) dan ditugaskan ke {$handlerLabel}.",
                 'status_after' => $prospek->status,
                 'time'         => now(),
             ]);
         });
 
-        return redirect()->route('spv.prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
+        return redirect()->route('spv.prospek.index')->with('success', "Prospek '{$name}' berhasil ditambahkan dan ditugaskan ke {$handlerLabel}!");
     }
 
     /**
@@ -225,7 +296,7 @@ class ProspectController extends Controller
     {
         Gate::authorize('view', $prospek);
 
-        $prospek->load(['sales', 'cs', 'owner', 'followUps' => function ($q) {
+        $prospek->load(['sales', 'cs', 'owner', 'prodi', 'sekolah', 'wilayah', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -277,6 +348,8 @@ class ProspectController extends Controller
             'notes'       => 'nullable|string',
             'category'    => 'nullable|string|max:100',
             'source'      => 'required|string|max:100',
+            'prodi_id'    => 'nullable|exists:prodis,id',
+            'kelas'       => 'nullable|in:Reguler,Karyawan',
         ]);
 
         $duplicate = Prospek::where('id', '!=', $prospek->id)
@@ -289,6 +362,14 @@ class ProspectController extends Controller
         if ($duplicate) {
             $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
             return back()->withInput()->withErrors([$errorField => 'Data prospek sudah ada (Duplicate ' . $errorField . ').']);
+        }
+
+        if (!empty($validated['prodi_id'])) {
+            $prodi = Prodi::find($validated['prodi_id']);
+            if ($prodi) {
+                $validated['category'] = $prodi->nama;
+                $validated['potential'] = ($validated['kelas'] ?? $prospek->kelas ?? 'Reguler') . ' — ' . $prodi->nama;
+            }
         }
 
         $prospek->update($validated);
@@ -439,6 +520,17 @@ class ProspectController extends Controller
             'time'          => now(),
         ]);
 
+        // Cek evaluasi target tuntas untuk sales dan SPV
+        try {
+            $targetService = app(\App\Services\TargetAchievementService::class);
+            if ($prospek->sales) {
+                $targetService->checkAndNotifyTargetStatus($prospek->sales);
+            }
+            $targetService->checkAndNotifyTargetStatus($user);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Gagal evaluasi target notification: " . $e->getMessage());
+        }
+
         return redirect()->route('spv.prospek.show', $prospek)->with('success', 'Closing Maba Lunas berhasil dicatat! Hak kredit lead tetap pada ' . $originalSalesName . '.');
     }
 
@@ -485,6 +577,9 @@ class ProspectController extends Controller
             'owner'          => $p->owner ? $p->owner->name : 'Sistem',
             'last_activity'  => $p->updated_at->diffForHumans(),
             'potential'      => $p->potential ?? '-',
+            'prodi_id'       => $p->prodi_id,
+            'prodi_nama'     => $p->prodi ? $p->prodi->nama : ($p->category ?: '-'),
+            'kelas'          => $p->kelas ?: 'Reguler',
             'source'         => $p->source ?? '-',
             'ai_training'    => $p->ai_training ?? '-',
             'notes'          => $p->notes ?? '',

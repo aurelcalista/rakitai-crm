@@ -45,6 +45,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Global (Admin)" 
+                subtitle="Monitoring capaian seluruh wilayah teritori, kekurangan, sisa hari, dan target harian berjalan"
+            />
+        @endif
+
         <!-- COMBINED METRICS & ANIMATED ROLES SLIDER (COMPACT & SIMPLE) -->
         <div x-show="show" x-transition:enter="transition ease-out duration-500 delay-150 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="crm-card bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden space-y-4">
             

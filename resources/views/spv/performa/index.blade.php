@@ -40,6 +40,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Tim SPV" 
+                subtitle="Filter periode Harian, Mingguan, Bulanan, Tahunan, dan Realtime dengan rincian metrik per baris"
+            />
+        @endif
+
         <!-- 1. RINGKASAN TARGET HM KE SPV & ALOKASI TIM -->
         <div class="crm-card bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-md space-y-5">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">

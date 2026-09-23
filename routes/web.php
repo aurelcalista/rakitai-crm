@@ -173,7 +173,6 @@ Route::middleware('auth')->group(function () {
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
         Route::resource('perusahaan',  \App\Http\Controllers\Admin\AdminPerusahaanController::class, $except);
 
-        Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
@@ -181,6 +180,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['role:Admin,HM'])->prefix('admin')->name('admin.')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
         Route::resource('target', \App\Http\Controllers\Admin\AdminTargetController::class, $except);
+        Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
     });
 
     // ──────────────────────────────────────────────────────────────

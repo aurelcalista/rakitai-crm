@@ -41,6 +41,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Target & Pencapaian Sales Pribadi" 
+                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, realtime, kekurangan, dan target harian berjalan"
+            />
+        @endif
+
         <!-- Big Progress Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <x-stat-card 
@@ -129,7 +138,7 @@
                                 <td class="py-3.5 px-3 text-center font-bold text-slate-800">{{ $member['target'] }}</td>
                                 <td class="py-3.5 px-3 text-center text-slate-700 font-medium">{{ $member['prospects'] }}</td>
                                 <td class="py-3.5 px-3 text-center text-amber-700 font-semibold">{{ $member['follow_up'] }}</td>
-                                <td class="py-3.5 px-3 text-center text-emerald-700 font-bold text-sm">{{ $member['closing'] }}</td>
+                                <td class="py-3.5 px-3 text-center text-emerald-700 font-bold text-sm">{{ $member['closing'] ?? $member['Closing (Lunas)'] ?? 0 }}</td>
                                 <td class="py-3.5 px-3 text-center text-rose-600 font-medium">{{ $member['lost'] }}</td>
                                 <td class="py-3.5 px-4 text-center">
                                     <span class="inline-block px-3 py-1 rounded-full text-xs font-bold {{ $member['achievement'] >= 70 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200' }}">
@@ -152,7 +161,7 @@
                         </div>
                         <div class="flex justify-between text-xs text-slate-600">
                             <span>Target: <strong>{{ $member['target'] }}</strong></span>
-                            <span>Closing: <strong class="text-emerald-600">{{ $member['closing'] }}</strong></span>
+                            <span>Closing: <strong class="text-emerald-600">{{ $member['closing'] ?? $member['Closing (Lunas)'] ?? 0 }}</strong></span>
                             <span>Lost: <strong class="text-rose-600">{{ $member['lost'] }}</strong></span>
                         </div>
                     </div>

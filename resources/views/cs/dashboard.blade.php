@@ -49,6 +49,15 @@
             </div>
         </div>
 
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Target & Pencapaian Customer Service" 
+                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, realtime, kekurangan, dan target harian berjalan"
+            />
+        @endif
+
         <!-- Statistic Cards for CS -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             <x-stat-card 
@@ -77,7 +86,7 @@
             />
             <x-stat-card 
                 title="Closing" 
-                :value="$stats['closing']" 
+                :value="$stats['closing'] ?? $stats['Closing (Lunas)'] ?? 0" 
                 subtitle="Formulir lunas" 
                 color="emerald"
             />

@@ -44,128 +44,197 @@ class AdminTargetController extends Controller
             $realisasi_followup = \App\Models\FollowUp::where('user_id', $t->sales_id)
                 ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
                 ->count();
+            // Realisasi Lunas & Formulir
+            if ($t->sales && $t->sales->role === 'SPV') {
+                $teamIds = $t->sales->teamMemberIds();
+                $teamIds[] = $t->sales_id;
+                $realisasi_lunas = \App\Models\Prospek::whereIn('sales_id', $teamIds)
+                    ->where('status', 'LUNAS')
+                    ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
+                    ->count();
+                $realisasi_formulir = \App\Models\Prospek::where(function($q) use ($teamIds) {
+                        $q->whereIn('sales_id', $teamIds)->orWhereIn('cs_id', $teamIds);
+                    })
+                    ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
+                    ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
+                    ->count();
+            } else {
+                $realisasi_lunas = \App\Models\Prospek::where('sales_id', $t->sales_id)
+                    ->where('status', 'LUNAS')
+                    ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
+                    ->count();
+                $realisasi_formulir = \App\Models\Prospek::where(function($q) use ($t) {
+                        $q->where('sales_id', $t->sales_id)->orWhere('cs_id', $t->sales_id);
+                    })
+                    ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
+                    ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
+                    ->count();
+            }
 
-            return [
-                'id' => $t->id,
-                'sales' => $salesName,
-                'role' => $t->sales ? $t->sales->role : '-',
-                'avatar' => $avatar,
-                'periode' => \Carbon\Carbon::parse($t->tanggal_mulai)->translatedFormat('F Y'),
-                'periode_type' => $t->tipe_periode,
-                'tanggal_mulai' => \Carbon\Carbon::parse($t->tanggal_mulai)->format('d M Y'),
-                'tanggal_selesai' => \Carbon\Carbon::parse($t->tanggal_selesai)->format('d M Y'),
-                'target_kontak' => $t->target_kontak,
-                'target_menghubungi' => $t->target_menghubungi ?? 0,
-                'target_followup' => $t->target_followup,
-                'target_kunjungan' => $t->target_kunjungan,
-                
-                'realisasi_kontak' => $realisasi_kontak,
-                'realisasi_menghubungi' => $realisasi_menghubungi,
-                'realisasi_followup' => $realisasi_followup,
-                'realisasi_kunjungan' => $realisasi_kunjungan,
-                
-                'kekurangan_kontak' => max(0, $t->target_kontak - $realisasi_kontak),
-                'kekurangan_menghubungi' => max(0, ($t->target_menghubungi ?? 0) - $realisasi_menghubungi),
-                'kekurangan_followup' => max(0, $t->target_followup - $realisasi_followup),
-                'kekurangan_kunjungan' => max(0, $t->target_kunjungan - $realisasi_kunjungan),
-                
-                'akum_kontak' => 0,
-                'akum_menghubungi' => 0,
-                'akum_followup' => 0,
-                
-                'target_besok_kontak' => $t->target_kontak,
-                'target_besok_followup' => $t->target_followup,
-                
-                'status' => $t->status,
-                'sales_id' => $t->sales_id,
-                'tipe_periode' => $t->tipe_periode,
-                'raw_tanggal_mulai' => $t->tanggal_mulai,
-                'raw_tanggal_selesai' => $t->tanggal_selesai,
-            ];
-        });
+                $kekurangan_lunas = max(0, ($t->target_lunas ?? 0) - $realisasi_lunas);
+                $kekurangan_formulir = max(0, ($t->target_formulir ?? 0) - $realisasi_formulir);
+                $kekurangan_kontak = max(0, $t->target_kontak - $realisasi_kontak);
+                $kekurangan_menghubungi = max(0, ($t->target_menghubungi ?? 0) - $realisasi_menghubungi);
+                $kekurangan_followup = max(0, $t->target_followup - $realisasi_followup);
+                $kekurangan_kunjungan = max(0, $t->target_kunjungan - $realisasi_kunjungan);
 
-        $salesList = User::whereIn('role', ['Sales', 'CS'])->get();
+                // Target Besok (Carry-Over akumulasi kekurangan sesuai aturan PRD)
+                if ($t->tipe_periode === 'Harian') {
+                    $target_besok_kontak = $t->target_kontak + $kekurangan_kontak;
+                    $target_besok_followup = $t->target_followup + $kekurangan_followup;
+                } else {
+                    $endDate = \Carbon\Carbon::parse($t->tanggal_selesai)->endOfDay();
+                    $sisaHari = max(1, \Carbon\Carbon::now()->diffInDays($endDate, false) + 1);
+                    $target_besok_kontak = (int)ceil($kekurangan_kontak / $sisaHari);
+                    $target_besok_followup = (int)ceil($kekurangan_followup / $sisaHari);
+                }
+
+                return [
+                    'id' => $t->id,
+                    'sales' => $salesName,
+                    'role' => $t->sales ? $t->sales->role : '-',
+                    'avatar' => $avatar,
+                    'allocated_by' => $t->allocator?->name ?? 'Head of Marketing',
+                    'tahun_akademik' => $t->tahun_akademik ?? '2027/2028',
+                    'periode' => \Carbon\Carbon::parse($t->tanggal_mulai)->translatedFormat('F Y'),
+                    'periode_type' => $t->tipe_periode,
+                    'tanggal_mulai' => \Carbon\Carbon::parse($t->tanggal_mulai)->format('d M Y'),
+                    'tanggal_selesai' => \Carbon\Carbon::parse($t->tanggal_selesai)->format('d M Y'),
+                    'target_lunas' => $t->target_lunas ?? 0,
+                    'target_formulir' => $t->target_formulir ?? 0,
+                    'target_kontak' => $t->target_kontak,
+                    'target_menghubungi' => $t->target_menghubungi ?? 0,
+                    'target_followup' => $t->target_followup,
+                    'target_kunjungan' => $t->target_kunjungan,
+                    
+                    'realisasi_lunas' => $realisasi_lunas,
+                    'realisasi_formulir' => $realisasi_formulir,
+                    'realisasi_kontak' => $realisasi_kontak,
+                    'realisasi_menghubungi' => $realisasi_menghubungi,
+                    'realisasi_followup' => $realisasi_followup,
+                    'realisasi_kunjungan' => $realisasi_kunjungan,
+                    
+                    'kekurangan_lunas' => $kekurangan_lunas,
+                    'kekurangan_formulir' => $kekurangan_formulir,
+                    'kekurangan_kontak' => $kekurangan_kontak,
+                    'kekurangan_menghubungi' => $kekurangan_menghubungi,
+                    'kekurangan_followup' => $kekurangan_followup,
+                    'kekurangan_kunjungan' => $kekurangan_kunjungan,
+
+                    'akum_kontak' => $kekurangan_kontak,
+                    'akum_menghubungi' => $kekurangan_menghubungi,
+                    'akum_followup' => $kekurangan_followup,
+                    'target_besok_kontak' => $target_besok_kontak,
+                    'target_besok_followup' => $target_besok_followup,
+                    
+                    'status' => $t->status,
+                    'sales_id' => $t->sales_id,
+                    'tipe_periode' => $t->tipe_periode,
+                    'raw_tanggal_mulai' => $t->tanggal_mulai,
+                    'raw_tanggal_selesai' => $t->tanggal_selesai,
+                ];
+            });
+
+        // Sertakan SPV, Sales, dan CS agar HM dapat memberikan target langsung ke SPV
+        $salesList = User::whereIn('role', ['SPV', 'Sales', 'CS'])->orderBy('role')->orderBy('name')->get();
         return view('admin.target.index', compact('targets', 'salesList'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'sales_id' => 'required|exists:users,id',
-            'tipe_periode' => 'required|in:Harian,Mingguan,Bulanan',
-            'tanggal_mulai' => 'required|date',
-            'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-            'target_kontak' => 'required|integer|min:0',
+            'sales_id'           => 'required|exists:users,id',
+            'tipe_periode'       => 'required|in:Harian,Mingguan,Bulanan',
+            'tanggal_mulai'      => 'required|date',
+            'tanggal_selesai'    => 'required|date|after_or_equal:tanggal_mulai',
+            'target_lunas'       => 'nullable|integer|min:0',
+            'target_formulir'    => 'nullable|integer|min:0',
+            'target_kontak'      => 'required|integer|min:0',
             'target_menghubungi' => 'nullable|integer|min:0',
-            'target_followup' => 'required|integer|min:0',
-            'target_kunjungan' => 'required|integer|min:0',
-            'status' => 'required|in:Aktif,Selesai,Nonaktif',
+            'target_followup'    => 'required|integer|min:0',
+            'target_kunjungan'   => 'required|integer|min:0',
+            'status'             => 'required|in:Aktif,Selesai,Nonaktif',
+            'tahun_akademik'     => 'nullable|string|max:20',
         ]);
-        $lastTarget = Target::where('sales_id', $validated['sales_id'])
-            ->where('tanggal_selesai', '<', $validated['tanggal_mulai'])
-            ->orderBy('tanggal_selesai', 'desc')
-            ->first();
 
-        if ($lastTarget) {
-            $realisasi_kontak = \App\Models\Prospek::where(function($q) use ($lastTarget) {
-                if ($lastTarget->sales && $lastTarget->sales->role === 'CS') {
-                    $q->where('cs_id', $lastTarget->sales_id);
-                } else {
-                    $q->where('sales_id', $lastTarget->sales_id);
-                }
-            })->whereBetween('created_at', [$lastTarget->tanggal_mulai . ' 00:00:00', $lastTarget->tanggal_selesai . ' 23:59:59'])->count();
-
-            $realisasi_followup = \App\Models\FollowUp::where('user_id', $lastTarget->sales_id)
-                ->whereBetween('tanggal', [$lastTarget->tanggal_mulai, $lastTarget->tanggal_selesai])
-                ->count();
-
-            $realisasi_kunjungan = Kunjungan::where('sales_id', $lastTarget->sales_id)
-                ->whereBetween('tanggal', [$lastTarget->tanggal_mulai, $lastTarget->tanggal_selesai])
-                ->count();
-
-            $realisasi_menghubungi = 0;
-            if ($lastTarget->sales && $lastTarget->sales->role === 'CS') {
-                $realisasi_menghubungi = \App\Models\FollowUp::where('user_id', $lastTarget->sales_id)
-                    ->whereBetween('tanggal', [$lastTarget->tanggal_mulai, $lastTarget->tanggal_selesai])
-                    ->distinct('prospek_id')
-                    ->count('prospek_id');
-            }
-
-            $defisit_kontak = max(0, $lastTarget->target_kontak - $realisasi_kontak);
-            $defisit_followup = max(0, $lastTarget->target_followup - $realisasi_followup);
-            $defisit_kunjungan = max(0, $lastTarget->target_kunjungan - $realisasi_kunjungan);
-            $defisit_menghubungi = max(0, ($lastTarget->target_menghubungi ?? 0) - $realisasi_menghubungi);
-
-            $validated['target_kontak'] += $defisit_kontak;
-            $validated['target_followup'] += $defisit_followup;
-            $validated['target_kunjungan'] += $defisit_kunjungan;
-            if (isset($validated['target_menghubungi'])) {
-                $validated['target_menghubungi'] += $defisit_menghubungi;
-            }
+        $validated['allocated_by'] = auth()->id();
+        $validated['target_lunas'] = (int)($validated['target_lunas'] ?? 0);
+        $validated['target_formulir'] = (int)($validated['target_formulir'] ?? 0);
+        if (empty($validated['tahun_akademik'])) {
+            $validated['tahun_akademik'] = '2027/2028';
         }
 
-        Target::create($validated);
+        $target = Target::create($validated);
 
-        return redirect()->back()->with('success', 'Target berhasil ditambahkan!');
+        $targetUser = User::find($validated['sales_id']);
+        $allocator = auth()->user();
+        $tipe = $target->tipe_periode ?? 'Bulanan';
+        $lunas = $target->target_lunas ?? 0;
+        $kontak = $target->target_kontak ?? 0;
+
+        if ($targetUser) {
+            $isSpv = $targetUser->role === 'SPV';
+            $targetUser->notify(new \App\Notifications\TargetNotification(
+                title: $isSpv ? '🎯 Target Baru dari Head of Marketing' : '🎯 Target Baru Ditugaskan',
+                message: $isSpv
+                    ? "Head of Marketing telah menetapkan target {$tipe}: {$lunas} Maba Lunas, {$target->target_formulir} Formulir, dan {$kontak} Kontak Baru. Segera distribusikan ke tim Sales & CS Anda."
+                    : "Target {$tipe} telah ditetapkan untuk Anda: {$lunas} Maba Lunas, {$target->target_formulir} Formulir, dan {$kontak} Kontak Baru.",
+                type: 'info',
+                link: route($isSpv ? 'spv.performa.index' : 'performa.index'),
+                icon: '🎯',
+                extraData: ['target_id' => $target->id, 'event_type' => 'target_assigned']
+            ));
+        }
+
+        if ($allocator && $targetUser && $allocator->id !== $targetUser->id) {
+            $allocator->notify(new \App\Notifications\TargetNotification(
+                title: '✓ Target Berhasil Diberikan',
+                message: "Target {$tipe} berhasil diberikan kepada {$targetUser->name} ({$targetUser->role}) sejumlah {$lunas} Maba Lunas.",
+                type: 'success',
+                link: route('admin.target.index'),
+                icon: '✓',
+                extraData: ['target_id' => $target->id, 'event_type' => 'target_given']
+            ));
+        }
+
+        $roleName = $targetUser ? $targetUser->role : 'User';
+        return redirect()->back()->with('success', "Target untuk {$roleName} '{$targetUser->name}' berhasil ditambahkan dan notifikasi telah dikirim!");
     }
 
     public function update(Request $request, Target $target)
     {
         $validated = $request->validate([
-            'sales_id' => 'required|exists:users,id',
-            'tipe_periode' => 'required|in:Harian,Mingguan,Bulanan',
-            'tanggal_mulai' => 'required|date',
-            'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
-            'target_kontak' => 'required|integer|min:0',
+            'sales_id'           => 'required|exists:users,id',
+            'tipe_periode'       => 'required|in:Harian,Mingguan,Bulanan',
+            'tanggal_mulai'      => 'required|date',
+            'tanggal_selesai'    => 'required|date|after_or_equal:tanggal_mulai',
+            'target_lunas'       => 'nullable|integer|min:0',
+            'target_formulir'    => 'nullable|integer|min:0',
+            'target_kontak'      => 'required|integer|min:0',
             'target_menghubungi' => 'nullable|integer|min:0',
-            'target_followup' => 'required|integer|min:0',
-            'target_kunjungan' => 'required|integer|min:0',
-            'status' => 'required|in:Aktif,Selesai,Nonaktif',
+            'target_followup'    => 'required|integer|min:0',
+            'target_kunjungan'   => 'required|integer|min:0',
+            'status'             => 'required|in:Aktif,Selesai,Nonaktif',
+            'tahun_akademik'     => 'nullable|string|max:20',
         ]);
 
+        $validated['allocated_by'] = auth()->id();
         $target->update($validated);
 
-        return redirect()->back()->with('success', 'Target berhasil diperbarui!');
+        $targetUser = User::find($target->sales_id);
+        if ($targetUser) {
+            $isSpv = $targetUser->role === 'SPV';
+            $targetUser->notify(new \App\Notifications\TargetNotification(
+                title: '✏️ Pembaruan Target',
+                message: "Target {$target->tipe_periode} Anda telah diperbarui menjadi {$target->target_lunas} Maba Lunas dan {$target->target_kontak} Kontak Baru.",
+                type: 'info',
+                link: route($isSpv ? 'spv.performa.index' : 'performa.index'),
+                icon: '✏️',
+                extraData: ['target_id' => $target->id, 'event_type' => 'target_updated']
+            ));
+        }
+
+        return redirect()->back()->with('success', 'Target berhasil diperbarui dan notifikasi telah dikirim!');
     }
 
     public function destroy(Target $target)

@@ -7,6 +7,7 @@ use App\Models\Target;
 use App\Models\TahunAkademik;
 use App\Models\User;
 use App\Services\SpvPerformanceService;
+use App\Services\TargetAchievementService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,8 +15,10 @@ use Illuminate\View\View;
 
 class PerformanceController extends Controller
 {
-    public function __construct(private SpvPerformanceService $spvService)
-    {
+    public function __construct(
+        private SpvPerformanceService $spvService,
+        private TargetAchievementService $targetAchievementService
+    ) {
     }
 
     /**
@@ -48,6 +51,14 @@ class PerformanceController extends Controller
         $teamCs      = $teamMembers->where('role', 'CS');
         $taAktif     = $this->spvService->getActiveTa();
 
+        // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = $this->targetAchievementService->getDashboardTargetData(
+            $user,
+            $request->get('periode', 'bulanan'),
+            $request->get('wilayah_id') ? (int)$request->get('wilayah_id') : null,
+            $ta
+        );
+
         return view('spv.performa.index', compact(
             'targetHm',
             'teamPerWeek',
@@ -57,7 +68,8 @@ class PerformanceController extends Controller
             'teamSales',
             'teamCs',
             'taAktif',
-            'ta'
+            'ta',
+            'targetAchievementData'
         ));
     }
 
@@ -128,7 +140,42 @@ class PerformanceController extends Controller
         $assignedUser = User::find($validated['sales_id']);
         $roleLabel = $assignedUser && $assignedUser->role === 'CS' ? 'CS' : 'Sales';
 
-        return redirect()->route('spv.performa.index')->with('success', "Target berhasil dialokasikan kepada {$roleLabel}: " . ($assignedUser ? $assignedUser->name : 'anggota tim') . '.');
+        // 1. Notifikasi ke Sales / CS penerima alokasi
+        if ($assignedUser) {
+            $assignedUser->notify(new \App\Notifications\TargetNotification(
+                title: "🎯 Target Baru dari Supervisor ({$user->name})",
+                message: "Supervisor Anda telah mengalokasikan target {$validated['tipe_periode']}: {$validated['target_lunas']} Maba Lunas, {$validated['target_formulir']} Formulir, dan {$validated['target_kontak']} Kontak Baru.",
+                type: 'info',
+                link: route('performa.index'),
+                icon: '🎯',
+                extraData: ['event_type' => 'target_allocated_member']
+            ));
+        }
+
+        // 2. Notifikasi konfirmasi ke SPV sendiri
+        $user->notify(new \App\Notifications\TargetNotification(
+            title: '✓ Alokasi Target Tim Berhasil',
+            message: "Target {$validated['tipe_periode']} untuk {$roleLabel} {$assignedUser?->name} ({$validated['target_lunas']} Maba Lunas) telah berhasil dialokasikan.",
+            type: 'success',
+            link: route('spv.performa.index'),
+            icon: '📋',
+            extraData: ['event_type' => 'target_allocated_spv']
+        ));
+
+        // 3. Notifikasi visibilitas ke Head of Marketing (HM)
+        $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
+        foreach ($hms as $hm) {
+            $hm->notify(new \App\Notifications\TargetNotification(
+                title: '📋 SPV Mengalokasikan Target Tim',
+                message: "SPV {$user->name} telah mengalokasikan target ke {$assignedUser?->name} ({$roleLabel}) sejumlah {$validated['target_lunas']} Maba Lunas.",
+                type: 'info',
+                link: route('admin.target.index'),
+                icon: '📋',
+                extraData: ['event_type' => 'target_allocated_hm']
+            ));
+        }
+
+        return redirect()->route('spv.performa.index')->with('success', "Target berhasil dialokasikan kepada {$roleLabel}: " . ($assignedUser ? $assignedUser->name : 'anggota tim') . '. Notifikasi telah dikirim.');
     }
 
     /**
@@ -197,6 +244,19 @@ class PerformanceController extends Controller
             (int)($validated['defisit_lunas'] ?? 0),
             $validated['catatan'] ?? null
         );
+
+        if ($sales) {
+            $defisitLunas = (int)($validated['defisit_lunas'] ?? 0);
+            $defisitKontak = (int)($validated['defisit_kontak'] ?? 0);
+            $sales->notify(new \App\Notifications\TargetNotification(
+                title: "⚠️ Otorisasi Kunci Defisit oleh SPV ({$user->name})",
+                message: "SPV {$user->name} telah mengunci defisit kemarin ({$defisitLunas} Lunas, {$defisitKontak} Kontak) untuk ditambahkan ke beban target harian Anda hari ini.",
+                type: 'warning',
+                link: route('performa.index'),
+                icon: '⚠️',
+                extraData: ['event_type' => 'deficit_locked']
+            ));
+        }
 
         return redirect()->route('spv.performa.index')
             ->with('success', "Defisit target {$sales?->name} resmi dikunci oleh SPV untuk beban sasaran hari ini.");

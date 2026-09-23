@@ -367,6 +367,17 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Data Perusahaan</span>
                             </a>
+                            <a 
+                                href="{{ route('admin.audit-logs.index') }}" 
+                                title="Audit Logs"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.audit-logs.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Audit Logs</span>
+                            </a>
                         </div>
                     </div>
                 @elseif($currentUser['role'] !== 'EO')
@@ -533,7 +544,7 @@ x-init="
                 @endif
 
                 <!-- Section: MANAGEMENT (Head Marketing) -->
-                @if($currentUser['role'] === 'Head Marketing')
+                @if(in_array($currentUser['role'], ['HM', 'Head Marketing']))
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100 mt-5"></div>
                     <div class="mt-5">
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
@@ -570,6 +581,17 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Target</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.audit-logs.index') }}" 
+                                title="Log Aktivitas Sistem"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.audit-logs.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Log Aktivitas</span>
                             </a>
                         </div>
                     </div>
@@ -1291,7 +1313,7 @@ x-init="
                                     <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.tim.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                     </svg>
-                                    <span class="flex-1">Tim Sales</span>
+                                    <span class="flex-1">Tim</span>
                                 </a>
 
                                 <a 
@@ -1311,7 +1333,7 @@ x-init="
                     @endif
                 @endif
 
-                @if($currentUser['role'] === 'Head Marketing')
+                @if(in_array($currentUser['role'], ['HM', 'Head Marketing']))
                     <!-- SECTION: MANAGEMENT (Head Marketing) -->
                     <div x-show="matches('management kelola wilayah tim target head marketing')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
@@ -1332,8 +1354,8 @@ x-init="
                             <a 
                                 href="{{ route('tim.index') }}" 
                                 @click="mobileMenuOpen = false"
-                                data-menu-keywords="kelola tim sales marketing head"
-                                x-show="matches('kelola tim sales marketing head')"
+                                data-menu-keywords="kelola tim marketing head"
+                                x-show="matches('kelola tim marketing head')"
                                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('tim.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                             >
                                 <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('tim.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
