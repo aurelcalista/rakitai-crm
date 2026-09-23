@@ -79,6 +79,12 @@ class AppServiceProvider extends ServiceProvider
                         $followUpQuery->whereHas('prospek', function($q) use ($user) {
                             $q->where('cs_id', $user->id);
                         });
+                    } elseif ($role === 'spv') {
+                        $teamIds = $user->teamMemberIds();
+                        $followUpQuery->where(function($q) use ($teamIds) {
+                            $q->whereIn('user_id', $teamIds)
+                              ->orWhereHas('prospek', fn($pq) => $pq->whereIn('sales_id', $teamIds));
+                        });
                     }
 
                     $followUpHariIni = $followUpQuery->count();
