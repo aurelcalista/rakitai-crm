@@ -83,9 +83,9 @@
     border: 1px solid #fecaca;
 }
 
-/* Mobile bottom nav safe area helper */
+/* Mobile safe area helper */
 .pb-mobile-nav {
-    padding-bottom: 5.5rem;
+    padding-bottom: 1.5rem;
 }
 
 /* Custom Keyframe Animations */

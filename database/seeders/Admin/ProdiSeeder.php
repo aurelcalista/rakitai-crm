@@ -13,11 +13,17 @@ class ProdiSeeder extends Seeder
     public function run(): void
     {
         $prodis = [
-            ['kode' => 'TI', 'nama' => 'Teknik Informatika', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 100],
-            ['kode' => 'SI', 'nama' => 'Sistem Informasi', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 100],
-            ['kode' => 'DKV', 'nama' => 'Desain Komunikasi Visual', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 50],
-            ['kode' => 'MNJ', 'nama' => 'Manajemen', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 150],
-            ['kode' => 'AKT', 'nama' => 'Akuntansi', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 100],
+            ['kode' => 'MNJ', 'nama' => 'Manajemen', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 210, 'status' => 'Aktif'],
+            ['kode' => 'TI', 'nama' => 'Teknik Informatika', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 180, 'status' => 'Aktif'],
+            ['kode' => 'DKV', 'nama' => 'DKV', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 130, 'status' => 'Aktif'],
+            ['kode' => 'BD', 'nama' => 'Bisnis Digital (Baru)', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 160, 'status' => 'Aktif'],
+            ['kode' => 'AKT', 'nama' => 'Akuntansi', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 105, 'status' => 'Aktif'],
+            ['kode' => 'SI', 'nama' => 'Sistem Informasi', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 85, 'status' => 'Aktif'],
+            ['kode' => 'PKOR', 'nama' => 'PKOR (Baru)', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ilmu Kesehatan & Olahraga', 'kuota' => 50, 'status' => 'Aktif'],
+            ['kode' => 'PMAT', 'nama' => 'Pendidikan Matematika (Baru)', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Keguruan & Ilmu Pendidikan', 'kuota' => 50, 'status' => 'Aktif'],
+            ['kode' => 'MB-D3', 'nama' => 'Manajemen Bisnis (D3)', 'jenjang' => 'D3', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 25, 'status' => 'Aktif'],
+            ['kode' => 'MI-D3', 'nama' => 'Manajemen Informatika (D3)', 'jenjang' => 'D3', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 20, 'status' => 'Aktif'],
+            ['kode' => 'S2-MNJ', 'nama' => 'S2 Manajemen (Tanpa Tesis)', 'jenjang' => 'S2', 'fakultas' => 'Pascasarjana', 'kuota' => 50, 'status' => 'Aktif'],
         ];
 
         foreach ($prodis as $p) {

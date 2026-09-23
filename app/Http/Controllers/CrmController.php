@@ -7,6 +7,7 @@ use Illuminate\View\View;
 use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CrmController extends Controller
 {
@@ -25,6 +26,7 @@ class CrmController extends Controller
                 'spv'   => 'Supervisor Marketing',
                 'cs'    => 'Customer Service',
                 'sales' => 'Sales Inbound',
+                'eo'    => 'Event Organizer',
             ];
 
             $roleNames = [
@@ -33,11 +35,31 @@ class CrmController extends Controller
                 'spv'   => 'Supervisor',
                 'cs'    => 'CS',
                 'sales' => 'Sales',
+                'eo'    => 'EO',
             ];
 
             $name = $user->name;
             $words = array_values(array_filter(explode(' ', trim($name))));
             $avatar = strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+
+            $wilayahNama = null;
+            if ($user->wilayah) {
+                $wilayahNama = $user->wilayah->nama . ($user->wilayah->parent ? ' (' . $user->wilayah->parent->nama . ')' : '');
+            } else {
+                if ($roleKey === 'admin') {
+                    $wilayahNama = 'Semua Wilayah (Pusat Kampus UCIC)';
+                } elseif ($roleKey === 'hm') {
+                    $wilayahNama = 'Seluruh Wilayah Operasional (Regional & Nasional)';
+                } elseif ($roleKey === 'cs') {
+                    $wilayahNama = 'Kampus Utama UCIC (Inbound CS)';
+                } elseif ($roleKey === 'eo') {
+                    $wilayahNama = 'Wilayah Promosi & Event Kampus';
+                } elseif ($roleKey === 'spv') {
+                    $wilayahNama = 'Wilayah Cirebon & Sekitarnya (Supervisi)';
+                } else {
+                    $wilayahNama = 'Wilayah Cirebon & Sekitarnya';
+                }
+            }
 
             return [
                 'id'              => $user->id,
@@ -48,10 +70,12 @@ class CrmController extends Controller
                 'phone'           => $user->phone ?? '081234567890',
                 'nik'             => '202408' . str_pad($user->id ?? 1, 3, '0', STR_PAD_LEFT),
                 'avatar'          => $avatar ?: 'AD',
+                'avatar_url'      => $user->avatar_url,
+                'wilayah'         => $wilayahNama,
                 'division'        => $roleKey === 'admin' 
                     ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
                     : 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
-                'dashboard_route' => 'dashboard.' . ($roleKey === 'spv' ? 'spv' : ($roleKey === 'hm' ? 'hm' : $roleKey)),
+                'dashboard_route' => 'dashboard.' . ($roleKey === 'spv' ? 'spv' : ($roleKey === 'hm' ? 'hm' : ($roleKey === 'eo' ? 'eo' : $roleKey))),
                 'user'            => $user,
             ];
         }
@@ -68,6 +92,7 @@ class CrmController extends Controller
                 'email'           => 'aurel.calista@cic.ac.id',
                 'phone'           => '081298765432',
                 'nik'             => '202408119',
+                'wilayah'         => 'Wilayah Cirebon & Sekitarnya',
                 'avatar'          => 'AC',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.sales',
@@ -80,6 +105,7 @@ class CrmController extends Controller
                 'email'           => 'dina.cs@cic.ac.id',
                 'phone'           => '082199887766',
                 'nik'             => '202408104',
+                'wilayah'         => 'Kampus Utama UCIC (Inbound CS)',
                 'avatar'          => 'DM',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.cs',
@@ -92,6 +118,7 @@ class CrmController extends Controller
                 'email'           => 'hendra.spv@cic.ac.id',
                 'phone'           => '085277889911',
                 'nik'             => '202408106',
+                'wilayah'         => 'Indramayu & Cirebon (Supervisi)',
                 'avatar'          => 'HS',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.spv',
@@ -104,9 +131,23 @@ class CrmController extends Controller
                 'email'           => 'head.marketing@cic.ac.id',
                 'phone'           => '081122334455',
                 'nik'             => '202408107',
+                'wilayah'         => 'Seluruh Wilayah Operasional (Regional & Nasional)',
                 'avatar'          => 'RH',
                 'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.hm',
+            ],
+            'eo' => [
+                'id'              => 9,
+                'name'            => 'Fajar Sidiq',
+                'role'            => 'EO',
+                'role_label'      => 'Event Organizer',
+                'email'           => 'eo@cic.ac.id',
+                'phone'           => '085344556677',
+                'nik'             => '202408109',
+                'wilayah'         => 'Wilayah Promosi & Event Kampus',
+                'avatar'          => 'FS',
+                'division'        => 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
+                'dashboard_route' => 'dashboard.eo',
             ],
             'admin' => [
                 'id'              => 8,
@@ -116,6 +157,7 @@ class CrmController extends Controller
                 'email'           => 'admin@cic.ac.id',
                 'phone'           => '081234567890',
                 'nik'             => '202408001',
+                'wilayah'         => 'Semua Wilayah (Pusat Kampus UCIC)',
                 'avatar'          => 'AD',
                 'division'        => 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia',
                 'dashboard_route' => 'dashboard.admin',
@@ -146,7 +188,7 @@ class CrmController extends Controller
                 'pic' => 'Drs. H. Bambang Sutrisno, M.Pd (Kepala Sekolah)',
                 'pic_phone' => '08122334455',
                 'whatsapp' => '08122334455',
-                'status' => 'Interested',
+                'status' => 'KONTAK',
                 'stage_number' => 2,
                 'takeover_sales' => 'Aurel Calista',
                 'takeover_cs' => 'Dina Marlina',
@@ -175,7 +217,7 @@ class CrmController extends Controller
                 'pic' => 'Maya Kartika, S.Psi (HRD Manager)',
                 'pic_phone' => '08139988776',
                 'whatsapp' => '08139988776',
-                'status' => 'Follow Up',
+                'status' => 'HANGAT',
                 'stage_number' => 3,
                 'takeover_sales' => 'Rizky Pratama',
                 'takeover_cs' => 'Rini Anggraini',
@@ -254,7 +296,7 @@ class CrmController extends Controller
                 'pic' => 'Pak Hendra Gunawan, S.Kom',
                 'pic_phone' => '08191234567',
                 'whatsapp' => '08191234567',
-                'status' => 'Closing',
+                'status' => 'LUNAS',
                 'stage_number' => 6,
                 'takeover_sales' => 'Aurel Calista',
                 'takeover_cs' => 'Rini Anggraini',
@@ -280,7 +322,7 @@ class CrmController extends Controller
                 'pic' => 'Ustadz Ahmad Fauzi',
                 'pic_phone' => '08521122334',
                 'whatsapp' => '08521122334',
-                'status' => 'Cold Lead',
+                'status' => 'BARU',
                 'stage_number' => 1,
                 'takeover_sales' => 'Rizky Pratama',
                 'takeover_cs' => 'Dina Marlina',
@@ -306,7 +348,7 @@ class CrmController extends Controller
                 'pic' => 'Bpk. Hendro Sasongko',
                 'pic_phone' => '08129911223',
                 'whatsapp' => '08129911223',
-                'status' => 'Lost',
+                'status' => 'DINGIN',
                 'stage_number' => 0,
                 'takeover_sales' => 'Budi Santoso',
                 'takeover_cs' => 'Rini Anggraini',
@@ -341,8 +383,8 @@ class CrmController extends Controller
                 'target' => 50,
                 'prospects' => 42,
                 'follow_up' => 58,
-                'closing' => 36,
-                'lost' => 3,
+                'LUNAS' => 36,
+                'DINGIN' => 3,
                 'achievement' => 72,
                 'trend' => '+14% vs bulan lalu',
                 'status' => 'On Track',
@@ -355,8 +397,8 @@ class CrmController extends Controller
                 'target' => 45,
                 'prospects' => 38,
                 'follow_up' => 49,
-                'closing' => 28,
-                'lost' => 4,
+                'LUNAS' => 28,
+                'DINGIN' => 4,
                 'achievement' => 62,
                 'trend' => '+8% vs bulan lalu',
                 'status' => 'Good',
@@ -369,8 +411,8 @@ class CrmController extends Controller
                 'target' => 45,
                 'prospects' => 31,
                 'follow_up' => 39,
-                'closing' => 22,
-                'lost' => 5,
+                'LUNAS' => 22,
+                'DINGIN' => 5,
                 'achievement' => 48,
                 'trend' => '+2% vs bulan lalu',
                 'status' => 'Needs Attention',
@@ -383,8 +425,8 @@ class CrmController extends Controller
                 'target' => 40,
                 'prospects' => 25,
                 'follow_up' => 32,
-                'closing' => 18,
-                'lost' => 2,
+                'LUNAS' => 18,
+                'DINGIN' => 2,
                 'achievement' => 45,
                 'trend' => '+10% vs bulan lalu',
                 'status' => 'Developing',
@@ -489,10 +531,32 @@ class CrmController extends Controller
     }
 
     /**
-     * Get mock audit logs dataset.
+     * Get dynamic audit logs dataset from database with fallback.
      */
     private function getAuditLogs(): array
     {
+        $dbTimelines = \App\Models\ProspekTimeline::with(['user', 'prospek'])
+            ->latest('time')
+            ->limit(100)
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'id'     => $t->id,
+                    'user'   => $t->user?->name ?? 'Sistem',
+                    'role'   => $t->user?->role ?? 'System',
+                    'action' => $t->title ?? 'Aktivitas Prospek',
+                    'target' => $t->prospek?->name ?? ('Prospek #' . $t->prospek_id),
+                    'detail' => $t->notes ?? ($t->status_before ? "Status: {$t->status_before} → {$t->status_after}" : 'Pencatatan aktivitas'),
+                    'ip'     => '127.0.0.1',
+                    'time'   => \Carbon\Carbon::parse($t->time ?? $t->created_at)->translatedFormat('d M Y, H:i:s'),
+                ];
+            })
+            ->toArray();
+
+        if (!empty($dbTimelines)) {
+            return $dbTimelines;
+        }
+
         return [
             ['id' => 101, 'user' => 'Aurel Calista', 'role' => 'Sales', 'action' => 'Update Status Prospek', 'target' => 'SMK Negeri 1 Cirebon', 'detail' => 'Status diubah dari Cold Lead menjadi Interested', 'ip' => '180.252.164.12', 'time' => '11 Sep 2026, 09:30:14'],
             ['id' => 102, 'user' => 'Dina Marlina', 'role' => 'CS', 'action' => 'Takeover Penugasan', 'target' => 'SMA Negeri 2 Majalengka', 'detail' => 'Pelimpahan prospek dari Sales ke CS untuk verifikasi formulir', 'ip' => '180.252.164.88', 'time' => '11 Sep 2026, 08:45:22'],
@@ -522,15 +586,18 @@ class CrmController extends Controller
         // Use real DB queries for prospect data
         $prospectsData = \App\Models\Prospek::where('sales_id', $userId)->get();
         $totalProspek = $prospectsData->count();
-        $activeProspek = $prospectsData->whereNotIn('status', ['Closing', 'Lost'])->count();
-        $followUp = $prospectsData->where('status', 'Follow Up')->count();
-        $closing = $prospectsData->where('status', 'Closing')->count();
-        $lost = $prospectsData->where('status', 'Lost')->count();
+        $activeProspek = $prospectsData->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $followUp = $prospectsData->where('status', 'HANGAT')->count();
+        $closing = $prospectsData->where('status', 'LUNAS')->count();
+        $lost = $prospectsData->where('status', 'DINGIN')->count();
 
-        // Target Bulan Ini
+        // Target Bulan Ini dalam Tahun Akademik Aktif.
+        // Both conditions required: active TA scope AND current calendar month.
+        $activeAyId = \App\Services\AkademikService::getAktifId();
         $targetMonth = \App\Models\Target::where('sales_id', $userId)
             ->whereMonth('tanggal_mulai', now()->month)
             ->whereYear('tanggal_mulai', now()->year)
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
             ->first();
         $targetBulanIni = $targetMonth ? $targetMonth->target_kontak : 50;
         $percentage = $targetBulanIni > 0 ? round(($closing / $targetBulanIni) * 100) : 0;
@@ -540,8 +607,8 @@ class CrmController extends Controller
             'total_prospek' => $totalProspek,
             'active_prospek' => $activeProspek,
             'follow_up' => $followUp,
-            'closing' => $closing,
-            'lost' => $lost,
+            'LUNAS' => $closing,
+            'DINGIN' => $lost,
             'target_bulan_ini' => $targetBulanIni,
             'realisasi_closing' => $closing,
             'percentage' => min(100, $percentage),
@@ -549,29 +616,25 @@ class CrmController extends Controller
             'bulan_label' => now()->locale('id')->isoFormat('MMMM Y'),
         ];
 
-        // Daily Target
-        $targetKontakHarian = 5;
-        $targetFollowupHarian = 10;
-        
-        $pencapaianKontakHarian = \App\Models\Prospek::where('sales_id', $userId)->whereDate('created_at', today())->count();
-        $pencapaianFollowupHarian = \App\Models\FollowUp::where('user_id', $userId)->whereDate('tanggal', today())->count();
-        
-        $dailyTarget = [
-            'target_hari_ini_kontak' => $targetKontakHarian,
-            'pencapaian_hari_ini_kontak' => $pencapaianKontakHarian,
-            'sisa_akumulasi_kontak' => max(0, $targetKontakHarian - $pencapaianKontakHarian),
-            'target_hari_ini_followup' => $targetFollowupHarian,
-            'pencapaian_hari_ini_followup' => $pencapaianFollowupHarian,
-            'sisa_akumulasi_followup' => max(0, $targetFollowupHarian - $pencapaianFollowupHarian),
+        // Daily Target — use SalesTargetService (real snowball calculation, no hardcode)
+        $targetService = app(\App\Services\SalesTargetService::class);
+        $authUser = auth()->user();
+        $dailyTarget = $authUser ? $targetService->calculateDailyTarget($authUser) : [
+            'target_hari_ini_kontak'      => 0,
+            'target_hari_ini_followup'    => 0,
+            'sisa_akumulasi_kontak'       => 0,
+            'sisa_akumulasi_followup'     => 0,
+            'pencapaian_hari_ini_kontak'  => 0,
+            'pencapaian_hari_ini_followup'=> 0,
         ];
 
         // Pipeline Stages
-        $pipelineStages = collect(\App\Models\Prospek::STAGES)->map(function($val, $key) use ($prospectsData) {
+        $pipelineStages = collect(\App\Models\Prospek::ACTIVE_STAGES)->map(function($key) use ($prospectsData) {
             $count = $prospectsData->where('status', $key)->count();
             return [
                 'name' => $key,
                 'count' => $count,
-                'color' => 'badge-' . strtolower(str_replace(' ', '-', $key))
+                'color' => 'badge-' . strtolower(str_replace([' ', '/', '(', ')'], '-', $key))
             ];
         })->values()->toArray();
 
@@ -619,7 +682,9 @@ class CrmController extends Controller
      */
     public function dashboardCs(Request $request): View
     {
-        $request->session()->put('user_role', 'cs');
+        if ($request->hasSession()) {
+            $request->session()->put('user_role', 'cs');
+        }
         
         $prospects = $this->getDbProspects();
         
@@ -634,21 +699,31 @@ class CrmController extends Controller
                 if (count($followUpsToday) < 4) {
                     $followUpsToday[] = $p;
                 }
-            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['Closing', 'Lost'])) {
+            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['LUNAS', 'DINGIN'])) {
                 $followUpPendingCount++;
             }
         }
 
+        $lunasCount = count(array_filter($prospects, fn($p) => $p['status'] === 'LUNAS'));
+        $dinginCount = count(array_filter($prospects, fn($p) => $p['status'] === 'DINGIN'));
+
         $stats = [
             'total_prospek' => count($prospects),
-            'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'], 'CS'))),
+            'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'] ?? '', 'CS'))),
             'follow_up_today' => $followUpTodayCount,
             'follow_up_pending' => $followUpPendingCount,
-            'closing' => count(array_filter($prospects, fn($p) => $p['status'] === 'Closing')),
-            'lost' => count(array_filter($prospects, fn($p) => $p['status'] === 'Lost')),
+            'closing' => $lunasCount,
+            'lost' => $dinginCount,
+            'LUNAS' => $lunasCount,
+            'DINGIN' => $dinginCount,
         ];
 
-        return view('cs.dashboard', compact('stats', 'followUpsToday'));
+        $targetAchievementService = app(\App\Services\TargetAchievementService::class);
+        $period = request('periode', 'bulanan');
+        $wilayahId = request('wilayah_id');
+        $targetAchievementData = $targetAchievementService->getDashboardTargetData(auth()->user(), $period, $wilayahId);
+
+        return view('cs.dashboard', compact('stats', 'followUpsToday', 'targetAchievementData'));
     }
 
     /**
@@ -667,9 +742,9 @@ class CrmController extends Controller
 
         // Aggregated Dynamic Stats from DB for this SPV's team
         $totalProspek = Prospek::whereIn('sales_id', $salesIds)->count();
-        $totalClosing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Closing')->count();
-        $totalLost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Lost')->count();
-        $activeProspek = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['Closing', 'Lost'])->count();
+        $totalClosing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'LUNAS')->count();
+        $totalLost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'DINGIN')->count();
+        $activeProspek = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
 
         $totalFollowUp = \App\Models\FollowUp::where(function ($q) use ($salesIds) {
             $q->whereIn('user_id', $salesIds)
@@ -692,19 +767,22 @@ class CrmController extends Controller
         // Team Performance Per Personil
         $targetService = app(\App\Services\SalesTargetService::class);
         $team = $salesList->map(function ($s) use ($targetService) {
-            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
+            $closing = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')->count();
             $prospectsCount = Prospek::where('sales_id', $s->id)->count();
             $followUpCount = \App\Models\FollowUp::where('user_id', $s->id)->count();
-            $lostCount = Prospek::where('sales_id', $s->id)->where('status', 'Lost')->count();
+            $lostCount = Prospek::where('sales_id', $s->id)->where('status', 'DINGIN')->count();
 
             $activeTarget = $targetService->getActiveTarget($s);
-            $targetAmount = $activeTarget ? $activeTarget->target_closing : 0;
-            if ($targetAmount <= 0) {
-                $targetAmount = $activeTarget ? $activeTarget->target_kontak : 50;
+            // Fix: use target_lunas (target_closing does not exist in DB)
+            $targetAmount = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            if ($targetAmount <= 0 && $activeTarget) {
+                $targetAmount = (int)$activeTarget->target_kontak;
             }
 
             $achievement = $targetAmount > 0 ? round(($closing / $targetAmount) * 100) : 0;
-            $statusLabel = $achievement >= 70 ? 'Sangat Baik' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan');
+            // Note: this dashboard method is dead code (no route). Kept for code correctness only.
+            $statusLabel = $achievement >= 100 ? 'Tercapai' : ($achievement >= \App\Services\TargetMetricsService::YELLOW_THRESHOLD ? 'Mendekati Target' : 'Perlu Perhatian');
+
 
             return [
                 'id'          => $s->id,
@@ -716,6 +794,8 @@ class CrmController extends Controller
                 'follow_up'   => $followUpCount,
                 'closing'     => $closing,
                 'lost'        => $lostCount,
+                'LUNAS'       => $closing,
+                'DINGIN'      => $lostCount,
                 'achievement' => $achievement,
                 'status'      => $statusLabel,
             ];
@@ -729,40 +809,70 @@ class CrmController extends Controller
 
     /**
      * Dashboard Head Marketing (HM).
+     * Scoped to active Tahun Akademik. Team target uses actual target_lunas from DB.
      */
     public function dashboardHm(Request $request): View
     {
-        $request->session()->put('user_role', 'hm');
-        
-        $totalProspek = Prospek::count();
-        $closing = Prospek::where('status', 'Closing')->count();
-        $activeProspek = Prospek::whereNotIn('status', ['Closing', 'Lost'])->count();
-        $lost = Prospek::where('status', 'Lost')->count();
-        
+        if ($request->hasSession()) {
+            $request->session()->put('user_role', 'hm');
+        }
+
+        $user = auth()->user();
+
+        // Active Tahun Akademik
+        $activeAyId = \App\Services\AkademikService::getAktifId();
+        $targetService = app(\App\Services\TargetAchievementService::class);
+
+        // Global stats (all prospects)
+        $totalProspek  = Prospek::count();
+        $closing       = Prospek::where('status', 'LUNAS')->count();
+        $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $lost          = Prospek::where('status', 'DINGIN')->count();
+
+        // Global target rollup (sum of all active Sales targets)
+        $totalTargetLunas = \App\Models\Target::where('status', 'Aktif')
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->sum('target_lunas');
+        $sisaTarget = max(0, $totalTargetLunas - $closing);
+        $pctLunas   = $totalTargetLunas > 0 ? round(($closing / $totalTargetLunas) * 100, 1) : 0;
+        $colorStatus = $pctLunas >= 100 ? 'green' : ($pctLunas >= 70 ? 'yellow' : 'red');
+
         $stats = [
-            'total_prospek' => $totalProspek,
-            'active_prospek' => $activeProspek,
-            'closing' => $closing,
-            'lost' => $lost,
+            'total_prospek'   => $totalProspek,
+            'active_prospek'  => $activeProspek,
+            'LUNAS'           => $closing,
+            'closing'         => $closing,
+            'DINGIN'          => $lost,
+            'lost'            => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
-            'total_sales' => \App\Models\User::where('role', 'Sales')->count(),
-            'total_cs' => \App\Models\User::where('role', 'CS')->count(),
+            'total_sales'     => \App\Models\User::where('role', 'Sales')->count(),
+            'total_cs'        => \App\Models\User::where('role', 'CS')->count(),
+            'target_global'   => $totalTargetLunas,
+            'sisa_target'     => $sisaTarget,
+            'pct_lunas'       => $pctLunas,
+            'color_status'    => $colorStatus,
         ];
 
         $salesUsers = \App\Models\User::where('role', 'Sales')->get();
-        $team = $salesUsers->map(function ($s) {
-            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing')->count();
-            $prospectsCount = Prospek::where('sales_id', $s->id)->count();
-            // Just for demonstration, use a default target of 50 if none exists.
-            $target = 50; 
-            $achievement = $target > 0 ? round(($closing / $target) * 100) : 0;
+        $team = $salesUsers->map(function ($s) use ($activeAyId) {
+            $closing        = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
+            $prospectsCount = Prospek::where('sales_id', $s->id)
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
+            $activeTarget   = \App\Models\Target::where('sales_id', $s->id)
+                ->where('status', 'Aktif')
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+                ->latest()->first();
+            $targetNum      = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            $achievement    = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
             return [
-                'name' => $s->name,
-                'role' => $s->role,
-                'avatar' => substr($s->name, 0, 2),
-                'target' => $target,
-                'prospects' => $prospectsCount,
-                'closing' => $closing,
+                'name'        => $s->name,
+                'role'        => $s->role,
+                'avatar'      => strtoupper(substr($s->name, 0, 2)),
+                'target'      => $targetNum,
+                'prospects'   => $prospectsCount,
+                'LUNAS'       => $closing,
+                'closing'     => $closing,
                 'achievement' => $achievement,
             ];
         })->sortByDesc('achievement')->values()->map(function ($member, $index) {
@@ -770,24 +880,35 @@ class CrmController extends Controller
             return $member;
         })->toArray();
 
-        $stagesCount = [
-            'Cold Lead' => Prospek::where('status', 'Cold Lead')->count(),
-            'Interested' => Prospek::where('status', 'Interested')->count(),
-            'Follow Up' => Prospek::where('status', 'Follow Up')->count(),
-            'Beli Formulir' => Prospek::where('status', 'Beli Formulir')->count(),
-            'Pembayaran Termin 1' => Prospek::where('status', 'Pembayaran Termin 1')->count(),
-            'Closing' => $closing,
-        ];
+        $stagesCount = array_fill_keys(\App\Models\Prospek::ACTIVE_STAGES, 0);
+        $prospectsData = Prospek::select('status')
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->get();
+        foreach ($prospectsData as $p) {
+            if (isset($stagesCount[$p->status])) {
+                $stagesCount[$p->status]++;
+            }
+        }
 
         $pipelineStages = collect($stagesCount)->map(function ($count, $name) use ($totalProspek) {
+            $percentage = $totalProspek > 0 ? round(($count / $totalProspek) * 100) : 0;
             return [
-                'name' => $name,
+                'name'  => $name,
                 'count' => $count,
-                'pct' => $totalProspek > 0 ? round(($count / $totalProspek) * 100) : 0,
+                'pct'   => $percentage,
+                'color' => 'badge-' . strtolower(str_replace([' ', '/', '(', ')'], '-', $name))
             ];
         })->values()->toArray();
 
-        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages'));
+        // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = app(\App\Services\TargetAchievementService::class)->getDashboardTargetData(
+            auth()->user(),
+            $request->get('periode', 'bulanan'),
+            $request->get('wilayah_id') ? (int)$request->get('wilayah_id') : null,
+            $request->get('ta')
+        );
+
+        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData'));
     }
 
     /**
@@ -880,6 +1001,10 @@ class CrmController extends Controller
                     $q->where('cs_id', $user->id)
                       ->orWhereNotNull('sales_id');
                 });
+            } elseif (in_array($role, ['hm', 'eo'])) {
+                if ($user->wilayah_id) {
+                    $query->where('wilayah_id', $user->wilayah_id);
+                }
             }
         }
 
@@ -933,27 +1058,36 @@ class CrmController extends Controller
         $prospects = $this->getDbProspects();
         $sekolahs = \App\Models\Sekolah::where('status', 'Aktif')->get();
         $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
+        $statuses = \App\Models\Prospek::ACTIVE_STAGES;
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans'));
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses'));
     }
 
     public function prospekStore(Request $request)
     {
         $request->validate([
-            'name' => 'nullable|string|max:255',
-            'type' => 'required|string',
-            'status' => 'required|string',
-            'pic' => 'required|string',
-            'whatsapp' => 'required|string',
+            'name'          => 'nullable|string|max:255',
+            'type'          => 'required|string',
+            'status'        => 'required|string',
+            'pic'           => 'required|string',
+            'whatsapp'      => 'required|string',
+            'prodi_id'      => 'nullable|exists:prodis,id',
+            'sekolah_id'    => 'nullable|exists:sekolahs,id',
+            'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'sales_id'      => 'nullable|exists:users,id',
         ]);
 
         DB::transaction(function () use ($request) {
             $ownerId = auth()->id() ?? 1;
             $user = \App\Models\User::find($ownerId);
             
-            $salesId = $request->sales_id ?? ($user && $user->role === 'Sales' ? $user->id : null);
+            $salesId = $request->sales_id;
+            if (!$salesId && $user && $user->role === 'Sales') {
+                $salesId = $user->id;
+            }
+
             $csId = $request->cs_id ?? ($user && $user->role === 'CS' ? $user->id : null);
-            $wilayahId = null;
+            $wilayahId = $user?->wilayah_id;
 
             if ($salesId) {
                 $sales = \App\Models\User::find($salesId);
@@ -963,43 +1097,63 @@ class CrmController extends Controller
                 }
             }
 
-            $stages = [
-                'Cold Lead' => 1,
-                'Interested' => 2,
-                'Follow Up' => 3,
-                'Beli Formulir' => 4,
-                'Pembayaran Termin 1' => 5,
-                'Closing' => 6,
-            ];
-            $stageNumber = $stages[$request->status] ?? 0;
+            // Resolve name
+            $name = trim($request->name ?: '');
+            if ($request->type === 'Sekolah' && !empty($request->sekolah_id)) {
+                $sek = \App\Models\Sekolah::find($request->sekolah_id);
+                if ($sek) $name = $sek->nama;
+            } elseif ($request->type === 'Corporate' && !empty($request->perusahaan_id)) {
+                $per = \App\Models\Perusahaan::find($request->perusahaan_id);
+                if ($per) $name = $per->nama;
+            }
+            if (empty($name)) {
+                $name = $request->pic;
+            }
+
+            $prodi = $request->prodi_id ? \App\Models\Prodi::find($request->prodi_id) : null;
+            $stageNumber = \App\Models\Prospek::STAGES[$request->status] ?? 1;
 
             $prospek = Prospek::create([
-                'name' => $request->name ?: $request->pic,
-                'type' => $request->type,
-                'status' => $request->status,
-                'stage_number' => $stageNumber,
-                'pic' => $request->pic,
-                'whatsapp' => $request->whatsapp,
-                'sales_id' => $salesId,
-                'cs_id' => $csId,
-                'wilayah_id' => $wilayahId,
-                'notes' => $request->notes,
-                'owner_id' => $ownerId,
-                'sekolah_id' => $request->sekolah_id,
-                'perusahaan_id' => $request->perusahaan_id,
+                'name'               => $name,
+                'type'               => $request->type,
+                'status'             => $request->status,
+                'stage_number'       => $stageNumber,
+                'pic'                => $request->pic,
+                'pic_phone'          => $request->pic_phone ?? null,
+                'whatsapp'           => $request->whatsapp,
+                'sales_id'           => $salesId,
+                'cs_id'              => $csId,
+                'wilayah_id'         => $wilayahId,
+                'prodi_id'           => $prodi?->id,
+                'category'           => $request->category ?? ($prodi?->nama ?? '-'),
+                'source'             => $request->source ?? 'Inbound Direct',
+                'kelas'              => $request->kelas ?? 'Reguler',
+                'notes'              => $request->notes,
+                'owner_id'           => $ownerId,
+                'sekolah_id'         => $request->type === 'Sekolah' ? $request->sekolah_id : null,
+                'perusahaan_id'      => $request->type === 'Corporate' ? $request->perusahaan_id : null,
             ]);
 
+            $assignLabel = $salesId ? (\App\Models\User::find($salesId)?->name . ' (Sales)') : 'Mandiri/Sistem';
+
             ProspekTimeline::create([
-                'prospek_id' => $prospek->id,
-                'user_id' => auth()->id() ?? 1,
-                'title' => 'Prospek Dibuat',
-                'notes' => 'Prospek baru ditambahkan',
+                'prospek_id'   => $prospek->id,
+                'user_id'      => $ownerId,
+                'title'        => 'Prospek Dibuat',
+                'notes'        => "Prospek baru dibuat oleh {$user?->name} dan ditugaskan ke {$assignLabel}",
                 'status_after' => $prospek->status,
-                'time' => now(),
+                'time'         => now(),
             ]);
         });
 
-        return redirect()->route('prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
+        $userRole = auth()->user()?->role;
+        if ($userRole === 'SPV') {
+            return redirect()->route('spv.prospek.index')->with('success', 'Prospek baru berhasil ditambahkan dan ditugaskan ke tim Sales!');
+        } elseif ($userRole === 'Sales') {
+            return redirect()->route('sales.prospek.index')->with('success', 'Prospek baru berhasil ditambahkan!');
+        }
+
+        return redirect()->back()->with('success', 'Prospek baru berhasil ditambahkan!');
     }
 
     /**
@@ -1057,14 +1211,9 @@ class CrmController extends Controller
             })->toArray(),
         ];
 
-        $allStages = [
-            ['name' => 'Cold Lead', 'number' => 1],
-            ['name' => 'Interested', 'number' => 2],
-            ['name' => 'Follow Up', 'number' => 3],
-            ['name' => 'Beli Formulir', 'number' => 4],
-            ['name' => 'Pembayaran Termin 1', 'number' => 5],
-            ['name' => 'Closing', 'number' => 6],
-        ];
+        $allStages = array_map(function ($stageName) {
+            return ['name' => $stageName, 'number' => \App\Models\Prospek::STAGES[$stageName]];
+        }, \App\Models\Prospek::ACTIVE_STAGES);
 
         // Retrieve available Sales team for re-allocation
         $user = auth()->user();
@@ -1089,16 +1238,8 @@ class CrmController extends Controller
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
 
-        $stages = [
-            'Cold Lead' => 1,
-            'Interested' => 2,
-            'Follow Up' => 3,
-            'Beli Formulir' => 4,
-            'Pembayaran Termin 1' => 5,
-            'Closing' => 6,
-        ];
-        if (isset($stages[$request->status])) {
-            $prospek->stage_number = $stages[$request->status];
+        if (isset(\App\Models\Prospek::STAGES[$request->status])) {
+            $prospek->stage_number = \App\Models\Prospek::STAGES[$request->status];
         }
 
         $prospek->save();
@@ -1187,7 +1328,7 @@ class CrmController extends Controller
         DB::transaction(function () use ($prospek, $newSales, $oldSalesName, $user, $request) {
             $prospek->update([
                 'sales_id' => $newSales->id,
-                'owner_id' => $newSales->id,
+                'active_follow_up_count' => 0,
             ]);
 
             \App\Models\ProspekTimeline::create([
@@ -1212,16 +1353,8 @@ class CrmController extends Controller
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
         
-        $stages = [
-            'Cold Lead' => 1,
-            'Interested' => 2,
-            'Follow Up' => 3,
-            'Beli Formulir' => 4,
-            'Pembayaran Termin 1' => 5,
-            'Closing' => 6,
-        ];
-        if (isset($stages[$request->status])) {
-            $prospek->stage_number = $stages[$request->status];
+        if (isset(\App\Models\Prospek::STAGES[$request->status])) {
+            $prospek->stage_number = \App\Models\Prospek::STAGES[$request->status];
         }
         
         $prospek->save();
@@ -1268,6 +1401,28 @@ class CrmController extends Controller
 
     public function kunjunganStore(Request $request)
     {
+        $user = auth()->user();
+
+        // Resolve nama_institusi from prospek or sekolah if not directly filled
+        if (!$request->filled('nama_institusi')) {
+            if ($request->filled('prospek_id')) {
+                $prospek = \App\Models\Prospek::find($request->prospek_id);
+                if ($prospek) {
+                    $request->merge(['nama_institusi' => $prospek->name]);
+                }
+            } elseif ($request->filled('sekolah_id')) {
+                $sek = \App\Models\Sekolah::find($request->sekolah_id);
+                if ($sek) {
+                    $request->merge(['nama_institusi' => $sek->nama]);
+                }
+            } elseif ($request->filled('perusahaan_id')) {
+                $per = \App\Models\Perusahaan::find($request->perusahaan_id);
+                if ($per) {
+                    $request->merge(['nama_institusi' => $per->nama]);
+                }
+            }
+        }
+
         $request->validate([
             'nama_institusi' => 'required|string|max:255',
             'jenis'          => 'required|in:Sekolah,Perusahaan',
@@ -1278,40 +1433,79 @@ class CrmController extends Controller
             'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
-        $user = auth()->user();
         $fotoPath = null;
         if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
             $fotoPath = $request->file('foto')->store('kunjungan', 'public');
         }
 
-        \App\Models\Kunjungan::create([
-            'nomor'            => 'KNJ-' . ($user->id ?? 1) . '-' . now()->format('YmdHis'),
-            'tanggal'          => $request->tanggal,
-            'waktu'            => now()->format('H:i:s'),
-            'sales_id'         => $user->id ?? 1,
-            'jenis'            => $request->jenis,
-            'tujuan_id'        => 0,
-            'tujuan_kunjungan' => $request->nama_institusi,
-            'hasil'            => 'Kunjungan ' . $request->jenis,
-            'catatan'          => $request->catatan,
-            'status'           => 'Selesai',
-            'nama_institusi'   => $request->nama_institusi,
-            'alamat'           => $request->alamat,
-            'pic_name'         => $request->pic_name,
-            'pic_whatsapp'     => $request->pic_whatsapp,
-            'foto_path'        => $fotoPath,
+        $tujuanId = 0;
+        if ($request->jenis === 'Sekolah' && $request->filled('sekolah_id')) {
+            $tujuanId = $request->sekolah_id;
+        } elseif ($request->jenis === 'Perusahaan' && $request->filled('perusahaan_id')) {
+            $tujuanId = $request->perusahaan_id;
+        }
+
+        $salesId = $request->input('sales_id');
+        if (empty($salesId) || $user->role === 'Sales') {
+            $salesId = $user->id;
+        }
+
+        $activeTa = \App\Models\TahunAkademik::getAktif();
+
+        $kunjungan = \App\Models\Kunjungan::create([
+            'nomor'                 => 'KNJ-' . ($salesId ?? 1) . '-' . now()->format('YmdHis'),
+            'tanggal'               => $request->tanggal,
+            'waktu'                 => $request->input('waktu', now()->format('H:i:s')),
+            'sales_id'              => $salesId,
+            'prodi_id'              => $request->input('prodi_id') ?? \App\Models\Prodi::first()?->id ?? 1,
+            'jenis'                 => $request->jenis,
+            'tujuan_id'             => $tujuanId,
+            'tujuan_kunjungan'      => $request->nama_institusi,
+            'hasil'                 => 'Kunjungan ' . $request->jenis . ' — ' . $request->nama_institusi,
+            'catatan'               => $request->catatan,
+            'status'                => 'Selesai',
+            'status_verifikasi'     => 'Valid',
+            'is_verified'           => true,
+            'academic_year_id'      => $activeTa?->id,
+            'nama_institusi'        => $request->nama_institusi,
+            'alamat'                => $request->alamat,
+            'lokasi_penugasan'      => $request->lokasi_penugasan,
+            'pic_name'              => $request->pic_name,
+            'pic_whatsapp'          => $request->pic_whatsapp,
+            'foto_path'             => $fotoPath,
+            'lat'                   => $request->input('lat'),
+            'lng'                   => $request->input('lng'),
             // School-specific
-            'potensi_beasiswa'      => $request->potensi_beasiswa,
-            'detail_beasiswa'       => $request->detail_beasiswa,
-            'kesediaan_training_ai' => $request->boolean('kesediaan_training_ai'),
+            'potensi_mahasiswa'       => $request->input('potensi_mahasiswa') ?? $request->input('potensi_beasiswa'),
+            'detail_potensi_mahasiswa'=> $request->input('detail_potensi_mahasiswa') ?? $request->input('detail_beasiswa'),
+            'kesediaan_training_ai'   => $request->boolean('kesediaan_training_ai'),
             // Corporate-specific
-            'bidang_usaha' => $request->bidang_usaha,
-            'potensi_s1'   => $request->potensi_s1,
-            'potensi_s2'   => $request->potensi_s2,
-            'potensi_csr'  => $request->potensi_csr,
+            'bidang_usaha'          => $request->bidang_usaha,
+            'potensi_s1'            => $request->potensi_s1,
+            'potensi_s2'            => $request->potensi_s2,
+            'potensi_csr'           => $request->potensi_csr,
         ]);
 
-        return redirect()->back()->with('success', 'Kunjungan berhasil disimpan!');
+        if ($request->filled('prospek_id')) {
+            $prospek = \App\Models\Prospek::find($request->prospek_id);
+            if ($prospek) {
+                if ($prospek->status === 'BARU') {
+                    $prospek->status = 'KONTAK';
+                    $prospek->stage_number = 2;
+                    $prospek->save();
+                }
+                \App\Models\ProspekTimeline::create([
+                    'prospek_id'   => $prospek->id,
+                    'user_id'      => $salesId,
+                    'title'        => 'Laporan Kunjungan Selesai',
+                    'notes'        => 'Kunjungan langsung telah dilaporkan (' . $kunjungan->nomor . ')',
+                    'status_after' => $prospek->status,
+                    'time'         => now(),
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Laporan kunjungan berhasil disimpan!');
     }
 
     /**
@@ -1330,7 +1524,7 @@ class CrmController extends Controller
         ];
 
         foreach ($allProspects as $p) {
-            if (in_array($p['status'], ['Closing', 'Lost'])) {
+            if (in_array($p['status'], ['LUNAS', 'DINGIN'])) {
                 $prospects['done'][] = $p;
             } else if ($p['next_follow_up_date']) {
                 if ($p['next_follow_up_date'] === $today) {
@@ -1376,16 +1570,8 @@ class CrmController extends Controller
         if ($oldStatus !== $request->status) {
             $prospek->status = $request->status;
             
-            $stages = [
-                'Cold Lead' => 1,
-                'Interested' => 2,
-                'Follow Up' => 3,
-                'Beli Formulir' => 4,
-                'Pembayaran Termin 1' => 5,
-                'Closing' => 6,
-            ];
-            if (isset($stages[$request->status])) {
-                $prospek->stage_number = $stages[$request->status];
+            if (isset(\App\Models\Prospek::STAGES[$request->status])) {
+                $prospek->stage_number = \App\Models\Prospek::STAGES[$request->status];
             }
             
             $prospek->save();
@@ -1427,12 +1613,15 @@ class CrmController extends Controller
 
         $oldStatus = $prospek->status;
         
-        if ($request->jenis === 'Pembayaran Termin 1') {
-            $prospek->status = 'Closing';
+        if (\App\Services\ProspekService::isClosingValid($prospek)) {
+            $prospek->status = 'LUNAS';
+            $prospek->stage_number = 7;
+        } else if ($request->jenis === 'Pembayaran Termin 1') {
+            $prospek->status = 'BERKAS';
             $prospek->stage_number = 6;
-        } else if ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 4) {
-            $prospek->status = 'Beli Formulir';
-            $prospek->stage_number = 4;
+        } else if ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
+            $prospek->status = 'FORMULIR';
+            $prospek->stage_number = 5;
         }
         
         $prospek->save();
@@ -1456,7 +1645,7 @@ class CrmController extends Controller
     public function pipelineIndex(): View
     {
         $prospects = $this->getDbProspects();
-        $pipelineStages = ['Cold Lead', 'Interested', 'Follow Up', 'Beli Formulir', 'Pembayaran Termin 1', 'Closing'];
+        $pipelineStages = ['BARU', 'KONTAK', 'HANGAT', 'PANAS', 'FORMULIR', 'BERKAS', 'LUNAS'];
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }
@@ -1482,10 +1671,11 @@ class CrmController extends Controller
         $team = $salesUsers->map(function ($s) use ($targetService) {
             $stats = $targetService->getStats($s);
             $activeTarget = $targetService->getActiveTarget($s);
-            
-            $targetAmount = $activeTarget ? $activeTarget->target_closing : 0;
-            if ($targetAmount <= 0) {
-                $targetAmount = $activeTarget ? $activeTarget->target_kontak : 50;
+
+            // Use target_lunas (target_closing does not exist in DB)
+            $targetAmount = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            if ($targetAmount <= 0 && $activeTarget) {
+                $targetAmount = (int)$activeTarget->target_kontak;
             }
 
             $achievement = $targetAmount > 0 ? min(100, round(($stats['realisasi_closing'] / $targetAmount) * 100)) : 0;
@@ -1498,7 +1688,9 @@ class CrmController extends Controller
                 'prospects'   => $stats['total_prospek'],
                 'follow_up'   => $stats['follow_up'],
                 'closing'     => $stats['realisasi_closing'],
-                'lost'        => $stats['lost'],
+                'lost'        => $stats['realisasi_closing'] - $stats['realisasi_closing'], // placeholder
+                'LUNAS'       => $stats['realisasi_closing'],
+                'DINGIN'      => $stats['DINGIN'] ?? 0,
                 'achievement' => $achievement,
                 'avatar'      => strtoupper(substr($s->name, 0, 2)),
                 'status'      => $stats['realisasi_closing'] >= $targetAmount ? 'Target Achieved' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan')
@@ -1509,9 +1701,9 @@ class CrmController extends Controller
         $totalRealisasi = array_sum(array_column($team, 'closing'));
 
         $breakdown = [
-            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'Closing')->count(),
-            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'Closing')->count(),
-            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'Closing')->count(),
+            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'LUNAS')->count(),
+            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'LUNAS')->count(),
+            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'LUNAS')->count(),
         ];
 
         $summary = [
@@ -1523,7 +1715,12 @@ class CrmController extends Controller
             'periode_label' => \Carbon\Carbon::now()->locale('id')->isoFormat('MMMM YYYY'),
         ];
 
-        return view('performa.index', compact('team', 'summary'));
+        $targetAchievementService = app(\App\Services\TargetAchievementService::class);
+        $period = request('periode', 'bulanan');
+        $wilayahId = request('wilayah_id');
+        $targetAchievementData = $targetAchievementService->getDashboardTargetData($user, $period, $wilayahId);
+
+        return view('performa.index', compact('team', 'summary', 'targetAchievementData'));
     }
 
     /**
@@ -1543,15 +1740,18 @@ class CrmController extends Controller
         }
 
         $totalProspek = Prospek::whereIn('sales_id', $salesIds)->count();
-        $closing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Closing')->count();
-        $active = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['Closing', 'Lost'])->count();
-        $lost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Lost')->count();
+        $closing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'LUNAS')->count();
+        $active = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $lost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'DINGIN')->count();
 
         $summary = [
             'total_prospek'   => $totalProspek,
             'active'          => $active,
             'closing'         => $closing,
+
             'lost'            => $lost,
+            'LUNAS'           => $closing,
+            'DINGIN'          => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
         ];
 
@@ -1573,16 +1773,33 @@ class CrmController extends Controller
     public function profilUpdate(Request $request)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'name'          => 'required|string|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
+            'remove_avatar' => 'nullable',
         ]);
 
         if (auth()->check()) {
             $user = auth()->user();
-            $user->update([
+            $dataToUpdate = [
                 'name'  => $validated['name'],
                 'phone' => $validated['phone'] ?? $user->phone,
-            ]);
+            ];
+
+            if ($request->filled('remove_avatar') && $request->remove_avatar == '1') {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $dataToUpdate['avatar'] = null;
+            } elseif ($request->hasFile('avatar')) {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $dataToUpdate['avatar'] = $path;
+            }
+
+            $user->update($dataToUpdate);
         } else {
             $role = strtolower($request->session()->get('user_role', 'sales'));
             $request->session()->put('custom_profile_' . $role, [
@@ -1591,7 +1808,7 @@ class CrmController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Profil berhasil diperbarui!');
+        return back()->with('success', 'Profil dan foto berhasil diperbarui!');
     }
 
     /**

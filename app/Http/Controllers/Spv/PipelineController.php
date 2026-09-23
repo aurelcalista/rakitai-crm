@@ -40,16 +40,7 @@ class PipelineController extends Controller
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
-        $pipelineStages = MasterData::where('type', 'status_prospek')
-            ->where('status', 'Aktif')
-            ->whereNotIn('nama', ['Lost', 'Ditolak/Batal', 'Ditolak / Batal'])
-            ->orderBy('id')
-            ->pluck('nama')
-            ->toArray();
-
-        if (empty($pipelineStages)) {
-            $pipelineStages = ['Cold Lead', 'Interested', 'Follow Up', 'Beli Formulir', 'Pembayaran Termin 1', 'Closing'];
-        }
+        $pipelineStages = Prospek::PIPELINE_8_STAGES;
 
         $teamSales = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->get();
 
@@ -63,11 +54,20 @@ class PipelineController extends Controller
     {
         $request->validate([
             'prospek_id' => 'required|exists:prospeks,id',
-            'status'     => 'required|string|in:' . implode(',', array_keys(Prospek::STAGES)),
+            'status'     => 'required|string|in:' . implode(',', Prospek::ACTIVE_STAGES),
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);
         $user = auth()->user();
+
+        \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
+
+        if ($request->status === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.',
+            ], 422);
+        }
 
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
@@ -84,6 +84,18 @@ class PipelineController extends Controller
             'time'          => now(),
         ]);
 
+        if (in_array(strtoupper($prospek->status), ['LUNAS', 'CLOSING'])) {
+            try {
+                $targetService = app(\App\Services\TargetAchievementService::class);
+                if ($prospek->sales) {
+                    $targetService->checkAndNotifyTargetStatus($prospek->sales);
+                }
+                $targetService->checkAndNotifyTargetStatus($user);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Gagal evaluasi target SPV: " . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Status berhasil diubah menjadi {$prospek->status}",
@@ -94,6 +106,30 @@ class PipelineController extends Controller
     private function formatProspek(Prospek $p): array
     {
         $latestFU = $p->followUps->first();
+        $normalizedStatus = strtoupper(trim($p->status));
+        $stageMap = [
+            'BARU'                => 'BARU',
+            'COLD LEAD'           => 'BARU',
+            'KONTAK'              => 'KONTAK',
+            'INTERESTED'          => 'KONTAK',
+            'HANGAT'              => 'HANGAT',
+            'FOLLOW UP'           => 'HANGAT',
+            'FOLLOW UP 1'         => 'HANGAT',
+            'PANAS'               => 'PANAS',
+            'NEGOSIASI'           => 'PANAS',
+            'FORMULIR'            => 'FORMULIR',
+            'BELI FORMULIR'       => 'FORMULIR',
+            'BERKAS'              => 'BERKAS',
+            'PEMBAYARAN TERMIN 1' => 'BERKAS',
+            'LUNAS'               => 'LUNAS',
+            'MENDAFTAR'           => 'LUNAS',
+            'CLOSING'             => 'LUNAS',
+            'DINGIN'              => 'DINGIN',
+            'LOST'                => 'DINGIN',
+            'DITOLAK/BATAL'       => 'DINGIN',
+            'DITOLAK / BATAL'     => 'DINGIN',
+        ];
+        $canonicalStatus = $stageMap[$normalizedStatus] ?? (in_array($normalizedStatus, Prospek::PIPELINE_8_STAGES) ? $normalizedStatus : 'BARU');
 
         return [
             'id'             => $p->id,
@@ -101,8 +137,9 @@ class PipelineController extends Controller
             'type'           => $p->type,
             'pic'            => $p->pic ?? '-',
             'whatsapp'       => $p->whatsapp ?? '-',
-            'status'         => $p->status,
-            'stage_number'   => Prospek::STAGES[$p->status] ?? 0,
+            'status'         => $canonicalStatus,
+            'raw_status'     => $p->status,
+            'stage_number'   => Prospek::STAGES[$canonicalStatus] ?? (Prospek::STAGES[$p->status] ?? 1),
             'notes'          => $p->notes ?? '',
             'sales_id'       => $p->sales_id,
             'takeover_sales' => $p->sales ? $p->sales->name : null,

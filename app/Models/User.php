@@ -9,24 +9,47 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable([
     'name',
     'username',
     'email',
     'phone',
+    'avatar',
     'role',
     'status',
     'last_login_at',
     'password',
     'wilayah_id',
     'supervisor_id',
+    'lokasi_penugasan',
+    'google_access_token',
+    'google_refresh_token',
+    'google_token_expires_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
+
+    /**
+     * Get avatar public URL if set.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar ? asset('storage/' . $this->avatar) : null;
+    }
+
+    /**
+     * Get user initials for avatar fallback.
+     */
+    public function getInitialsAttribute(): string
+    {
+        $words = array_values(array_filter(explode(' ', trim($this->name))));
+        return strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -84,6 +107,39 @@ class User extends Authenticatable
     }
 
     /**
+     * Active Wilayahs assigned to this user via user_wilayah pivot table.
+     */
+    public function activeWilayahes()
+    {
+        return $this->belongsToMany(Wilayah::class, 'user_wilayah', 'user_id', 'wilayah_id')
+            ->wherePivot('is_active', true)
+            ->withPivot(['role', 'is_active', 'assigned_at', 'deactivated_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * All Wilayahs ever assigned to this user.
+     */
+    public function allWilayahes()
+    {
+        return $this->belongsToMany(Wilayah::class, 'user_wilayah', 'user_id', 'wilayah_id')
+            ->withPivot(['role', 'is_active', 'assigned_at', 'deactivated_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Helper to get list of active wilayah IDs (including legacy wilayah_id if set).
+     */
+    public function activeWilayahIds(): array
+    {
+        $pivotIds = $this->activeWilayahes()->pluck('wilayahs.id')->toArray();
+        if ($this->wilayah_id && !in_array($this->wilayah_id, $pivotIds)) {
+            $pivotIds[] = $this->wilayah_id;
+        }
+        return array_values(array_unique($pivotIds));
+    }
+
+    /**
      * Prospects where this user is the Sales handler.
      */
     public function prospeks()
@@ -124,23 +180,92 @@ class User extends Authenticatable
     }
 
     /**
-     * Get team member IDs for an SPV (subordinates or same wilayah Sales).
+     * Check if this user's assigned area/wilayah (or a given target Wilayah) is within a main Wilayah scope recursively.
+     */
+    public function isWithinWilayahScope(Wilayah|int|null $mainWilayah): bool
+    {
+        if (strtolower($this->role) === 'admin') {
+            return true; // Admin HAS GLOBAL ACCESS
+        }
+
+        if (!$mainWilayah) {
+            return true;
+        }
+
+        $mainWilayahId = $mainWilayah instanceof Wilayah ? $mainWilayah->id : $mainWilayah;
+
+        if (!$this->wilayah_id) {
+            return true; // Unassigned / global HM / SPV fallback
+        }
+
+        if ($this->wilayah_id == $mainWilayahId) {
+            return true;
+        }
+
+        $userWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
+        if ($userWilayah) {
+            return $userWilayah->isDescendantOf($mainWilayahId);
+        }
+
+        return false;
+    }
+
+    /**
+     * Get team member IDs for an SPV (subordinates with supervisor_id or Sales/CS in SPV's descendant Wilayahs).
      */
     public function teamMemberIds(): array
     {
-        $ids = $this->subordinates()->pluck('id')->toArray();
-        if (empty($ids)) {
-            if ($this->wilayah_id) {
-                $ids = User::where('wilayah_id', $this->wilayah_id)
-                    ->whereIn('role', ['Sales', 'CS'])
-                    ->pluck('id')
-                    ->toArray();
-            }
+        $subordinateIds = $this->subordinates()->pluck('id')->toArray();
+
+        if ($this->wilayah_id) {
+            $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
+            $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
+
+            $wilayahMemberIds = User::whereIn('role', ['Sales', 'CS'])
+                ->where(function ($q) use ($descendantWilayahIds) {
+                    $q->whereIn('wilayah_id', $descendantWilayahIds)
+                      ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
+                          $wq->whereIn('wilayah_id', $descendantWilayahIds);
+                      });
+                })
+                ->where(function ($q) {
+                    $q->whereNull('supervisor_id')
+                      ->orWhere('supervisor_id', $this->id);
+                })
+                ->pluck('id')
+                ->toArray();
+
+            return array_values(array_unique(array_merge($subordinateIds, $wilayahMemberIds)));
         }
-        if (empty($ids)) {
-            $ids = User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray();
+
+        return array_values(array_unique(array_merge(
+            $subordinateIds,
+            User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray()
+        )));
+    }
+
+    /**
+     * Get user IDs belonging to an HM's wilayah (including all descendant wilayahs).
+     */
+    public function hmMemberIds(): array
+    {
+        if (strtolower($this->role) === 'admin') {
+            return User::pluck('id')->toArray(); // Admin = global
         }
-        return $ids;
+
+        if ($this->wilayah_id) {
+            $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
+            $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
+
+            return User::where(function($q) use ($descendantWilayahIds) {
+                $q->whereIn('wilayah_id', $descendantWilayahIds)
+                  ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
+                      $wq->whereIn('wilayah_id', $descendantWilayahIds);
+                  });
+            })->pluck('id')->toArray();
+        }
+
+        return User::pluck('id')->toArray();
     }
 
     /**
@@ -153,17 +278,30 @@ class User extends Authenticatable
     }
 
     /**
+     * Get CS subordinates for SPV.
+     */
+    public function teamCs()
+    {
+        $memberIds = $this->teamMemberIds();
+        return User::whereIn('id', $memberIds)->where('role', 'CS');
+    }
+
+    /**
      * Get query for prospects belonging to this SPV's team.
      */
     public function teamProspeks()
     {
         $memberIds = $this->teamMemberIds();
-        return Prospek::where(function ($q) use ($memberIds) {
+        $mainWilayah = $this->wilayah ?? ($this->wilayah_id ? Wilayah::find($this->wilayah_id) : null);
+        $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [];
+
+        return Prospek::where(function ($q) use ($memberIds, $descendantWilayahIds) {
             $q->whereIn('sales_id', $memberIds)
               ->orWhereIn('owner_id', $memberIds)
               ->orWhereIn('cs_id', $memberIds);
-            if ($this->wilayah_id) {
-                $q->orWhere('wilayah_id', $this->wilayah_id);
+
+            if (!empty($descendantWilayahIds)) {
+                $q->orWhereIn('wilayah_id', $descendantWilayahIds);
             }
         });
     }
@@ -175,6 +313,32 @@ class User extends Authenticatable
     {
         $memberIds = $this->teamMemberIds();
         return Kunjungan::whereIn('sales_id', $memberIds);
+    }
+
+    /**
+     * Events managed by this user (EO).
+     */
+    public function managedEvents()
+    {
+        return $this->hasMany(Event::class, 'eo_id');
+    }
+
+    /**
+     * Events assigned to this user as SPV.
+     */
+    public function assignedEventsSpv()
+    {
+        return $this->belongsToMany(Event::class, 'event_spv', 'spv_id', 'event_id')->withTimestamps();
+    }
+
+    /**
+     * Events assigned to this user as Sales.
+     */
+    public function assignedEventsSales()
+    {
+        return $this->belongsToMany(Event::class, 'event_sales', 'sales_id', 'event_id')
+            ->withPivot('assigned_by_spv_id')
+            ->withTimestamps();
     }
 }
 

@@ -9,12 +9,17 @@
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Laporan Rekapitulasi Tim Sales</h2>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Pengawasan SPV</span>
+            <div class="flex items-center gap-3.5 sm:gap-4">
+                <div class="h-12 w-14 sm:h-14 sm:w-16 rounded-2xl bg-indigo-50/80 p-2 border border-indigo-100/80 shrink-0 flex items-center justify-center shadow-xs">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Ekspor data prospek tim, analisis konversi pendaftaran, dan evaluasi hasil penugasan.</p>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Laporan Rekapitulasi Tim Sales</h2>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Pengawasan SPV</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Ekspor data prospek tim, analisis konversi pendaftaran, dan evaluasi hasil penugasan.</p>
+                </div>
             </div>
             
             <div class="flex items-center gap-2">
@@ -76,13 +81,9 @@
                     <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Status Prospek</label>
                     <select name="status" class="w-full text-xs px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold">
                         <option value="all">Semua Status</option>
-                        <option value="Cold Lead" {{ request('status') == 'Cold Lead' ? 'selected' : '' }}>Cold Lead</option>
-                        <option value="Interested" {{ request('status') == 'Interested' ? 'selected' : '' }}>Interested</option>
-                        <option value="Follow Up" {{ request('status') == 'Follow Up' ? 'selected' : '' }}>Follow Up</option>
-                        <option value="Beli Formulir" {{ request('status') == 'Beli Formulir' ? 'selected' : '' }}>Beli Formulir</option>
-                        <option value="Pembayaran Termin 1" {{ request('status') == 'Pembayaran Termin 1' ? 'selected' : '' }}>Pembayaran Termin 1</option>
-                        <option value="Closing" {{ request('status') == 'Closing' ? 'selected' : '' }}>Closing</option>
-                        <option value="Lost" {{ request('status') == 'Lost' ? 'selected' : '' }}>Lost</option>
+                        @foreach(\App\Models\Prospek::ACTIVE_STAGES as $st)
+                            <option value="{{ $st }}" {{ request('status') == $st ? 'selected' : '' }}>{{ $st }}</option>
+                        @endforeach
                     </select>
                 </div>
 

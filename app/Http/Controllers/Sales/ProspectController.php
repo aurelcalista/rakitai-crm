@@ -7,6 +7,9 @@ use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use App\Models\Sekolah;
 use App\Models\Perusahaan;
+use App\Models\FollowUp;
+use App\Http\Requests\StoreProspectRequest;
+use App\Http\Requests\UpdateProspectRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -41,7 +44,7 @@ class ProspectController extends Controller
             ->map(fn ($p) => $this->formatProspek($p))
             ->toArray();
 
-        $statuses = array_keys(Prospek::STAGES);
+        $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('prospek.index', compact('prospects', 'statuses', 'lostReasons'));
@@ -52,9 +55,9 @@ class ProspectController extends Controller
      */
     public function create(): View
     {
-        $sekolahs   = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
-        $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
-        $statuses   = array_keys(Prospek::STAGES);
+        $sekolahs    = Sekolah::getDynamicSchools();
+        $perusahaans = Perusahaan::getDynamicPerusahaans();
+        $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons'));
@@ -63,28 +66,22 @@ class ProspectController extends Controller
     /**
      * Store a new prospect created by the Sales user.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreProspectRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name'     => 'nullable|string|max:255',
-            'type'     => 'required|in:Sekolah,Corporate,Individu',
-            'sekolah_id' => 'nullable|exists:sekolahs,id',
-            'perusahaan_id' => 'nullable|exists:perusahaans,id',
-            'category' => 'nullable|string|max:100',
-            'pic'      => 'required|string|max:255',
-            'pic_phone'=> 'nullable|string|max:20',
-            'whatsapp' => 'required|string|max:20',
-            'status'   => 'required|string|max:255',
-            'potential'=> 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
-            'notes'    => 'nullable|string',
-            'source'   => 'nullable|string|max:100',
-        ]);
+        $validated = $request->validated();
 
         $user = auth()->user();
 
         // Resolve name from Master Data if applicable
         $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
+
+        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
+            $sekolah = Sekolah::find($validated['sekolah_id']);
+            if ($sekolah) $name = $sekolah->nama;
+        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
+            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+            if ($perusahaan) $name = $perusahaan->nama;
+        }
 
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
@@ -115,6 +112,7 @@ class ProspectController extends Controller
                 'ai_training'  => $validated['ai_training'] ?? null,
                 'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
+                'prodi_id'     => $validated['prodi_id'] ?? null,
                 'sales_id'     => $user->id,
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,
@@ -153,14 +151,9 @@ class ProspectController extends Controller
 
         $isHandler = $prospek->isHandledBySales(auth()->user());
 
-        $allStages = [
-            ['name' => 'Cold Lead',           'number' => 1],
-            ['name' => 'Interested',          'number' => 2],
-            ['name' => 'Follow Up',           'number' => 3],
-            ['name' => 'Beli Formulir',       'number' => 4],
-            ['name' => 'Pembayaran Termin 1', 'number' => 5],
-            ['name' => 'Closing',             'number' => 6],
-        ];
+        $allStages = array_map(function ($stageName) {
+            return ['name' => $stageName, 'number' => Prospek::STAGES[$stageName]];
+        }, Prospek::ACTIVE_STAGES);
 
         $prospect   = $this->formatProspekDetail($prospek);
         $lostReasons = Prospek::LOST_REASONS;
@@ -183,19 +176,11 @@ class ProspectController extends Controller
      * Update editable prospect fields.
      * Only allowed for active Sales handler.
      */
-    public function update(Request $request, Prospek $prospek): RedirectResponse
+    public function update(UpdateProspectRequest $request, Prospek $prospek): RedirectResponse
     {
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
 
-        $validated = $request->validate([
-            'pic'         => 'required|string|max:255',
-            'pic_phone'   => 'nullable|string|max:20',
-            'whatsapp'    => 'required|string|max:20',
-            'potential'   => 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
-            'notes'       => 'nullable|string',
-            'category'    => 'nullable|string|max:100',
-        ]);
+        $validated = $request->validated();
 
         $prospek->update($validated);
 
@@ -229,9 +214,14 @@ class ProspectController extends Controller
         $newStatus = $validated['status'];
 
         // Prevent downgrading to Lost via this endpoint — use markLost instead
-        if ($newStatus === 'Lost') {
+        if ($newStatus === 'DINGIN') {
             return redirect()->back()
                 ->withErrors(['status' => 'Gunakan tombol "Mark as Lost" untuk mengubah ke status Lost.']);
+        }
+
+        if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return redirect()->back()
+                ->withErrors(['status' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.']);
         }
 
         $prospek->update([
@@ -270,8 +260,8 @@ class ProspectController extends Controller
         $oldStatus = $prospek->status;
 
         $prospek->update([
-            'status'       => 'Lost',
-            'stage_number' => 0,
+            'status'       => 'DINGIN',
+            'stage_number' => 8,
             'lost_reason'  => $validated['lost_reason'],
             'lost_note'    => $validated['lost_note'],
         ]);
@@ -279,15 +269,15 @@ class ProspectController extends Controller
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
             'user_id'      => auth()->id(),
-            'title'        => 'Prospek Ditandai Lost',
+            'title'        => 'Prospek Ditandai DINGIN',
             'notes'        => 'Alasan: ' . $validated['lost_reason'] . ($validated['lost_note'] ? '. Catatan: ' . $validated['lost_note'] : ''),
             'status_before' => $oldStatus,
-            'status_after'  => 'Lost',
+            'status_after'  => 'DINGIN',
             'time'          => now(),
         ]);
 
         return redirect()->route('sales.prospek.index')
-            ->with('success', 'Prospek telah ditandai sebagai Lost.');
+            ->with('success', 'Prospek telah ditandai sebagai DINGIN.');
     }
 
     /**
@@ -314,6 +304,7 @@ class ProspectController extends Controller
 
         $prospek->update([
             'cs_id' => $cs->id,
+            'active_follow_up_count' => 0,
         ]);
 
         ProspekTimeline::create([

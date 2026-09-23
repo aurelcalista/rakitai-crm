@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Models\ProspekTimeline;
 use App\Services\SalesTargetService;
+use App\Services\TargetAchievementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private SalesTargetService $targetService)
-    {
+    public function __construct(
+        private SalesTargetService $targetService,
+        private TargetAchievementService $targetAchievementService
+    ) {
     }
 
     /**
@@ -63,12 +66,21 @@ class DashboardController extends Controller
         // Daily target (snowball calculation)
         $dailyTarget = $this->targetService->calculateDailyTarget($user);
 
+        // Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
+        $targetAchievementData = $this->targetAchievementService->getDashboardTargetData(
+            $user,
+            $request->get('periode', 'bulanan'),
+            null,
+            $request->get('ta')
+        );
+
         return view('sales.dashboard', compact(
             'stats',
             'pipelineStages',
             'recentProspects',
             'recentActivity',
-            'dailyTarget'
+            'dailyTarget',
+            'targetAchievementData'
         ));
     }
 

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('wilayahs', function (Blueprint $table) {
             $table->dropColumn('kecamatans');
-            $table->enum('level', ['Provinsi', 'Kota/Kabupaten', 'Kecamatan'])->after('nama')->default('Kecamatan');
+            $table->enum('level', ['Provinsi', 'Kota/Kabupaten', 'Kecamatan', 'Kelurahan/Desa'])->after('nama')->default('Kecamatan');
             $table->foreignId('parent_id')->nullable()->after('level')->constrained('wilayahs')->nullOnDelete();
         });
     }

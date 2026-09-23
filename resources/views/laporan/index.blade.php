@@ -27,8 +27,8 @@
     <div class="print-only mb-6">
         <div class="flex items-center justify-between pb-3 border-b-[3px] border-slate-900">
             <div class="flex items-center gap-4">
-                <div class="w-16 h-16 rounded-xl bg-blue-900 text-white flex items-center justify-center font-extrabold text-2xl border-2 border-slate-900">
-                    UCIC
+                <div class="w-20 h-16 shrink-0 flex items-center justify-center">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="max-w-full max-h-full object-contain">
                 </div>
                 <div>
                     <h1 class="text-xl font-black text-slate-900 tracking-tight leading-tight uppercase">Universitas Catur Insan Cendekia</h1>
@@ -159,13 +159,13 @@
             />
             <x-stat-card 
                 title="Total Closing" 
-                :value="$summary['closing']" 
+                :value="$summary['closing'] ?? $summary['LUNAS'] ?? 0" 
                 subtitle="Mahasiswa Resmi" 
                 color="emerald"
             />
             <x-stat-card 
                 title="Total Lost" 
-                :value="$summary['lost']" 
+                :value="$summary['lost'] ?? $summary['DINGIN'] ?? 0" 
                 subtitle="Historis Arsip" 
                 color="rose"
             />
@@ -193,7 +193,7 @@
                     <tr class="font-extrabold text-sm text-slate-900 bg-white">
                         <td class="py-2.5 px-2 border border-slate-400">{{ $summary['total_prospek'] }} Prospek</td>
                         <td class="py-2.5 px-2 border border-slate-400 text-blue-700">{{ $summary['active'] }} Lead</td>
-                        <td class="py-2.5 px-2 border border-slate-400 text-emerald-700">{{ $summary['closing'] }} Mhs</td>
+                        <td class="py-2.5 px-2 border border-slate-400 text-emerald-700">{{ $summary['closing'] ?? $summary['Closing (Lunas)'] ?? 0 }} Mhs</td>
                         <td class="py-2.5 px-2 border border-slate-400 text-rose-700">{{ $summary['lost'] }} Lead</td>
                         <td class="py-2.5 px-2 border border-slate-400 text-purple-700">{{ $summary['conversion_rate'] }}%</td>
                     </tr>

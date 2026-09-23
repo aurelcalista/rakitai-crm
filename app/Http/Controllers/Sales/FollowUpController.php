@@ -26,7 +26,7 @@ class FollowUpController extends Controller
             $q->orderBy('tanggal', 'desc')->limit(1);
         }])
             ->where('sales_id', $user->id)
-            ->whereNotIn('status', ['Lost']) // Lost prospects don't need follow-up
+            ->whereNotIn('status', ['DINGIN', 'LUNAS']) // DINGIN and LUNAS prospects don't need follow-up
             ->get();
 
         $prospects = [
@@ -44,7 +44,7 @@ class FollowUpController extends Controller
 
             $row = $this->formatProspekRow($p, $latestFU);
 
-            if ($p->status === 'Closing') {
+            if ($p->status === 'LUNAS') {
                 $prospects['done'][] = $row;
             } elseif ($nextFollowUpDate === null) {
                 // No scheduled follow-up → treat as overdue
@@ -59,7 +59,7 @@ class FollowUpController extends Controller
         }
 
         $metodeOptions = FollowUp::METODE_OPTIONS;
-        $statuses      = array_keys(Prospek::STAGES);
+        $statuses      = Prospek::ACTIVE_STAGES;
 
         return view('follow-up.index', compact('prospects', 'metodeOptions', 'statuses'));
     }
@@ -101,6 +101,8 @@ class FollowUpController extends Controller
             'catatan'       => $validated['catatan'],
             'next_follow_up'=> $validated['next_follow_up'],
         ]);
+
+        $prospek->increment('active_follow_up_count');
 
         // Update prospect status if changed
         if ($oldStatus !== $newStatus) {

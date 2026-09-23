@@ -34,4 +34,37 @@ class FollowUp extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    protected static function booted()
+    {
+        static::created(function ($followUp) {
+            try {
+                $prospek = $followUp->prospek;
+                if (!$prospek) return;
+
+                $auth = auth()->user();
+                $handlerId = $prospek->sales_id ?? $prospek->cs_id;
+
+                // Jika follow-up dicatat oleh user lain (misal SPV mencatat follow-up untuk prospek milik Sales)
+                if ($handlerId && (!$auth || $auth->id !== (int)$handlerId)) {
+                    $handler = \App\Models\User::find($handlerId);
+                    if ($handler) {
+                        $actorName = $auth ? "{$auth->name} ({$auth->role})" : "Rekan Tim";
+                        $handler->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "💬 Aktivitas Follow-Up Baru",
+                            message: "{$actorName} mencatat follow-up ({$followUp->metode}) pada prospek '{$prospek->name}'.",
+                            type: 'info',
+                            link: '/prospek',
+                            icon: '💬',
+                            senderName: $auth?->name,
+                            senderRole: $auth?->role,
+                            action: 'follow_up_created'
+                        ));
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending follow-up notification: ' . $e->getMessage());
+            }
+        });
+    }
 }

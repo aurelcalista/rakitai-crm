@@ -23,15 +23,36 @@
             <!-- Header -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
                 <div>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {{ $visit['type'] === 'Sekolah' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200' }}">
-                        {{ $visit['type'] }}
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {{ $visit['type'] === 'Sekolah' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200' }}">
+                            {{ $visit['type'] }}
+                        </span>
+                        @if($visit['is_outside_radius'] || $visit['status_verifikasi'] === 'Perlu Verifikasi')
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                ⚠️ Perlu Verifikasi (Di Luar Radius)
+                            </span>
+                        @else
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                ✓ Terverifikasi Valid
+                            </span>
+                        @endif
+                    </div>
                     <h2 class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">{{ $visit['name'] }}</h2>
                     <p class="text-xs text-slate-500 mt-1">Dilaporkan oleh Sales: <strong class="text-slate-800">{{ $visit['sales'] }}</strong></p>
                 </div>
-                <div class="text-right">
-                    <div class="text-xs font-bold text-slate-800">{{ $visit['date'] }}</div>
-                    <div class="text-[11px] text-slate-400">Pukul: {{ $visit['time'] }} WIB</div>
+                <div class="text-right flex flex-col items-end gap-2">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">{{ $visit['date'] }}</div>
+                        <div class="text-[11px] text-slate-400">Pukul: {{ $visit['time'] }} WIB</div>
+                    </div>
+                    @if($visit['is_outside_radius'] || $visit['status_verifikasi'] === 'Perlu Verifikasi')
+                        <form action="{{ route('spv.kunjungan.verifikasi', $visit['id']) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                                Verifikasi Kunjungan Ini (SPV)
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
 
@@ -62,19 +83,22 @@
                 <div class="space-y-4">
                     @if($visit['type'] === 'Sekolah')
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Kuota Calon Mahasiswa</span>
-                            <p class="font-bold text-blue-600 mt-0.5">{{ $visit['potensi_beasiswa'] }}</p>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Mahasiswa</span>
+                            <p class="font-bold text-blue-600 mt-0.5">{{ $visit['potensi_mahasiswa'] }}</p>
                         </div>
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Workshop AI</span>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Workshop AI / Robotik</span>
                             <p class="font-bold mt-0.5 {{ $visit['kesediaan_training_ai'] ? 'text-emerald-600' : 'text-slate-500' }}">
                                 {{ $visit['kesediaan_training_ai'] ? '✓ Bersedia' : 'Belum Bersedia' }}
                             </p>
                         </div>
-                        @if($visit['detail_beasiswa'] && $visit['detail_beasiswa'] !== '-')
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Beasiswa</span>
-                            <p class="font-medium text-slate-700 mt-0.5">{{ $visit['detail_beasiswa'] }}</p>
+                        @php
+                            $detailPotensi = $visit['detail_potensi_mahasiswa'] ?? $visit['detail_beasiswa'] ?? null;
+                        @endphp
+                        @if($detailPotensi && $detailPotensi !== '-')
+                        <div class="mt-4 pt-4 border-t border-blue-200/50">
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Detail Potensi Mahasiswa</span>
+                            <p class="font-medium text-slate-700 mt-0.5">{{ $detailPotensi }}</p>
                         </div>
                         @endif
                     @else

@@ -18,6 +18,7 @@ class WilayahSeeder extends Seeder
             ['kode' => 'W-IND', 'nama' => 'Indramayu', 'kecamatans' => ['Indramayu', 'Karangampel', 'Jatibarang']],
             ['kode' => 'W-MJL', 'nama' => 'Majalengka', 'kecamatans' => ['Majalengka', 'Kadipaten', 'Jatiwangi']],
             ['kode' => 'W-KNG', 'nama' => 'Kuningan', 'kecamatans' => ['Kuningan', 'Cilimus', 'Luragung']],
+            ['kode' => 'W-LAIN', 'nama' => 'Di Kota Lainnya', 'kecamatans' => ['Lainnya']],
         ];
 
         foreach ($wilayahs as $w) {

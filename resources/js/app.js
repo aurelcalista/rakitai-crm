@@ -27,12 +27,104 @@ window.confirmLogout = function() {
     });
 };
 
+// ──────────────────────────────────────────────────────────────────
+// Web Audio API Notification Chime Synthesizer
+// ──────────────────────────────────────────────────────────────────
+let audioCtx = null;
+function getAudioContext() {
+    if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+        }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
+
+// User-gesture unlock for AudioContext (browser autoplay policy)
+['click', 'touchstart', 'keydown'].forEach(evt => {
+    window.addEventListener(evt, () => {
+        getAudioContext();
+    }, { once: true, passive: true });
+});
+
+window.playNotificationChime = function(type = 'info') {
+    // Check if user has muted notifications
+    if (localStorage.getItem('crm_sound_enabled') === 'false') {
+        return;
+    }
+
+    try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        let notes = [587.33, 880.00]; // D5 -> A5 (gentle bell chime)
+        if (type === 'success') {
+            notes = [523.25, 659.25, 783.99, 1046.50]; // C5 -> E5 -> G5 -> C6 (cheerful closing chord)
+        } else if (type === 'warning') {
+            notes = [659.25, 587.33, 659.25]; // E5 -> D5 -> E5
+        } else if (type === 'danger') {
+            notes = [698.46, 554.37]; // F5 -> C#5
+        }
+
+        const noteInterval = type === 'success' ? 0.08 : 0.12;
+
+        notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * noteInterval);
+
+            // Envelope (gentle attack, smooth exponential decay)
+            gain.gain.setValueAtTime(0.001, now + idx * noteInterval);
+            gain.gain.exponentialRampToValueAtTime(0.3, now + idx * noteInterval + 0.025);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * noteInterval + 0.45);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(now + idx * noteInterval);
+            osc.stop(now + idx * noteInterval + 0.5);
+        });
+    } catch (e) {
+        console.warn('Audio chime playback failed:', e);
+    }
+};
+
+// ──────────────────────────────────────────────────────────────────
 // Global CRM Store & State Management
+// ──────────────────────────────────────────────────────────────────
 document.addEventListener('alpine:init', () => {
     Alpine.store('crm', {
         activeRole: window.__INITIAL_ROLE__ || 'sales', // sales, cs, spv, hm
         activeState: 'normal', // normal, loading, empty, error
         toasts: [],
+        soundEnabled: localStorage.getItem('crm_sound_enabled') !== 'false',
+
+        init() {
+            this.initPolling();
+        },
+
+        toggleSound() {
+            this.soundEnabled = !this.soundEnabled;
+            localStorage.setItem('crm_sound_enabled', this.soundEnabled ? 'true' : 'false');
+            if (this.soundEnabled) {
+                window.playNotificationChime('info');
+                this.showToast('Suara notifikasi diaktifkan 🔔', 'info');
+            } else {
+                this.showToast('Suara notifikasi dimatikan 🔇', 'info');
+            }
+        },
+
+        testSound() {
+            window.playNotificationChime('success');
+            this.showToast('Tes bunyi notifikasi 🔔', 'success');
+        },
 
         showToast(message, type = 'success') {
             const id = Date.now();
@@ -85,21 +177,33 @@ document.addEventListener('alpine:init', () => {
             }
         ],
 
+        unreadCountVal: null,
+
         get unreadCount() {
+            if (this.unreadCountVal !== null) {
+                return this.unreadCountVal;
+            }
             return this.notifications.filter(n => !n.read).length;
+        },
+
+        set unreadCount(val) {
+            this.unreadCountVal = val;
         },
 
         markAsRead(id) {
             const notif = this.notifications.find(n => n.id === id);
             if (notif && !notif.read) {
                 notif.read = true;
+                if (this.unreadCountVal !== null && this.unreadCountVal > 0) {
+                    this.unreadCountVal--;
+                }
                 this.showToast('Notifikasi ditandai dibaca');
                 
                 // Send AJAX to backend
                 fetch(`/notifications/${id}/read`, {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
                         'Accept': 'application/json'
                     }
                 });
@@ -108,13 +212,14 @@ document.addEventListener('alpine:init', () => {
 
         markAllAsRead() {
             this.notifications.forEach(n => n.read = true);
+            this.unreadCountVal = 0;
             this.showToast('Semua notifikasi ditandai telah dibaca');
             
             // Send AJAX to backend
             fetch('/notifications/read-all', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
                     'Accept': 'application/json'
                 }
             });
@@ -135,6 +240,47 @@ document.addEventListener('alpine:init', () => {
 
         setState(state) {
             this.activeState = state;
+        },
+
+        initPolling() {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (!csrfToken) return;
+
+            // Poll every 15 seconds for dynamic cross-role updates
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/notifications/latest', {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    
+                    if (Array.isArray(data.notifications)) {
+                        const existingIds = new Set(this.notifications.map(n => n.id));
+                        const newItems = data.notifications.filter(n => !existingIds.has(n.id) && !n.read);
+
+                        if (newItems.length > 0) {
+                            // Prepend new incoming notifications
+                            this.notifications = [...newItems, ...this.notifications];
+                            this.unreadCount = data.unreadCount;
+
+                            // Play chime for the first new notification!
+                            const newest = newItems[0];
+                            window.playNotificationChime(newest.type || 'info');
+
+                            // Show toast popup
+                            this.showToast(`${newest.title}: ${newest.message}`, newest.type || 'info');
+                        } else if (typeof data.unreadCount === 'number') {
+                            this.unreadCount = data.unreadCount;
+                        }
+                    }
+                } catch (e) {
+                    // Silently fail on network disruption
+                }
+            }, 15000);
         }
     });
 });

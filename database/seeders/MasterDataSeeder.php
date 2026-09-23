@@ -18,7 +18,7 @@ class MasterDataSeeder extends Seeder
             ['type' => 'status_followup', 'nama' => 'Jadwalkan Kunjungan', 'kode' => 'SF02', 'deskripsi' => 'Kunjungan ke sekolah', 'status' => 'Aktif'],
             ['type' => 'status_followup', 'nama' => 'Belum Respon', 'kode' => 'SF03', 'deskripsi' => 'Belum ada balasan', 'status' => 'Aktif'],
             ['type' => 'status_followup', 'nama' => 'Kurang Berminat', 'kode' => 'SF04', 'deskripsi' => 'Tidak tertarik', 'status' => 'Aktif'],
-            ['type' => 'status_followup', 'nama' => 'Beli Formulir', 'kode' => 'SF05', 'deskripsi' => 'Sudah membeli form', 'status' => 'Aktif'],
+            ['type' => 'status_followup', 'nama' => 'FORMULIR', 'kode' => 'SF05', 'deskripsi' => 'Sudah membeli form', 'status' => 'Aktif'],
             
             // Jenjang
             ['type' => 'jenjang', 'nama' => 'S1', 'kode' => 'J01', 'deskripsi' => 'Sarjana', 'status' => 'Aktif'],
@@ -27,6 +27,12 @@ class MasterDataSeeder extends Seeder
             // Fakultas
             ['type' => 'fakultas', 'nama' => 'Fakultas Teknologi Informasi', 'kode' => 'F01', 'deskripsi' => 'FTI', 'status' => 'Aktif'],
             ['type' => 'fakultas', 'nama' => 'Fakultas Ekonomi dan Bisnis', 'kode' => 'F02', 'deskripsi' => 'FEB', 'status' => 'Aktif'],
+            
+            // Jenis Event
+            ['type' => 'jenis_event', 'nama' => 'Edu Expo', 'kode' => 'EV01', 'deskripsi' => 'Pameran Pendidikan', 'status' => 'Aktif'],
+            ['type' => 'jenis_event', 'nama' => 'Campus Tour', 'kode' => 'EV02', 'deskripsi' => 'Kunjungan Kampus', 'status' => 'Aktif'],
+            ['type' => 'jenis_event', 'nama' => 'Seminar', 'kode' => 'EV03', 'deskripsi' => 'Seminar Pendidikan', 'status' => 'Aktif'],
+            ['type' => 'jenis_event', 'nama' => 'Lomba', 'kode' => 'EV04', 'deskripsi' => 'Perlombaan Antar Sekolah', 'status' => 'Aktif'],
         ];
 
         foreach ($data as $item) {

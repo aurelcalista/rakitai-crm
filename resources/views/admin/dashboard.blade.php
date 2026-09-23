@@ -25,13 +25,13 @@
     >
 
         <!-- Header -->
-        <div x-show="show" x-transition:enter="transition ease-out duration-500 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div x-show="show" x-transition:enter="transition ease-out duration-500 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard Administrator 🛡️</h2>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Administrator 🛡️</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Super Administrator</span>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Ringkasan sistem, pengguna, target tim, dan aktivitas CRM UCIC.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Ringkasan sistem, pengguna, target tim, dan aktivitas CRM UCIC.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('admin.users.index') }}" class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer hover:-translate-y-0.5 duration-300">
@@ -44,6 +44,15 @@
                 </a>
             </div>
         </div>
+
+        <!-- DASHBOARD TARGET & PENCAPAIAN BERJENJANG (PRD 6.2) -->
+        @if(isset($targetAchievementData))
+            <x-target-achievement-table 
+                :data="$targetAchievementData" 
+                title="Dashboard Target & Pencapaian Global (Admin)" 
+                subtitle="Monitoring capaian seluruh wilayah teritori, kekurangan, sisa hari, dan target harian berjalan"
+            />
+        @endif
 
         <!-- COMBINED METRICS & ANIMATED ROLES SLIDER (COMPACT & SIMPLE) -->
         <div x-show="show" x-transition:enter="transition ease-out duration-500 delay-150 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="crm-card bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden space-y-4">

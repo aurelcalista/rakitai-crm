@@ -13,7 +13,8 @@ class AdminUserController extends Controller
     public function index(Request $request): View
     {
         $users = User::latest()->get()->map(function ($user) {
-            $user->avatar = strtoupper(substr($user->name, 0, 2));
+            $user->avatar_url = $user->avatar_url;
+            $user->avatar = $user->initials;
             return $user;
         });
 
@@ -26,8 +27,10 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'phone' => 'required|string|max:20',
-            'role' => 'required|in:Admin,HM,SPV,Sales,CS',
+            'role' => 'required|in:Admin,HM,SPV,Sales,CS,EO',
             'status' => 'required|in:Aktif,Nonaktif',
+            'wilayah_id' => 'nullable|exists:wilayahs,id',
+            'supervisor_id' => 'nullable|exists:users,id',
             'password' => 'required|string|confirmed',
         ]);
 
@@ -44,8 +47,10 @@ class AdminUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'phone' => 'required|string|max:20',
-            'role' => 'required|in:Admin,HM,SPV,Sales,CS',
+            'role' => 'required|in:Admin,HM,SPV,Sales,CS,EO',
             'status' => 'required|in:Aktif,Nonaktif',
+            'wilayah_id' => 'nullable|exists:wilayahs,id',
+            'supervisor_id' => 'nullable|exists:users,id',
         ]);
 
         $user->update($validated);

@@ -17,10 +17,14 @@ class UserSeeder extends Seeder
                 'name'              => 'Admin CIC',
                 'role'              => 'Admin',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'email_verified_at' => now(),
             ]
         );
+
+        $defaultWilayah = \App\Models\Wilayah::where('kode', 'W-CRB')->first() 
+            ?? \App\Models\Wilayah::whereNull('parent_id')->first();
+        $wilayahId = $defaultWilayah?->id;
 
         $hm = User::updateOrCreate(
             ['email' => 'hm@cic.ac.id'],
@@ -28,7 +32,8 @@ class UserSeeder extends Seeder
                 'name'              => 'HM CIC',
                 'role'              => 'HM',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -39,7 +44,20 @@ class UserSeeder extends Seeder
                 'name'              => 'Hendra Setiawan, S.Kom',
                 'role'              => 'SPV',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
+                'wilayah_id'        => $wilayahId,
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $eo = User::updateOrCreate(
+            ['email' => 'eo@cic.ac.id'],
+            [
+                'name'              => 'Tim EO CIC',
+                'role'              => 'EO',
+                'password'          => Hash::make('password'),
+                'status'            => 'Aktif',
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -50,8 +68,9 @@ class UserSeeder extends Seeder
                 'name'              => 'Dina Marlina',
                 'role'              => 'CS',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'supervisor_id'     => $spv->id,
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -71,8 +90,9 @@ class UserSeeder extends Seeder
                     'name'              => $sales['name'],
                     'role'              => 'Sales',
                     'password'          => Hash::make('password'),
-                    'status'            => 'aktif',
+                    'status'            => 'Aktif',
                     'supervisor_id'     => $spv->id,
+                    'wilayah_id'        => $wilayahId,
                     'email_verified_at' => now(),
                 ]
             );

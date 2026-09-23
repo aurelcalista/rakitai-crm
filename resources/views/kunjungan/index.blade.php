@@ -13,9 +13,7 @@
     <div x-show="$store.crm.activeState === 'empty'" x-cloak>
         <x-empty-state 
             title="Belum ada data kunjungan" 
-            description="Mulai catat kunjungan sekolah atau perusahaan untuk mendokumentasikan kegiatan sales."
-            actionLabel="Tambah Kunjungan"
-            actionClick="modalTambahKunjungan = true"
+            description="Mulai catat kunjungan dari Jadwal Event atau tambah Kunjungan Mandiri menggunakan tombol + Tambah Kunjungan."
         />
     </div>
 
@@ -43,18 +41,21 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kunjungan Sekolah & Corporate</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Dokumentasi hasil kunjungan lapangan, presentasi edu-fair, dan audiensi kemitraan.</p>
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales']))
-            <div>
-                <button 
-                    type="button" 
-                    @click="modalTambahKunjungan = true"
-                    class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+            @if(auth()->user()->role === 'Sales')
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                {{--
+                    ALUR 2: Kunjungan Mandiri (tidak terikat Event).
+                    event_id akan NULL — Sales pilih instansi sendiri.
+                --}}
+                <a
+                    href="{{ route('sales.kunjungan.create') }}"
+                    id="btn-tambah-kunjungan"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
                 >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>+ Tambah Kunjungan</span>
-                </button>
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                    + Tambah Kunjungan
+                </a>
+                <p class="text-[11px] text-slate-400">Kunjungan tanpa Jadwal Event</p>
             </div>
             @endif
         </div>
@@ -310,7 +311,7 @@
 
                                 <!-- Compact Info Grid -->
                                 <div class="grid grid-cols-2 gap-2.5">
-                                    
+
                                     <!-- Personil Sales -->
                                     <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                                         <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Petugas Sales</p>
@@ -339,6 +340,16 @@
                                         </div>
                                     </div>
 
+                                    <!-- Event Terkait -->
+                                    <div class="col-span-2 p-2.5 rounded-xl border"
+                                        :class="selectedVisit.event_id ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wider"
+                                            :class="selectedVisit.event_id ? 'text-indigo-400' : 'text-slate-400'">Event Terkait</p>
+                                        <p class="text-xs font-bold mt-0.5"
+                                            :class="selectedVisit.event_id ? 'text-indigo-800' : 'text-slate-500 italic'"
+                                            x-text="selectedVisit.event_name || 'Kunjungan Mandiri'"></p>
+                                    </div>
+
                                 </div>
 
                                 <!-- Detail Kemitraan Khusus Sekolah -->
@@ -347,17 +358,17 @@
                                         <div class="font-bold text-blue-900 text-[11px] uppercase tracking-wider">Potensi Kemitraan Sekolah</div>
                                         <div class="grid grid-cols-2 gap-2 text-[11px]">
                                             <div>
-                                                <span class="text-slate-500">Beasiswa:</span>
-                                                <p class="font-bold text-slate-800" x-text="selectedVisit.potensi_beasiswa || '-'"></p>
+                                                <span class="text-slate-500">Potensi Mahasiswa:</span>
+                                                <p class="font-bold text-slate-800" x-text="selectedVisit.potensi_mahasiswa || '-'"></p>
                                             </div>
                                             <div>
                                                 <span class="text-slate-500">Workshop AI:</span>
                                                 <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? '✓ Bersedia' : 'Belum Bersedia'"></p>
                                             </div>
-                                            <template x-if="selectedVisit.detail_beasiswa && selectedVisit.detail_beasiswa !== '-'">
-                                                <div class="col-span-2 pt-1 border-t border-blue-100/80">
-                                                    <span class="text-slate-500">Detail Beasiswa:</span>
-                                                    <p class="text-slate-800 mt-0.5 bg-white p-2 rounded-lg border border-blue-100" x-text="selectedVisit.detail_beasiswa"></p>
+                                            <template x-if="selectedVisit.detail_potensi_mahasiswa && selectedVisit.detail_potensi_mahasiswa !== '-'">
+                                                <div class="col-span-2">
+                                                    <span class="text-slate-500">Detail Potensi Mahasiswa:</span>
+                                                    <p class="text-slate-800 mt-0.5 bg-white p-2 rounded-lg border border-blue-100" x-text="selectedVisit.detail_potensi_mahasiswa"></p>
                                                 </div>
                                             </template>
                                         </div>
