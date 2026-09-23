@@ -10,6 +10,8 @@ use App\Models\TargetDefisit;
 use App\Models\Transaksi;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class SpvPerformanceService
 {
@@ -525,5 +527,86 @@ class SpvPerformanceService
             'total_closing_maba' => $totalClosingMaba,
             'sales_breakdown'    => $salesBreakdown,
         ];
+    }
+
+    /**
+     * Distribute SPV Annual Target LUNAS into monthly targets.
+     * 
+     * Rule: SUM(monthly allocations) MUST exactly equal annual target LUNAS.
+     *
+     * @param  Target $annualTarget
+     * @param  array<int, int> $monthlyAllocations Array of month_index (0..11) => target_lunas
+     * @param  string $mode 'rata' or 'gelombang'
+     * @return Collection<Target>
+     * @throws ValidationException
+     */
+    public function distributeAnnualToMonthly(Target $annualTarget, array $monthlyAllocations, string $mode = 'rata'): Collection
+    {
+        $annualLunas = (int) $annualTarget->target_lunas;
+        $totalMonthly = array_sum($monthlyAllocations);
+
+        if ($totalMonthly !== $annualLunas) {
+            throw ValidationException::withMessages([
+                'monthly_allocations' => "Total target bulanan ({$totalMonthly}) harus sama dengan target tahunan ({$annualLunas}).",
+            ]);
+        }
+
+        $created = collect();
+        $spvId = $annualTarget->spv_id ?? $annualTarget->sales_id;
+        $wilayahId = $annualTarget->wilayah_id;
+        $academicYearId = $annualTarget->academic_year_id;
+        $ta = $annualTarget->tahun_akademik;
+        $yearStart = $annualTarget->tanggal_mulai ? $annualTarget->tanggal_mulai->copy() : now()->startOfYear();
+
+        foreach ($monthlyAllocations as $monthIndex => $monthLunas) {
+            $monthDate = $yearStart->copy()->addMonths((int) $monthIndex);
+            $startOfMonth = $monthDate->copy()->startOfMonth();
+            $endOfMonth = $monthDate->copy()->endOfMonth();
+
+            $monthTarget = Target::updateOrCreate(
+                [
+                    'parent_id'        => $annualTarget->id,
+                    'spv_id'           => $spvId,
+                    'academic_year_id' => $academicYearId,
+                    'tipe_periode'     => 'Bulanan',
+                    'tanggal_mulai'    => $startOfMonth->toDateString(),
+                    'tanggal_selesai'  => $endOfMonth->toDateString(),
+                ],
+                [
+                    'target_type'     => $annualTarget->target_type,
+                    'wilayah_id'      => $wilayahId,
+                    'sales_id'        => $annualTarget->sales_id,
+                    'allocated_by'    => $annualTarget->allocated_by ?? auth()->id(),
+                    'tahun_akademik'  => $ta,
+                    'gelombang'       => $mode === 'gelombang' ? 'Gelombang ' . ((int)floor($monthIndex / 3) + 1) : 'Rata',
+                    'target_lunas'    => (int) $monthLunas,
+                    'target_kontak'   => (int) round($annualTarget->target_kontak / max(1, count($monthlyAllocations))),
+                    'target_formulir' => (int) round($annualTarget->target_formulir / max(1, count($monthlyAllocations))),
+                    'status'          => 'Aktif',
+                ]
+            );
+
+            $created->push($monthTarget);
+        }
+
+        return $created;
+    }
+
+    /**
+     * Generate an even distribution of annual target across 12 months.
+     * Guarantees that the sum of the array exactly equals $annualLunas.
+     */
+    public function generateEvenMonthlyDistribution(int $annualLunas, int $months = 12): array
+    {
+        $months = max(1, $months);
+        $base = (int) floor($annualLunas / $months);
+        $remainder = $annualLunas % $months;
+
+        $distribution = [];
+        for ($i = 0; $i < $months; $i++) {
+            $distribution[$i] = $base + ($i < $remainder ? 1 : 0);
+        }
+
+        return $distribution;
     }
 }

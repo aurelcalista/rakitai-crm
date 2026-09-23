@@ -58,33 +58,35 @@ class TargetMetricsService
 
         $totalDays = max(1, $start->diffInDays($end->copy()->startOfDay()) + 1);
 
-        // ── Base Daily ──────────────────────────────────────────────
+        // ── Daily Contact & Weekly Formulir Independent Metrics ─────
+        $contactMetrics  = $this->computeDailyContactMetrics($sales, $target, $now, $taId);
+        $formulirMetrics = $this->computeWeeklyFormulirMetrics($sales, $target, $now, $taId);
+
+        $baseDailyKontak   = $contactMetrics['base_daily_kontak'];
+        $deficitKontak     = $contactMetrics['deficit_kontak'];
+        $targetTodayKontak = $contactMetrics['target_today_kontak'];
+
+        $baseWeeklyFormulir     = $formulirMetrics['base_weekly_formulir'];
+        $deficitFormulir        = $formulirMetrics['deficit_formulir'];
+        $targetThisWeekFormulir = $formulirMetrics['target_this_week_formulir'];
+        $elapsedWeeks           = $formulirMetrics['elapsed_weeks'];
+
+        // ── Base Daily Lunas ─────────────────────────────────────────
         if ($target->tipe_periode === 'Harian') {
-            $baseDailyKontak  = (int) $target->target_kontak;
-            $baseDailyLunas   = (int) $target->target_lunas;
+            $baseDailyLunas = (int) $target->target_lunas;
         } else {
-            $baseDailyKontak  = (int) ceil($target->target_kontak / $totalDays);
-            $baseDailyLunas   = (int) ceil($target->target_lunas / $totalDays);
+            $baseDailyLunas = (int) ceil($target->target_lunas / $totalDays);
         }
 
         // ── Elapsed Days (days fully completed before today) ────────
-        $elapsedDays = max(0, $start->copy()->startOfDay()->diffInDays($now->copy()->startOfDay()));
+        $elapsedDays = $contactMetrics['elapsed_days'];
 
-        // ── Expected achievement up to yesterday ────────────────────
-        $expectedKontakUpToYesterday = $baseDailyKontak * $elapsedDays;
-        $expectedLunasUpToYesterday  = $baseDailyLunas  * $elapsedDays;
-
-        // ── Actual achievement up to yesterday ──────────────────────
+        // ── Expected & Deficit Lunas (carried over) ──────────────────
+        $expectedLunasUpToYesterday = $baseDailyLunas * $elapsedDays;
         $yesterday = $now->copy()->subDay()->endOfDay();
         $achievedYesterday = $this->getAchievementInRange($sales, $target, $start, $yesterday, $taId);
-
-        // ── Deficit from yesterday (carry-over, never negative) ─────
-        $deficitKontak = max(0, $expectedKontakUpToYesterday - $achievedYesterday['kontak']);
-        $deficitLunas  = max(0, $expectedLunasUpToYesterday  - $achievedYesterday['lunas']);
-
-        // ── Target Today = Base Daily + Deficit carry-over ──────────
-        $targetTodayKontak = $baseDailyKontak + $deficitKontak;
-        $targetTodayLunas  = $baseDailyLunas  + $deficitLunas;
+        $deficitLunas = max(0, $expectedLunasUpToYesterday - $achievedYesterday['lunas']);
+        $targetTodayLunas = $baseDailyLunas + $deficitLunas;
 
         // ── Full period achievement (up to now) ─────────────────────
         $achievedTotal = $this->getAchievementInRange($sales, $target, $start, $now, $taId);
@@ -125,6 +127,7 @@ class TargetMetricsService
             'tipe_periode'          => $target->tipe_periode,
             'total_days'            => $totalDays,
             'elapsed_days'          => $elapsedDays,
+            'elapsed_weeks'         => $elapsedWeeks,
             'remaining_days'        => $remainingDays,
             'period_label'          => $target->tanggal_mulai->translatedFormat('d M') . ' – ' . $target->tanggal_selesai->translatedFormat('d M Y'),
             'academic_year_id'      => $taId,
@@ -135,17 +138,24 @@ class TargetMetricsService
             'target_formulir'       => $target->target_formulir,
             'target_followup'       => $target->target_followup,
 
-            // Base Daily
+            // Base Cadences
             'base_daily_kontak'     => $baseDailyKontak,
             'base_daily_lunas'      => $baseDailyLunas,
+            'base_weekly_formulir'  => $baseWeeklyFormulir,
 
-            // Deficit from yesterday
+            // Deficits (strictly independent)
             'deficit_kontak'        => $deficitKontak,
+            'deficit_formulir'      => $deficitFormulir,
             'deficit_lunas'         => $deficitLunas,
+            'sisa_akumulasi_kontak' => $deficitKontak,
+            'sisa_akumulasi_formulir'=> $deficitFormulir,
 
-            // Target Today (base + deficit)
-            'target_today_kontak'   => $targetTodayKontak,
-            'target_today_lunas'    => $targetTodayLunas,
+            // Cadence Target Results (base + independent deficit)
+            'target_today_kontak'        => $targetTodayKontak,
+            'target_hari_ini_kontak'     => $targetTodayKontak,
+            'target_today_lunas'         => $targetTodayLunas,
+            'target_this_week_formulir'  => $targetThisWeekFormulir,
+            'target_minggu_ini_formulir' => $targetThisWeekFormulir,
 
             // Achievement (period-to-date)
             'achievement_kontak'    => $achievedTotal['kontak'],
@@ -171,6 +181,127 @@ class TargetMetricsService
             'color_kontak'          => $colorKontak,
             'color_lunas'           => $colorLunas,
             'color_status'          => $colorLunas, // primary color = lunas as closing metric
+        ];
+    }
+
+    /**
+     * Compute daily contact metrics with deficit carried over to next day (strictly independent).
+     */
+    public function computeDailyContactMetrics(User $sales, Target $target, ?Carbon $asOf = null, ?int $taId = null): array
+    {
+        $now    = $asOf ?? Carbon::now();
+        $taId   = $taId ?? AkademikService::getAktifId();
+        $start  = $target->tanggal_mulai->copy()->startOfDay();
+        $end    = $target->tanggal_selesai->copy()->endOfDay();
+
+        $totalDays = max(1, $start->diffInDays($end->copy()->startOfDay()) + 1);
+
+        if ($target->tipe_periode === 'Harian') {
+            $baseDailyKontak = (int) $target->target_kontak;
+        } else {
+            $baseDailyKontak = (int) ceil($target->target_kontak / $totalDays);
+        }
+
+        $elapsedDays = max(0, $start->copy()->startOfDay()->diffInDays($now->copy()->startOfDay()));
+        $expectedKontakUpToYesterday = $baseDailyKontak * $elapsedDays;
+
+        $yesterday = $now->copy()->subDay()->endOfDay();
+        $deficitKontak = 0;
+        if ($elapsedDays > 0) {
+            $achievedYesterday = $this->getAchievementInRange($sales, $target, $start, $yesterday, $taId);
+            $deficitKontak = max(0, $expectedKontakUpToYesterday - $achievedYesterday['kontak']);
+        } elseif ($target->tipe_periode === 'Harian') {
+            $prevTarget = Target::where('sales_id', $sales->id)
+                ->where('status', 'Aktif')
+                ->where('tanggal_selesai', '<', $start->toDateString())
+                ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+                ->latest('tanggal_selesai')
+                ->first();
+
+            if ($prevTarget && $prevTarget->target_kontak > 0) {
+                $prevAchieved = $this->getAchievementInRange(
+                    $sales,
+                    $prevTarget,
+                    $prevTarget->tanggal_mulai->copy()->startOfDay(),
+                    $prevTarget->tanggal_selesai->copy()->endOfDay(),
+                    $taId
+                );
+                $deficitKontak = max(0, (int) $prevTarget->target_kontak - $prevAchieved['kontak']);
+            }
+        }
+
+        $targetTodayKontak = $baseDailyKontak + $deficitKontak;
+
+        return [
+            'base_daily_kontak'       => $baseDailyKontak,
+            'elapsed_days'            => $elapsedDays,
+            'expected_kontak'         => $expectedKontakUpToYesterday,
+            'deficit_kontak'          => $deficitKontak,
+            'sisa_akumulasi_kontak'   => $deficitKontak,
+            'target_today_kontak'     => $targetTodayKontak,
+            'target_hari_ini_kontak'  => $targetTodayKontak,
+        ];
+    }
+
+    /**
+     * Compute weekly formulir metrics with deficit carried over to next week (strictly independent).
+     */
+    public function computeWeeklyFormulirMetrics(User $sales, Target $target, ?Carbon $asOf = null, ?int $taId = null): array
+    {
+        $now    = $asOf ?? Carbon::now();
+        $taId   = $taId ?? AkademikService::getAktifId();
+        $start  = $target->tanggal_mulai->copy()->startOfDay();
+        $end    = $target->tanggal_selesai->copy()->endOfDay();
+
+        $totalDays  = max(1, $start->diffInDays($end->copy()->startOfDay()) + 1);
+        $totalWeeks = max(1, (int) ceil($totalDays / 7));
+
+        if ($target->tipe_periode === 'Mingguan') {
+            $baseWeeklyFormulir = (int) $target->target_formulir;
+        } else {
+            $baseWeeklyFormulir = (int) ceil($target->target_formulir / $totalWeeks);
+        }
+
+        $elapsedDays = max(0, $start->copy()->startOfDay()->diffInDays($now->copy()->startOfDay()));
+        $elapsedWeeks = (int) floor($elapsedDays / 7);
+
+        $expectedFormulirUpToLastWeek = $baseWeeklyFormulir * $elapsedWeeks;
+
+        $deficitFormulir = 0;
+        if ($elapsedWeeks > 0) {
+            $lastWeekEnd = $start->copy()->addDays($elapsedWeeks * 7)->subSecond();
+            $achievedUpToLastWeek = $this->getAchievementInRange($sales, $target, $start, $lastWeekEnd, $taId);
+            $deficitFormulir = max(0, $expectedFormulirUpToLastWeek - $achievedUpToLastWeek['formulir']);
+        } elseif ($target->tipe_periode === 'Mingguan') {
+            $prevTarget = Target::where('sales_id', $sales->id)
+                ->where('status', 'Aktif')
+                ->where('tanggal_selesai', '<', $start->toDateString())
+                ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
+                ->latest('tanggal_selesai')
+                ->first();
+
+            if ($prevTarget && $prevTarget->target_formulir > 0) {
+                $prevAchieved = $this->getAchievementInRange(
+                    $sales,
+                    $prevTarget,
+                    $prevTarget->tanggal_mulai->copy()->startOfDay(),
+                    $prevTarget->tanggal_selesai->copy()->endOfDay(),
+                    $taId
+                );
+                $deficitFormulir = max(0, (int) $prevTarget->target_formulir - $prevAchieved['formulir']);
+            }
+        }
+
+        $targetThisWeekFormulir = $baseWeeklyFormulir + $deficitFormulir;
+
+        return [
+            'base_weekly_formulir'         => $baseWeeklyFormulir,
+            'elapsed_weeks'                => $elapsedWeeks,
+            'expected_formulir'            => $expectedFormulirUpToLastWeek,
+            'deficit_formulir'             => $deficitFormulir,
+            'sisa_akumulasi_formulir'      => $deficitFormulir,
+            'target_this_week_formulir'    => $targetThisWeekFormulir,
+            'target_minggu_ini_formulir'   => $targetThisWeekFormulir,
         ];
     }
 
