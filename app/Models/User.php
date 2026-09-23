@@ -221,8 +221,13 @@ class User extends Authenticatable
             $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
             $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
 
-            $wilayahMemberIds = User::whereIn('wilayah_id', $descendantWilayahIds)
-                ->whereIn('role', ['Sales', 'CS'])
+            $wilayahMemberIds = User::whereIn('role', ['Sales', 'CS'])
+                ->where(function ($q) use ($descendantWilayahIds) {
+                    $q->whereIn('wilayah_id', $descendantWilayahIds)
+                      ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
+                          $wq->whereIn('wilayah_id', $descendantWilayahIds);
+                      });
+                })
                 ->where(function ($q) {
                     $q->whereNull('supervisor_id')
                       ->orWhere('supervisor_id', $this->id);
@@ -252,7 +257,12 @@ class User extends Authenticatable
             $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
             $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
 
-            return User::whereIn('wilayah_id', $descendantWilayahIds)->pluck('id')->toArray();
+            return User::where(function($q) use ($descendantWilayahIds) {
+                $q->whereIn('wilayah_id', $descendantWilayahIds)
+                  ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
+                      $wq->whereIn('wilayah_id', $descendantWilayahIds);
+                  });
+            })->pluck('id')->toArray();
         }
 
         return User::pluck('id')->toArray();
@@ -282,10 +292,17 @@ class User extends Authenticatable
     public function teamProspeks()
     {
         $memberIds = $this->teamMemberIds();
-        return Prospek::where(function ($q) use ($memberIds) {
+        $mainWilayah = $this->wilayah ?? ($this->wilayah_id ? Wilayah::find($this->wilayah_id) : null);
+        $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [];
+
+        return Prospek::where(function ($q) use ($memberIds, $descendantWilayahIds) {
             $q->whereIn('sales_id', $memberIds)
               ->orWhereIn('owner_id', $memberIds)
               ->orWhereIn('cs_id', $memberIds);
+
+            if (!empty($descendantWilayahIds)) {
+                $q->orWhereIn('wilayah_id', $descendantWilayahIds);
+            }
         });
     }
 

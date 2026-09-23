@@ -55,8 +55,8 @@ class ProspectController extends Controller
      */
     public function create(): View
     {
-        $sekolahs   = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
-        $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+        $sekolahs    = Sekolah::getDynamicSchools();
+        $perusahaans = Perusahaan::getDynamicPerusahaans();
         $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 

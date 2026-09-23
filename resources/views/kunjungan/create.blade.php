@@ -224,13 +224,13 @@
 
                     </div>
 
-                    {{-- ─── BLOK B: WAKTU & PRODI ───────────────────────────────── --}}
+                    {{-- ─── BLOK B: WAKTU KUNJUNGAN ───────────────────────────────── --}}
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">
-                            Waktu & Program Studi
+                            Waktu Kunjungan
                         </h3>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-600 mb-1.5">Tanggal Kunjungan <span class="text-rose-500">*</span></label>
                                 <input type="date" name="tanggal" value="{{ old('tanggal', date('Y-m-d')) }}" required
@@ -242,16 +242,6 @@
                                 <input type="time" name="waktu" value="{{ old('waktu', date('H:i')) }}" required
                                     class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition @error('waktu') border-rose-300 @enderror">
                                 @error('waktu')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">Program Studi <span class="text-rose-500">*</span></label>
-                                <select name="prodi_id" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition @error('prodi_id') border-rose-300 @enderror">
-                                    <option value="">Pilih Prodi</option>
-                                    @foreach($prodis as $p)
-                                        <option value="{{ $p->id }}" {{ old('prodi_id') == $p->id ? 'selected' : '' }}>{{ $p->nama }}</option>
-                                    @endforeach
-                                </select>
-                                @error('prodi_id')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
                             </div>
                         </div>
                     </div>
@@ -268,12 +258,6 @@
                                 <input type="text" name="potensi_mahasiswa" value="{{ old('potensi_mahasiswa') }}"
                                     placeholder="Contoh: 30-50 siswa"
                                     class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 transition">
-                            </div>
-                            <div class="sm:col-span-1 flex items-center gap-3 pt-5">
-                                <input type="checkbox" name="kesediaan_training_ai" id="training_ai" value="1"
-                                    {{ old('kesediaan_training_ai') ? 'checked' : '' }}
-                                    class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500">
-                                <label for="training_ai" class="text-sm font-semibold text-slate-700 cursor-pointer">Bersedia Workshop AI</label>
                             </div>
                         </div>
 
@@ -332,20 +316,6 @@
                             @error('catatan')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1.5">Dosen / Pemateri (Opsional)</label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <select name="dosen_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 transition">
-                                    <option value="">-- Pilih Dosen (jika Training) --</option>
-                                    @foreach($dosens as $d)
-                                        <option value="{{ $d->id }}" {{ old('dosen_id') == $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
-                                    @endforeach
-                                </select>
-                                <input type="text" name="dosen_pemateri" value="{{ old('dosen_pemateri') }}"
-                                    placeholder="Atau isi nama pemateri manual"
-                                    class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 transition">
-                            </div>
-                        </div>
                     </div>
 
                 </div>
@@ -435,21 +405,7 @@
                         </p>
                     </div>
 
-                    {{-- ─── BLOK H: OPSI TAMBAHAN ───────────────────────────────── --}}
-                    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100 mb-4">
-                            Opsi Tambahan
-                        </h3>
-                        <label class="flex items-start gap-3 cursor-pointer group">
-                            <input type="checkbox" name="jadikan_prospek" value="1"
-                                {{ old('jadikan_prospek') ? 'checked' : '' }}
-                                class="mt-0.5 w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500">
-                            <div>
-                                <p class="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition">Jadikan Prospek Baru</p>
-                                <p class="text-[11px] text-slate-400 mt-0.5">Instansi ini akan otomatis ditambahkan ke daftar Prospek Anda.</p>
-                            </div>
-                        </label>
-                    </div>
+
 
                     {{-- ─── BLOK I: SUBMIT ──────────────────────────────────────── --}}
                     <div class="flex flex-col gap-3">

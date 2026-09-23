@@ -46,4 +46,65 @@ class Sekolah extends Model
     {
         return $this->belongsTo(User::class, 'sales_id');
     }
+
+    /**
+     * Get all active schools, auto-syncing any missing schools added by EO (Events) or Sales (Kunjungan).
+     */
+    public static function getDynamicSchools()
+    {
+        try {
+            $eventSchools = \Illuminate\Support\Facades\DB::table('events')
+                ->whereNotNull('nama_institusi')
+                ->where('nama_institusi', '!=', '')
+                ->where(function ($q) {
+                    $q->where('jenis_institusi', 'Sekolah')
+                      ->orWhereNull('jenis_institusi');
+                })
+                ->select('nama_institusi', 'alamat', 'pic_name', 'pic_whatsapp')
+                ->get();
+
+            foreach ($eventSchools as $item) {
+                $name = trim($item->nama_institusi);
+                if ($name !== '') {
+                    self::firstOrCreate(
+                        ['nama' => $name],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'alamat' => $item->alamat,
+                            'pic_name' => $item->pic_name,
+                            'pic_phone' => $item->pic_whatsapp,
+                            'status' => 'Aktif'
+                        ]
+                    );
+                }
+            }
+
+            $visitSchools = \Illuminate\Support\Facades\DB::table('kunjungans')
+                ->where('jenis', 'Sekolah')
+                ->whereNotNull('nama_institusi')
+                ->where('nama_institusi', '!=', '')
+                ->select('nama_institusi', 'alamat', 'pic_name', 'pic_whatsapp')
+                ->get();
+
+            foreach ($visitSchools as $item) {
+                $name = trim($item->nama_institusi);
+                if ($name !== '') {
+                    self::firstOrCreate(
+                        ['nama' => $name],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'alamat' => $item->alamat,
+                            'pic_name' => $item->pic_name,
+                            'pic_phone' => $item->pic_whatsapp,
+                            'status' => 'Aktif'
+                        ]
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            // Log or ignore safely
+        }
+
+        return self::where('status', 'Aktif')->orderBy('nama')->get();
+    }
 }

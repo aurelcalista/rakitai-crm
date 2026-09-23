@@ -123,8 +123,8 @@ class ProspectController extends Controller
 
         $teamSales   = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->where('status', 'Aktif')->get();
         $teamCs      = User::where('role', 'CS')->where('status', 'Aktif')->get();
-        $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
-        $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+        $sekolahs    = Sekolah::getDynamicSchools();
+        $perusahaans = Perusahaan::getDynamicPerusahaans();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $wilayahs    = Wilayah::where('status', 'Aktif')->orderBy('nama')->get();
         $statuses    = Prospek::PIPELINE_8_STAGES;

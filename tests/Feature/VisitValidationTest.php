@@ -193,15 +193,15 @@ class VisitValidationTest extends TestCase
     }
 
     /**
-     * Test H: Prodi kosong → gagal.
+     * Test H: Prodi kosong → sukses (prodi_id bersifat opsional).
      */
-    public function test_h_empty_prodi_fails()
+    public function test_h_empty_prodi_succeeds()
     {
         $payload = $this->getValidVisitPayload();
         unset($payload['prodi_id']);
 
         $response = $this->actingAs($this->sales)->post(route('sales.kunjungan.store'), $payload);
-        $response->assertSessionHasErrors('prodi_id');
+        $response->assertSessionHasNoErrors();
     }
 
     /**

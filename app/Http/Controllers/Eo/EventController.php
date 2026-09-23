@@ -57,6 +57,19 @@ class EventController extends Controller
         return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'spvs', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
     }
 
+    public function show($id)
+    {
+        $event = Event::with(['type', 'spvs', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
+            ->where('eo_id', Auth::id())
+            ->findOrFail($id);
+
+        if (request()->wantsJson()) {
+            return response()->json($event);
+        }
+
+        return redirect()->route('eo.events.index');
+    }
+
     public function store(Request $request)
     {
         Gate::authorize('create', Event::class);

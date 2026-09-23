@@ -156,7 +156,7 @@ Route::middleware('auth')->group(function () {
         ->prefix('eo')
         ->name('eo.')
         ->group(function () {
-            Route::resource('events', \App\Http\Controllers\Eo\EventController::class)->except(['create', 'show', 'edit']);
+            Route::resource('events', \App\Http\Controllers\Eo\EventController::class)->except(['create', 'edit']);
             Route::resource('event-types', \App\Http\Controllers\Eo\EventTypeController::class)->except(['create', 'show', 'edit']);
         });
 
