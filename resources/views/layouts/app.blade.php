@@ -297,6 +297,17 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
                             </a>
                             <a 
+                                href="{{ route('admin.hm-wilayah.index') }}" 
+                                title="Penugasan Wilayah HM"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.hm-wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.hm-wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Wilayah HM</span>
+                            </a>
+                            <a 
                                 href="{{ route('admin.kunjungan.index') }}" 
                                 title="Kelola Kunjungan"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.kunjungan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -1068,6 +1079,19 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span class="flex-1">Kelola Pengguna</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.hm-wilayah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="wilayah hm penugasan kota kabupaten marketing admin"
+                                x-show="matches('wilayah hm penugasan kota kabupaten marketing admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.hm-wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.hm-wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                </svg>
+                                <span class="flex-1">Wilayah HM</span>
                             </a>
 
                             <a 

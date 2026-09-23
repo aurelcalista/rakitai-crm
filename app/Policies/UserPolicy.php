@@ -80,20 +80,12 @@ class UserPolicy
             return false;
         }
 
-        // Validate HM scope over target Wilayah (targetWilayah must be within HM's scope)
-        if ($targetWilayah && !$user->isWithinWilayahScope($targetWilayah)) {
-            // Wait, if targetWilayah is Kota Cirebon, and user is Kota Cirebon, this is fine because they are equal.
-            // But if targetWilayah is Kesambi, and user is Kota Cirebon, then user is NOT within Kesambi. 
-            // The correct logic: targetWilayah must be descendant of user's wilayah!
-            // Wait, I can just use targetWilayah's isDescendantOf !
-            if (!$targetWilayah->isDescendantOf($user->wilayah_id)) {
+        // Validate HM scope over target Wilayah
+        if ($targetWilayah && $user->wilayah_id) {
+            $isSameOrChild = ($targetWilayah->id == $user->wilayah_id) || $targetWilayah->isDescendantOf($user->wilayah_id);
+            if (!$isSameOrChild) {
                 return false;
             }
-        }
-
-        // Validate HM scope over SPV user (SPV must be in a descendant/same area as HM)
-        if ($spv->wilayah_id && !$spv->isWithinWilayahScope($user->wilayah_id)) {
-            return false;
         }
 
         return true;

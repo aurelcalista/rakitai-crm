@@ -6,6 +6,7 @@
         modalSpv: false,
         modalTarget: false,
         selectedWil: null,
+        spvList: {{ json_encode($spvCandidates->map(fn($c) => ['id' => (string)$c->id, 'name' => $c->name, 'email' => $c->email])) }},
         spvForm: {
             spv_id: '',
         },
@@ -220,12 +221,24 @@
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Pilih SPV Penanggung Jawab *</label>
-                                <select name="spv_id" x-model="spvForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
-                                    <option value="">-- Pilih SPV --</option>
-                                    @foreach($spvCandidates as $cand)
-                                        <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
-                                    @endforeach
-                                </select>
+                                @if($spvCandidates->isEmpty())
+                                    <div class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
+                                        ⚠️ Belum ada user dengan role SPV terdaftar di sistem. Mohon buat user SPV di Master User Admin.
+                                    </div>
+                                @else
+                                    <select name="spv_id" x-model="spvForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
+                                        <option value="">-- Pilih SPV --</option>
+                                        @foreach($spvCandidates as $cand)
+                                            <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
+                                        @endforeach
+                                    </select>
+                                    <template x-if="spvForm.spv_id">
+                                        <div class="mt-1 text-[11px] text-purple-700 font-semibold flex items-center gap-1">
+                                            <span>📧 Email SPV:</span>
+                                            <span class="font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="spvList.find(c => c.id === String(spvForm.spv_id))?.email || '-'"></span>
+                                        </div>
+                                    </template>
+                                @endif
                             </div>
                             <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
                                 <button type="button" @click="modalSpv = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600">Batal</button>
@@ -254,12 +267,24 @@
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">SPV Penanggung Jawab *</label>
-                                <select name="spv_id" x-model="targetForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
-                                    <option value="">-- Pilih SPV --</option>
-                                    @foreach($spvCandidates as $cand)
-                                        <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
-                                    @endforeach
-                                </select>
+                                @if($spvCandidates->isEmpty())
+                                    <div class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
+                                        ⚠️ Belum ada user dengan role SPV terdaftar di sistem. Mohon buat user SPV di Master User Admin.
+                                    </div>
+                                @else
+                                    <select name="spv_id" x-model="targetForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
+                                        <option value="">-- Pilih SPV --</option>
+                                        @foreach($spvCandidates as $cand)
+                                            <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
+                                        @endforeach
+                                    </select>
+                                    <template x-if="targetForm.spv_id">
+                                        <div class="mt-1 text-[11px] text-purple-700 font-semibold flex items-center gap-1">
+                                            <span>📧 Email SPV:</span>
+                                            <span class="font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="spvList.find(c => c.id === String(targetForm.spv_id))?.email || '-'"></span>
+                                        </div>
+                                    </template>
+                                @endif
                             </div>
                             <div class="grid grid-cols-2 gap-3">
                                 <div>

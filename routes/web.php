@@ -126,7 +126,9 @@ Route::middleware('auth')->group(function () {
             // Team Structure & Directory
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
             Route::post('/tim/assign', [\App\Http\Controllers\Spv\TeamController::class, 'assignMember'])->name('tim.assign');
+            Route::post('/tim/territory', [\App\Http\Controllers\Spv\TeamController::class, 'assignTeamTerritory'])->name('tim.territory.assign');
             Route::patch('/tim/{user}/wilayah', [\App\Http\Controllers\Spv\TeamController::class, 'assignWilayah'])->name('tim.wilayah.assign');
+            Route::delete('/tim/{user}/wilayah/{wilayah}', [\App\Http\Controllers\Spv\TeamController::class, 'deactivateTerritory'])->name('tim.wilayah.deactivate');
 
             // SPV Event Assignments
             Route::get('/events', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'index'])->name('events.index');
@@ -172,6 +174,11 @@ Route::middleware('auth')->group(function () {
         Route::post('prodi/{prodi}/toggle-status',             [\App\Http\Controllers\Admin\AdminProdiController::class, 'toggleStatus'])->name('prodi.toggle-status');
         Route::post('perusahaan/{perusahaan}/toggle-status',   [\App\Http\Controllers\Admin\AdminPerusahaanController::class, 'toggleStatus'])->name('perusahaan.toggle-status');
         Route::post('master-data/{master_data}/toggle-status', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'toggleStatus'])->name('master-data.toggle-status');
+
+        // Penugasan Wilayah HM (Admin Control)
+        Route::get('hm-wilayah',                  [\App\Http\Controllers\Admin\AdminHmWilayahController::class, 'index'])->name('hm-wilayah.index');
+        Route::post('hm-wilayah/assign',          [\App\Http\Controllers\Admin\AdminHmWilayahController::class, 'assign'])->name('hm-wilayah.assign');
+        Route::post('hm-wilayah/{user}/unassign', [\App\Http\Controllers\Admin\AdminHmWilayahController::class, 'unassign'])->name('hm-wilayah.unassign');
 
         Route::resource('users',       \App\Http\Controllers\Admin\AdminUserController::class, $except);
         Route::resource('kunjungan',   \App\Http\Controllers\Admin\AdminKunjunganController::class, $except);

@@ -65,7 +65,13 @@ class TargetPolicy
         }
 
         if ($role === 'hm') {
-            return $wilayahId ? $user->isWithinWilayahScope($wilayahId) : true;
+            if (!$user->wilayah_id) {
+                return true; // Global HM without scope restriction
+            }
+            if (!$wilayahId) {
+                return true;
+            }
+            return ($user->wilayah_id == $wilayahId) || (\App\Models\Wilayah::find($wilayahId)?->isDescendantOf($user->wilayah_id) ?? false);
         }
 
         return false;

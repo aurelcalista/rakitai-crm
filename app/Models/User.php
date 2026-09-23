@@ -107,6 +107,39 @@ class User extends Authenticatable
     }
 
     /**
+     * Active Wilayahs assigned to this user via user_wilayah pivot table.
+     */
+    public function activeWilayahes()
+    {
+        return $this->belongsToMany(Wilayah::class, 'user_wilayah', 'user_id', 'wilayah_id')
+            ->wherePivot('is_active', true)
+            ->withPivot(['role', 'is_active', 'assigned_at', 'deactivated_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * All Wilayahs ever assigned to this user.
+     */
+    public function allWilayahes()
+    {
+        return $this->belongsToMany(Wilayah::class, 'user_wilayah', 'user_id', 'wilayah_id')
+            ->withPivot(['role', 'is_active', 'assigned_at', 'deactivated_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Helper to get list of active wilayah IDs (including legacy wilayah_id if set).
+     */
+    public function activeWilayahIds(): array
+    {
+        $pivotIds = $this->activeWilayahes()->pluck('wilayahs.id')->toArray();
+        if ($this->wilayah_id && !in_array($this->wilayah_id, $pivotIds)) {
+            $pivotIds[] = $this->wilayah_id;
+        }
+        return array_values(array_unique($pivotIds));
+    }
+
+    /**
      * Prospects where this user is the Sales handler.
      */
     public function prospeks()

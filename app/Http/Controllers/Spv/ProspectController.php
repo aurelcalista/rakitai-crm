@@ -241,6 +241,26 @@ class ProspectController extends Controller
         $prodiNama = $prodi ? $prodi->nama : null;
         $wilayahId = $validated['wilayah_id'] ?? $user->wilayah_id;
 
+        // Auto-route active Sales & CS from active user_wilayah if not manually assigned
+        if ($wilayahId) {
+            $wilayahObj = Wilayah::find($wilayahId);
+            if ($wilayahObj) {
+                if (!$salesId && $validated['assign_type'] === 'sales') {
+                    $activeSales = $wilayahObj->activeSalesUser();
+                    if ($activeSales) {
+                        $salesId = $activeSales->id;
+                        $ownerId = $salesId;
+                    }
+                }
+                if (!$csId) {
+                    $activeCs = $wilayahObj->activeCsUser();
+                    if ($activeCs) {
+                        $csId = $activeCs->id;
+                    }
+                }
+            }
+        }
+
         DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
 

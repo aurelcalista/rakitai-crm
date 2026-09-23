@@ -31,14 +31,6 @@ class HmWilayahController extends Controller
                 }])
                 ->withCount(['sekolahs', 'perusahaans'])
                 ->get();
-
-            $descendantIds = $mainWilayah->getDescendantIds();
-            $spvCandidates = User::where('role', 'SPV')
-                ->where(function($q) use ($descendantIds) {
-                    $q->whereIn('wilayah_id', $descendantIds)->orWhereNull('wilayah_id');
-                })
-                ->orderBy('name')
-                ->get();
         } else {
             // Global HM / Admin: hanya daftar level Kota/Kabupaten (parent_id is null)
             $wilayahs = Wilayah::whereNull('parent_id')
@@ -47,11 +39,12 @@ class HmWilayahController extends Controller
                 }])
                 ->withCount(['sekolahs', 'perusahaans'])
                 ->get();
-
-            $spvCandidates = User::where('role', 'SPV')
-                ->orderBy('name')
-                ->get();
         }
+
+        // Kandidat SPV: Semua user dengan role SPV
+        $spvCandidates = User::whereRaw('LOWER(role) = ?', ['spv'])
+            ->orderBy('name')
+            ->get();
 
         $activeTA = AkademikService::getAktif();
 

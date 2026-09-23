@@ -5,7 +5,22 @@
 
 <x-app-layout :title="'Anggota Tim - Supervisor CRM'">
 
-    <div class="space-y-6" x-data="{ assignModal: false, selectedMemberId: null, selectedMemberName: '' }">
+    <div class="space-y-6" x-data="{
+        modalKecamatan: false,
+        selectedMemberId: null,
+        selectedMemberName: '',
+        selectedWilayahId: '',
+        customCity: '',
+        useOtherCity: false,
+        openKecamatanModal(member) {
+            this.selectedMemberId = member.id;
+            this.selectedMemberName = member.name;
+            this.selectedWilayahId = member.wilayah_id ? String(member.wilayah_id) : '';
+            this.customCity = member.lokasi_penugasan || '';
+            this.useOtherCity = Boolean(member.is_other_city);
+            this.modalKecamatan = true;
+        }
+    }">
 
         @if(session('success'))
             <x-alert type="success" :message="session('success')" />
@@ -31,47 +46,169 @@
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Pengawasan SPV</span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Wilayah Kerja Utama SPV: <strong class="text-slate-800">{{ $myWilayah }}</strong></p>
-                <p class="text-[11px] text-slate-400 mt-0.5">SPV menugaskan <strong>Kecamatan</strong> ke Sales. CS bekerja <strong>Centralized</strong> tanpa wilayah kecamatan.</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">SPV menugaskan <strong>Area / Kecamatan</strong> untuk Sales dan CS (CS mendukung multi-wilayah).</p>
             </div>
-            <button onclick="document.getElementById('assignModal').classList.remove('hidden')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition">
-                + Tambah / Pilih Anggota Tim
+            <button onclick="document.getElementById('modalAddMember').classList.remove('hidden')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer">
+                + Tambah / Penugasan Tim SPV
             </button>
         </div>
 
-        <!-- Modal Assign Member -->
-        <div id="assignModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
-                <div class="flex items-center justify-between border-b pb-3">
-                    <h3 class="font-bold text-slate-900">Penugasan Sales / CS ke Tim SPV</h3>
-                    <button onclick="document.getElementById('assignModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">&times;</button>
+        <!-- Modal Penugasan Tim SPV (Landscape Format) -->
+        <div id="modalAddMember" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl">
+                <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide">PENUGASAN TIM SPV</h3>
+                            <p class="text-[11px] text-slate-400">Atur pembagian wilayah kecamatan untuk Sales dan CS</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('modalAddMember').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition cursor-pointer text-xl font-bold">&times;</button>
                 </div>
-                <form action="{{ route('spv.tim.assign') }}" method="POST" class="space-y-4">
+
+                <form action="{{ route('spv.tim.territory.assign') }}" method="POST" class="space-y-4 text-xs">
                     @csrf
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Kandidat Sales / CS</label>
-                        <select name="user_id" class="w-full rounded-xl border-slate-300 text-xs text-slate-800" required>
-                            <option value="">-- Pilih Sales / CS --</option>
-                            @foreach($candidates as $cand)
-                                <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->role }}) - Wilayah: {{ $cand->wilayah ? $cand->wilayah->nama : 'Belum Ada' }}</option>
-                            @endforeach
-                        </select>
+                    
+                    <!-- 1. Wilayah Utama (Banner Header Landscape) -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Wilayah Utama Scope SPV</span>
+                            <span class="text-sm font-bold text-slate-800">{{ $myWilayah }}</span>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                            Kota/Kabupaten Scope
+                        </span>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Wilayah / Area Detail Spesifik (Cakupan {{ $myWilayah }})</label>
-                        <select name="area_id" class="w-full rounded-xl border-slate-300 text-xs text-slate-800">
-                            <option value="">-- Samakan dengan Wilayah Utama SPV --</option>
-                            @foreach($availableAreas as $area)
-                                <option value="{{ $area->id }}">{{ $area->nama }}</option>
-                            @endforeach
-                        </select>
+
+                    <!-- Landscape 2-Column Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        
+                        <!-- SISI KIRI: Sales & Area Sales -->
+                        <div class="bg-blue-50/40 border border-blue-100 rounded-xl p-4 space-y-4">
+                            <div class="flex items-center gap-2 border-b border-blue-100 pb-2">
+                                <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                                <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Penugasan Sales</h4>
+                            </div>
+
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Pilih Sales</label>
+                                <select name="sales_id" id="salesSelect" onchange="onSalesChange(this.value)" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- Pilih Sales (Opsional) --</option>
+                                    @foreach($salesCandidates as $s)
+                                        <option value="{{ $s->id }}">{{ $s->name }} ({{ $s->email }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan Sales</label>
+                                <select name="sales_area_id" id="salesAreaSelect" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- Pilih Area / Kecamatan --</option>
+                                    @foreach($kecamatanList as $kec)
+                                        <option value="{{ $kec->id }}">{{ $kec->nama }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="text-[10px] text-slate-400 mt-1">1 Area = 1 Sales Utama Aktif</p>
+                            </div>
+                        </div>
+
+                        <!-- SISI KANAN: CS & Area CS (Multi-Select) -->
+                        <div class="bg-purple-50/40 border border-purple-100 rounded-xl p-4 space-y-4">
+                            <div class="flex items-center gap-2 border-b border-purple-100 pb-2">
+                                <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                                <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Penugasan CS (Multi-Wilayah)</h4>
+                            </div>
+
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Pilih CS</label>
+                                <select name="cs_id" id="csSelect" onchange="onCsChange(this.value)" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-purple-500">
+                                    <option value="">-- Pilih CS (Opsional) --</option>
+                                    @foreach($csCandidates as $c)
+                                        <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->email }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan CS (Bisa Pilih Banyak)</label>
+                                <div class="border border-slate-200 rounded-xl p-3 bg-white max-h-48 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    @foreach($kecamatanList as $kec)
+                                        <label class="flex items-center gap-2 text-xs text-slate-800 font-medium cursor-pointer hover:bg-purple-50/80 p-1.5 rounded-lg border border-slate-100 transition">
+                                            <input type="checkbox" name="cs_area_ids[]" value="{{ $kec->id }}" class="cs-area-checkbox rounded border-slate-300 text-purple-600 focus:ring-purple-500">
+                                            <span class="truncate">{{ $kec->nama }}</span>
+                                        </label>
+                                    @endforeach
+                                    @if(count($kecamatanList) === 0)
+                                        <div class="col-span-2 text-slate-400 text-[11px] text-center py-2">
+                                            Belum ada data kecamatan di wilayah ini.
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" onclick="document.getElementById('assignModal').classList.add('hidden')" class="px-4 py-2 border rounded-xl text-xs font-semibold text-slate-600">Batal</button>
-                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700">Simpan Penugasan</button>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <span class="text-[10px] text-slate-400">Pastikan pembagian wilayah sudah sesuai sebelum menyimpan.</span>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="document.getElementById('modalAddMember').classList.add('hidden')" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer transition">Batal</button>
+                            <button type="submit" class="px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 shadow-xs cursor-pointer transition">Simpan Penugasan</button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
+
+        <script>
+            const csWilayahMap = {
+                @foreach($csCandidates as $c)
+                    "{{ $c->id }}": @json($c->activeWilayahes->pluck('id')->toArray()),
+                @endforeach
+            };
+            const salesWilayahMap = {
+                @foreach($salesCandidates as $s)
+                    "{{ $s->id }}": @json($s->activeWilayahes->pluck('id')->first()),
+                @endforeach
+            };
+
+            function onCsChange(csId) {
+                const checkboxes = document.querySelectorAll('.cs-area-checkbox');
+                const activeIds = csWilayahMap[csId] || [];
+                checkboxes.forEach(cb => {
+                    cb.checked = activeIds.map(String).includes(String(cb.value));
+                });
+            }
+
+            function onSalesChange(salesId) {
+                const select = document.getElementById('salesAreaSelect');
+                const activeAreaId = salesWilayahMap[salesId];
+                if (activeAreaId) {
+                    select.value = activeAreaId;
+                }
+            }
+
+            function openModalWithMember(member) {
+                document.getElementById('modalAddMember').classList.remove('hidden');
+                if (member.role === 'Sales' || member.role === 'sales') {
+                    const salesSel = document.getElementById('salesSelect');
+                    if (salesSel) {
+                        salesSel.value = member.id;
+                        onSalesChange(member.id);
+                    }
+                } else if (member.role === 'CS' || member.role === 'cs') {
+                    const csSel = document.getElementById('csSelect');
+                    if (csSel) {
+                        csSel.value = member.id;
+                        onCsChange(member.id);
+                    }
+                }
+            }
+        </script>
 
         <!-- Team Members Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -89,9 +226,6 @@
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $member['role'] === 'Sales' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700' }}">
                                         {{ $member['role'] }}
                                     </span>
-                                    @if($member['is_cs'])
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">Centralized</span>
-                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -113,15 +247,10 @@
                             </a>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-slate-400 font-medium">{{ $member['is_cs'] ? 'Mode Kerja' : 'Wilayah Tugas' }}:</span>
-                            @if($member['is_cs'])
-                                <span class="font-bold text-violet-700 flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                                    Centralized (Tanpa Wilayah)
-                                </span>
-                            @else
-                                <span class="font-bold text-blue-700">{{ $member['wilayah'] }} @if($member['kota'] && $member['kota'] !== '-')({{ $member['kota'] }})@endif</span>
-                            @endif
+                            <span class="text-slate-400 font-medium">Wilayah Tugas:</span>
+                            <span class="font-bold {{ $member['role'] === 'Sales' ? 'text-blue-700' : 'text-purple-700' }}">
+                                {{ $member['wilayah'] }} @if($member['kota'] && $member['kota'] !== '-')({{ $member['kota'] }})@endif
+                            </span>
                         </div>
                     </div>
 
@@ -141,19 +270,17 @@
                         </div>
                     </div>
 
-                    <!-- Wilayah Assignment Action (Sales only) -->
-                    @if(!$member['is_cs'] && count($kecamatanList) > 0)
-                        <div class="pt-2 border-t border-slate-100">
-                            <button
-                                type="button"
-                                @click="assignModal = true; selectedMemberId = {{ $member['id'] }}; selectedMemberName = '{{ addslashes($member['name']) }}'"
-                                class="w-full px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-indigo-200"
-                            >
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                Ubah Wilayah Kecamatan
-                            </button>
-                        </div>
-                    @endif
+                    <!-- Wilayah Assignment Action -->
+                    <div class="pt-2 border-t border-slate-100">
+                        <button
+                            type="button"
+                            onclick="openModalWithMember({{ json_encode($member) }})"
+                            class="w-full px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-indigo-200 cursor-pointer"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Ubah Penugasan Wilayah
+                        </button>
+                    </div>
 
                     <div class="text-[10px] text-slate-400 pt-1 border-t border-slate-100 text-right">
                         Login terakhir: {{ $member['last_login'] }}
@@ -169,38 +296,39 @@
 
     </div>
 
-    <!-- Modal Assign Wilayah -->
+    <!-- Modal 2: Ubah Wilayah Kecamatan -->
     <div
-        x-show="assignModal"
+        x-show="modalKecamatan"
         x-cloak
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-        @keydown.escape.window="assignModal = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
+        @click.self="modalKecamatan = false"
+        @keydown.escape.window="modalKecamatan = false"
     >
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" @click.stop>
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 class="text-base font-bold text-slate-900">Ubah Wilayah Kecamatan</h3>
-                <button @click="assignModal = false" class="text-slate-400 hover:text-slate-600">
+                <button type="button" @click="modalKecamatan = false" class="text-slate-400 hover:text-slate-600 transition cursor-pointer">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <p class="text-sm text-slate-500">Menugaskan wilayah kecamatan untuk: <strong x-text="selectedMemberName" class="text-slate-800"></strong></p>
-            <template x-for="member in {{ collect($teamData)->filter(fn($m) => !$m['is_cs'])->values()->toJson() }}" :key="member.id">
+            
+            <p class="text-xs text-slate-500">Menugaskan wilayah kecamatan untuk: <strong x-text="selectedMemberName" class="text-slate-900 font-bold"></strong></p>
+
+            <template x-if="selectedMemberId">
                 <form
-                    x-show="member.id == selectedMemberId"
                     :action="`/spv/tim/${selectedMemberId}/wilayah`"
                     method="POST"
-                    class="space-y-4"
-                    x-data="{ useOtherCity: member.is_other_city, customCity: member.lokasi_penugasan || '' }"
+                    class="space-y-4 text-xs"
                 >
                     @csrf
                     @method('PATCH')
 
-                    <!-- Opsi Penugasan: Master vs Di Kota Lainnya (PRD Bab 3 & 9) -->
+                    <!-- Opsi Penugasan: Master Kecamatan vs Di Kota Lainnya -->
                     <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-semibold">
                         <button
                             type="button"
                             @click="useOtherCity = false"
-                            class="py-1.5 px-2 rounded-lg text-center transition"
+                            class="py-1.5 px-2 rounded-lg text-center transition cursor-pointer"
                             :class="!useOtherCity ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
                         >
                             Master Kecamatan
@@ -208,7 +336,7 @@
                         <button
                             type="button"
                             @click="useOtherCity = true"
-                            class="py-1.5 px-2 rounded-lg text-center transition"
+                            class="py-1.5 px-2 rounded-lg text-center transition cursor-pointer"
                             :class="useOtherCity ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
                         >
                             Di Kota Lainnya ✨
@@ -218,36 +346,38 @@
                     <input type="hidden" name="is_other_city" :value="useOtherCity ? '1' : '0'">
 
                     <!-- 1. Pilihan Master Kecamatan -->
-                    <div x-show="!useOtherCity">
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Pilih Kecamatan</label>
-                        <select name="wilayah_id" :required="!useOtherCity"
-                            class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    <div x-show="!useOtherCity" class="space-y-1">
+                        <label class="block font-semibold text-slate-700">Pilih Kecamatan *</label>
+                        <select name="wilayah_id" :required="!useOtherCity" x-model="selectedWilayahId"
+                            class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
                         >
                             <option value="">-- Pilih Kecamatan --</option>
                             @foreach($kecamatanList as $kec)
-                                <option value="{{ $kec->id }}" :selected="member.wilayah_id == {{ $kec->id }}">{{ $kec->nama }}</option>
+                                <option value="{{ $kec->id }}">{{ $kec->nama }}</option>
                             @endforeach
                         </select>
-                        <p class="text-[10px] text-slate-400 mt-1">SPV hanya dapat menugaskan wilayah Kecamatan ke Sales dari master data aktif.</p>
+                        @if(count($kecamatanList) == 0)
+                            <p class="text-[11px] text-amber-600 font-semibold mt-1">⚠️ Belum ada kecamatan di bawah wilayah SPV ini. Silakan gunakan opsi 'Di Kota Lainnya' atau koordinasikan dengan HM.</p>
+                        @endif
                     </div>
 
                     <!-- 2. Pilihan Di Kota Lainnya -->
-                    <div x-show="useOtherCity" x-cloak>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Kota / Wilayah Khusus</label>
+                    <div x-show="useOtherCity" class="space-y-1">
+                        <label class="block font-semibold text-slate-700">Nama Kota / Wilayah Khusus *</label>
                         <input
                             type="text"
                             name="custom_city"
                             x-model="customCity"
                             :required="useOtherCity"
                             placeholder="Contoh: Majalengka Kota, Brebes, Tegal, Subang..."
-                            class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
                         />
                         <p class="text-[10px] text-amber-700 mt-1">Gunakan opsi ini jika wilayah penugasan belum terdaftar di master data kota/kecamatan.</p>
                     </div>
 
-                    <div class="flex gap-2 pt-2">
-                        <button type="submit" class="flex-1 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition">Simpan Penugasan</button>
-                        <button type="button" @click="assignModal = false" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">Batal</button>
+                    <div class="flex gap-2 pt-3 border-t border-slate-100 justify-end">
+                        <button type="button" @click="modalKecamatan = false" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer">Batal</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer">Simpan Penugasan</button>
                     </div>
                 </form>
             </template>
