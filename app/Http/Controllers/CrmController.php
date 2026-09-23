@@ -815,10 +815,25 @@ class CrmController extends Controller
             $request->session()->put('user_role', 'hm');
         }
 
-        $totalProspek = Prospek::count();
-        $closing = Prospek::where('status', 'LUNAS')->count();
+        $user = auth()->user();
+
+        // Active Tahun Akademik
+        $activeAyId = \App\Services\AkademikService::getAktifId();
+        $targetService = app(\App\Services\TargetAchievementService::class);
+
+        // Global stats (all prospects)
+        $totalProspek  = Prospek::count();
+        $closing       = Prospek::where('status', 'LUNAS')->count();
         $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
-        $lost = Prospek::where('status', 'DINGIN')->count();
+        $lost          = Prospek::where('status', 'DINGIN')->count();
+
+        // Global target rollup (sum of all active Sales targets)
+        $totalTargetLunas = \App\Models\Target::where('status', 'Aktif')
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->sum('target_lunas');
+        $sisaTarget = max(0, $totalTargetLunas - $closing);
+        $pctLunas   = $totalTargetLunas > 0 ? round(($closing / $totalTargetLunas) * 100, 1) : 0;
+        $colorStatus = $pctLunas >= 100 ? 'green' : ($pctLunas >= 70 ? 'yellow' : 'red');
 
         $stats = [
             'total_prospek'   => $totalProspek,
@@ -830,20 +845,22 @@ class CrmController extends Controller
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
             'total_sales'     => \App\Models\User::where('role', 'Sales')->count(),
             'total_cs'        => \App\Models\User::where('role', 'CS')->count(),
-            'target_global'   => $globalRollup['target_lunas'],
-            'sisa_target'     => $globalRollup['deficit_lunas'],
-            'pct_lunas'       => $globalRollup['pct_lunas'],
-            'color_status'    => $globalRollup['color_status'],
+            'target_global'   => $totalTargetLunas,
+            'sisa_target'     => $sisaTarget,
+            'pct_lunas'       => $pctLunas,
+            'color_status'    => $colorStatus,
         ];
 
         $salesUsers = \App\Models\User::where('role', 'Sales')->get();
-        $team = $salesUsers->map(function ($s) use ($targetService, $activeAyId) {
+        $team = $salesUsers->map(function ($s) use ($activeAyId) {
             $closing        = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
             $prospectsCount = Prospek::where('sales_id', $s->id)
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
-            // Use actual target_lunas from active target (no hardcode fallback to 50)
-            $activeTarget   = $targetService->getActiveTarget($s);
+            $activeTarget   = \App\Models\Target::where('sales_id', $s->id)
+                ->where('status', 'Aktif')
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+                ->latest()->first();
             $targetNum      = $activeTarget ? (int)$activeTarget->target_lunas : 0;
             $achievement    = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
             return [
