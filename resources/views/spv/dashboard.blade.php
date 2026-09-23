@@ -29,13 +29,18 @@
 
         <!-- Header Greeting & Filters -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name ?? 'Supervisor' }} 👋</h2>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Supervisor Marketing</span>
-                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">TA {{ $activeTa }}</span>
+            <div class="flex items-center gap-3.5 sm:gap-4">
+                <div class="h-12 w-14 sm:h-14 sm:w-16 rounded-2xl bg-indigo-50/80 p-2 border border-indigo-100/80 shrink-0 flex items-center justify-center shadow-xs">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
                 </div>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring performa seluruh tim Sales & CS, alokasi target wilayah, dan pipeline konversi.</p>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name ?? 'Supervisor' }} 👋</h2>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Supervisor Marketing</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">TA {{ $activeTa }}</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring performa seluruh tim Sales & CS, alokasi target wilayah, dan pipeline konversi.</p>
+                </div>
             </div>
             
             <!-- Quick Link Actions -->

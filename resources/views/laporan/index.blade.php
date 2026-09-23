@@ -27,8 +27,8 @@
     <div class="print-only mb-6">
         <div class="flex items-center justify-between pb-3 border-b-[3px] border-slate-900">
             <div class="flex items-center gap-4">
-                <div class="w-16 h-16 rounded-xl bg-blue-900 text-white flex items-center justify-center font-extrabold text-2xl border-2 border-slate-900">
-                    UCIC
+                <div class="w-20 h-16 shrink-0 flex items-center justify-center">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="max-w-full max-h-full object-contain">
                 </div>
                 <div>
                     <h1 class="text-xl font-black text-slate-900 tracking-tight leading-tight uppercase">Universitas Catur Insan Cendekia</h1>
