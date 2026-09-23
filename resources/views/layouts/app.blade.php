@@ -115,7 +115,7 @@
 <body class="h-full bg-slate-50 font-sans text-slate-800" x-data="{ 
     sidebarCollapsed: false, 
     mobileMenuOpen: false,
-    modalTambahProspek: false,
+    modalTambahProspek: {{ $errors->any() ? 'true' : 'false' }},
     modalFollowUp: false,
     modalUpdateStatus: false,
     modalTransaksi: false,
@@ -396,6 +396,17 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Data Perusahaan</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.tahun-akademik.index') }}" 
+                                title="Tahun Akademik"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.tahun-akademik.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.tahun-akademik.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Tahun Akademik</span>
                             </a>
                             <a 
                                 href="{{ route('admin.audit-logs.index') }}" 
@@ -1526,6 +1537,21 @@ x-init="
 
                 <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
                     @csrf
+
+                    @if ($errors->any())
+                        <div class="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl text-xs space-y-1">
+                            <div class="font-bold flex items-center gap-1.5 text-rose-900">
+                                <svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <span>Gagal Menyimpan Prospek:</span>
+                            </div>
+                            <ul class="list-disc pl-5 space-y-0.5 font-medium">
+                                @foreach ($errors->all() as $error)
+                                    <li class="whitespace-pre-line">{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <!-- Section: INFORMASI DASAR -->
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
@@ -1546,7 +1572,7 @@ x-init="
                                 </select>
                             </div>
                             <div x-show="prospekType === 'Sekolah'">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah</label>
                                 <x-searchable-select 
                                     name="sekolah_id" 
                                     :options="$sekolahsList" 
@@ -1554,7 +1580,7 @@ x-init="
                                 />
                             </div>
                             <div x-show="prospekType === 'Corporate'" style="display: none;">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan</label>
                                 <x-searchable-select 
                                     name="perusahaan_id" 
                                     :options="$perusahaansList" 
@@ -1563,8 +1589,8 @@ x-init="
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati *</label>
-                                <select name="prodi_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
+                                <select name="prodi_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Program Studi --</option>
                                     @foreach($prodisList as $prd)
                                         <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>

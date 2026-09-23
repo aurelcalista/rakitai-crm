@@ -13,7 +13,7 @@ class AdminMasterDataController extends Controller
     {
         $types = [
             'status_prospek', 'status_followup', 'jenis_kunjungan', 
-            'kategori_prospek', 'sumber_prospek', 'kategori_sekolah', 'kategori_perusahaan', 'fakultas', 'jenjang'
+            'kategori_prospek', 'sumber_prospek', 'kategori_sekolah', 'kategori_perusahaan', 'program_studi', 'jenjang'
         ];
         
         $masterData = [];

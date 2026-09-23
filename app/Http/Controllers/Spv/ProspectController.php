@@ -126,7 +126,27 @@ class ProspectController extends Controller
         $sekolahs    = Sekolah::getDynamicSchools();
         $perusahaans = Perusahaan::getDynamicPerusahaans();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
-        $wilayahs    = Wilayah::where('status', 'Aktif')->orderBy('nama')->get();
+        $wilayahsRaw = Wilayah::whereNull('parent_id')
+            ->where('status', 'Aktif')
+            ->with(['children' => function ($q) {
+                $q->where('status', 'Aktif')->orderBy('nama');
+            }])
+            ->orderBy('nama')
+            ->get();
+
+        $wilayahsData = $wilayahsRaw->map(function ($w) {
+            return [
+                'id'       => $w->id,
+                'nama'     => $w->nama,
+                'children' => $w->children->map(fn($c) => [
+                    'id'   => $c->id,
+                    'nama' => $c->nama,
+                ])->values()->all(),
+            ];
+        })->values()->all();
+
+        $wilayahs = $wilayahsRaw;
+
         $statuses    = Prospek::PIPELINE_8_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
@@ -138,6 +158,7 @@ class ProspectController extends Controller
             'perusahaans',
             'prodis',
             'wilayahs',
+            'wilayahsData',
             'statuses',
             'lostReasons',
             'teamSales',
@@ -153,15 +174,15 @@ class ProspectController extends Controller
     {
         $validated = $request->validate([
             'tanggal_masuk' => 'nullable|date',
-            'name'          => 'required|string|max:255',
+            'name'          => 'nullable|string|max:255',
             'type'          => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'pic'           => 'required|string|max:255',
             'pic_phone'     => 'nullable|string|max:20',
             'whatsapp'      => 'required|string|max:20',
-            'prodi_id'      => 'required|exists:prodis,id',
-            'kelas'         => 'required|in:Reguler,Karyawan',
+            'prodi_id'      => 'nullable|exists:prodis,id',
+            'kelas'         => 'nullable|in:Reguler,Karyawan',
             'status'        => 'required|string|max:255',
             'source'        => 'required|string|max:100',
             'custom_source' => 'nullable|string|max:100',
@@ -169,13 +190,17 @@ class ProspectController extends Controller
             'sales_id'      => 'nullable|exists:users,id',
             'cs_id'         => 'nullable|exists:users,id',
             'wilayah_id'    => 'nullable|exists:wilayahs,id',
+            'kota_id'       => 'nullable|exists:wilayahs,id',
             'notes'         => 'nullable|string|max:500',
         ]);
 
         $user = auth()->user();
 
         // 1. Resolve Nama Prospek
-        $name = trim($validated['name']);
+        $name = trim($validated['name'] ?? '');
+        if (empty($name)) {
+            $name = $validated['pic'] ?? 'Prospek Baru';
+        }
         if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
             $sekolah = Sekolah::find($validated['sekolah_id']);
             if ($sekolah) $name = $sekolah->nama;
@@ -237,9 +262,9 @@ class ProspectController extends Controller
             $handlerLabel = $user->name . ' (SPV Penanganan Mandiri)';
         }
 
-        $prodi = Prodi::find($validated['prodi_id']);
+        $prodi = !empty($validated['prodi_id']) ? Prodi::find($validated['prodi_id']) : null;
         $prodiNama = $prodi ? $prodi->nama : null;
-        $wilayahId = $validated['wilayah_id'] ?? $user->wilayah_id;
+        $wilayahId = !empty($validated['wilayah_id']) ? $validated['wilayah_id'] : (!empty($validated['kota_id']) ? $validated['kota_id'] : $user->wilayah_id);
 
         // Auto-route active Sales & CS from active user_wilayah if not manually assigned
         if ($wilayahId) {
@@ -268,13 +293,16 @@ class ProspectController extends Controller
                 ? Carbon::parse($validated['tanggal_masuk'])->setTimeFrom(now())
                 : now();
 
+            $kelas = $validated['kelas'] ?? 'Reguler';
+            $potential = $prodiNama ? "{$kelas} — {$prodiNama}" : null;
+
             $prospek = Prospek::create([
                 'name'               => $name,
                 'type'               => $validated['type'],
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,
-                'kelas'              => $validated['kelas'],
-                'potential'          => "{$validated['kelas']} — {$prodiNama}",
+                'kelas'              => $kelas,
+                'potential'          => $potential,
                 'sekolah_id'         => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'      => $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'                => $validated['pic'],

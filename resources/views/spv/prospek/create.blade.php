@@ -13,6 +13,15 @@
         prospectName: '',
         selectedSource: 'Teman/Keluarga/Saudara',
         noteText: '',
+        wilayahList: {{ json_encode($wilayahsData ?? []) }},
+        selectedKotaId: '{{ old('kota_id', '') }}',
+        selectedKecamatanId: '{{ old('wilayah_id', '') }}',
+
+        get availableKecamatans() {
+            if (!this.selectedKotaId) return [];
+            const kota = this.wilayahList.find(w => w.id == this.selectedKotaId);
+            return kota ? (kota.children || []) : [];
+        },
         get wordCount() {
             if (!this.noteText.trim()) return 0;
             return this.noteText.trim().split(/\s+/).length;
@@ -185,8 +194,8 @@
 
                     <!-- Nama Prospek -->
                     <div class="space-y-1">
-                        <label class="block text-xs font-semibold text-slate-700">Nama Calon Mahasiswa / Nama Prospek <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" x-model="prospectName" value="{{ old('name') }}" placeholder="Contoh: Muhammad Rizky atau SMAN 1 Cirebon" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:bg-white" required>
+                        <label class="block text-xs font-semibold text-slate-700">Nama Calon Mahasiswa / Nama Prospek</label>
+                        <input type="text" name="name" x-model="prospectName" value="{{ old('name') }}" placeholder="Contoh: Muhammad Rizky atau SMAN 1 Cirebon (Bisa dikosongkan jika memilih Sekolah/PIC)" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
                     </div>
 
                     <!-- PIC & WhatsApp Contact -->
@@ -208,16 +217,16 @@
                 <div class="space-y-4 pt-2">
                     <h3 class="text-xs font-extrabold text-slate-900 uppercase tracking-wider pb-1 border-b border-slate-100 flex items-center justify-between">
                         <span>3. Akademik (Prodi & Kelas)</span>
-                        <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Field Wajib</span>
+                        <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">Opsional</span>
                     </h3>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <!-- Prodi Diminati -->
                         <div class="space-y-1">
                             <label class="block text-xs font-semibold text-slate-700">
-                                Program Studi Diminati <span class="text-rose-500">*</span>
+                                Program Studi Diminati
                             </label>
-                            <select name="prodi_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-bold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
+                            <select name="prodi_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-bold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
                                 <option value="">-- Pilih Program Studi --</option>
                                 @foreach($prodis as $prodi)
                                     <option value="{{ $prodi->id }}" {{ old('prodi_id') == $prodi->id ? 'selected' : '' }}>
@@ -295,17 +304,43 @@
                         </div>
                     </div>
 
-                    <!-- Wilayah Scoping SPV -->
-                    <div class="space-y-1">
-                        <label class="block text-xs font-semibold text-slate-700">Wilayah / Kota Prospek</label>
-                        <select name="wilayah_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
-                            <option value="">-- Gunakan Wilayah SPV (Default) --</option>
-                            @foreach($wilayahs as $w)
-                                <option value="{{ $w->id }}" {{ (old('wilayah_id', auth()->user()->wilayah_id) == $w->id) ? 'selected' : '' }}>
-                                    {{ $w->nama }} ({{ $w->level }})
-                                </option>
-                            @endforeach
-                        </select>
+                    <!-- Wilayah / Kota & Kecamatan Prospek (Cascading Dropdown) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Step 1: Pilih Kota / Kabupaten -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-semibold text-slate-700">
+                                🏙️ Kota / Kabupaten Prospek
+                            </label>
+                            <select 
+                                name="kota_id"
+                                x-model="selectedKotaId" 
+                                @change="selectedKecamatanId = ''"
+                                class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white"
+                            >
+                                <option value="">-- Pilih Kota / Kabupaten --</option>
+                                <template x-for="kota in wilayahList" :key="kota.id">
+                                    <option :value="kota.id" x-text="kota.nama"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <!-- Step 2: Pilih Kecamatan -->
+                        <div class="space-y-1">
+                            <label class="block text-xs font-semibold text-slate-700">
+                                📍 Kecamatan Prospek
+                            </label>
+                            <select 
+                                name="wilayah_id" 
+                                x-model="selectedKecamatanId" 
+                                :disabled="!selectedKotaId"
+                                class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                                <option value="" x-text="!selectedKotaId ? '-- Pilih Kota Dahulu --' : '-- Pilih Kecamatan --'"></option>
+                                <template x-for="kec in availableKecamatans" :key="kec.id">
+                                    <option :value="kec.id" x-text="kec.nama"></option>
+                                </template>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Catatan Khusus (Maksimal 10 kata) -->

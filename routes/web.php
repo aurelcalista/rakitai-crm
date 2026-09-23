@@ -197,6 +197,11 @@ Route::middleware('auth')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
         Route::resource('target', \App\Http\Controllers\Admin\AdminTargetController::class, $except);
         Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
+
+        // Tahun Akademik Management (PRD 5.2)
+        Route::get('tahun-akademik',                           [\App\Http\Controllers\Admin\TahunAkademikController::class, 'index'])->name('tahun-akademik.index');
+        Route::post('tahun-akademik',                          [\App\Http\Controllers\Admin\TahunAkademikController::class, 'store'])->name('tahun-akademik.store');
+        Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\TahunAkademikController::class, 'activate'])->name('tahun-akademik.activate');
     });
 
     // ──────────────────────────────────────────────────────────────

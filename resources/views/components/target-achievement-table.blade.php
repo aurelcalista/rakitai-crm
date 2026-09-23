@@ -141,8 +141,8 @@
                     @forelse($kpiRows as $row)
                         @php
                             $achieve = $row['achievement_pct'];
-                            $colorClass = $achieve >= 100 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($achieve >= 70 ? 'text-blue-700 bg-blue-50 border-blue-200' : ($achieve >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200'));
-                            $barColor = $achieve >= 100 ? 'bg-emerald-500' : ($achieve >= 70 ? 'bg-blue-600' : ($achieve >= 40 ? 'bg-amber-500' : 'bg-rose-500'));
+                            $colorClass = $achieve >= 100 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : ($achieve >= 80 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200');
+                            $barColor = $achieve >= 100 ? 'bg-emerald-500' : ($achieve >= 80 ? 'bg-amber-500' : 'bg-rose-500');
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition">
                             <td class="py-3.5 px-4">

@@ -112,7 +112,7 @@ class ProspectController extends Controller
                 'ai_training'  => $validated['ai_training'] ?? null,
                 'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
-                'prodi_id'     => $validated['prodi_id'],
+                'prodi_id'     => $validated['prodi_id'] ?? null,
                 'sales_id'     => $user->id,
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,

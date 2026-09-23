@@ -56,6 +56,7 @@
                 geoStatus: 'idle', /* idle | loading | ok | error */
                 lat: '',
                 lng: '',
+                isTraining: {{ old('kesediaan_training_ai') ? 'true' : 'false' }},
                 captureGeo() {
                     this.geoStatus = 'loading';
                     navigator.geolocation.getCurrentPosition(
@@ -224,10 +225,10 @@
 
                     </div>
 
-                    {{-- ─── BLOK B: WAKTU KUNJUNGAN ───────────────────────────────── --}}
+                    {{-- ─── BLOK B: WAKTU & PROGRAM STUDI ──────────────────────────── --}}
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">
-                            Waktu Kunjungan
+                            Waktu & Program Studi
                         </h3>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -243,6 +244,19 @@
                                     class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition @error('waktu') border-rose-300 @enderror">
                                 @error('waktu')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
                             </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1.5">Program Studi yang Dipromosikan</label>
+                            <select name="prodi_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
+                                <option value="">-- Pilih Program Studi --</option>
+                                @foreach($prodis as $prodi)
+                                    <option value="{{ $prodi->id }}" {{ old('prodi_id', $event->prodi_id ?? '') == $prodi->id ? 'selected' : '' }}>
+                                        {{ $prodi->nama }} ({{ $prodi->jenjang }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="text-[11px] text-slate-400 mt-1">Pilih program studi UCIC yang utama dipromosikan dalam kunjungan ini.</p>
                         </div>
                     </div>
 
@@ -266,6 +280,46 @@
                             <textarea name="detail_potensi_mahasiswa" rows="3"
                                 placeholder="Deskripsikan potensi lebih detail: jurusan yang diminati, antusiasme siswa, dll."
                                 class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 transition">{{ old('detail_potensi_mahasiswa') }}</textarea>
+                        </div>
+
+                        {{-- Opsi Kesediaan Training AI & Mandatori Dosen Pemateri --}}
+                        <div class="pt-3 border-t border-slate-100 space-y-3">
+                            <label class="flex items-center gap-3 p-3.5 rounded-xl bg-purple-50/70 border border-purple-200/80 cursor-pointer hover:bg-purple-100/50 transition">
+                                <input type="checkbox" name="kesediaan_training_ai" value="1"
+                                    x-model="isTraining"
+                                    class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-900">Sekolah Bersedia Diadakan Training AI / Miniclass</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">Centang jika sekolah meminta/menyetujui pelatihan AI. Wajib menentukan Dosen Pemateri.</p>
+                                </div>
+                            </label>
+
+                            <div x-show="isTraining" x-cloak class="p-4 bg-amber-50/80 rounded-xl border border-amber-200 space-y-3">
+                                <div class="flex items-center gap-2 text-xs font-bold text-amber-900">
+                                    <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span>Penugasan Dosen Pemateri (Wajib untuk Kegiatan Training) <span class="text-rose-600">*</span></span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Dosen Pemateri *</label>
+                                        <select name="dosen_id" :required="isTraining" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200 @error('dosen_id') border-rose-300 @enderror">
+                                            <option value="">-- Pilih Dosen Pemateri --</option>
+                                            @foreach($dosens as $dosen)
+                                                <option value="{{ $dosen->id }}" {{ old('dosen_id', $event->dosen_id ?? '') == $dosen->id ? 'selected' : '' }}>
+                                                    {{ $dosen->name }} ({{ $dosen->role }})
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('dosen_id')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Atau Nama Pemateri Manual</label>
+                                        <input type="text" name="dosen_pemateri" value="{{ old('dosen_pemateri', $event->dosen_pemateri ?? '') }}"
+                                            placeholder="Contoh: Dr. Ir. H. Ahmad, M.T."
+                                            class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

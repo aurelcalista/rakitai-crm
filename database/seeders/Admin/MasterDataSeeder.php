@@ -64,9 +64,18 @@ class MasterDataSeeder extends Seeder
             ['type' => 'kategori_perusahaan', 'kode' => 'KAT-IT', 'nama' => 'IT / Software House', 'deskripsi' => 'Perusahaan bidang teknologi'],
             ['type' => 'kategori_perusahaan', 'kode' => 'KAT-MANUFAKTUR', 'nama' => 'Manufaktur', 'deskripsi' => 'Pabrik dan industri'],
             
-            // Fakultas
-            ['type' => 'fakultas', 'kode' => 'FAK-FTI', 'nama' => 'Fakultas Teknologi Informasi', 'deskripsi' => 'FTI'],
-            ['type' => 'fakultas', 'kode' => 'FAK-FEB', 'nama' => 'Fakultas Ekonomi dan Bisnis', 'deskripsi' => 'FEB'],
+            // Program Studi (PRD Bab 7.2)
+            ['type' => 'program_studi', 'kode' => 'PRD-MNJ', 'nama' => 'Manajemen', 'deskripsi' => 'Program Studi S1 Manajemen'],
+            ['type' => 'program_studi', 'kode' => 'PRD-TI', 'nama' => 'Teknik Informatika', 'deskripsi' => 'Program Studi S1 Teknik Informatika'],
+            ['type' => 'program_studi', 'kode' => 'PRD-DKV', 'nama' => 'DKV', 'deskripsi' => 'Program Studi S1 Desain Komunikasi Visual'],
+            ['type' => 'program_studi', 'kode' => 'PRD-BD', 'nama' => 'Bisnis Digital (Baru)', 'deskripsi' => 'Program Studi S1 Bisnis Digital'],
+            ['type' => 'program_studi', 'kode' => 'PRD-AKT', 'nama' => 'Akuntansi', 'deskripsi' => 'Program Studi S1 Akuntansi'],
+            ['type' => 'program_studi', 'kode' => 'PRD-SI', 'nama' => 'Sistem Informasi', 'deskripsi' => 'Program Studi S1 Sistem Informasi'],
+            ['type' => 'program_studi', 'kode' => 'PRD-PKOR', 'nama' => 'PKOR (Baru)', 'deskripsi' => 'Program Studi S1 Pendidikan Kepelatihan Olahraga'],
+            ['type' => 'program_studi', 'kode' => 'PRD-PMAT', 'nama' => 'Pendidikan Matematika (Baru)', 'deskripsi' => 'Program Studi S1 Pendidikan Matematika'],
+            ['type' => 'program_studi', 'kode' => 'PRD-MB-D3', 'nama' => 'Manajemen Bisnis (D3)', 'deskripsi' => 'Program Studi D3 Manajemen Bisnis'],
+            ['type' => 'program_studi', 'kode' => 'PRD-MI-D3', 'nama' => 'Manajemen Informatika (D3)', 'deskripsi' => 'Program Studi D3 Manajemen Informatika'],
+            ['type' => 'program_studi', 'kode' => 'PRD-S2-MNJ', 'nama' => 'S2 Manajemen (Tanpa Tesis)', 'deskripsi' => 'Program Magister S2 Manajemen'],
 
             // Jenjang
             ['type' => 'jenjang', 'kode' => 'JENJANG-D3', 'nama' => 'D3', 'deskripsi' => 'Diploma 3'],

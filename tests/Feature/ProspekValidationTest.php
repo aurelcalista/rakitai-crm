@@ -35,13 +35,14 @@ class ProspekValidationTest extends TestCase
         ];
     }
 
-    public function test_create_prospek_without_prodi_id_fails()
+    public function test_create_prospek_without_prodi_id_succeeds()
     {
         $payload = $this->getValidPayload();
         unset($payload['prodi_id']);
 
         $response = $this->actingAs($this->sales)->post(route('sales.prospek.store'), $payload);
-        $response->assertSessionHasErrors('prodi_id');
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('prospeks', ['whatsapp' => '081234567890']);
     }
 
     public function test_create_prospek_with_invalid_prodi_id_fails()

@@ -292,7 +292,7 @@ class Prospek extends Model
 
         // Cek follow-up pertama dari CS
         $firstCsFollowUp = $this->followUps()
-            ->where('sales_id', $this->cs_id)
+            ->where('user_id', $this->cs_id)
             ->orderBy('created_at', 'asc')
             ->first();
 

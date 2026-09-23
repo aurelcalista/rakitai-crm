@@ -66,7 +66,7 @@ class StoreProspectRequest extends FormRequest
                     }
                 }
             ],
-            'prodi_id' => 'required|exists:prodis,id',
+            'prodi_id' => 'nullable|exists:prodis,id',
         ];
     }
 
