@@ -121,11 +121,11 @@
 }
 "
 x-init="
-    @if(session('success')) setTimeout(() => $store.crm.showToast('{{ session('success') }}', 'success'), 100); @endif
-    @if(session('error')) setTimeout(() => $store.crm.showToast('{{ session('error') }}', 'error'), 100); @endif
+    @if(session('success')) setTimeout(() => $store.crm.showToast({!! json_encode(session('success')) !!}, 'success'), 100); @endif
+    @if(session('error')) setTimeout(() => $store.crm.showToast({!! json_encode(session('error')) !!}, 'error'), 100); @endif
     @if($errors->any())
         @foreach($errors->all() as $error)
-            setTimeout(() => $store.crm.showToast('{{ $error }}', 'error'), 100);
+            setTimeout(() => $store.crm.showToast({!! json_encode($error) !!}, 'error'), 100);
         @endforeach
     @endif
 ">
@@ -2224,7 +2224,7 @@ x-init="
                     Swal.fire({
                         icon: 'error',
                         title: 'Validasi Gagal',
-                        html: '<ul class="text-left text-xs text-rose-700 space-y-1 list-disc pl-5 mt-2">@foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach</ul>',
+                        html: '<ul class="text-left text-xs text-rose-700 space-y-1 list-disc pl-5 mt-2">@foreach($errors->all() as $err)<li>{!! json_encode($err) !!}</li>@endforeach</ul>',
                         confirmButtonColor: '#e11d48',
                         confirmButtonText: 'Tutup',
                         customClass: {

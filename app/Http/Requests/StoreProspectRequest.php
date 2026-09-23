@@ -91,20 +91,33 @@ class StoreProspectRequest extends FormRequest
                 if ($perusahaan) $name = $perusahaan->nama;
             }
 
-            $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {
-                $query->where('whatsapp', $validated['whatsapp'])
-                      ->orWhere('name', $name);
-            })->first();
+            // Duplicate check: hanya cek berdasarkan whatsapp (nomor unik).
+            // Untuk Sekolah/Corporate, nama yang sama dari institusi yang berbeda adalah valid.
+            $duplicate = Prospek::with(['owner', 'sales'])->where('whatsapp', $validated['whatsapp'])->first();
+
+            // Untuk tipe Individu, cek juga duplikat berdasarkan nama
+            if (!$duplicate && $validated['type'] === 'Individu') {
+                $individuName = $validated['name'] ?? $validated['pic'] ?? null;
+                if ($individuName) {
+                    $duplicate = Prospek::with(['owner', 'sales'])
+                        ->where('type', 'Individu')
+                        ->where('name', $individuName)
+                        ->first();
+                    if ($duplicate) {
+                        $errorField = 'name';
+                    }
+                }
+            }
 
             if ($duplicate) {
-                $errorField = $duplicate->whatsapp === $validated['whatsapp'] ? 'whatsapp' : 'name';
+                $errorField = $errorField ?? 'whatsapp';
                 $ownerName = $duplicate->owner ? $duplicate->owner->name : 'Sistem';
                 $salesName = $duplicate->sales ? $duplicate->sales->name : 'Belum Ada Sales';
                 
-                $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}).\n"
-                              . "Prospek ini dimiliki oleh: {$ownerName}\n"
-                              . "Sedang ditangani oleh: {$salesName}\n"
-                              . "Status saat ini: {$duplicate->status}";
+                $errorMessage = "Data prospek sudah ada (Duplicate {$errorField}). "
+                              . "Dimiliki oleh: {$ownerName}. "
+                              . "Ditangani: {$salesName}. "
+                              . "Status: {$duplicate->status}";
                               
                 $validator->errors()->add($errorField, $errorMessage);
             }
