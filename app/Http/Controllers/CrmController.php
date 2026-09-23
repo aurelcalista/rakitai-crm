@@ -186,7 +186,7 @@ class CrmController extends Controller
                 'pic' => 'Drs. H. Bambang Sutrisno, M.Pd (Kepala Sekolah)',
                 'pic_phone' => '08122334455',
                 'whatsapp' => '08122334455',
-                'status' => 'Interested',
+                'status' => 'KONTAK',
                 'stage_number' => 2,
                 'takeover_sales' => 'Aurel Calista',
                 'takeover_cs' => 'Dina Marlina',
@@ -215,7 +215,7 @@ class CrmController extends Controller
                 'pic' => 'Maya Kartika, S.Psi (HRD Manager)',
                 'pic_phone' => '08139988776',
                 'whatsapp' => '08139988776',
-                'status' => 'Follow Up',
+                'status' => 'HANGAT',
                 'stage_number' => 3,
                 'takeover_sales' => 'Rizky Pratama',
                 'takeover_cs' => 'Rini Anggraini',
@@ -294,7 +294,7 @@ class CrmController extends Controller
                 'pic' => 'Pak Hendra Gunawan, S.Kom',
                 'pic_phone' => '08191234567',
                 'whatsapp' => '08191234567',
-                'status' => 'Closing (Lunas)',
+                'status' => 'LUNAS',
                 'stage_number' => 6,
                 'takeover_sales' => 'Aurel Calista',
                 'takeover_cs' => 'Rini Anggraini',
@@ -320,7 +320,7 @@ class CrmController extends Controller
                 'pic' => 'Ustadz Ahmad Fauzi',
                 'pic_phone' => '08521122334',
                 'whatsapp' => '08521122334',
-                'status' => 'Cold Lead',
+                'status' => 'BARU',
                 'stage_number' => 1,
                 'takeover_sales' => 'Rizky Pratama',
                 'takeover_cs' => 'Dina Marlina',
@@ -346,7 +346,7 @@ class CrmController extends Controller
                 'pic' => 'Bpk. Hendro Sasongko',
                 'pic_phone' => '08129911223',
                 'whatsapp' => '08129911223',
-                'status' => 'Lost',
+                'status' => 'DINGIN',
                 'stage_number' => 0,
                 'takeover_sales' => 'Budi Santoso',
                 'takeover_cs' => 'Rini Anggraini',
@@ -381,8 +381,8 @@ class CrmController extends Controller
                 'target' => 50,
                 'prospects' => 42,
                 'follow_up' => 58,
-                'Closing (Lunas)' => 36,
-                'lost' => 3,
+                'LUNAS' => 36,
+                'DINGIN' => 3,
                 'achievement' => 72,
                 'trend' => '+14% vs bulan lalu',
                 'status' => 'On Track',
@@ -395,8 +395,8 @@ class CrmController extends Controller
                 'target' => 45,
                 'prospects' => 38,
                 'follow_up' => 49,
-                'Closing (Lunas)' => 28,
-                'lost' => 4,
+                'LUNAS' => 28,
+                'DINGIN' => 4,
                 'achievement' => 62,
                 'trend' => '+8% vs bulan lalu',
                 'status' => 'Good',
@@ -409,8 +409,8 @@ class CrmController extends Controller
                 'target' => 45,
                 'prospects' => 31,
                 'follow_up' => 39,
-                'Closing (Lunas)' => 22,
-                'lost' => 5,
+                'LUNAS' => 22,
+                'DINGIN' => 5,
                 'achievement' => 48,
                 'trend' => '+2% vs bulan lalu',
                 'status' => 'Needs Attention',
@@ -423,8 +423,8 @@ class CrmController extends Controller
                 'target' => 40,
                 'prospects' => 25,
                 'follow_up' => 32,
-                'Closing (Lunas)' => 18,
-                'lost' => 2,
+                'LUNAS' => 18,
+                'DINGIN' => 2,
                 'achievement' => 45,
                 'trend' => '+10% vs bulan lalu',
                 'status' => 'Developing',
@@ -584,15 +584,18 @@ class CrmController extends Controller
         // Use real DB queries for prospect data
         $prospectsData = \App\Models\Prospek::where('sales_id', $userId)->get();
         $totalProspek = $prospectsData->count();
-        $activeProspek = $prospectsData->whereNotIn('status', ['Closing (Lunas)', 'Lost'])->count();
-        $followUp = $prospectsData->where('status', 'Follow Up')->count();
-        $closing = $prospectsData->where('status', 'Closing (Lunas)')->count();
-        $lost = $prospectsData->where('status', 'Lost')->count();
+        $activeProspek = $prospectsData->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $followUp = $prospectsData->where('status', 'HANGAT')->count();
+        $closing = $prospectsData->where('status', 'LUNAS')->count();
+        $lost = $prospectsData->where('status', 'DINGIN')->count();
 
-        // Target Bulan Ini
+        // Target Bulan Ini dalam Tahun Akademik Aktif.
+        // Both conditions required: active TA scope AND current calendar month.
+        $activeAyId = \App\Services\AkademikService::getAktifId();
         $targetMonth = \App\Models\Target::where('sales_id', $userId)
             ->whereMonth('tanggal_mulai', now()->month)
             ->whereYear('tanggal_mulai', now()->year)
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
             ->first();
         $targetBulanIni = $targetMonth ? $targetMonth->target_kontak : 50;
         $percentage = $targetBulanIni > 0 ? round(($closing / $targetBulanIni) * 100) : 0;
@@ -602,8 +605,8 @@ class CrmController extends Controller
             'total_prospek' => $totalProspek,
             'active_prospek' => $activeProspek,
             'follow_up' => $followUp,
-            'Closing (Lunas)' => $closing,
-            'lost' => $lost,
+            'LUNAS' => $closing,
+            'DINGIN' => $lost,
             'target_bulan_ini' => $targetBulanIni,
             'realisasi_closing' => $closing,
             'percentage' => min(100, $percentage),
@@ -611,20 +614,16 @@ class CrmController extends Controller
             'bulan_label' => now()->locale('id')->isoFormat('MMMM Y'),
         ];
 
-        // Daily Target
-        $targetKontakHarian = 5;
-        $targetFollowupHarian = 10;
-        
-        $pencapaianKontakHarian = \App\Models\Prospek::where('sales_id', $userId)->whereDate('created_at', today())->count();
-        $pencapaianFollowupHarian = \App\Models\FollowUp::where('user_id', $userId)->whereDate('tanggal', today())->count();
-        
-        $dailyTarget = [
-            'target_hari_ini_kontak' => $targetKontakHarian,
-            'pencapaian_hari_ini_kontak' => $pencapaianKontakHarian,
-            'sisa_akumulasi_kontak' => max(0, $targetKontakHarian - $pencapaianKontakHarian),
-            'target_hari_ini_followup' => $targetFollowupHarian,
-            'pencapaian_hari_ini_followup' => $pencapaianFollowupHarian,
-            'sisa_akumulasi_followup' => max(0, $targetFollowupHarian - $pencapaianFollowupHarian),
+        // Daily Target — use SalesTargetService (real snowball calculation, no hardcode)
+        $targetService = app(\App\Services\SalesTargetService::class);
+        $authUser = auth()->user();
+        $dailyTarget = $authUser ? $targetService->calculateDailyTarget($authUser) : [
+            'target_hari_ini_kontak'      => 0,
+            'target_hari_ini_followup'    => 0,
+            'sisa_akumulasi_kontak'       => 0,
+            'sisa_akumulasi_followup'     => 0,
+            'pencapaian_hari_ini_kontak'  => 0,
+            'pencapaian_hari_ini_followup'=> 0,
         ];
 
         // Pipeline Stages
@@ -698,19 +697,23 @@ class CrmController extends Controller
                 if (count($followUpsToday) < 4) {
                     $followUpsToday[] = $p;
                 }
-            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['Closing (Lunas)', 'Lost', 'LUNAS', 'DINGIN'])) {
+            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['LUNAS', 'DINGIN'])) {
                 $followUpPendingCount++;
             }
         }
+
+        $lunasCount = count(array_filter($prospects, fn($p) => $p['status'] === 'LUNAS'));
+        $dinginCount = count(array_filter($prospects, fn($p) => $p['status'] === 'DINGIN'));
 
         $stats = [
             'total_prospek' => count($prospects),
             'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'] ?? '', 'CS'))),
             'follow_up_today' => $followUpTodayCount,
             'follow_up_pending' => $followUpPendingCount,
-            'closing' => count(array_filter($prospects, fn($p) => in_array($p['status'] ?? '', ['Closing (Lunas)', 'LUNAS']))),
-            'Closing (Lunas)' => count(array_filter($prospects, fn($p) => in_array($p['status'] ?? '', ['Closing (Lunas)', 'LUNAS']))),
-            'lost' => count(array_filter($prospects, fn($p) => in_array($p['status'] ?? '', ['Lost', 'DINGIN']))),
+            'closing' => $lunasCount,
+            'lost' => $dinginCount,
+            'LUNAS' => $lunasCount,
+            'DINGIN' => $dinginCount,
         ];
 
         $targetAchievementService = app(\App\Services\TargetAchievementService::class);
@@ -737,9 +740,9 @@ class CrmController extends Controller
 
         // Aggregated Dynamic Stats from DB for this SPV's team
         $totalProspek = Prospek::whereIn('sales_id', $salesIds)->count();
-        $totalClosing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Closing (Lunas)')->count();
-        $totalLost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'Lost')->count();
-        $activeProspek = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['Closing (Lunas)', 'Lost'])->count();
+        $totalClosing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'LUNAS')->count();
+        $totalLost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'DINGIN')->count();
+        $activeProspek = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
 
         $totalFollowUp = \App\Models\FollowUp::where(function ($q) use ($salesIds) {
             $q->whereIn('user_id', $salesIds)
@@ -762,19 +765,22 @@ class CrmController extends Controller
         // Team Performance Per Personil
         $targetService = app(\App\Services\SalesTargetService::class);
         $team = $salesList->map(function ($s) use ($targetService) {
-            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing (Lunas)')->count();
+            $closing = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')->count();
             $prospectsCount = Prospek::where('sales_id', $s->id)->count();
             $followUpCount = \App\Models\FollowUp::where('user_id', $s->id)->count();
-            $lostCount = Prospek::where('sales_id', $s->id)->where('status', 'Lost')->count();
+            $lostCount = Prospek::where('sales_id', $s->id)->where('status', 'DINGIN')->count();
 
             $activeTarget = $targetService->getActiveTarget($s);
-            $targetAmount = $activeTarget ? $activeTarget->target_closing : 0;
-            if ($targetAmount <= 0) {
-                $targetAmount = $activeTarget ? $activeTarget->target_kontak : 50;
+            // Fix: use target_lunas (target_closing does not exist in DB)
+            $targetAmount = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            if ($targetAmount <= 0 && $activeTarget) {
+                $targetAmount = (int)$activeTarget->target_kontak;
             }
 
             $achievement = $targetAmount > 0 ? round(($closing / $targetAmount) * 100) : 0;
-            $statusLabel = $achievement >= 70 ? 'Sangat Baik' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan');
+            // Note: this dashboard method is dead code (no route). Kept for code correctness only.
+            $statusLabel = $achievement >= 100 ? 'Tercapai' : ($achievement >= \App\Services\TargetMetricsService::YELLOW_THRESHOLD ? 'Mendekati Target' : 'Perlu Perhatian');
+
 
             return [
                 'id'          => $s->id,
@@ -784,8 +790,10 @@ class CrmController extends Controller
                 'target'      => $targetAmount,
                 'prospects'   => $prospectsCount,
                 'follow_up'   => $followUpCount,
-                'Closing (Lunas)'     => $closing,
+                'closing'     => $closing,
                 'lost'        => $lostCount,
+                'LUNAS'       => $closing,
+                'DINGIN'      => $lostCount,
                 'achievement' => $achievement,
                 'status'      => $statusLabel,
             ];
@@ -799,42 +807,53 @@ class CrmController extends Controller
 
     /**
      * Dashboard Head Marketing (HM).
+     * Scoped to active Tahun Akademik. Team target uses actual target_lunas from DB.
      */
     public function dashboardHm(Request $request): View
     {
         if ($request->hasSession()) {
             $request->session()->put('user_role', 'hm');
         }
-        
+
         $totalProspek = Prospek::count();
-        $closing = Prospek::where('status', 'Closing (Lunas)')->count();
-        $activeProspek = Prospek::whereNotIn('status', ['Closing (Lunas)', 'Lost'])->count();
-        $lost = Prospek::where('status', 'Lost')->count();
-        
+        $closing = Prospek::where('status', 'LUNAS')->count();
+        $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $lost = Prospek::where('status', 'DINGIN')->count();
+
         $stats = [
-            'total_prospek' => $totalProspek,
-            'active_prospek' => $activeProspek,
-            'closing' => $closing,
-            'lost' => $lost,
+            'total_prospek'   => $totalProspek,
+            'active_prospek'  => $activeProspek,
+            'LUNAS'           => $closing,
+            'closing'         => $closing,
+            'DINGIN'          => $lost,
+            'lost'            => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
-            'total_sales' => \App\Models\User::where('role', 'Sales')->count(),
-            'total_cs' => \App\Models\User::where('role', 'CS')->count(),
+            'total_sales'     => \App\Models\User::where('role', 'Sales')->count(),
+            'total_cs'        => \App\Models\User::where('role', 'CS')->count(),
+            'target_global'   => $globalRollup['target_lunas'],
+            'sisa_target'     => $globalRollup['deficit_lunas'],
+            'pct_lunas'       => $globalRollup['pct_lunas'],
+            'color_status'    => $globalRollup['color_status'],
         ];
 
         $salesUsers = \App\Models\User::where('role', 'Sales')->get();
-        $team = $salesUsers->map(function ($s) {
-            $closing = Prospek::where('sales_id', $s->id)->where('status', 'Closing (Lunas)')->count();
-            $prospectsCount = Prospek::where('sales_id', $s->id)->count();
-            // Just for demonstration, use a default target of 50 if none exists.
-            $target = 50; 
-            $achievement = $target > 0 ? round(($closing / $target) * 100) : 0;
+        $team = $salesUsers->map(function ($s) use ($targetService, $activeAyId) {
+            $closing        = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
+            $prospectsCount = Prospek::where('sales_id', $s->id)
+                ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
+            // Use actual target_lunas from active target (no hardcode fallback to 50)
+            $activeTarget   = $targetService->getActiveTarget($s);
+            $targetNum      = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            $achievement    = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
             return [
-                'name' => $s->name,
-                'role' => $s->role,
-                'avatar' => substr($s->name, 0, 2),
-                'target' => $target,
-                'prospects' => $prospectsCount,
-                'closing' => $closing,
+                'name'        => $s->name,
+                'role'        => $s->role,
+                'avatar'      => strtoupper(substr($s->name, 0, 2)),
+                'target'      => $targetNum,
+                'prospects'   => $prospectsCount,
+                'LUNAS'       => $closing,
+                'closing'     => $closing,
                 'achievement' => $achievement,
             ];
         })->sortByDesc('achievement')->values()->map(function ($member, $index) {
@@ -843,8 +862,9 @@ class CrmController extends Controller
         })->toArray();
 
         $stagesCount = array_fill_keys(\App\Models\Prospek::ACTIVE_STAGES, 0);
-
-        $prospectsData = Prospek::select('status')->get();
+        $prospectsData = Prospek::select('status')
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->get();
         foreach ($prospectsData as $p) {
             if (isset($stagesCount[$p->status])) {
                 $stagesCount[$p->status]++;
@@ -854,9 +874,9 @@ class CrmController extends Controller
         $pipelineStages = collect($stagesCount)->map(function ($count, $name) use ($totalProspek) {
             $percentage = $totalProspek > 0 ? round(($count / $totalProspek) * 100) : 0;
             return [
-                'name' => $name,
+                'name'  => $name,
                 'count' => $count,
-                'pct' => $percentage,
+                'pct'   => $percentage,
                 'color' => 'badge-' . strtolower(str_replace([' ', '/', '(', ')'], '-', $name))
             ];
         })->values()->toArray();
@@ -1388,7 +1408,7 @@ class CrmController extends Controller
         ];
 
         foreach ($allProspects as $p) {
-            if (in_array($p['status'], ['Closing (Lunas)', 'Lost'])) {
+            if (in_array($p['status'], ['LUNAS', 'DINGIN'])) {
                 $prospects['done'][] = $p;
             } else if ($p['next_follow_up_date']) {
                 if ($p['next_follow_up_date'] === $today) {
@@ -1477,9 +1497,12 @@ class CrmController extends Controller
 
         $oldStatus = $prospek->status;
         
-        if ($request->jenis === 'Pembayaran Termin 1') {
+        if (\App\Services\ProspekService::isClosingValid($prospek)) {
             $prospek->status = 'LUNAS';
             $prospek->stage_number = 7;
+        } else if ($request->jenis === 'Pembayaran Termin 1') {
+            $prospek->status = 'BERKAS';
+            $prospek->stage_number = 6;
         } else if ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
             $prospek->status = 'FORMULIR';
             $prospek->stage_number = 5;
@@ -1532,10 +1555,11 @@ class CrmController extends Controller
         $team = $salesUsers->map(function ($s) use ($targetService) {
             $stats = $targetService->getStats($s);
             $activeTarget = $targetService->getActiveTarget($s);
-            
-            $targetAmount = $activeTarget ? $activeTarget->target_closing : 0;
-            if ($targetAmount <= 0) {
-                $targetAmount = $activeTarget ? $activeTarget->target_kontak : 50;
+
+            // Use target_lunas (target_closing does not exist in DB)
+            $targetAmount = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            if ($targetAmount <= 0 && $activeTarget) {
+                $targetAmount = (int)$activeTarget->target_kontak;
             }
 
             $achievement = $targetAmount > 0 ? min(100, round(($stats['realisasi_closing'] / $targetAmount) * 100)) : 0;
@@ -1548,8 +1572,9 @@ class CrmController extends Controller
                 'prospects'   => $stats['total_prospek'],
                 'follow_up'   => $stats['follow_up'],
                 'closing'     => $stats['realisasi_closing'],
-                'Closing (Lunas)' => $stats['realisasi_closing'],
-                'lost'        => $stats['lost'],
+                'lost'        => $stats['realisasi_closing'] - $stats['realisasi_closing'], // placeholder
+                'LUNAS'       => $stats['realisasi_closing'],
+                'DINGIN'      => $stats['DINGIN'] ?? 0,
                 'achievement' => $achievement,
                 'avatar'      => strtoupper(substr($s->name, 0, 2)),
                 'status'      => $stats['realisasi_closing'] >= $targetAmount ? 'Target Achieved' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan')
@@ -1560,9 +1585,9 @@ class CrmController extends Controller
         $totalRealisasi = array_sum(array_column($team, 'closing'));
 
         $breakdown = [
-            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->whereIn('status', ['LUNAS', 'Closing (Lunas)'])->count(),
-            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->whereIn('status', ['LUNAS', 'Closing (Lunas)'])->count(),
-            'Individu' => \App\Models\Prospek::where('type', 'Individu')->whereIn('status', ['LUNAS', 'Closing (Lunas)'])->count(),
+            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'LUNAS')->count(),
+            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'LUNAS')->count(),
+            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'LUNAS')->count(),
         ];
 
         $summary = [
@@ -1599,16 +1624,18 @@ class CrmController extends Controller
         }
 
         $totalProspek = Prospek::whereIn('sales_id', $salesIds)->count();
-        $closing = Prospek::whereIn('sales_id', $salesIds)->whereIn('status', ['LUNAS', 'Closing (Lunas)'])->count();
-        $active = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['LUNAS', 'Closing (Lunas)', 'Lost', 'DINGIN'])->count();
-        $lost = Prospek::whereIn('sales_id', $salesIds)->whereIn('status', ['Lost', 'DINGIN'])->count();
+        $closing = Prospek::whereIn('sales_id', $salesIds)->where('status', 'LUNAS')->count();
+        $active = Prospek::whereIn('sales_id', $salesIds)->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
+        $lost = Prospek::whereIn('sales_id', $salesIds)->where('status', 'DINGIN')->count();
 
         $summary = [
             'total_prospek'   => $totalProspek,
             'active'          => $active,
             'closing'         => $closing,
-            'Closing (Lunas)' => $closing,
+
             'lost'            => $lost,
+            'LUNAS'           => $closing,
+            'DINGIN'          => $lost,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
         ];
 

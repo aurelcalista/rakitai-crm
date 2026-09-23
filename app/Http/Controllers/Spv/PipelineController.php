@@ -60,6 +60,15 @@ class PipelineController extends Controller
         $prospek = Prospek::findOrFail($request->prospek_id);
         $user = auth()->user();
 
+        \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
+
+        if ($request->status === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.',
+            ], 422);
+        }
+
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
         $prospek->stage_number = Prospek::STAGES[$request->status] ?? $prospek->stage_number;

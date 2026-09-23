@@ -6,13 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class Event extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'name',
         'nama',
         'type_id',
         'tanggal',
@@ -26,7 +26,39 @@ class Event extends Model
         'status',
         'dokumentasi',
         'absen_peserta',
+        'dosen_id',
+        'dosen_pemateri',
+        'prodi_id',
+        'sekolah_id',
+        'perusahaan_id',
+        'qr_code',
+        'academic_year_id',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (!$model->qr_code) {
+                $model->qr_code = self::generateUniqueQrToken($model);
+            }
+            if (!$model->academic_year_id) {
+                $aktif = TahunAkademik::getAktif();
+                if ($aktif) {
+                    $model->academic_year_id = $aktif->id;
+                }
+            }
+        });
+    }
+
+    /**
+     * Generate a unique session QR token for the event attendance.
+     */
+    public static function generateUniqueQrToken(?Event $model = null): string
+    {
+        $uniquePart = Str::random(12);
+        $datePart = now()->format('Ymd');
+        return 'EVT-QR-' . $datePart . '-' . strtoupper($uniquePart);
+    }
 
     protected $casts = [
         'tanggal' => 'date',
@@ -40,6 +72,38 @@ class Event extends Model
     public function eo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'eo_id');
+    }
+
+    /**
+     * Get the Dosen Pemateri of the event.
+     */
+    public function dosen(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dosen_id');
+    }
+
+    /**
+     * Get the Prodi of the event.
+     */
+    public function prodi(): BelongsTo
+    {
+        return $this->belongsTo(Prodi::class, 'prodi_id');
+    }
+
+    /**
+     * Get the Sekolah target.
+     */
+    public function sekolah(): BelongsTo
+    {
+        return $this->belongsTo(Sekolah::class, 'sekolah_id');
+    }
+
+    /**
+     * Get the Perusahaan target.
+     */
+    public function perusahaan(): BelongsTo
+    {
+        return $this->belongsTo(Perusahaan::class, 'perusahaan_id');
     }
 
     /**
@@ -64,7 +128,7 @@ class Event extends Model
     public function sales(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'event_sales', 'event_id', 'sales_id')
-            ->withPivot('assigned_by_spv_id')
+            ->withPivot(['assigned_by_spv_id', 'google_event_id'])
             ->withTimestamps();
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable([
     'name',
@@ -22,12 +23,15 @@ use Illuminate\Notifications\Notifiable;
     'wilayah_id',
     'supervisor_id',
     'lokasi_penugasan',
+    'google_access_token',
+    'google_refresh_token',
+    'google_token_expires_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -125,7 +129,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Get team member IDs for an SPV (subordinates or same wilayah Sales/CS).
+     * Get team member IDs for an SPV (subordinates or same wilayah Sales/CS without conflicting supervisor).
      */
     public function teamMemberIds(): array
     {
@@ -137,11 +141,33 @@ class User extends Authenticatable
         if ($this->wilayah_id) {
             return User::where('wilayah_id', $this->wilayah_id)
                 ->whereIn('role', ['Sales', 'CS'])
+                ->where(function ($q) {
+                    $q->whereNull('supervisor_id')
+                      ->orWhere('supervisor_id', $this->id);
+                })
                 ->pluck('id')
                 ->toArray();
         }
 
-        return User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray();
+        return User::whereIn('role', ['Sales', 'CS'])
+            ->where(function ($q) {
+                $q->whereNull('supervisor_id')
+                  ->orWhere('supervisor_id', $this->id);
+            })
+            ->pluck('id')
+            ->toArray();
+    }
+
+    /**
+     * Get user IDs belonging to an HM's wilayah.
+     */
+    public function hmMemberIds(): array
+    {
+        if ($this->wilayah_id) {
+            return User::where('wilayah_id', $this->wilayah_id)->pluck('id')->toArray();
+        }
+
+        return User::pluck('id')->toArray();
     }
 
     /**
@@ -172,9 +198,6 @@ class User extends Authenticatable
             $q->whereIn('sales_id', $memberIds)
               ->orWhereIn('owner_id', $memberIds)
               ->orWhereIn('cs_id', $memberIds);
-            if ($this->wilayah_id) {
-                $q->orWhere('wilayah_id', $this->wilayah_id);
-            }
         });
     }
 

@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
                 'name'              => 'Admin CIC',
                 'role'              => 'Admin',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'email_verified_at' => now(),
             ]
         );
@@ -28,7 +28,7 @@ class UserSeeder extends Seeder
                 'name'              => 'HM CIC',
                 'role'              => 'HM',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'email_verified_at' => now(),
             ]
         );
@@ -39,7 +39,7 @@ class UserSeeder extends Seeder
                 'name'              => 'Hendra Setiawan, S.Kom',
                 'role'              => 'SPV',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'email_verified_at' => now(),
             ]
         );
@@ -50,7 +50,7 @@ class UserSeeder extends Seeder
                 'name'              => 'Tim EO CIC',
                 'role'              => 'EO',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'email_verified_at' => now(),
             ]
         );
@@ -61,7 +61,7 @@ class UserSeeder extends Seeder
                 'name'              => 'Dina Marlina',
                 'role'              => 'CS',
                 'password'          => Hash::make('password'),
-                'status'            => 'aktif',
+                'status'            => 'Aktif',
                 'supervisor_id'     => $spv->id,
                 'email_verified_at' => now(),
             ]
@@ -82,7 +82,7 @@ class UserSeeder extends Seeder
                     'name'              => $sales['name'],
                     'role'              => 'Sales',
                     'password'          => Hash::make('password'),
-                    'status'            => 'aktif',
+                    'status'            => 'Aktif',
                     'supervisor_id'     => $spv->id,
                     'email_verified_at' => now(),
                 ]

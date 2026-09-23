@@ -36,16 +36,15 @@ class EventAssignmentService
         $existingEvents = Event::whereHas('sales', function ($q) use ($salesId) {
                 $q->where('users.id', $salesId);
             })
-            ->where('tanggal', $tanggal)
+            ->whereDate('tanggal_mulai', $tanggal)
             ->when($excludeEventId, function ($q) use ($excludeEventId) {
                 $q->where('id', '!=', $excludeEventId);
             })
             ->get();
 
         foreach ($existingEvents as $existing) {
-            // Need to handle if $existing->waktu_mulai is Carbon or string. Casts as datetime makes it Carbon
-            $existingStart = Carbon::parse($existing->tanggal->format('Y-m-d') . ' ' . $existing->waktu_mulai->format('H:i'));
-            $existingEnd = Carbon::parse($existing->tanggal->format('Y-m-d') . ' ' . $existing->waktu_selesai->format('H:i'));
+            $existingStart = Carbon::parse($existing->tanggal_mulai);
+            $existingEnd = Carbon::parse($existing->tanggal_selesai);
 
             // Check overlap
             if ($newStart->lt($existingEnd) && $newEnd->gt($existingStart)) {

@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('Admin', 'HM', 'SPV', 'Sales', 'CS', 'Telesales', 'EO') NOT NULL DEFAULT 'Sales'");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('Admin', 'HM', 'SPV', 'Sales', 'CS', 'Telesales', 'EO') NOT NULL DEFAULT 'Sales'");
+        }
     }
 
     /**
@@ -20,7 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('Admin', 'HM', 'SPV', 'Sales', 'CS', 'Telesales') NOT NULL DEFAULT 'Sales'");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('Admin', 'HM', 'SPV', 'Sales', 'CS', 'Telesales') NOT NULL DEFAULT 'Sales'");
+        }
     }
 };
 

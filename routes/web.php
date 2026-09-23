@@ -143,10 +143,8 @@ Route::middleware('auth')->group(function () {
         ->prefix('eo')
         ->name('eo.')
         ->group(function () {
-            Route::get('/events', [\App\Http\Controllers\Eo\EventController::class, 'index'])->name('events.index');
-            Route::post('/events', [\App\Http\Controllers\Eo\EventController::class, 'store'])->name('events.store');
-            Route::put('/events/{id}', [\App\Http\Controllers\Eo\EventController::class, 'update'])->name('events.update');
-            Route::delete('/events/{id}', [\App\Http\Controllers\Eo\EventController::class, 'destroy'])->name('events.destroy');
+            Route::resource('events', \App\Http\Controllers\Eo\EventController::class)->except(['create', 'show', 'edit']);
+            Route::resource('event-types', \App\Http\Controllers\Eo\EventTypeController::class)->except(['create', 'show', 'edit']);
         });
 
     // ──────────────────────────────────────────────────────────────

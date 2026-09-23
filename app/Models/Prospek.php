@@ -26,8 +26,12 @@ class Prospek extends Model
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            // Keep the legacy string column in sync with the active TA when creating
             if (empty($prospek->tahun_akademik)) {
-                $prospek->tahun_akademik = '2027/2028';
+                $aktivNama = \App\Services\AkademikService::getAktifNama();
+                if ($aktivNama) {
+                    $prospek->tahun_akademik = $aktivNama;
+                }
             }
             if ($prospek->sekolah_id) {
                 $sekolah = Sekolah::find($prospek->sekolah_id);
@@ -41,13 +45,23 @@ class Prospek extends Model
                 }
             }
 
-            // Auto-handover to CS when status is 'Beli Formulir'
-            if ($prospek->isDirty('status') && $prospek->status === 'Beli Formulir' && is_null($prospek->cs_id)) {
-                $cs = \App\Models\User::where('role', 'CS')->first();
-                if ($cs) {
-                    $prospek->cs_id = $cs->id;
-                    $prospek->active_follow_up_count = 0; // Reset follow-up for CS
-                    $prospek->handover_at = now();
+            // Auto-handover to CS when status is 'FORMULIR'
+            if ($prospek->isDirty('status') && $prospek->status === 'FORMULIR') {
+                if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
+                    $cs = \App\Models\User::where('role', 'CS')
+                        ->where('wilayah_id', $prospek->wilayah_id)
+                        ->where('status', 'Aktif')
+                        ->first();
+                        
+                    if (!$cs) {
+                        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
+                    }
+                    
+                    if ($cs) {
+                        $prospek->cs_id = $cs->id;
+                        $prospek->active_follow_up_count = 0; // Reset follow-up for CS
+                        $prospek->handover_at = now();
+                    }
                 }
             }
         });

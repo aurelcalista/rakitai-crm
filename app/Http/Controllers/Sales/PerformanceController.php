@@ -38,31 +38,36 @@ class PerformanceController extends Controller
         foreach ($salesUsers as $s) {
             $stats = $this->targetService->getStats($s);
             $activeTarget = $this->targetService->getActiveTarget($s);
-            $targetBulanan = $activeTarget ? $activeTarget->target_kontak : 0;
-            
-            $achievement = $targetBulanan > 0 ? min(100, round(($stats['realisasi_closing'] / $targetBulanan) * 100)) : 0;
-            
+            // Use target_lunas as the closing target metric (target_closing does not exist in DB)
+            $targetLunas = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            if ($targetLunas <= 0 && $activeTarget) {
+                $targetLunas = (int)$activeTarget->target_kontak;
+            }
+
+            $achievement = $targetLunas > 0 ? min(100, round(($stats['realisasi_closing'] / $targetLunas) * 100)) : 0;
+
             $team[] = [
                 'name'        => $s->name,
                 'role'        => $s->role,
-                'target'      => $targetBulanan,
+                'target'      => $targetLunas,
                 'prospects'   => $stats['total_prospek'],
                 'follow_up'   => $stats['follow_up'],
                 'closing'     => $stats['realisasi_closing'],
                 'lost'        => $stats['lost'],
                 'achievement' => $achievement,
                 'avatar'      => strtoupper(substr($s->name, 0, 2)),
-                'status'      => ($targetBulanan > 0 && $stats['realisasi_closing'] >= $targetBulanan) ? 'Target Achieved' : 'On Progress'
+                'status'      => ($targetLunas > 0 && $stats['realisasi_closing'] >= $targetLunas) ? 'Target Achieved' : 'On Progress'
             ];
 
-            $totalTarget += $targetBulanan;
+            $totalTarget    += $targetLunas;
             $totalRealisasi += $stats['realisasi_closing'];
         }
 
+
         $breakdown = [
-            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'Closing (Lunas)')->count(),
-            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'Closing (Lunas)')->count(),
-            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'Closing (Lunas)')->count(),
+            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'LUNAS')->count(),
+            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'LUNAS')->count(),
+            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'LUNAS')->count(),
         ];
 
         $summary = [

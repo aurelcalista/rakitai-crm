@@ -7,6 +7,7 @@ use App\Models\Prospek;
 use App\Models\Kunjungan;
 use App\Models\User;
 use App\Models\FollowUp;
+use App\Services\AkademikService;
 use App\Services\SpvPerformanceService;
 use App\Services\TargetAchievementService;
 use Illuminate\Http\Request;
@@ -21,13 +22,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * Display SPV Team Analytics Dashboard (Tahun Akademik Aktif TA 2027/2028).
+     * Display SPV Team Analytics Dashboard (Active Tahun Akademik).
      */
     public function index(Request $request): View
     {
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
-        $activeTa = $request->get('ta', SpvPerformanceService::DEFAULT_TA);
 
         // Team members (Sales & CS under SPV)
         $teamMembers = User::whereIn('id', $teamMemberIds)->with('wilayah')->get();
@@ -37,9 +37,13 @@ class DashboardController extends Controller
         // 8 Pipeline Stages Standar
         $stages = Prospek::PIPELINE_8_STAGES;
 
-        // Ambil ID Tahun Akademik Aktif
-        $activeTaObj = \App\Models\TahunAkademik::getAktif();
-        $activeTaId = $activeTaObj ? $activeTaObj->id : null;
+        // Active Tahun Akademik via central mechanism
+        $activeTaId  = \App\Services\AkademikService::getAktifId();
+        $activeTaNama = \App\Services\AkademikService::getAktifNama();
+
+        // Historical override via ?ta= query param (explicit, not default)
+        $taOverride = $request->get('ta');
+        $activeTa   = $taOverride ?? $activeTaNama; // used for SpvPerformanceService calls
 
         // Query prospek tim terikat TA Aktif
         $prospekQuery = $user->teamProspeks()->where('academic_year_id', $activeTaId);
@@ -98,7 +102,7 @@ class DashboardController extends Controller
             ->get();
 
         // Team performance summary (Sales & CS under SPV)
-        $teamPerformance = $teamMembers->map(function ($member) use ($activeTa) {
+        $teamPerformance = $teamMembers->map(function ($member) use ($activeTa, $activeTaId) {
             $isCs = $member->role === 'CS';
 
             $prospectQuery = Prospek::where(function ($q) use ($member, $isCs) {
@@ -107,20 +111,25 @@ class DashboardController extends Controller
                 } else {
                     $q->where('sales_id', $member->id);
                 }
-            })->where(function ($q) use ($activeTa) {
-                $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
+            })->where(function ($q) use ($activeTa, $activeTaId) {
+                if ($activeTaId) {
+                    $q->where('academic_year_id', $activeTaId);
+                } else {
+                    $q->where('tahun_akademik', $activeTa)->orWhereNull('tahun_akademik');
+                }
             });
 
             $prospectCount = (clone $prospectQuery)->count();
-            $closing = (clone $prospectQuery)->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])->count();
+            $closing = (clone $prospectQuery)->where('status', 'LUNAS')->count();
             $visits = $isCs ? 0 : Kunjungan::where('sales_id', $member->id)->count();
 
             $target = $member->targets()
                 ->where('status', 'Aktif')
+                ->when($activeTaId, fn($q) => $q->where('academic_year_id', $activeTaId))
                 ->latest()
                 ->first();
 
-            $targetNum = $target ? (int)$target->target_lunas : 10;
+            $targetNum   = $target ? (int)$target->target_lunas : 0;
             $achievedPct = $targetNum > 0 ? round(($closing / $targetNum) * 100) : 0;
 
             return [
@@ -160,12 +169,16 @@ class DashboardController extends Controller
             $activeTa
         );
 
+        // spvRollup placeholder for view compatibility
+        $spvRollup = [];
+
         return view('spv.dashboard', compact(
             'stats',
             'targetHm',
             'pipelineStats',
             'teamMembers',
             'teamPerformance',
+            'spvRollup',
             'recentFollowUps',
             'activeTa',
             'overdueHandovers',

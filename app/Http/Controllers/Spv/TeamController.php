@@ -31,7 +31,7 @@ class TeamController extends Controller
                 ->count();
             $closingCount = Prospek::where(function ($q) use ($member) {
                 $q->where('sales_id', $member->id)->orWhere('cs_id', $member->id);
-            })->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])->count();
+            })->where('status', 'LUNAS')->count();
             $visitCount = Kunjungan::where('sales_id', $member->id)->count();
 
             return [

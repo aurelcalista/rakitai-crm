@@ -21,5 +21,6 @@ Route::prefix('v1')->group(function () {
         // Kunjungan
         Route::get('/kunjungan', [\App\Http\Controllers\Api\VisitController::class, 'index']);
         Route::post('/kunjungan', [\App\Http\Controllers\Api\VisitController::class, 'store']);
+        Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Api\VisitController::class, 'show']);
     });
 });

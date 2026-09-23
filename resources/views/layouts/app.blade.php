@@ -258,6 +258,17 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Event</span>
                             </a>
+                            <a 
+                                href="{{ route('eo.event-types.index') }}" 
+                                title="Kelola Jenis Event"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('eo.event-types.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('eo.event-types.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Jenis Event</span>
+                            </a>
                         </div>
                     </div>
                 @endif
@@ -1502,6 +1513,7 @@ x-init="
                             $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+                            $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
                         @endphp
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
@@ -1532,15 +1544,25 @@ x-init="
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati *</label>
+                                <select name="prodi_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Program Studi --</option>
+                                    @foreach($prodisList as $prd)
+                                        <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal *</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     @foreach($statusProspekList as $status)
-                                        <option value="{{ $status->nama }}" {{ $status->nama == 'Interested' ? 'selected' : '' }}>{{ $status->nama }}</option>
+                                        <option value="{{ $status->nama }}" {{ in_array($status->nama, ['BARU', 'Baru', 'Interested']) ? 'selected' : '' }}>{{ $status->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak / PIC *</label>
                                 <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
@@ -1548,8 +1570,8 @@ x-init="
                                 <input type="tel" name="whatsapp" required placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek</label>
-                                <select name="source" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>
+                                <select name="source" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Sumber --</option>
                                     @foreach($sumberProspekList as $sumber)
                                         <option value="{{ $sumber->nama }}">{{ $sumber->nama }}</option>
@@ -2016,6 +2038,37 @@ x-init="
                             </div>
                         </div>
                         <p x-show="!lat && geoStatus.includes('Gagal')" class="text-[11px] text-rose-500 font-medium">Mohon izinkan akses lokasi (GPS) pada browser Anda untuk dapat menyimpan kunjungan.</p>
+                    </div>
+
+                    <!-- Section: PRODI & DOSEN PEMATERI -->
+                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Program Studi & Dosen Pemateri</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Terkait / Diminati *</label>
+                                @php
+                                    $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+                                @endphp
+                                <select name="prodi_id" required class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                    <option value="">-- Pilih Program Studi --</option>
+                                    @foreach($prodisList as $prd)
+                                        <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Pemateri (Wajib untuk Training)</label>
+                                @php
+                                    $dosensList = \App\Models\User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
+                                @endphp
+                                <select name="dosen_id" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                    <option value="">-- Pilih Dosen Pemateri --</option>
+                                    @foreach($dosensList as $dsn)
+                                        <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Section: CATATAN -->

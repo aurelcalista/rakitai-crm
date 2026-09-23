@@ -4,20 +4,24 @@ namespace App\Http\Controllers\Spv;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\User;
 use App\Services\EventAssignmentService;
+use App\Services\GoogleCalendarService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-// use App\Notifications\EventNotification;
 
 class EventAssignmentController extends Controller
 {
     protected EventAssignmentService $assignmentService;
+    protected GoogleCalendarService $calendarService;
 
-    public function __construct(EventAssignmentService $assignmentService)
+    public function __construct(EventAssignmentService $assignmentService, GoogleCalendarService $calendarService)
     {
         $this->assignmentService = $assignmentService;
+        $this->calendarService = $calendarService;
     }
 
     public function index()
@@ -38,7 +42,7 @@ class EventAssignmentController extends Controller
         ->whereHas('spvs', function($q) use ($user) {
             $q->where('users.id', $user->id);
         })
-        ->orderBy('tanggal', 'desc')
+        ->orderBy('tanggal_mulai', 'desc')
         ->paginate(10);
 
         // SPV's team Sales
@@ -58,7 +62,12 @@ class EventAssignmentController extends Controller
 
         $request->validate([
             'sales' => 'array',
-            'sales.*' => 'exists:users,id',
+            'sales.*' => [
+                'required',
+                Rule::exists('users', 'id')->where(function ($query) {
+                    $query->where('role', 'Sales');
+                }),
+            ],
         ]);
 
         $selectedSalesIds = $request->sales ?? [];
@@ -80,20 +89,24 @@ class EventAssignmentController extends Controller
             foreach ($newSalesIds as $salesId) {
                 $this->assignmentService->validateSalesSchedule(
                     $salesId, 
-                    $event->tanggal->format('Y-m-d'), 
-                    $event->waktu_mulai->format('H:i'), 
-                    $event->waktu_selesai->format('H:i')
+                    $event->tanggal ? $event->tanggal->format('Y-m-d') : \Carbon\Carbon::parse($event->tanggal_mulai)->format('Y-m-d'), 
+                    $event->waktu_mulai ? $event->waktu_mulai->format('H:i') : \Carbon\Carbon::parse($event->tanggal_mulai)->format('H:i'), 
+                    $event->waktu_selesai ? $event->waktu_selesai->format('H:i') : \Carbon\Carbon::parse($event->tanggal_selesai)->format('H:i')
                 );
             }
 
-            // Sync sales assigned by this SPV
-            // To sync only pivot records managed by this SPV without detaching others, we must do it manually
             // Detach removed
             $removedSalesIds = array_diff($oldSalesIds, $selectedSalesIds);
             if (!empty($removedSalesIds)) {
+                foreach ($removedSalesIds as $rSalesId) {
+                    $rSalesUser = User::find($rSalesId);
+                    if ($rSalesUser) {
+                        $this->calendarService->removeSalesEvent($event, $rSalesUser);
+                    }
+                }
                 $event->sales()->wherePivot('assigned_by_spv_id', $user->id)->detach($removedSalesIds);
-                // Notify removed sales
-                $removedUsers = \App\Models\User::whereIn('id', $removedSalesIds)->get();
+
+                $removedUsers = User::whereIn('id', $removedSalesIds)->get();
                 \Illuminate\Support\Facades\Notification::send($removedUsers, new \App\Notifications\EventNotification($event, 'assignment_removed'));
             }
 
@@ -101,9 +114,12 @@ class EventAssignmentController extends Controller
             if (!empty($newSalesIds)) {
                 foreach ($newSalesIds as $salesId) {
                     $event->sales()->attach($salesId, ['assigned_by_spv_id' => $user->id]);
+                    $nSalesUser = User::find($salesId);
+                    if ($nSalesUser) {
+                        $this->calendarService->syncSalesEvent($event, $nSalesUser);
+                    }
                 }
-                // Notify new sales
-                $newUsers = \App\Models\User::whereIn('id', $newSalesIds)->get();
+                $newUsers = User::whereIn('id', $newSalesIds)->get();
                 \Illuminate\Support\Facades\Notification::send($newUsers, new \App\Notifications\EventNotification($event, 'assigned_sales'));
             }
 
