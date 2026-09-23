@@ -54,6 +54,13 @@ class Prospek extends Model
                 }
             }
 
+            // Logic Reset Follow-up: Jika prospek dipindahtangankan (sales_id / owner_id / cs_id),
+            // hitungan sentuhan aktif di-reset ke 0 bagi penangan baru.
+            // Riwayat follow-up lama tetap utuh di tabel follow_ups.
+            if ($prospek->exists && ($prospek->isDirty('sales_id') || $prospek->isDirty('owner_id') || $prospek->isDirty('cs_id'))) {
+                $prospek->active_follow_up_count = 0;
+            }
+
             // Auto-handover to CS when status enters handover stages ('FORMULIR', 'BERKAS', 'LUNAS')
             if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS'])) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
