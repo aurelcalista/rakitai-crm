@@ -1,17 +1,18 @@
 <x-app-layout title="Dashboard Event Organizer">
 <!-- Page Header -->
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs mb-6">
-    <div class="flex items-center gap-3.5 sm:gap-4">
-        <div class="h-12 w-14 sm:h-14 sm:w-16 rounded-2xl bg-blue-50/80 p-2 border border-blue-100/80 shrink-0 flex items-center justify-center shadow-xs">
-            <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs mb-6">
+    <div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Event Organizer 🎪</h1>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Event Organizer</span>
         </div>
-        <div>
-            <div class="flex items-center gap-2">
-                <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard Event Organizer 🎪</h1>
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Event Organizer</span>
-            </div>
-            <p class="text-xs sm:text-sm text-slate-500 mt-1">Ringkasan aktivitas dan jadwal event Universitas Catur Insan Cendekia.</p>
-        </div>
+        <p class="text-xs text-slate-500 mt-0.5">Ringkasan aktivitas dan jadwal event Universitas Catur Insan Cendekia.</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('eo.events.index') }}" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <span>+ Kelola Event</span>
+        </a>
     </div>
 </div>
 
@@ -80,15 +81,15 @@
             @forelse($upcomingEvents as $event)
                 <div class="mb-4 pb-4 border-b border-slate-100 last:mb-0 last:pb-0 last:border-0 flex items-start gap-4">
                     <div class="flex-shrink-0 w-14 text-center">
-                        <div class="text-xs font-bold uppercase text-slate-500 mb-1">{{ \Carbon\Carbon::parse($event->tanggal)->translatedFormat('M') }}</div>
-                        <div class="text-2xl font-black text-slate-900 leading-none">{{ \Carbon\Carbon::parse($event->tanggal)->format('d') }}</div>
+                        <div class="text-xs font-bold uppercase text-slate-500 mb-1">{{ \Carbon\Carbon::parse($event->tanggal_mulai)->translatedFormat('M') }}</div>
+                        <div class="text-2xl font-black text-slate-900 leading-none">{{ \Carbon\Carbon::parse($event->tanggal_mulai)->format('d') }}</div>
                     </div>
                     <div class="flex-1">
-                        <h4 class="font-bold text-slate-900 text-base mb-1">{{ $event->name }}</h4>
+                        <h4 class="font-bold text-slate-900 text-base mb-1">{{ $event->nama ?? $event->name }}</h4>
                         <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                             <span class="flex items-center gap-1.5">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                {{ \Carbon\Carbon::parse($event->waktu_mulai)->format('H:i') }} - {{ \Carbon\Carbon::parse($event->waktu_selesai)->format('H:i') }}
+                                {{ \Carbon\Carbon::parse($event->tanggal_mulai)->format('H:i') }} - {{ \Carbon\Carbon::parse($event->tanggal_selesai ?? $event->tanggal_mulai)->format('H:i') }}
                             </span>
                             <span class="flex items-center gap-1.5">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>

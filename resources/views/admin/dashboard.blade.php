@@ -25,18 +25,13 @@
     >
 
         <!-- Header -->
-        <div x-show="show" x-transition:enter="transition ease-out duration-500 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div class="flex items-center gap-3.5 sm:gap-4">
-                <div class="h-12 w-14 sm:h-14 sm:w-16 rounded-2xl bg-purple-50/80 p-2 border border-purple-100/80 shrink-0 flex items-center justify-center shadow-xs">
-                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
+        <div x-show="show" x-transition:enter="transition ease-out duration-500 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Administrator 🛡️</h2>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Super Administrator</span>
                 </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard Administrator 🛡️</h2>
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Super Administrator</span>
-                    </div>
-                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Ringkasan sistem, pengguna, target tim, dan aktivitas CRM UCIC.</p>
-                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Ringkasan sistem, pengguna, target tim, dan aktivitas CRM UCIC.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('admin.users.index') }}" class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer hover:-translate-y-0.5 duration-300">
