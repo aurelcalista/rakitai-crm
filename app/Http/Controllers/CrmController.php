@@ -7,6 +7,7 @@ use Illuminate\View\View;
 use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CrmController extends Controller
 {
@@ -69,6 +70,7 @@ class CrmController extends Controller
                 'phone'           => $user->phone ?? '081234567890',
                 'nik'             => '202408' . str_pad($user->id ?? 1, 3, '0', STR_PAD_LEFT),
                 'avatar'          => $avatar ?: 'AD',
+                'avatar_url'      => $user->avatar_url,
                 'wilayah'         => $wilayahNama,
                 'division'        => $roleKey === 'admin' 
                     ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
@@ -1674,16 +1676,33 @@ class CrmController extends Controller
     public function profilUpdate(Request $request)
     {
         $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'name'          => 'required|string|max:255',
+            'phone'         => 'nullable|string|max:20',
+            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
+            'remove_avatar' => 'nullable',
         ]);
 
         if (auth()->check()) {
             $user = auth()->user();
-            $user->update([
+            $dataToUpdate = [
                 'name'  => $validated['name'],
                 'phone' => $validated['phone'] ?? $user->phone,
-            ]);
+            ];
+
+            if ($request->filled('remove_avatar') && $request->remove_avatar == '1') {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $dataToUpdate['avatar'] = null;
+            } elseif ($request->hasFile('avatar')) {
+                if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $dataToUpdate['avatar'] = $path;
+            }
+
+            $user->update($dataToUpdate);
         } else {
             $role = strtolower($request->session()->get('user_role', 'sales'));
             $request->session()->put('custom_profile_' . $role, [
@@ -1692,7 +1711,7 @@ class CrmController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Profil berhasil diperbarui!');
+        return back()->with('success', 'Profil dan foto berhasil diperbarui!');
     }
 
     /**

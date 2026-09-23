@@ -83,7 +83,14 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3.5 px-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0" x-text="user.avatar"></div>
+                                        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 overflow-hidden">
+                                            <template x-if="user.avatar_url">
+                                                <img :src="user.avatar_url" :alt="user.name" class="w-full h-full object-cover">
+                                            </template>
+                                            <template x-if="!user.avatar_url">
+                                                <span x-text="user.avatar"></span>
+                                            </template>
+                                        </div>
                                         <div>
                                             <div class="font-bold text-slate-900" x-text="user.name"></div>
                                             <div class="text-[11px] text-slate-400" x-text="user.email"></div>
@@ -261,7 +268,14 @@
                     <template x-if="selectedUser">
                         <div class="mt-4 space-y-4 text-xs">
                             <div class="flex items-center gap-4">
-                                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xl" x-text="selectedUser.avatar"></div>
+                                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xl overflow-hidden shadow-xs">
+                                    <template x-if="selectedUser.avatar_url">
+                                        <img :src="selectedUser.avatar_url" :alt="selectedUser.name" class="w-full h-full object-cover">
+                                    </template>
+                                    <template x-if="!selectedUser.avatar_url">
+                                        <span x-text="selectedUser.avatar"></span>
+                                    </template>
+                                </div>
                                 <div>
                                     <div class="text-lg font-extrabold text-slate-900" x-text="selectedUser.name"></div>
                                     <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold border bg-purple-50 text-purple-700 border-purple-200" x-text="selectedUser.role"></span>

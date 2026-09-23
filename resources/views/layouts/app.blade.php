@@ -8,6 +8,10 @@
     <title>{{ $title ?? 'CRM Marketing & Sales Inbound UCIC' }}</title>
     <meta name="description" content="Platform CRM Modern Marketing & Sales Inbound Universitas Catur Insan Cendekia (UCIC)">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('images/logo-ucic.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-ucic.png') }}">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -170,9 +174,9 @@ x-init="
         >
             <!-- Brand Header -->
             <div class="h-18 sm:h-20 flex items-center border-b border-slate-100 transition-all duration-300" :class="sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-4 sm:px-5'">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 min-w-0" title="UCIC CRM - {{ $currentUser['role_label'] }}">
-                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0 tracking-wider">
-                        U
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 min-w-0 group" title="UCIC CRM - {{ $currentUser['role_label'] }}">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center p-1.5 shadow-2xs shrink-0 group-hover:scale-105 transition-transform duration-200">
+                        <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
                     </div>
                     <div x-show="!sidebarCollapsed" class="transition-opacity duration-200 min-w-0">
                         <div class="text-sm font-bold text-slate-900 tracking-tight leading-tight">UCIC CRM</div>
@@ -645,8 +649,12 @@ x-init="
             <!-- User Card Bottom (Menampilkan User yang Sedang Login) -->
             <div class="border-t border-slate-100 bg-slate-50/50" :class="sidebarCollapsed ? 'p-2' : 'p-3'">
                 <div class="flex items-center rounded-xl transition" :class="sidebarCollapsed ? 'flex-col justify-center gap-2 p-1' : 'gap-3 p-2 hover:bg-white'">
-                    <a href="{{ route('profil.index') }}" title="{{ $currentUser['name'] }} ({{ $currentUser['role_label'] }})" class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs hover:ring-2 hover:ring-blue-500/30 transition">
-                        {{ $currentUser['avatar'] }}
+                    <a href="{{ route('profil.index') }}" title="{{ $currentUser['name'] }} ({{ $currentUser['role_label'] }})" class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs hover:ring-2 hover:ring-blue-500/30 transition overflow-hidden">
+                        @if(!empty($currentUser['avatar_url']))
+                            <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover">
+                        @else
+                            {{ $currentUser['avatar'] }}
+                        @endif
                     </a>
                     <div x-show="!sidebarCollapsed" class="truncate flex-1 min-w-0">
                         <div class="text-xs font-bold text-slate-800 truncate">{{ $currentUser['name'] }}</div>
@@ -692,9 +700,9 @@ x-init="
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
-                        <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                                U
+                        <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center p-1 shadow-2xs shrink-0">
+                                <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
                             </div>
                             <div>
                                 <span class="font-bold text-slate-900 text-sm block leading-tight">CRM UCIC</span>
@@ -851,8 +859,12 @@ x-init="
 
                     <!-- User Avatar Pill (Header) -->
                     <div class="flex items-center gap-3 pl-3 sm:pl-4 border-l border-slate-200/80">
-                        <a href="{{ route('profil.index') }}" title="Lihat Profil" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-xs hover:ring-2 hover:ring-blue-500/30 transition">
-                            {{ $currentUser['avatar'] }}
+                        <a href="{{ route('profil.index') }}" title="Lihat Profil" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-xs hover:ring-2 hover:ring-blue-500/30 transition overflow-hidden">
+                            @if(!empty($currentUser['avatar_url']))
+                                <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover">
+                            @else
+                                {{ $currentUser['avatar'] }}
+                            @endif
                         </a>
                         <div class="hidden sm:block text-left">
                             <div class="text-xs font-bold text-slate-900 leading-snug">{{ $currentUser['name'] }}</div>
@@ -945,8 +957,8 @@ x-init="
             <!-- Drawer Header: Brand & Close -->
             <div class="h-16 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
                 <a href="{{ route('dashboard') }}" @click="mobileMenuOpen = false" class="flex items-center gap-2.5 min-w-0">
-                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 tracking-wider">
-                        U
+                    <div class="w-9 h-9 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center p-1 shadow-2xs shrink-0">
+                        <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
                     </div>
                     <div class="min-w-0">
                         <div class="text-sm font-bold text-slate-900 tracking-tight leading-tight">UCIC CRM</div>
@@ -1450,8 +1462,12 @@ x-init="
             <div class="border-t border-slate-100 bg-slate-50/70 p-3 shrink-0">
                 <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-xl border border-slate-200/80 shadow-xs">
                     <a href="{{ route('profil.index') }}" @click="mobileMenuOpen = false" class="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs">
-                            {{ $currentUser['avatar'] }}
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs overflow-hidden">
+                            @if(!empty($currentUser['avatar_url']))
+                                <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover">
+                            @else
+                                {{ $currentUser['avatar'] }}
+                            @endif
                         </div>
                         <div class="min-w-0 flex-1 truncate">
                             <div class="text-xs font-bold text-slate-800 truncate">{{ $currentUser['name'] }}</div>

@@ -16,6 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
     'username',
     'email',
     'phone',
+    'avatar',
     'role',
     'status',
     'last_login_at',
@@ -32,6 +33,23 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    /**
+     * Get avatar public URL if set.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar ? asset('storage/' . $this->avatar) : null;
+    }
+
+    /**
+     * Get user initials for avatar fallback.
+     */
+    public function getInitialsAttribute(): string
+    {
+        $words = array_values(array_filter(explode(' ', trim($this->name))));
+        return strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+    }
 
     /**
      * Get the attributes that should be cast.
