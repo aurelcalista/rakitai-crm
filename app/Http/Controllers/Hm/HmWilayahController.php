@@ -24,17 +24,15 @@ class HmWilayahController extends Controller
         $mainWilayah = $user->wilayah_id ? Wilayah::find($user->wilayah_id) : null;
 
         if ($mainWilayah) {
-            $descendantIds = $mainWilayah->getDescendantIds();
-            $wilayahs = Wilayah::whereIn('id', $descendantIds)
-                ->where(function($q) use ($mainWilayah) {
-                    $q->where('id', $mainWilayah->id)->orWhere('parent_id', $mainWilayah->id);
-                })
+            // HM mengelola level Kota/Kabupaten yang menjadi tanggung jawabnya
+            $wilayahs = Wilayah::where('id', $mainWilayah->id)
                 ->with(['children', 'users' => function($q) {
                     $q->whereIn('role', ['SPV', 'Sales', 'CS']);
                 }])
                 ->withCount(['sekolahs', 'perusahaans'])
                 ->get();
 
+            $descendantIds = $mainWilayah->getDescendantIds();
             $spvCandidates = User::where('role', 'SPV')
                 ->where(function($q) use ($descendantIds) {
                     $q->whereIn('wilayah_id', $descendantIds)->orWhereNull('wilayah_id');
@@ -42,7 +40,7 @@ class HmWilayahController extends Controller
                 ->orderBy('name')
                 ->get();
         } else {
-            // Global HM / Admin
+            // Global HM / Admin: hanya daftar level Kota/Kabupaten (parent_id is null)
             $wilayahs = Wilayah::whereNull('parent_id')
                 ->with(['children', 'users' => function($q) {
                     $q->whereIn('role', ['SPV', 'Sales', 'CS']);

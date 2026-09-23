@@ -12,9 +12,9 @@
         targetForm: {
             target_id: '',
             spv_id: '',
-            tipe_periode: 'Bulanan',
+            tipe_periode: 'Tahunan',
             tanggal_mulai: '{{ now()->startOfMonth()->toDateString() }}',
-            tanggal_selesai: '{{ now()->endOfMonth()->toDateString() }}',
+            tanggal_selesai: '{{ now()->startOfMonth()->addYear()->subDay()->toDateString() }}',
             target_kontak: 1000,
             target_formulir: 300,
             target_lunas: 100,
@@ -29,16 +29,16 @@
             if (target) {
                 this.targetForm.target_id = target.id || '';
                 this.targetForm.spv_id = target.spv_id ? String(target.spv_id) : (assignedSpvId ? String(assignedSpvId) : '');
-                this.targetForm.tipe_periode = target.tipe_periode || 'Bulanan';
+                this.targetForm.tipe_periode = target.tipe_periode || 'Tahunan';
                 this.targetForm.tanggal_mulai = target.tanggal_mulai ? String(target.tanggal_mulai).substring(0, 10) : '{{ now()->startOfMonth()->toDateString() }}';
-                this.targetForm.tanggal_selesai = target.tanggal_selesai ? String(target.tanggal_selesai).substring(0, 10) : '{{ now()->endOfMonth()->toDateString() }}';
+                this.targetForm.tanggal_selesai = target.tanggal_selesai ? String(target.tanggal_selesai).substring(0, 10) : '{{ now()->startOfMonth()->addYear()->subDay()->toDateString() }}';
                 this.targetForm.target_kontak = target.target_kontak ?? 1000;
                 this.targetForm.target_formulir = target.target_formulir ?? 300;
                 this.targetForm.target_lunas = target.target_lunas ?? 100;
             } else {
                 this.targetForm.target_id = '';
                 this.targetForm.spv_id = assignedSpvId ? String(assignedSpvId) : '';
-                this.targetForm.tipe_periode = 'Bulanan';
+                this.targetForm.tipe_periode = 'Tahunan';
                 this.targetForm.tanggal_mulai = '{{ now()->startOfMonth()->toDateString() }}';
                 this.targetForm.target_kontak = 1000;
                 this.targetForm.target_formulir = 300;
@@ -123,11 +123,31 @@
                         <div>
                             <span class="text-[10px] font-mono font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">{{ $w->kode }}</span>
                             <h3 class="text-lg font-bold text-slate-900 mt-1">{{ $w->nama }}</h3>
-                            <p class="text-xs text-slate-500">{{ count($w->kecamatan ?? $w->children->pluck('nama')) }} Kecamatan | {{ $w->sekolahs_count }} Sekolah | {{ $w->perusahaans_count }} Perusahaan</p>
+                            <p class="text-xs text-slate-500">{{ $w->children->count() }} Kecamatan | {{ $w->sekolahs_count }} Sekolah | {{ $w->perusahaans_count }} Perusahaan</p>
                         </div>
                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold {{ $w->status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600' }}">
                             {{ $w->status }}
                         </span>
+                    </div>
+
+                    <!-- Cakupan Kecamatan Preview -->
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+                        <div class="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            <span>Kecamatan di Wilayah Ini ({{ $w->children->count() }})</span>
+                            <span class="text-indigo-600 font-semibold lowercase">dikelola oleh SPV</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            @forelse($w->children as $child)
+                                <span class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-2xs">
+                                    {{ $child->nama }}
+                                </span>
+                            @empty
+                                <span class="text-slate-400 text-xs italic">Belum ada kecamatan turunan yang terdaftar.</span>
+                            @endforelse
+                        </div>
+                        <p class="text-[10px] text-slate-400 pt-0.5">
+                            ℹ️ HM bertanggung jawab pada level Kota/Kabupaten dan menunjuk SPV penanggung jawab. Pembagian target dan penugasan Sales/CS per kecamatan dilakukan oleh SPV.
+                        </p>
                     </div>
 
                     <!-- SPV Responsible -->
@@ -245,8 +265,8 @@
                                 <div>
                                     <label class="block font-semibold text-slate-700 mb-1">Periode *</label>
                                     <select name="tipe_periode" x-model="targetForm.tipe_periode" @change="calculateEndDate()" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
-                                        <option value="Bulanan">Bulanan</option>
                                         <option value="Tahunan">Tahunan</option>
+                                        <option value="Bulanan">Bulanan</option>
                                         <option value="Mingguan">Mingguan</option>
                                         <option value="Harian">Harian</option>
                                     </select>
