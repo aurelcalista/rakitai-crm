@@ -54,11 +54,11 @@ class Prospek extends Model
                 }
             }
 
-            // Auto-handover to CS when status is 'FORMULIR'
-            if ($prospek->isDirty('status') && $prospek->status === 'FORMULIR') {
+            // Auto-handover to CS when status enters handover stages ('FORMULIR', 'BERKAS', 'LUNAS')
+            if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS'])) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
                     $cs = \App\Models\User::where('role', 'CS')
-                        ->where('wilayah_id', $prospek->wilayah_id)
+                        ->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))
                         ->where('status', 'Aktif')
                         ->first();
                         
@@ -82,9 +82,9 @@ class Prospek extends Model
                 \App\Models\ProspekTimeline::create([
                     'prospek_id' => $prospek->id,
                     'user_id' => $cs?->id,
-                    'action' => 'Handover',
+                    'title' => 'Handover',
                     'notes' => 'Prospek dialihkan ke CS: ' . ($cs?->name ?? 'CS Staff'),
-                    'created_at' => now(),
+                    'time' => now(),
                 ]);
             }
         });

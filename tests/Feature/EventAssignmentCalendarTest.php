@@ -547,4 +547,40 @@ class EventAssignmentCalendarTest extends TestCase
                    str_contains($request->url(), 'G-EXISTING-123');
         });
     }
+
+    public function test_eo_can_view_event_detail_json()
+    {
+        $event = Event::create([
+            'name' => 'Event Detail Test',
+            'nama' => 'Event Detail Test',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-01',
+            'waktu_mulai' => '09:00',
+            'waktu_selesai' => '12:00',
+            'tanggal_mulai' => '2026-10-01 09:00:00',
+            'tanggal_selesai' => '2026-10-01 12:00:00',
+            'lokasi' => 'Aula Utama',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+            'jenis_institusi' => 'Sekolah',
+            'nama_institusi' => 'SMA N 1 Cirebon',
+            'pic_name' => 'Pak Budi',
+            'pic_whatsapp' => '08123456789',
+        ]);
+
+        $event->spvs()->attach($this->spv1->id);
+
+        $response = $this->actingAs($this->eo1)
+            ->getJson(route('eo.events.show', $event->id));
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'id' => $event->id,
+                'name' => 'Event Detail Test',
+                'jenis_institusi' => 'Sekolah',
+                'nama_institusi' => 'SMA N 1 Cirebon',
+                'pic_name' => 'Pak Budi',
+                'pic_whatsapp' => '08123456789',
+            ]);
+    }
 }

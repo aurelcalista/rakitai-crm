@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DumpEventTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_dump_event()
     {
         $user = \App\Models\User::factory()->create(['role' => 'EO']);

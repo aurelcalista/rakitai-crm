@@ -28,6 +28,8 @@ class AdminWilayahController extends Controller
 
     public function store(Request $request)
     {
+        \Illuminate\Support\Facades\Gate::authorize('create', Wilayah::class);
+
         $validated = $request->validate([
             'kode' => 'required|string|max:50|unique:wilayahs,kode',
             'nama' => 'required|string|max:255',
@@ -61,6 +63,7 @@ class AdminWilayahController extends Controller
 
     public function update(Request $request, Wilayah $wilayah)
     {
+        \Illuminate\Support\Facades\Gate::authorize('update', $wilayah);
         $validated = $request->validate([
             'kode' => 'required|string|max:50|unique:wilayahs,kode,' . $wilayah->id,
             'nama' => 'required|string|max:255',

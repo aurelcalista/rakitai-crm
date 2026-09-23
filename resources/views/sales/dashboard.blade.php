@@ -168,21 +168,22 @@
                     </div>
 
                     <div class="mt-5 space-y-6">
-                        <!-- Kontak Baru -->
+                        <!-- Kontak Baru (Harian) -->
                         <div class="flex items-center justify-between gap-4">
                             <div>
-                                <h4 class="font-bold text-slate-800">Kontak Baru</h4>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-bold text-slate-800">Kontak Baru</h4>
+                                    <span class="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">Harian</span>
+                                </div>
                                 <div class="text-[11px] text-slate-500 mt-1">
                                     Target hari ini: <strong class="text-slate-700">{{ $dailyTarget['target_hari_ini_kontak'] }}</strong><br>
-                                    <span class="text-slate-400">(Sisa Akumulasi Kemarin: {{ $dailyTarget['sisa_akumulasi_kontak'] }})</span>
+                                    <span class="text-slate-400">(Sisa Defisit Kemarin: {{ $dailyTarget['sisa_akumulasi_kontak'] }})</span>
                                 </div>
                             </div>
                             @php $pctKontak = $dailyTarget['target_hari_ini_kontak'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_kontak'] / $dailyTarget['target_hari_ini_kontak']) * 100)) : 0; @endphp
                             <div class="relative w-14 h-14 shrink-0">
                                 <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                    <!-- Background (Belum terpenuhi / Abu) -->
                                     <path class="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-                                    <!-- Progress (Terpenuhi / Biru) -->
                                     <path class="text-blue-500 transition-all duration-1000 ease-out" stroke-dasharray="{{ $pctKontak }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
                                 </svg>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center">
@@ -193,7 +194,33 @@
 
                         <div class="border-t border-slate-100"></div>
 
-                        <!-- Follow Up -->
+                        <!-- Formulir Terjual (Mingguan) -->
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-bold text-slate-800">Formulir Terjual</h4>
+                                    <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Mingguan</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 mt-1">
+                                    Target minggu ini: <strong class="text-slate-700">{{ $dailyTarget['target_minggu_ini_formulir'] }}</strong><br>
+                                    <span class="text-slate-400">(Sisa Defisit Minggu Lalu: {{ $dailyTarget['sisa_akumulasi_formulir'] }})</span>
+                                </div>
+                            </div>
+                            @php $pctFormulir = $dailyTarget['target_minggu_ini_formulir'] > 0 ? min(100, round(($dailyTarget['pencapaian_minggu_ini_formulir'] / $dailyTarget['target_minggu_ini_formulir']) * 100)) : 0; @endphp
+                            <div class="relative w-14 h-14 shrink-0">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                    <path class="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+                                    <path class="text-emerald-500 transition-all duration-1000 ease-out" stroke-dasharray="{{ $pctFormulir }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span class="text-xs font-bold text-slate-800">{{ $dailyTarget['pencapaian_minggu_ini_formulir'] }}/{{ $dailyTarget['target_minggu_ini_formulir'] }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100"></div>
+
+                        <!-- Follow Up (Harian) -->
                         <div class="flex items-center justify-between gap-4">
                             <div>
                                 <h4 class="font-bold text-slate-800">Follow Up</h4>
@@ -205,9 +232,7 @@
                             @php $pctFollowup = $dailyTarget['target_hari_ini_followup'] > 0 ? min(100, round(($dailyTarget['pencapaian_hari_ini_followup'] / $dailyTarget['target_hari_ini_followup']) * 100)) : 0; @endphp
                             <div class="relative w-14 h-14 shrink-0">
                                 <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                    <!-- Background (Belum terpenuhi / Abu) -->
                                     <path class="text-slate-200" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-                                    <!-- Progress (Terpenuhi / Biru) -->
                                     <path class="text-blue-500 transition-all duration-1000 ease-out" stroke-dasharray="{{ $pctFollowup }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
                                 </svg>
                                 <div class="absolute inset-0 flex flex-col items-center justify-center">

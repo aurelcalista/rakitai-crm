@@ -111,30 +111,81 @@ class PerformanceController extends Controller
         ]);
 
         $ta = $this->spvService->getActiveTa();
+        $taModel = TahunAkademik::where('nama', $ta)->first() ?? TahunAkademik::getAktif();
 
-        // Validasi: total alokasi lunas ke tim TIDAK boleh melebihi target lunas yang diterima SPV dari HM
-        $targetHm = $this->spvService->getTargetHmForSpv($user, $ta);
-        $targetLunasHm = $targetHm['target_lunas'];
+        $existing = Target::where([
+            'sales_id'        => $validated['sales_id'],
+            'tipe_periode'    => $validated['tipe_periode'],
+            'tanggal_mulai'   => $validated['tanggal_mulai'],
+            'tanggal_selesai' => $validated['tanggal_selesai'],
+        ])->first();
 
-        // Hitung existing alokasi (kecuali record yang akan diupdate)
-        $existingAlokasi = Target::whereIn('sales_id', $teamMemberIds)
-            ->where('allocated_by', $user->id)
-            ->where('status', 'Aktif')
-            ->where(function ($q) use ($ta) {
-                $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
-            })
-            ->where('sales_id', '!=', $validated['sales_id']) // exclude current member being updated
-            ->sum('target_lunas');
-
-        $newTotal = $existingAlokasi + (int)$validated['target_lunas'];
-        if ($newTotal > $targetLunasHm) {
-            return redirect()->back()
-                ->withErrors(['target_lunas' => "Total target Maba Lunas tim ({$newTotal}) melebihi target SPV dari HM ({$targetLunasHm}). Sisa yang bisa dialokasikan: " . max(0, $targetLunasHm - $existingAlokasi) . '.'])
-                ->withInput();
+        if ($existing) {
+            \Illuminate\Support\Facades\Gate::authorize('update', $existing);
         }
 
-        // Ambil academic_year_id dari TA aktif
-        $taModel = TahunAkademik::where('nama', $ta)->first() ?? TahunAkademik::getAktif();
+        // Validate that sum of distributed Target Sales <= Target Wilayah (P0 Business Structure)
+        $wilayahTarget = Target::where('spv_id', $user->id)
+            ->where('target_type', 'Wilayah')
+            ->where(function ($q) use ($taModel, $ta) {
+                if ($taModel) {
+                    $q->where('academic_year_id', $taModel->id);
+                }
+                $q->orWhere('tahun_akademik', $ta);
+            })
+            ->where('status', 'Aktif')
+            ->latest()
+            ->first();
+
+        if ($wilayahTarget) {
+            $otherAllocated = Target::whereIn('sales_id', $teamMemberIds)
+                ->where('allocated_by', $user->id)
+                ->where('status', 'Aktif')
+                ->where(function ($q) use ($taModel, $ta) {
+                    if ($taModel) {
+                        $q->where('academic_year_id', $taModel->id);
+                    }
+                    $q->orWhere('tahun_akademik', $ta);
+                })
+                ->where('id', '!=', $existing?->id)
+                ->get();
+
+            $totalKontak   = $otherAllocated->sum('target_kontak') + $validated['target_kontak'];
+            $totalFormulir = $otherAllocated->sum('target_formulir') + $validated['target_formulir'];
+            $totalLunas    = $otherAllocated->sum('target_lunas') + $validated['target_lunas'];
+
+            if ($totalLunas > $wilayahTarget->target_lunas) {
+                return redirect()->back()
+                    ->withErrors(['target_lunas' => "Alokasi ditolak! Total target lunas tim ({$totalLunas}) melebihi Target Wilayah SPV ({$wilayahTarget->target_lunas})."])
+                    ->withInput();
+            }
+            if ($totalKontak > $wilayahTarget->target_kontak) {
+                return redirect()->back()
+                    ->withErrors(['target_kontak' => "Alokasi ditolak! Total target kontak tim ({$totalKontak}) melebihi Target Wilayah SPV ({$wilayahTarget->target_kontak})."])
+                    ->withInput();
+            }
+        } else {
+            // Validasi fallback: total alokasi lunas ke tim TIDAK boleh melebihi target lunas yang diterima SPV dari HM
+            $targetHm = $this->spvService->getTargetHmForSpv($user, $ta);
+            $targetLunasHm = $targetHm['target_lunas'];
+
+            // Hitung existing alokasi (kecuali record yang akan diupdate)
+            $existingAlokasi = Target::whereIn('sales_id', $teamMemberIds)
+                ->where('allocated_by', $user->id)
+                ->where('status', 'Aktif')
+                ->where(function ($q) use ($ta) {
+                    $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                })
+                ->where('sales_id', '!=', $validated['sales_id']) // exclude current member being updated
+                ->sum('target_lunas');
+
+            $newTotal = $existingAlokasi + (int)$validated['target_lunas'];
+            if ($newTotal > $targetLunasHm) {
+                return redirect()->back()
+                    ->withErrors(['target_lunas' => "Total target Maba Lunas tim ({$newTotal}) melebihi target SPV dari HM ({$targetLunasHm}). Sisa yang bisa dialokasikan: " . max(0, $targetLunasHm - $existingAlokasi) . '.'])
+                    ->withInput();
+            }
+        }
 
         Target::updateOrCreate(
             [
@@ -144,6 +195,9 @@ class PerformanceController extends Controller
                 'tanggal_selesai' => $validated['tanggal_selesai'],
             ],
             [
+                'target_type'     => 'Individual',
+                'spv_id'          => $user->id,
+                'wilayah_id'      => User::find($validated['sales_id'])?->wilayah_id ?? $user->wilayah_id,
                 'allocated_by'    => $user->id,
                 'tahun_akademik'  => $ta,
                 'academic_year_id'=> $taModel?->id,

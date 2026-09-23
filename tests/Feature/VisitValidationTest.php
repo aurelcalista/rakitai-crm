@@ -10,7 +10,7 @@ use App\Models\Kunjungan;
 use App\Models\Event;
 use App\Models\MasterData;
 use App\Services\GeoLocationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 class VisitValidationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $sales;
     protected User $dosen;
@@ -193,15 +193,15 @@ class VisitValidationTest extends TestCase
     }
 
     /**
-     * Test H: Prodi kosong → gagal.
+     * Test H: Prodi kosong → sukses (prodi_id bersifat opsional).
      */
-    public function test_h_empty_prodi_fails()
+    public function test_h_empty_prodi_succeeds()
     {
         $payload = $this->getValidVisitPayload();
         unset($payload['prodi_id']);
 
         $response = $this->actingAs($this->sales)->post(route('sales.kunjungan.store'), $payload);
-        $response->assertSessionHasErrors('prodi_id');
+        $response->assertSessionHasNoErrors();
     }
 
     /**

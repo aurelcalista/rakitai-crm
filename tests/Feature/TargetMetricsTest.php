@@ -15,7 +15,7 @@ use App\Services\AkademikService;
 use App\Services\SalesTargetService;
 use App\Services\TargetMetricsService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -43,7 +43,7 @@ use Tests\TestCase;
  */
 class TargetMetricsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private TargetMetricsService $metrics;
     private SalesTargetService   $targetSvc;

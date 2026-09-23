@@ -301,6 +301,17 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
                             </a>
                             <a 
+                                href="{{ route('admin.hm-wilayah.index') }}" 
+                                title="Penugasan Wilayah HM"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.hm-wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.hm-wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Wilayah HM</span>
+                            </a>
+                            <a 
                                 href="{{ route('admin.kunjungan.index') }}" 
                                 title="Kelola Kunjungan"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.kunjungan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -569,27 +580,17 @@ x-init="
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
                         <div class="space-y-1">
                             <a 
-                                href="{{ route('wilayah.index') }}" 
-                                title="Kelola Wilayah"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                href="{{ route('hm.wilayah.index') }}" 
+                                title="Wilayah Saya"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Kelola Wilayah</span>
+                                <span x-show="!sidebarCollapsed">Wilayah Saya</span>
                             </a>
-                            <a 
-                                href="{{ route('tim.index') }}" 
-                                title="Kelola Tim"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('tim.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('tim.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Kelola Tim</span>
-                            </a>
+
                             <a 
                                 href="{{ route('admin.target.index') }}" 
                                 title="Kelola Target"
@@ -1085,6 +1086,19 @@ x-init="
                             </a>
 
                             <a 
+                                href="{{ route('admin.hm-wilayah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="wilayah hm penugasan kota kabupaten marketing admin"
+                                x-show="matches('wilayah hm penugasan kota kabupaten marketing admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.hm-wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.hm-wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                </svg>
+                                <span class="flex-1">Wilayah HM</span>
+                            </a>
+
+                            <a 
                                 href="{{ route('admin.kunjungan.index') }}" 
                                 @click="mobileMenuOpen = false"
                                 data-menu-keywords="kelola kunjungan visit sekolah instansi admin"
@@ -1366,29 +1380,16 @@ x-init="
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
                         <div class="space-y-1">
                             <a 
-                                href="{{ route('wilayah.index') }}" 
+                                href="{{ route('hm.wilayah.index') }}" 
                                 @click="mobileMenuOpen = false"
-                                data-menu-keywords="kelola wilayah zonasi daerah marketing"
-                                x-show="matches('kelola wilayah zonasi daerah marketing')"
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                data-menu-keywords="wilayah saya kelola wilayah zonasi daerah marketing"
+                                x-show="matches('wilayah saya kelola wilayah zonasi daerah marketing')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                             >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span class="flex-1">Kelola Wilayah</span>
-                            </a>
-
-                            <a 
-                                href="{{ route('tim.index') }}" 
-                                @click="mobileMenuOpen = false"
-                                data-menu-keywords="kelola tim marketing head"
-                                x-show="matches('kelola tim marketing head')"
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('tim.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('tim.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                <span class="flex-1">Kelola Tim</span>
+                                <span class="flex-1">Wilayah Saya</span>
                             </a>
 
                             <a 
@@ -1529,8 +1530,8 @@ x-init="
                     <div>
                         <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
                         @php
-                            $sekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
-                            $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+                            $sekolahsList = \App\Models\Sekolah::getDynamicSchools();
+                            $perusahaansList = \App\Models\Perusahaan::getDynamicPerusahaans();
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
                             $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
@@ -1573,21 +1574,19 @@ x-init="
                             </div>
                             <div x-show="prospekType === 'Sekolah'">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah *</label>
-                                <select name="sekolah_id" id="sekolah_id_select" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white tom-select-init" :required="prospekType === 'Sekolah'">
-                                    <option value="">-- Pilih Sekolah --</option>
-                                    @foreach($sekolahsList as $sek)
-                                        <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select 
+                                    name="sekolah_id" 
+                                    :options="$sekolahsList" 
+                                    placeholder="-- Ketik untuk mencari Sekolah... --" 
+                                />
                             </div>
                             <div x-show="prospekType === 'Corporate'" style="display: none;">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
-                                <select name="perusahaan_id" id="perusahaan_id_select" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white tom-select-init" :required="prospekType === 'Corporate'">
-                                    <option value="">-- Pilih Perusahaan --</option>
-                                    @foreach($perusahaansList as $per)
-                                        <option value="{{ $per->id }}">{{ $per->nama }}</option>
-                                    @endforeach
-                                </select>
+                                <x-searchable-select 
+                                    name="perusahaan_id" 
+                                    :options="$perusahaansList" 
+                                    placeholder="-- Ketik untuk mencari Perusahaan... --" 
+                                />
                             </div>
 
                             <div>

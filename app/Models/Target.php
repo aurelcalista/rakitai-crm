@@ -5,14 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Target extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'sales_id', 'allocated_by', 'tipe_periode', 'tahun_akademik', 'academic_year_id',
-        'tanggal_mulai', 'tanggal_selesai',
+        'parent_id', 'target_type', 'wilayah_id', 'spv_id', 'sales_id', 'allocated_by',
+        'tipe_periode', 'gelombang', 'academic_year_id', 'tahun_akademik', 'tanggal_mulai', 'tanggal_selesai',
         'target_kontak', 'target_menghubungi', 'target_followup', 'target_kunjungan',
         'target_formulir', 'target_lunas', 'status',
         'is_locked', 'locked_at', 'locked_by',
@@ -37,6 +38,31 @@ class Target extends Model
         'locked_at' => 'datetime',
     ];
 
+    public function parentTarget(): BelongsTo
+    {
+        return $this->belongsTo(Target::class, 'parent_id');
+    }
+
+    public function monthlyTargets(): HasMany
+    {
+        return $this->hasMany(Target::class, 'parent_id');
+    }
+
+    public function isAnnual(): bool
+    {
+        return $this->tipe_periode === 'Tahunan';
+    }
+
+    public function wilayah(): BelongsTo
+    {
+        return $this->belongsTo(Wilayah::class, 'wilayah_id');
+    }
+
+    public function spv(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'spv_id');
+    }
+
     public function sales(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sales_id');
@@ -45,6 +71,16 @@ class Target extends Model
     public function allocator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'allocated_by');
+    }
+
+    public function scopeWilayahTargets($query)
+    {
+        return $query->where('target_type', 'Wilayah');
+    }
+
+    public function scopeIndividualTargets($query)
+    {
+        return $query->where('target_type', 'Individual');
     }
 
     public function lockedBy(): BelongsTo

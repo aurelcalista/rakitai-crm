@@ -123,8 +123,8 @@ class ProspectController extends Controller
 
         $teamSales   = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->where('status', 'Aktif')->get();
         $teamCs      = User::where('role', 'CS')->where('status', 'Aktif')->get();
-        $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
-        $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+        $sekolahs    = Sekolah::getDynamicSchools();
+        $perusahaans = Perusahaan::getDynamicPerusahaans();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $wilayahs    = Wilayah::where('status', 'Aktif')->orderBy('nama')->get();
         $statuses    = Prospek::PIPELINE_8_STAGES;
@@ -247,6 +247,26 @@ class ProspectController extends Controller
         $prodi = Prodi::find($validated['prodi_id']);
         $prodiNama = $prodi ? $prodi->nama : null;
         $wilayahId = $validated['wilayah_id'] ?? $user->wilayah_id;
+
+        // Auto-route active Sales & CS from active user_wilayah if not manually assigned
+        if ($wilayahId) {
+            $wilayahObj = Wilayah::find($wilayahId);
+            if ($wilayahObj) {
+                if (!$salesId && ($validated['assign_type'] ?? '') === 'sales') {
+                    $activeSales = $wilayahObj->activeSalesUser();
+                    if ($activeSales) {
+                        $salesId = $activeSales->id;
+                        $ownerId = $salesId;
+                    }
+                }
+                if (!$csId) {
+                    $activeCs = $wilayahObj->activeCsUser();
+                    if ($activeCs) {
+                        $csId = $activeCs->id;
+                    }
+                }
+            }
+        }
 
         DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;

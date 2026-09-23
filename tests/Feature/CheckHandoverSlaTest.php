@@ -5,12 +5,12 @@ namespace Tests\Feature;
 use App\Models\Prospek;
 use App\Models\User;
 use App\Models\ProspekTimeline;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class CheckHandoverSlaTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_sla_detection()
     {

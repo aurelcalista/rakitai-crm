@@ -163,24 +163,24 @@
 
                     <!-- Sekolah Selector (jika Sekolah) -->
                     <div x-show="prospectType === 'Sekolah'" x-cloak class="space-y-1">
-                        <label class="block text-xs font-semibold text-slate-700">Pilih dari Master Data Sekolah (Opsional)</label>
-                        <select name="sekolah_id" x-model="selectedSekolahId" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
-                            <option value="">-- Pilih Sekolah Terdaftar atau Ketik Manual di Bawah --</option>
-                            @foreach($sekolahs as $sekolah)
-                                <option value="{{ $sekolah->id }}">{{ $sekolah->nama }} ({{ $sekolah->kota ?? 'Wilayah UCIC' }})</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-700">Pilih / Cari Sekolah (Dinamis dari Master Data, Event & Kunjungan)</label>
+                        <x-searchable-select 
+                            name="sekolah_id" 
+                            :options="$sekolahs" 
+                            placeholder="-- Ketik untuk mencari Sekolah... --" 
+                            :value="old('sekolah_id')" 
+                        />
                     </div>
 
                     <!-- Perusahaan Selector (jika Corporate) -->
                     <div x-show="prospectType === 'Corporate'" x-cloak class="space-y-1">
-                        <label class="block text-xs font-semibold text-slate-700">Pilih dari Master Data Perusahaan (Opsional)</label>
-                        <select name="perusahaan_id" x-model="selectedPerusahaanId" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
-                            <option value="">-- Pilih Perusahaan Terdaftar atau Ketik Manual di Bawah --</option>
-                            @foreach($perusahaans as $perusahaan)
-                                <option value="{{ $perusahaan->id }}">{{ $perusahaan->nama }}</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-700">Pilih / Cari Perusahaan (Dinamis dari Master Data, Event & Kunjungan)</label>
+                        <x-searchable-select 
+                            name="perusahaan_id" 
+                            :options="$perusahaans" 
+                            placeholder="-- Ketik untuk mencari Perusahaan... --" 
+                            :value="old('perusahaan_id')" 
+                        />
                     </div>
 
                     <!-- Nama Prospek -->

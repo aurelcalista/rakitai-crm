@@ -104,7 +104,7 @@ class VisitController extends Controller
     {
         $rules = [
             'jenis'          => 'required|in:Sekolah,Perusahaan',
-            'prodi_id'       => 'required|exists:prodis,id',
+            'prodi_id'       => 'nullable|exists:prodis,id',
             'tanggal'        => 'required|date',
             'waktu'          => 'required|date_format:H:i',
             'catatan'        => 'nullable|string|max:2000',
@@ -253,7 +253,7 @@ class VisitController extends Controller
             'tanggal'                  => $validated['tanggal'],
             'waktu'                    => $validated['waktu'] . ':00',
             'sales_id'                 => $user->id,
-            'prodi_id'                 => $validated['prodi_id'],
+            'prodi_id'                 => $validated['prodi_id'] ?? ($event->prodi_id ?? null),
             'jenis'                    => $validated['jenis'],
             'tujuan_id'                => $tujuanId > 0 ? $tujuanId : 0,
             'tujuan_kunjungan'         => $namaInstitusi,
@@ -329,7 +329,7 @@ class VisitController extends Controller
                 'category'     => null,
                 'sekolah_id'   => $validated['jenis'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'=> in_array($validated['jenis'], ['Perusahaan', 'Corporate']) ? ($validated['perusahaan_id'] ?? null) : null,
-                'prodi_id'     => $validated['prodi_id'],
+                'prodi_id'     => $validated['prodi_id'] ?? ($event->prodi_id ?? null),
                 'pic'          => $validated['pic_name'] ?? '-',
                 'whatsapp'     => $validated['pic_whatsapp'] ?? '-',
                 'status'       => 'BARU',
