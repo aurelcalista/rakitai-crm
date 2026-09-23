@@ -8,16 +8,24 @@ use App\Models\User;
 class TargetPolicy
 {
     /**
-     * Helper: check if HM has authority over the target (via Sales' Wilayah).
+     * Helper: check if HM has authority over the target.
      */
     private function isHmAuthorized(User $user, Target $target): bool
     {
+        if (strtolower($user->role) === 'admin') {
+            return true; // Admin HAS GLOBAL ACCESS
+        }
+
         if (is_null($user->wilayah_id)) {
             return true;
         }
 
-        if ($target->sales && $target->sales->wilayah_id === $user->wilayah_id) {
-            return true;
+        if ($target->wilayah_id) {
+            return $user->isWithinWilayahScope($target->wilayah_id);
+        }
+
+        if ($target->sales) {
+            return $user->isWithinWilayahScope($target->sales->wilayah_id);
         }
 
         return in_array($target->sales_id, $user->hmMemberIds());
@@ -30,17 +38,37 @@ class TargetPolicy
     {
         $role = strtolower($user->role);
 
+        if ($role === 'admin') {
+            return true; // Admin HAS GLOBAL ACCESS
+        }
+
         return match ($role) {
             'sales' => $target->sales_id === $user->id,
 
-            'spv'   => in_array($target->sales_id, $user->teamMemberIds()),
+            'spv'   => ($target->spv_id === $user->id) || in_array($target->sales_id, $user->teamMemberIds()),
 
             'hm'    => $this->isHmAuthorized($user, $target),
 
-            'admin' => true,
-
             default => false,
         };
+    }
+
+    /**
+     * Set / Create Wilayah Target (HM operation).
+     */
+    public function createWilayahTarget(User $user, ?int $wilayahId = null): bool
+    {
+        $role = strtolower($user->role);
+
+        if ($role === 'admin') {
+            return true; // Admin HAS GLOBAL ACCESS
+        }
+
+        if ($role === 'hm') {
+            return $wilayahId ? $user->isWithinWilayahScope($wilayahId) : true;
+        }
+
+        return false;
     }
 
     /**
@@ -71,8 +99,6 @@ class TargetPolicy
 
     /**
      * Update target fields.
-     * If locked: only Admin or authorized HM can update. SPV and Sales CANNOT update locked target.
-     * If unlocked: Admin, HM, and SPV (for team members) can update. Sales CANNOT update targets.
      */
     public function update(User $user, Target $target): bool
     {
@@ -101,7 +127,7 @@ class TargetPolicy
         }
 
         if ($role === 'spv') {
-            return in_array($target->sales_id, $user->teamMemberIds());
+            return ($target->spv_id === $user->id) || in_array($target->sales_id, $user->teamMemberIds());
         }
 
         return false;

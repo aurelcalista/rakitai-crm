@@ -30,6 +30,44 @@
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Wilayah Kerja Utama SPV: <strong class="text-slate-800">{{ $myWilayah }}</strong></p>
             </div>
+            <button onclick="document.getElementById('assignModal').classList.remove('hidden')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition">
+                + Tambah / Pilih Anggota Tim
+            </button>
+        </div>
+
+        <!-- Modal Assign Member -->
+        <div id="assignModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <h3 class="font-bold text-slate-900">Penugasan Sales / CS ke Tim SPV</h3>
+                    <button onclick="document.getElementById('assignModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">&times;</button>
+                </div>
+                <form action="{{ route('spv.tim.assign') }}" method="POST" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Kandidat Sales / CS</label>
+                        <select name="user_id" class="w-full rounded-xl border-slate-300 text-xs text-slate-800" required>
+                            <option value="">-- Pilih Sales / CS --</option>
+                            @foreach($candidates as $cand)
+                                <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->role }}) - Wilayah: {{ $cand->wilayah ? $cand->wilayah->nama : 'Belum Ada' }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Wilayah / Area Detail Spesifik (Cakupan {{ $myWilayah }})</label>
+                        <select name="area_id" class="w-full rounded-xl border-slate-300 text-xs text-slate-800">
+                            <option value="">-- Samakan dengan Wilayah Utama SPV --</option>
+                            @foreach($availableAreas as $area)
+                                <option value="{{ $area->id }}">{{ $area->nama }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onclick="document.getElementById('assignModal').classList.add('hidden')" class="px-4 py-2 border rounded-xl text-xs font-semibold text-slate-600">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700">Simpan Penugasan</button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <!-- Team Members Grid -->

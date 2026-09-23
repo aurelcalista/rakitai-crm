@@ -124,6 +124,7 @@ Route::middleware('auth')->group(function () {
 
             // Team Structure & Directory
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
+            Route::post('/tim/assign', [\App\Http\Controllers\Spv\TeamController::class, 'assignMember'])->name('tim.assign');
 
             // SPV Event Assignments
             Route::get('/events', [\App\Http\Controllers\Spv\EventAssignmentController::class, 'index'])->name('events.index');
@@ -133,6 +134,15 @@ Route::middleware('auth')->group(function () {
             Route::post('/prospek/{prospek}/closing',       [\App\Http\Controllers\Spv\ProspectController::class, 'closing'])->name('prospek.closing');
             Route::post('/kunjungan/{kunjungan}/verifikasi', [\App\Http\Controllers\Spv\VisitController::class, 'verifikasi'])->name('kunjungan.verifikasi');
         });
+
+    // ──────────────────────────────────────────────────────────────
+    // HM (Head Manager) Role Routes
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware(['role:Admin,HM'])->prefix('hm')->name('hm.')->group(function () {
+        Route::get('/wilayah', [\App\Http\Controllers\Hm\HmWilayahController::class, 'index'])->name('wilayah.index');
+        Route::post('/wilayah/{wilayah}/assign-spv', [\App\Http\Controllers\Hm\HmWilayahController::class, 'assignSpv'])->name('wilayah.assignSpv');
+        Route::post('/wilayah/{wilayah}/target', [\App\Http\Controllers\Hm\HmWilayahController::class, 'setWilayahTarget'])->name('wilayah.setTarget');
+    });
 
     // ──────────────────────────────────────────────────────────────
     // EO (Event Organizer) Role Routes
@@ -201,15 +211,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/pipeline',                [CrmController::class, 'pipelineIndex'])->name('pipeline.index');
         Route::post('/pipeline/update-status', [CrmController::class, 'pipelineUpdateStatus'])->name('pipeline.update-status');
 
-        // Management (Head Marketing / Supervisor)
-        Route::get('/wilayah',               [\App\Http\Controllers\WilayahController::class, 'index'])->name('wilayah.index');
-        Route::post('/wilayah',              [\App\Http\Controllers\WilayahController::class, 'store'])->name('wilayah.store');
-        Route::put('/wilayah/{id}',          [\App\Http\Controllers\WilayahController::class, 'update'])->name('wilayah.update');
-        Route::delete('/wilayah/{id}',       [\App\Http\Controllers\WilayahController::class, 'destroy'])->name('wilayah.destroy');
-        Route::patch('/wilayah/{id}/toggle', [\App\Http\Controllers\WilayahController::class, 'toggleStatus'])->name('wilayah.toggle');
-
-        Route::get('/tim',  [\App\Http\Controllers\TimController::class, 'index'])->name('tim.index');
-        Route::post('/tim', [\App\Http\Controllers\TimController::class, 'store'])->name('tim.store');
+        // NOTE: Master Wilayah management is role-separated:
+        //   Admin → admin.wilayah.* (AdminWilayahController — full CRUD)
+        //   HM    → hm.wilayah.*   (HmWilayahController   — assign SPV + set target)
+        // The old shared WilayahController is no longer exposed here.
 
         // Performance & Reports
         Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');

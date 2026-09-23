@@ -28,6 +28,8 @@ class AdminUserController extends Controller
             'phone' => 'required|string|max:20',
             'role' => 'required|in:Admin,HM,SPV,Sales,CS,EO',
             'status' => 'required|in:Aktif,Nonaktif',
+            'wilayah_id' => 'nullable|exists:wilayahs,id',
+            'supervisor_id' => 'nullable|exists:users,id',
             'password' => 'required|string|confirmed',
         ]);
 
@@ -46,6 +48,8 @@ class AdminUserController extends Controller
             'phone' => 'required|string|max:20',
             'role' => 'required|in:Admin,HM,SPV,Sales,CS,EO',
             'status' => 'required|in:Aktif,Nonaktif',
+            'wilayah_id' => 'nullable|exists:wilayahs,id',
+            'supervisor_id' => 'nullable|exists:users,id',
         ]);
 
         $user->update($validated);

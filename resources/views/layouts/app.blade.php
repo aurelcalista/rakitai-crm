@@ -335,6 +335,17 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Data Master</span>
                             </a>
+                            <a 
+                                href="{{ route('admin.wilayah.index') }}" 
+                                title="Data Wilayah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Wilayah</span>
+                            </a>
                         </div>
                     </div>
                 @elseif($currentUser['role'] !== 'EO')
@@ -507,27 +518,17 @@ x-init="
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
                         <div class="space-y-1">
                             <a 
-                                href="{{ route('wilayah.index') }}" 
-                                title="Kelola Wilayah"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                href="{{ route('hm.wilayah.index') }}" 
+                                title="Wilayah Saya"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Kelola Wilayah</span>
+                                <span x-show="!sidebarCollapsed">Wilayah Saya</span>
                             </a>
-                            <a 
-                                href="{{ route('tim.index') }}" 
-                                title="Kelola Tim"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('tim.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('tim.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Kelola Tim</span>
-                            </a>
+
                             <a 
                                 href="{{ route('admin.target.index') }}" 
                                 title="Kelola Target"

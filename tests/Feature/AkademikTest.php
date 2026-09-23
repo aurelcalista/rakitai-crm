@@ -11,7 +11,7 @@ use App\Models\TahunAkademik;
 use App\Models\Transaksi;
 use App\Models\User;
 use App\Services\AkademikService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 class AkademikTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $sales;
     protected Prodi $prodi;

@@ -102,6 +102,34 @@ class PerformanceController extends Controller
             \Illuminate\Support\Facades\Gate::authorize('update', $existing);
         }
 
+        // Validate that sum of distributed Target Sales <= Target Wilayah
+        $wilayahTarget = Target::where('spv_id', $user->id)
+            ->where('target_type', 'Wilayah')
+            ->where('academic_year_id', $activeTA->id)
+            ->where('status', 'Aktif')
+            ->latest()
+            ->first();
+
+        if ($wilayahTarget) {
+            $otherAllocated = Target::whereIn('sales_id', $teamMemberIds)
+                ->where('allocated_by', $user->id)
+                ->where('status', 'Aktif')
+                ->where('academic_year_id', $activeTA->id)
+                ->where('id', '!=', $existing?->id)
+                ->get();
+
+            $totalKontak   = $otherAllocated->sum('target_kontak') + $validated['target_kontak'];
+            $totalFormulir = $otherAllocated->sum('target_formulir') + $validated['target_formulir'];
+            $totalLunas    = $otherAllocated->sum('target_lunas') + $validated['target_lunas'];
+
+            if ($totalLunas > $wilayahTarget->target_lunas) {
+                return redirect()->back()->withErrors(['target_lunas' => "Alokasi ditolak! Total target lunas tim ({$totalLunas}) melebihi Target Wilayah SPV ({$wilayahTarget->target_lunas})."]);
+            }
+            if ($totalKontak > $wilayahTarget->target_kontak) {
+                return redirect()->back()->withErrors(['target_kontak' => "Alokasi ditolak! Total target kontak tim ({$totalKontak}) melebihi Target Wilayah SPV ({$wilayahTarget->target_kontak})."]);
+            }
+        }
+
         Target::updateOrCreate(
             [
                 'sales_id'        => $validated['sales_id'],
@@ -110,6 +138,9 @@ class PerformanceController extends Controller
                 'tanggal_selesai' => $validated['tanggal_selesai'],
             ],
             [
+                'target_type'     => 'Individual',
+                'spv_id'          => $user->id,
+                'wilayah_id'      => User::find($validated['sales_id'])?->wilayah_id ?? $user->wilayah_id,
                 'allocated_by'    => $user->id,
                 'academic_year_id'=> $activeTA->id,
                 'tahun_akademik'  => $activeTA->nama, // keep legacy column in sync

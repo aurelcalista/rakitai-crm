@@ -22,6 +22,10 @@ class UserSeeder extends Seeder
             ]
         );
 
+        $defaultWilayah = \App\Models\Wilayah::where('kode', 'W-CRB')->first() 
+            ?? \App\Models\Wilayah::whereNull('parent_id')->first();
+        $wilayahId = $defaultWilayah?->id;
+
         $hm = User::updateOrCreate(
             ['email' => 'hm@cic.ac.id'],
             [
@@ -29,6 +33,7 @@ class UserSeeder extends Seeder
                 'role'              => 'HM',
                 'password'          => Hash::make('password'),
                 'status'            => 'Aktif',
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -40,6 +45,7 @@ class UserSeeder extends Seeder
                 'role'              => 'SPV',
                 'password'          => Hash::make('password'),
                 'status'            => 'Aktif',
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -51,6 +57,7 @@ class UserSeeder extends Seeder
                 'role'              => 'EO',
                 'password'          => Hash::make('password'),
                 'status'            => 'Aktif',
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -63,6 +70,7 @@ class UserSeeder extends Seeder
                 'password'          => Hash::make('password'),
                 'status'            => 'Aktif',
                 'supervisor_id'     => $spv->id,
+                'wilayah_id'        => $wilayahId,
                 'email_verified_at' => now(),
             ]
         );
@@ -84,6 +92,7 @@ class UserSeeder extends Seeder
                     'password'          => Hash::make('password'),
                     'status'            => 'Aktif',
                     'supervisor_id'     => $spv->id,
+                    'wilayah_id'        => $wilayahId,
                     'email_verified_at' => now(),
                 ]
             );

@@ -128,17 +128,48 @@ class User extends Authenticatable
     }
 
     /**
-     * Get team member IDs for an SPV (subordinates or same wilayah Sales/CS without conflicting supervisor).
+     * Check if this user's assigned area/wilayah (or a given target Wilayah) is within a main Wilayah scope recursively.
+     */
+    public function isWithinWilayahScope(Wilayah|int|null $mainWilayah): bool
+    {
+        if (strtolower($this->role) === 'admin') {
+            return true; // Admin HAS GLOBAL ACCESS
+        }
+
+        if (!$mainWilayah) {
+            return true;
+        }
+
+        $mainWilayahId = $mainWilayah instanceof Wilayah ? $mainWilayah->id : $mainWilayah;
+
+        if (!$this->wilayah_id) {
+            return true; // Unassigned / global HM / SPV fallback
+        }
+
+        if ($this->wilayah_id == $mainWilayahId) {
+            return true;
+        }
+
+        $userWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
+        if ($userWilayah) {
+            return $userWilayah->isDescendantOf($mainWilayahId);
+        }
+
+        return false;
+    }
+
+    /**
+     * Get team member IDs for an SPV (subordinates with supervisor_id or Sales/CS in SPV's descendant Wilayahs).
      */
     public function teamMemberIds(): array
     {
         $subordinateIds = $this->subordinates()->pluck('id')->toArray();
-        if (!empty($subordinateIds)) {
-            return $subordinateIds;
-        }
 
         if ($this->wilayah_id) {
-            return User::where('wilayah_id', $this->wilayah_id)
+            $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
+            $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
+
+            $wilayahMemberIds = User::whereIn('wilayah_id', $descendantWilayahIds)
                 ->whereIn('role', ['Sales', 'CS'])
                 ->where(function ($q) {
                     $q->whereNull('supervisor_id')
@@ -146,24 +177,30 @@ class User extends Authenticatable
                 })
                 ->pluck('id')
                 ->toArray();
+
+            return array_values(array_unique(array_merge($subordinateIds, $wilayahMemberIds)));
         }
 
-        return User::whereIn('role', ['Sales', 'CS'])
-            ->where(function ($q) {
-                $q->whereNull('supervisor_id')
-                  ->orWhere('supervisor_id', $this->id);
-            })
-            ->pluck('id')
-            ->toArray();
+        return array_values(array_unique(array_merge(
+            $subordinateIds,
+            User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray()
+        )));
     }
 
     /**
-     * Get user IDs belonging to an HM's wilayah.
+     * Get user IDs belonging to an HM's wilayah (including all descendant wilayahs).
      */
     public function hmMemberIds(): array
     {
+        if (strtolower($this->role) === 'admin') {
+            return User::pluck('id')->toArray(); // Admin = global
+        }
+
         if ($this->wilayah_id) {
-            return User::where('wilayah_id', $this->wilayah_id)->pluck('id')->toArray();
+            $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
+            $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
+
+            return User::whereIn('wilayah_id', $descendantWilayahIds)->pluck('id')->toArray();
         }
 
         return User::pluck('id')->toArray();

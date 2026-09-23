@@ -35,4 +35,39 @@ class Wilayah extends Model
     {
         return $this->hasMany(Perusahaan::class, 'wilayah_id');
     }
+
+    /**
+     * Check recursively if this Wilayah is equal to or a descendant of the given parent Wilayah.
+     */
+    public function isDescendantOf(Wilayah|int|null $parentWilayah): bool
+    {
+        if (!$parentWilayah) return true;
+        $parentId = $parentWilayah instanceof Wilayah ? $parentWilayah->id : $parentWilayah;
+
+        if ($this->id == $parentId) {
+            return true;
+        }
+
+        $current = $this;
+        while ($current && $current->parent_id) {
+            if ($current->parent_id == $parentId) {
+                return true;
+            }
+            $current = $current->parent;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get all descendant Wilayah IDs (including self ID) recursively.
+     */
+    public function getDescendantIds(): array
+    {
+        $ids = [$this->id];
+        foreach ($this->children as $child) {
+            $ids = array_merge($ids, $child->getDescendantIds());
+        }
+        return array_values(array_unique($ids));
+    }
 }

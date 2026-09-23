@@ -10,7 +10,7 @@ use App\Models\Kunjungan;
 use App\Models\Event;
 use App\Models\MasterData;
 use App\Services\GeoLocationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 class VisitValidationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $sales;
     protected User $dosen;
