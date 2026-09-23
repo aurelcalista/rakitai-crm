@@ -335,50 +335,6 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Data Master</span>
                             </a>
-                            <a 
-                                href="{{ route('admin.wilayah.index') }}" 
-                                title="Data Wilayah"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.wilayah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Data Wilayah</span>
-                            </a>
-                            <a 
-                                href="{{ route('admin.sekolah.index') }}" 
-                                title="Data Sekolah"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.sekolah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.sekolah.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Data Sekolah</span>
-                            </a>
-                            <a 
-                                href="{{ route('admin.prodi.index') }}" 
-                                title="Data Prodi"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.prodi.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.prodi.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Data Prodi</span>
-                            </a>
-                            <a 
-                                href="{{ route('admin.perusahaan.index') }}" 
-                                title="Data Perusahaan"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.perusahaan.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.perusahaan.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Data Perusahaan</span>
-                            </a>
                         </div>
                     </div>
                 @elseif($currentUser['role'] !== 'EO')
