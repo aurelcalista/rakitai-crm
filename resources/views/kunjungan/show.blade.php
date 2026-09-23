@@ -25,6 +25,16 @@
                 <span class="px-3 py-1.5 rounded-xl text-xs font-bold {{ $visit['status'] === 'Selesai' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200' }} border">
                     {{ $visit['status'] }}
                 </span>
+                @if($visit['event_id'])
+                    <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        Dari Event
+                    </span>
+                @else
+                    <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-50 text-slate-500 border border-slate-200">
+                        Kunjungan Mandiri
+                    </span>
+                @endif
             </div>
         </div>
 
@@ -55,6 +65,20 @@
                         <div class="md:col-span-2">
                             <span class="block text-xs font-medium text-slate-400 mb-1">Alamat Institusi</span>
                             <span class="font-medium text-slate-700">{{ $visit['address'] }}</span>
+                        </div>
+                        {{-- Event Terkait --}}
+                        <div class="md:col-span-2">
+                            <span class="block text-xs font-medium text-slate-400 mb-1">Event Terkait</span>
+                            @if($visit['event_id'])
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-200 text-xs font-bold">
+                                    <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    {{ $visit['event_name'] ?? 'Event #' . $visit['event_id'] }}
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 text-slate-500 border border-slate-200 text-xs font-semibold italic">
+                                    Kunjungan Mandiri (tidak terkait Event)
+                                </span>
+                            @endif
                         </div>
                     </div>
                 </div>

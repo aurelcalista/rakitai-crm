@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
 
             // Events
             Route::get('/event', [\App\Http\Controllers\Sales\EventController::class, 'index'])->name('event.index');
+            Route::post('/events/{event}/confirm', [\App\Http\Controllers\Sales\VisitController::class, 'confirmEvent'])->name('event.confirm');
 
             // Pipeline
             Route::get('/pipeline',                [\App\Http\Controllers\Sales\PipelineController::class, 'index'])->name('pipeline.index');

@@ -20,6 +20,10 @@
     <!-- SweetAlert2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- TomSelect CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
     <style>
         [x-cloak] { display: none !important; }
 
@@ -1543,7 +1547,7 @@ x-init="
                             </div>
                             <div x-show="prospekType === 'Sekolah'">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah *</label>
-                                <select name="sekolah_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white" :required="prospekType === 'Sekolah'">
+                                <select name="sekolah_id" id="sekolah_id_select" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white tom-select-init" :required="prospekType === 'Sekolah'">
                                     <option value="">-- Pilih Sekolah --</option>
                                     @foreach($sekolahsList as $sek)
                                         <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
@@ -1552,7 +1556,7 @@ x-init="
                             </div>
                             <div x-show="prospekType === 'Corporate'" style="display: none;">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
-                                <select name="perusahaan_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white" :required="prospekType === 'Corporate'">
+                                <select name="perusahaan_id" id="perusahaan_id_select" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white tom-select-init" :required="prospekType === 'Corporate'">
                                     <option value="">-- Pilih Perusahaan --</option>
                                     @foreach($perusahaansList as $per)
                                         <option value="{{ $per->id }}">{{ $per->nama }}</option>
@@ -1767,6 +1771,27 @@ x-init="
         class="fixed inset-0 z-50 overflow-y-auto"
         role="dialog" 
         aria-modal="true"
+         @fill-kunjungan.window="
+            modalTambahKunjungan = true;
+            isEventMode = true;
+            eventId = $event.detail.event_id;
+            eventName = $event.detail.event_name;
+            eventDate = $event.detail.event_date;
+            namaInstitusi = $event.detail.nama_institusi;
+            eventTempat = $event.detail.tempat || $event.detail.nama_institusi || $event.detail.lokasi;
+            
+            if ($event.detail.type) {
+                kunjunganType = $event.detail.type;
+            }
+            if ($event.detail.sekolah_id) {
+                selectedSekolahId = $event.detail.sekolah_id;
+            }
+            if ($event.detail.perusahaan_id) {
+                selectedPerusahaanId = $event.detail.perusahaan_id;
+            }
+            picName = $event.detail.pic_name || '';
+            picWhatsapp = $event.detail.pic_whatsapp || '';
+         "
     >
         <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
             <div x-show="modalTambahKunjungan" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalTambahKunjungan = false"></div>
@@ -1775,6 +1800,12 @@ x-init="
                 x-show="modalTambahKunjungan"
                 class="inline-block w-full max-w-4xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto"
                 x-data="{ 
+                    isEventMode: false,
+                    eventId: '',
+                    eventName: '',
+                    eventDate: '',
+                    namaInstitusi: '',
+                    eventTempat: '',
                     kunjunganType: 'sekolah', 
                     photoPreview: null,
                     selectedSekolahId: '',
@@ -1782,19 +1813,34 @@ x-init="
                     sekolahPicMap: {},
                     perusahaanPicMap: {},
                     picName: '',
-                    picName: '',
                     picWhatsapp: '',
                     lat: '',
                     lng: '',
+                    geoAddress: '',
                     geoStatus: '',
                     getGeolocation() {
-                        this.geoStatus = 'Mencari lokasi...';
+                        this.geoStatus = 'Mencari lokasi GPS...';
                         if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition(
                                 (position) => {
                                     this.lat = position.coords.latitude;
                                     this.lng = position.coords.longitude;
-                                    this.geoStatus = 'Lokasi ditemukan ✓';
+                                    this.geoStatus = 'Koordinat ditemukan ✓. Melacak alamat...';
+                                    
+                                    // Reverse Geocoding via Nominatim
+                                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${this.lat}&lon=${this.lng}`)
+                                        .then(res => res.json())
+                                        .then(data => {
+                                            if (data && data.display_name) {
+                                                this.geoAddress = data.display_name;
+                                                this.geoStatus = 'Alamat ditemukan ✓';
+                                            } else {
+                                                this.geoStatus = 'Gagal melacak alamat detail, hanya koordinat yang disimpan.';
+                                            }
+                                        })
+                                        .catch(() => {
+                                            this.geoStatus = 'Gagal melacak alamat detail, hanya koordinat yang disimpan.';
+                                        });
                                 },
                                 (error) => {
                                     this.geoStatus = 'Gagal mendapatkan lokasi. Aktifkan Izin Lokasi/GPS.';
@@ -1809,20 +1855,20 @@ x-init="
                 x-init="
                     @php
                         $sPicMap = [];
-                        foreach(\App\Models\Prospek::where('type', 'Sekolah')->whereNotNull('sekolah_id')->orderBy('created_at', 'asc')->get() as $p) {
-                            $sPicMap[$p->sekolah_id] = ['pic' => $p->pic, 'whatsapp' => $p->whatsapp];
+                        foreach(\App\Models\Sekolah::where('status', 'Aktif')->whereNotNull('pic_name')->get() as $p) {
+                            $sPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
                         }
                         
                         $pPicMap = [];
-                        foreach(\App\Models\Prospek::where('type', 'Corporate')->whereNotNull('perusahaan_id')->orderBy('created_at', 'asc')->get() as $p) {
-                            $pPicMap[$p->perusahaan_id] = ['pic' => $p->pic, 'whatsapp' => $p->whatsapp];
+                        foreach(\App\Models\Perusahaan::where('status', 'Aktif')->whereNotNull('pic_name')->get() as $p) {
+                            $pPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
                         }
                     @endphp
                     sekolahPicMap = {{ json_encode($sPicMap) }};
                     perusahaanPicMap = {{ json_encode($pPicMap) }};
                     
                     $watch('selectedSekolahId', value => {
-                        if (kunjunganType === 'sekolah') {
+                        if (kunjunganType === 'sekolah' && !isEventMode) {
                             if (value && sekolahPicMap[value]) {
                                 picName = sekolahPicMap[value].pic;
                                 picWhatsapp = sekolahPicMap[value].whatsapp;
@@ -1834,7 +1880,7 @@ x-init="
                     });
                     
                     $watch('selectedPerusahaanId', value => {
-                        if (kunjunganType === 'corporate') {
+                        if (kunjunganType === 'corporate' && !isEventMode) {
                             if (value && perusahaanPicMap[value]) {
                                 picName = perusahaanPicMap[value].pic;
                                 picWhatsapp = perusahaanPicMap[value].whatsapp;
@@ -1863,7 +1909,7 @@ x-init="
                 </div>
 
                 <!-- Type Selector Tabs -->
-                <div class="flex border-b border-slate-200 mt-4 mb-5">
+                <div class="flex border-b border-slate-200 mt-4 mb-5" x-show="!isEventMode">
                     <button 
                         type="button" 
                         @click="kunjunganType = 'sekolah'" 
@@ -1881,20 +1927,81 @@ x-init="
                         Form Kunjungan Corporate
                     </button>
                 </div>
+                
+                <div x-show="isEventMode" class="mb-5 p-3.5 bg-blue-50/50 border border-blue-100 rounded-xl">
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Terhubung dengan Event</h4>
+                            <p class="text-sm font-semibold text-blue-800 mt-0.5" x-text="eventName"></p>
+                            <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span x-text="eventDate"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 <form action="{{ route(\Illuminate\Support\Facades\Route::has(($routePrefix ?? '') . 'kunjungan.store') ? ($routePrefix ?? '') . 'kunjungan.store' : 'kunjungan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-5">
                     @csrf
+                    <input type="hidden" name="event_id" :value="eventId" x-bind:disabled="!isEventMode">
+                    <input type="hidden" name="lokasi_penugasan" :value="geoAddress">
                     <input type="hidden" name="jenis" :value="kunjunganType === 'sekolah' ? 'Sekolah' : 'Perusahaan'">
                     <input type="hidden" name="tanggal" value="{{ date('Y-m-d') }}">
                     <input type="hidden" name="waktu" value="{{ date('H:i') }}">
                     <input type="hidden" name="lat" x-model="lat">
                     <input type="hidden" name="lng" x-model="lng">
                     
+                    <!-- INFORMASI KUNJUNGAN (Event Mode Only) -->
+                    <div x-show="isEventMode" class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-4">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Kunjungan</h4>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Tempat</label>
+                                <div class="text-sm font-semibold text-slate-800" x-text="eventTempat"></div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">PIC / Guru BK / HRD</label>
+                                <div class="text-sm font-semibold text-slate-800" x-text="picName"></div>
+                                <input type="hidden" name="pic_name" :value="picName" x-bind:disabled="!isEventMode">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Nomor WhatsApp PIC</label>
+                                <div class="text-sm font-semibold text-slate-800" x-text="picWhatsapp"></div>
+                                <input type="hidden" name="pic_whatsapp" :value="picWhatsapp" x-bind:disabled="!isEventMode">
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- FORM SEKOLAH -->
-                    <template x-if="kunjunganType === 'sekolah'">
+                    <div x-show="kunjunganType === 'sekolah'">
                         <div class="space-y-4">
-                            <!-- Section: INFORMASI SEKOLAH -->
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
+                            <!-- Event Mode: readonly info -->
+                            <div x-show="isEventMode" class="bg-indigo-50/80 p-3.5 rounded-xl border border-indigo-200/70 space-y-3">
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah / Tempat</h4>
+                                <div class="grid grid-cols-1 gap-3">
+                                    <div>
+                                        <p class="text-[11px] font-bold text-slate-500 mb-0.5">Sekolah / Tempat</p>
+                                        <p class="text-sm font-bold text-slate-900" x-text="eventTempat || namaInstitusi || '—'"></p>
+                                        <input type="hidden" name="nama_institusi" :value="eventTempat || namaInstitusi">
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-bold text-slate-500 mb-0.5">PIC / Guru BK</p>
+                                        <p class="text-sm font-bold text-slate-900" x-text="picName || '—'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-bold text-slate-500 mb-0.5">Nomor WhatsApp PIC</p>
+                                        <p class="text-sm font-bold text-slate-900" x-text="picWhatsapp || '—'"></p>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="pic_name" :value="picName">
+                                <input type="hidden" name="pic_whatsapp" :value="picWhatsapp">
+                            </div>
+
+                            <!-- Non-Event Mode: Informasi Sekolah -->
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3" x-show="!isEventMode">
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah</h4>
                                 <div class="grid grid-cols-1 gap-4">
                                     <div>
@@ -1902,7 +2009,7 @@ x-init="
                                         @php
                                             $sekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
                                         @endphp
-                                        <select name="sekolah_id" x-model="selectedSekolahId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah'">
+                                        <select name="sekolah_id" id="sekolah_id_select" x-model="selectedSekolahId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah' && !isEventMode">
                                             <option value="">-- Pilih Sekolah --</option>
                                             @foreach($sekolahsList as $sek)
                                                 <option value="{{ $sek->id }}">{{ $sek->nama }}</option>
@@ -1912,17 +2019,17 @@ x-init="
                                 </div>
                             </div>
 
-                            <!-- Section: PIC / BK -->
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
+                            <!-- Non-Event Mode: PIC / BK -->
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3" x-show="!isEventMode">
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">PIC / Guru BK</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nama PIC / BK *</label>
-                                        <input type="text" name="pic_name" x-model="picName" required placeholder="Nama guru / kepala sekolah" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="text" name="pic_name" x-model="picName" :required="!isEventMode" placeholder="Nama guru / kepala sekolah" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp PIC *</label>
-                                        <input type="tel" name="pic_whatsapp" x-model="picWhatsapp" required placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="tel" name="pic_whatsapp" x-model="picWhatsapp" :required="!isEventMode" placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                 </div>
                             </div>
@@ -1942,21 +2049,43 @@ x-init="
                                 </div>
                             </div>
                         </div>
-                    </template>
+                    </div>
 
                     <!-- FORM CORPORATE -->
-                    <template x-if="kunjunganType === 'corporate'">
+                    <div x-show="kunjunganType === 'corporate'">
                         <div class="space-y-4">
-                            <!-- Section: INFORMASI PERUSAHAAN -->
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
-                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Perusahaan</h4>
+                            <!-- Event Mode: readonly info -->
+                            <div x-show="isEventMode" class="bg-indigo-50/80 p-3.5 rounded-xl border border-indigo-200/70 space-y-3">
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Perusahaan / Tempat</h4>
                                 <div class="grid grid-cols-1 gap-3">
+                                    <div>
+                                        <p class="text-[11px] font-bold text-slate-500 mb-0.5">Perusahaan / Tempat</p>
+                                        <p class="text-sm font-bold text-slate-900" x-text="eventTempat || namaInstitusi || '—'"></p>
+                                        <input type="hidden" name="nama_institusi" :value="eventTempat || namaInstitusi">
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-bold text-slate-500 mb-0.5">PIC / HRD</p>
+                                        <p class="text-sm font-bold text-slate-900" x-text="picName || '—'"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[11px] font-bold text-slate-500 mb-0.5">Nomor WhatsApp PIC</p>
+                                        <p class="text-sm font-bold text-slate-900" x-text="picWhatsapp || '—'"></p>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="pic_name" :value="picName">
+                                <input type="hidden" name="pic_whatsapp" :value="picWhatsapp">
+                            </div>
+
+                            <!-- Non-Event Mode: Informasi Perusahaan -->
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3" x-show="!isEventMode">
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Perusahaan</h4>
+                                <div class="grid grid-cols-1 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Perusahaan *</label>
                                         @php
                                             $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
                                         @endphp
-                                        <select name="perusahaan_id" x-model="selectedPerusahaanId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'corporate'">
+                                        <select name="perusahaan_id" id="perusahaan_id_select" x-model="selectedPerusahaanId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'corporate' && !isEventMode">
                                             <option value="">-- Pilih Perusahaan --</option>
                                             @foreach($perusahaansList as $per)
                                                 <option value="{{ $per->id }}">{{ $per->nama }}</option>
@@ -1966,17 +2095,17 @@ x-init="
                                 </div>
                             </div>
 
-                            <!-- Section: PIC / HRD -->
-                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
+                            <!-- Non-Event Mode: PIC / HRD -->
+                            <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3" x-show="!isEventMode">
                                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">PIC / HRD</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nama HRD / PIC *</label>
-                                        <input type="text" name="pic_name" x-model="picName" required placeholder="Ibu Maya (HR Manager)" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="text" name="pic_name" x-model="picName" :required="!isEventMode" placeholder="Ibu Maya (HR Manager)" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp HRD *</label>
-                                        <input type="tel" name="pic_whatsapp" x-model="picWhatsapp" required placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                        <input type="tel" name="pic_whatsapp" x-model="picWhatsapp" :required="!isEventMode" placeholder="08xxxxxxxxxx" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                                     </div>
                                 </div>
                             </div>
@@ -1996,7 +2125,7 @@ x-init="
                                 </div>
                             </div>
                         </div>
-                    </template>
+                    </div>
 
                     <!-- Section: DOKUMENTASI FOTO (NO GPS) -->
                     <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
@@ -2150,19 +2279,36 @@ x-init="
             }
         };
 
-        // Fallback global confirmLogout function
+        // Setup global confirm
         window.confirmLogout = function() {
-            window.confirmAction({
+            Swal.fire({
                 title: 'Konfirmasi Logout',
-                text: 'Apakah Anda yakin ingin keluar dari sistem CRM UCIC?',
+                text: 'Apakah Anda yakin ingin keluar dari aplikasi?',
                 icon: 'warning',
-                isDanger: true,
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#94a3b8',
                 confirmButtonText: 'Ya, Logout',
-                confirmButtonColor: '#e11d48'
-            }, function() {
-                document.getElementById('logout-form')?.submit();
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('logout-form').submit();
+                }
             });
         };
+
+        // Initialize TomSelect for elements with tom-select-init class
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.tom-select-init').forEach((el) => {
+                new TomSelect(el, {
+                    create: false,
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    }
+                });
+            });
+        });
 
         // Automatic SweetAlert2 Form Confirmation for forms with data-confirm
         document.addEventListener('submit', function(e) {

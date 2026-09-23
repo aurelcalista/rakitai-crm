@@ -144,8 +144,37 @@
                         <input type="time" name="waktu_selesai" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi <span class="text-rose-500">*</span></label>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi Event <span class="text-rose-500">*</span></label>
                         <input type="text" name="lokasi" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: Aula SMA ABC">
+                    </div>
+                    
+                    <div class="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
+                        <h4 class="font-bold text-slate-800 mb-3">Informasi Target (Sekolah / Perusahaan)</h4>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Institusi</label>
+                        <select name="jenis_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
+                            <option value="">-- Pilih Jenis --</option>
+                            <option value="Sekolah">Sekolah / Universitas</option>
+                            <option value="Perusahaan">Perusahaan / Corporate</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Institusi</label>
+                        <input type="text" name="nama_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: SMA Negeri 1 Cirebon">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Institusi</label>
+                        <input type="text" name="alamat" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Alamat lengkap...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama PIC / Kontak</label>
+                        <input type="text" name="pic_name" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Nama PIC...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
+                        <input type="text" name="pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
                     </div>
                     
                     <!-- Multi-select SPV -->
@@ -217,8 +246,37 @@
                         <input type="time" name="waktu_selesai" :value="selectedEvent?.waktu_selesai ? selectedEvent.waktu_selesai.substring(11, 16) : ''" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi <span class="text-rose-500">*</span></label>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi Event <span class="text-rose-500">*</span></label>
                         <input type="text" name="lokasi" :value="selectedEvent?.lokasi" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
+                    </div>
+                    
+                    <div class="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
+                        <h4 class="font-bold text-slate-800 mb-3">Informasi Target (Sekolah / Perusahaan)</h4>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Institusi</label>
+                        <select name="jenis_institusi" :value="selectedEvent?.jenis_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
+                            <option value="">-- Pilih Jenis --</option>
+                            <option value="Sekolah" :selected="selectedEvent?.jenis_institusi == 'Sekolah'">Sekolah / Universitas</option>
+                            <option value="Perusahaan" :selected="selectedEvent?.jenis_institusi == 'Perusahaan'">Perusahaan / Corporate</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Institusi</label>
+                        <input type="text" name="nama_institusi" :value="selectedEvent?.nama_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: SMA Negeri 1 Cirebon">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Institusi</label>
+                        <input type="text" name="alamat" :value="selectedEvent?.alamat" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Alamat lengkap...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama PIC / Kontak</label>
+                        <input type="text" name="pic_name" :value="selectedEvent?.pic_name" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Nama PIC...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
+                        <input type="text" name="pic_whatsapp" :value="selectedEvent?.pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
                     </div>
                     
                     <!-- Multi-select SPV -->
