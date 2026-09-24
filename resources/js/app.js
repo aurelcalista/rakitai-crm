@@ -32,23 +32,34 @@ window.confirmLogout = function() {
 // ──────────────────────────────────────────────────────────────────
 let audioCtx = null;
 function getAudioContext() {
-    if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-            audioCtx = new AudioContextClass();
+    try {
+        if (!audioCtx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                audioCtx = new AudioContextClass();
+            }
         }
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+        return audioCtx;
+    } catch (e) {
+        return null;
     }
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    return audioCtx;
 }
 
-// User-gesture unlock for AudioContext (browser autoplay policy)
-['click', 'touchstart', 'keydown'].forEach(evt => {
-    window.addEventListener(evt, () => {
-        getAudioContext();
-    }, { once: true, passive: true });
+// User-gesture unlock for AudioContext on any interaction
+const unlockAudio = () => {
+    try {
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+    } catch (e) {}
+};
+
+['click', 'touchstart', 'keydown', 'mousedown', 'pointerdown'].forEach(evt => {
+    window.addEventListener(evt, unlockAudio, { passive: true });
 });
 
 window.playNotificationChime = function(type = 'info') {
@@ -61,36 +72,45 @@ window.playNotificationChime = function(type = 'info') {
         const ctx = getAudioContext();
         if (!ctx) return;
 
-        const now = ctx.currentTime;
-        let notes = [587.33, 880.00]; // D5 -> A5 (gentle bell chime)
-        if (type === 'success') {
-            notes = [523.25, 659.25, 783.99, 1046.50]; // C5 -> E5 -> G5 -> C6 (cheerful closing chord)
-        } else if (type === 'warning') {
-            notes = [659.25, 587.33, 659.25]; // E5 -> D5 -> E5
-        } else if (type === 'danger') {
-            notes = [698.46, 554.37]; // F5 -> C#5
+        const playNotes = () => {
+            const now = ctx.currentTime;
+            let notes = [587.33, 880.00]; // D5 -> A5 (gentle bell chime)
+            if (type === 'success') {
+                notes = [523.25, 659.25, 783.99, 1046.50]; // C5 -> E5 -> G5 -> C6
+            } else if (type === 'warning') {
+                notes = [659.25, 587.33, 659.25]; // E5 -> D5 -> E5
+            } else if (type === 'danger' || type === 'error') {
+                notes = [784.00, 587.33]; // G5 -> D5
+            }
+
+            const noteInterval = type === 'success' ? 0.09 : 0.12;
+
+            notes.forEach((freq, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                // Triangle wave creates a resonant bell tone that cuts through laptop speakers
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + idx * noteInterval);
+
+                // Envelope
+                gain.gain.setValueAtTime(0.001, now + idx * noteInterval);
+                gain.gain.exponentialRampToValueAtTime(0.45, now + idx * noteInterval + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * noteInterval + 0.5);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(now + idx * noteInterval);
+                osc.stop(now + idx * noteInterval + 0.55);
+            });
+        };
+
+        if (ctx.state === 'suspended') {
+            ctx.resume().then(() => playNotes()).catch(() => {});
+        } else {
+            playNotes();
         }
-
-        const noteInterval = type === 'success' ? 0.08 : 0.12;
-
-        notes.forEach((freq, idx) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now + idx * noteInterval);
-
-            // Envelope (gentle attack, smooth exponential decay)
-            gain.gain.setValueAtTime(0.001, now + idx * noteInterval);
-            gain.gain.exponentialRampToValueAtTime(0.3, now + idx * noteInterval + 0.025);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * noteInterval + 0.45);
-
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-
-            osc.start(now + idx * noteInterval);
-            osc.stop(now + idx * noteInterval + 0.5);
-        });
     } catch (e) {
         console.warn('Audio chime playback failed:', e);
     }
@@ -129,9 +149,15 @@ document.addEventListener('alpine:init', () => {
         showToast(message, type = 'success') {
             const id = Date.now();
             this.toasts.push({ id, message, type });
+
+            // Automatically chime for toasts
+            if (typeof window.playNotificationChime === 'function') {
+                window.playNotificationChime(type);
+            }
+
             setTimeout(() => {
                 this.removeToast(id);
-            }, 4000);
+            }, 4500);
         },
 
         removeToast(id) {
@@ -246,8 +272,7 @@ document.addEventListener('alpine:init', () => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             if (!csrfToken) return;
 
-            // Poll every 15 seconds for dynamic cross-role updates
-            setInterval(async () => {
+            const checkNewNotifications = async () => {
                 try {
                     const res = await fetch('/notifications/latest', {
                         headers: {
@@ -259,8 +284,8 @@ document.addEventListener('alpine:init', () => {
                     const data = await res.json();
                     
                     if (Array.isArray(data.notifications)) {
-                        const existingIds = new Set(this.notifications.map(n => n.id));
-                        const newItems = data.notifications.filter(n => !existingIds.has(n.id) && !n.read);
+                        const existingIds = new Set(this.notifications.map(n => String(n.id)));
+                        const newItems = data.notifications.filter(n => !existingIds.has(String(n.id)) && !n.read);
 
                         if (newItems.length > 0) {
                             // Prepend new incoming notifications
@@ -280,7 +305,18 @@ document.addEventListener('alpine:init', () => {
                 } catch (e) {
                     // Silently fail on network disruption
                 }
-            }, 15000);
+            };
+
+            // Fast polling every 3.5 seconds for instant cross-role sync
+            setInterval(checkNewNotifications, 3500);
+
+            // Immediate check when window regains focus or tab becomes active
+            window.addEventListener('focus', checkNewNotifications);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    checkNewNotifications();
+                }
+            });
         }
     });
 });
