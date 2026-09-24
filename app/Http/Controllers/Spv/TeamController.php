@@ -178,9 +178,22 @@ class TeamController extends Controller
 
         if ($areaId) {
             $role = $candidate->role;
+            if ($role === 'Sales') {
+                \Illuminate\Support\Facades\DB::table('user_wilayah')
+                    ->where('user_id', $candidate->id)
+                    ->where('role', 'Sales')
+                    ->where('wilayah_id', '!=', $areaId)
+                    ->where('is_active', true)
+                    ->update([
+                        'is_active'      => false,
+                        'deactivated_at' => now(),
+                        'updated_at'     => now(),
+                    ]);
+            }
+
             \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
                 ['user_id' => $candidate->id, 'wilayah_id' => $areaId, 'role' => $role],
-                ['is_active' => true, 'assigned_at' => now(), 'updated_at' => now()]
+                ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
             );
         }
 
@@ -249,11 +262,23 @@ class TeamController extends Controller
 
                 $sales->update([
                     'supervisor_id' => $spv->id,
-                    'wilayah_id'    => $sales->wilayah_id ?: $salesArea->id,
+                    'wilayah_id'    => $salesAreaId,
                 ]);
 
+                // Deactivate previous active area assignments for this Sales user
+                \Illuminate\Support\Facades\DB::table('user_wilayah')
+                    ->where('user_id', $sales->id)
+                    ->where('role', 'Sales')
+                    ->where('wilayah_id', '!=', $salesAreaId)
+                    ->where('is_active', true)
+                    ->update([
+                        'is_active'      => false,
+                        'deactivated_at' => now(),
+                        'updated_at'     => now(),
+                    ]);
+
                 \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
-                    ['user_id' => $sales->id, 'wilayah_id' => $salesArea->id, 'role' => 'Sales'],
+                    ['user_id' => $sales->id, 'wilayah_id' => $salesAreaId, 'role' => 'Sales'],
                     ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
                 );
             }
@@ -400,9 +425,23 @@ class TeamController extends Controller
         }
 
         $user->update([
-            'wilayah_id'       => $user->wilayah_id ?: $wilayah->id,
+            'wilayah_id'       => $wilayah->id,
             'lokasi_penugasan' => null,
         ]);
+
+        if ($role === 'Sales') {
+            // Deactivate previous active area assignments for this Sales user
+            \Illuminate\Support\Facades\DB::table('user_wilayah')
+                ->where('user_id', $user->id)
+                ->where('role', 'Sales')
+                ->where('wilayah_id', '!=', $wilayah->id)
+                ->where('is_active', true)
+                ->update([
+                    'is_active'      => false,
+                    'deactivated_at' => now(),
+                    'updated_at'     => now(),
+                ]);
+        }
 
         \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
             ['user_id' => $user->id, 'wilayah_id' => $wilayah->id, 'role' => $role],

@@ -116,7 +116,7 @@ class MultiWilayahAssignmentTest extends TestCase
         ]);
     }
 
-    public function test_sales_can_have_multiple_active_wilayahs(): void
+    public function test_sales_reassignment_updates_active_wilayah(): void
     {
         $this->actingAs($this->spv);
 
@@ -127,17 +127,18 @@ class MultiWilayahAssignmentTest extends TestCase
         ]);
         $res1->assertRedirect()->assertSessionHas('success');
 
-        // Assign Sales A to Kesambi
+        // Re-assign Sales A to Kesambi
         $res2 = $this->post(route('spv.tim.territory.assign'), [
             'area_id'  => $this->kesambi->id,
             'sales_id' => $this->salesA->id,
         ]);
         $res2->assertRedirect()->assertSessionHas('success');
 
-        // Verify Sales A has 2 active wilayahs in pivot table
-        $activeIds = $this->salesA->fresh()->activeWilayahIds();
-        $this->assertContains($this->kejaksan->id, $activeIds);
+        // Verify Sales A active area is updated to Kesambi in pivot table and user model
+        $salesAFresh = $this->salesA->fresh();
+        $activeIds = $salesAFresh->activeWilayahIds();
         $this->assertContains($this->kesambi->id, $activeIds);
+        $this->assertEquals($this->kesambi->id, $salesAFresh->wilayah_id);
     }
 
     public function test_cs_can_have_multiple_active_wilayahs(): void

@@ -172,7 +172,7 @@
             };
             const salesWilayahMap = {
                 @foreach($salesCandidates as $s)
-                    "{{ $s->id }}": @json($s->activeWilayahes->pluck('id')->first()),
+                    "{{ $s->id }}": @json($s->wilayah_id ?? $s->activeWilayahes->pluck('id')->last()),
                 @endforeach
             };
 
@@ -189,6 +189,8 @@
                 const activeAreaId = salesWilayahMap[salesId];
                 if (activeAreaId) {
                     select.value = activeAreaId;
+                } else {
+                    select.value = '';
                 }
             }
 
