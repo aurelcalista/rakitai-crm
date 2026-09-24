@@ -149,41 +149,28 @@
             <div class="crm-card p-6 bg-white flex flex-col justify-between">
                 <div>
                     <div class="pb-3 border-b border-slate-100 mb-4">
-                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Tren Bulanan (2026)</h3>
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Tren Bulanan ({{ $currentYear ?? date('Y') }})</h3>
                         <p class="text-xs text-slate-500">Pertumbuhan registrasi mahasiswa baru</p>
                     </div>
 
                     <!-- Visual Mini Bar Trend -->
-                    <div class="space-y-3 pt-2">
+                    <div class="space-y-3 pt-2 max-h-64 overflow-y-auto pr-2">
+                        @foreach($monthlyTrend as $trend)
                         <div>
                             <div class="flex justify-between text-xs font-semibold mb-1">
-                                <span class="text-slate-600">Juli 2026</span>
-                                <span class="text-slate-900 font-bold">84 Closing</span>
+                                @if($trend['is_current'])
+                                    <span class="text-slate-900 font-bold">{{ $trend['month_name'] }} {{ $currentYear }} (Berjalan)</span>
+                                    <span class="text-emerald-600 font-bold">{{ $trend['count'] }} Closing</span>
+                                @else
+                                    <span class="text-slate-600">{{ $trend['month_name'] }} {{ $currentYear }}</span>
+                                    <span class="text-slate-900 font-bold">{{ $trend['count'] }} Closing</span>
+                                @endif
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="h-2 rounded-full bg-slate-400" style="width: 58%"></div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between text-xs font-semibold mb-1">
-                                <span class="text-slate-600">Agustus 2026</span>
-                                <span class="text-slate-900 font-bold">116 Closing</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="h-2 rounded-full bg-blue-500" style="width: 80%"></div>
+                            <div class="w-full bg-slate-100 rounded-full {{ $trend['is_current'] ? 'h-2.5' : 'h-2' }}">
+                                <div class="{{ $trend['is_current'] ? 'h-2.5' : 'h-2' }} rounded-full {{ $trend['is_current'] ? 'bg-emerald-500' : ($trend['count'] > 0 ? 'bg-blue-500' : 'bg-slate-300') }}" style="width: {{ max(1, $trend['percentage']) }}%"></div>
                             </div>
                         </div>
-
-                        <div>
-                            <div class="flex justify-between text-xs font-semibold mb-1">
-                                <span class="text-slate-900 font-bold">September 2026 (Berjalan)</span>
-                                <span class="text-emerald-600 font-bold">142 Closing</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2.5">
-                                <div class="h-2.5 rounded-full bg-emerald-500" style="width: 98%"></div>
-                            </div>
-                        </div>
+                        @endforeach
                     </div>
                 </div>
 

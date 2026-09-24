@@ -908,7 +908,43 @@ class CrmController extends Controller
             $request->get('ta')
         );
 
-        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData'));
+        // Data Trend Bulanan (Dinamis)
+        $currentYear = date('Y');
+        $monthlyData = Prospek::select(
+                DB::raw('MONTH(updated_at) as month'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->where('status', 'LUNAS')
+            ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->when($user->wilayah_id, fn($q) => $q->where('wilayah_id', $user->wilayah_id))
+            ->whereYear('updated_at', $currentYear)
+            ->groupBy('month')
+            ->pluck('count', 'month')
+            ->toArray();
+
+        $maxMonthly = !empty($monthlyData) ? max($monthlyData) : 1;
+        $maxMonthly = $maxMonthly > 0 ? $maxMonthly : 1;
+        
+        $bulanList = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+        
+        $monthlyTrend = [];
+        $currentMonth = date('n');
+        
+        foreach ($bulanList as $num => $name) {
+            $count = $monthlyData[$num] ?? 0;
+            $monthlyTrend[] = [
+                'month_name' => $name,
+                'is_current' => $num == $currentMonth,
+                'count' => $count,
+                'percentage' => round(($count / $maxMonthly) * 100)
+            ];
+        }
+
+        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData', 'monthlyTrend', 'currentYear'));
     }
 
     /**
