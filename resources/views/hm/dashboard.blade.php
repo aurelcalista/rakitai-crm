@@ -31,7 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Executive Dashboard Marketing 📊</h2>
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Executive Dashboard Marketing </h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Head Marketing</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">Ringkasan cepat konversi lead inbound, performa unit sales, dan kemitraan UCIC 2026/2027.</p>
@@ -66,6 +66,70 @@
                 title="Dashboard Target & Pencapaian Head of Marketing (HM)" 
                 subtitle="Monitoring berjenjang seluruh wilayah teritori, kekurangan, sisa hari, dan target harian berjalan"
             />
+        @endif
+
+        <!-- TABEL PER WILAYAH (HM DASHBOARD) -->
+        @if(isset($targetAchievementData['territory_table']) && count($targetAchievementData['territory_table']) > 0)
+            <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 border-slate-100">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 tracking-tight">Tabel Breakdown Per Wilayah Teritori</h3>
+                        <p class="text-xs text-slate-500">Pemetaan SPV, Sales Aktif, CS Aktif, Target, dan Pencapaian Maba Lunas per Wilayah</p>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 self-start sm:self-auto">
+                        Scope Head Marketing
+                    </span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-700">
+                        <thead class="text-[11px] font-bold uppercase text-slate-500 bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3">Wilayah</th>
+                                <th class="px-4 py-3">SPV</th>
+                                <th class="px-4 py-3">Sales Aktif</th>
+                                <th class="px-4 py-3">CS Aktif</th>
+                                <th class="px-4 py-3 text-right">Target</th>
+                                <th class="px-4 py-3 text-right">Achievement</th>
+                                <th class="px-4 py-3 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach($targetAchievementData['territory_table'] as $row)
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="px-4 py-3.5 font-bold text-slate-900">
+                                        {{ $row['wilayah_nama'] ?? $row['label'] }}
+                                    </td>
+                                    <td class="px-4 py-3.5 text-slate-700 font-medium">
+                                        {{ $row['spv_name'] ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-100 text-[11px]">
+                                            {{ $row['sales_names'] ?? '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-semibold border border-purple-100 text-[11px]">
+                                            {{ $row['cs_names'] ?? '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3.5 text-right font-mono font-bold text-slate-700">
+                                        {{ number_format($row['target']) }}
+                                    </td>
+                                    <td class="px-4 py-3.5 text-right font-mono font-bold text-emerald-600">
+                                        {{ number_format($row['pencapaian']) }} ({{ $row['achievement_pct'] }}%)
+                                    </td>
+                                    <td class="px-4 py-3.5 text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border {{ $row['status_badge'] }}">
+                                            {{ $row['status_label'] }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         @endif
 
         <!-- Executive Statistic Cards -->

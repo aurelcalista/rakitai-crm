@@ -54,7 +54,7 @@
             <x-target-achievement-table 
                 :data="$targetAchievementData" 
                 title="Target & Pencapaian Customer Service" 
-                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, realtime, kekurangan, dan target harian berjalan"
+                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, kekurangan, dan target harian berjalan"
             />
         @endif
 

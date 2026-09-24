@@ -28,7 +28,7 @@
         <div x-show="show" x-transition:enter="transition ease-out duration-500 transform" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Administrator 🛡️</h2>
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Administrator </h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Super Administrator</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">Ringkasan sistem, pengguna, target tim, dan aktivitas CRM UCIC.</p>
@@ -65,7 +65,7 @@
                         :class="activeTab === 'roles' ? 'bg-purple-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
                         class="px-3.5 py-1.5 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5 hover:scale-105"
                     >
-                        <span>👥 Distribution Role (Slide)</span>
+                        <span> Distribution Role (Slide)</span>
                         <span class="px-1.5 py-0.2 rounded-full text-[10px]" :class="activeTab === 'roles' ? 'bg-purple-700 text-white' : 'bg-slate-200 text-slate-700'">{{ $stats['total_users'] }}</span>
                     </button>
 
@@ -74,7 +74,7 @@
                         :class="activeTab === 'master' ? 'bg-purple-600 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" 
                         class="px-3.5 py-1.5 rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5 hover:scale-105"
                     >
-                        <span>📊 Data Master & Mitra</span>
+                        <span> Data Master & Mitra</span>
                     </button>
                 </div>
 

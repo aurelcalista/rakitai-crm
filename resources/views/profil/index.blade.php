@@ -265,6 +265,46 @@
             </form>
         </div>
 
+        <!-- Security & Password Card -->
+        <div class="crm-card bg-white p-6 space-y-4 shadow-xs rounded-2xl border border-slate-200/80">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Keamanan & Ganti Password</h3>
+                    <p class="text-xs text-slate-500">Ubah password awal/default Anda menjadi password rahasia baru.</p>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    Password Default: 123
+                </span>
+            </div>
+
+            <form action="{{ route('profil.password.update') }}" method="POST" class="space-y-4 text-xs">
+                @csrf
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Saat Ini *</label>
+                        <input type="password" name="current_password" required placeholder="Masukkan password saat ini (misal: 123)" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Baru *</label>
+                        <input type="password" name="password" required placeholder="Minimal 6-8 karakter" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Konfirmasi Password Baru *</label>
+                        <input type="password" name="password_confirmation" required placeholder="Ulangi password baru" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex justify-end">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                        <span>Ganti Password</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
     </div>
 
 </x-app-layout>

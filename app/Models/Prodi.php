@@ -7,6 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class Prodi extends Model
 {
     protected $fillable = [
-        'kode', 'nama', 'jenjang', 'fakultas', 'kuota', 'spp', 'status'
+        'kode', 'nama', 'jenjang', 'fakultas', 'kuota', 'spp', 'ukt', 'ukt_reguler', 'status'
     ];
 }

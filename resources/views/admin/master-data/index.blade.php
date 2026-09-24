@@ -190,10 +190,10 @@
         <div x-show="activeTab === 'program_studi'" x-cloak class="crm-card bg-white overflow-hidden">
             <div class="p-4 bg-purple-50 border-b border-purple-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div class="text-xs text-purple-900 font-medium">
-                    💡 Untuk mengelola <strong>Kuota Target, SPP, dan Status Prodi</strong>, silakan gunakan modul khusus <strong>Data Prodi</strong>.
+                    💡 Untuk mengelola <strong>Kuota Target, UKT, dan Status Prodi</strong>, silakan gunakan modul khusus <strong>Data Prodi</strong>.
                 </div>
                 <a href="{{ route('admin.prodi.index') }}" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shrink-0 shadow-xs">
-                    Kelola Kuota & SPP Prodi &rarr;
+                    Kelola Kuota & UKT Prodi &rarr;
                 </a>
             </div>
             @include('admin.master-data._table', ['items' => $masterData['program_studi'], 'tabLabel' => 'Program Studi'])

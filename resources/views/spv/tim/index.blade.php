@@ -1,9 +1,9 @@
 @php
-    $pageTitle = 'Direktori Tim (SPV)';
-    $pageSubtitle = 'Daftar Anggota Tim Sales & CS di Bawah Pengawasan SPV';
+    $pageTitle = 'Direktori Tim Sales (SPV)';
+    $pageSubtitle = 'Daftar Anggota Tim Sales di Bawah Pengawasan SPV';
 @endphp
 
-<x-app-layout :title="'Anggota Tim - Supervisor CRM'">
+<x-app-layout :title="'Anggota Tim Sales - Supervisor CRM'">
 
     <div class="space-y-6" x-data="{
         modalKecamatan: false,
@@ -42,28 +42,132 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2">
-                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Anggota Tim & Penugasan Wilayah</h2>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Anggota Tim Sales & Penugasan Wilayah</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Pengawasan SPV</span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Wilayah Kerja Utama SPV: <strong class="text-slate-800">{{ $myWilayah }}</strong></p>
-                <p class="text-[11px] text-slate-400 mt-0.5">SPV menugaskan <strong>Area / Kecamatan</strong> untuk Sales dan CS (CS mendukung multi-wilayah).</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">SPV menugaskan <strong>Area / Kecamatan</strong> untuk Sales.</p>
             </div>
-            <button onclick="document.getElementById('modalAddMember').classList.remove('hidden')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer">
-                + Tambah / Penugasan Tim SPV
-            </button>
+            <div class="flex items-center gap-2 flex-wrap">
+                <button onclick="document.getElementById('modalAddSales').classList.remove('hidden')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>+ Tambah Sales Baru</span>
+                </button>
+                <button onclick="openModalGeneral()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer">
+                    + Penugasan Sales
+                </button>
+            </div>
         </div>
 
-        <!-- Modal Penugasan Tim SPV (Landscape Format) -->
+        <!-- Modal Tambah Sales Baru (SPV) -->
+        <div id="modalAddSales" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
+                <div class="flex items-center justify-between border-b pb-3 border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide">TAMBAH SALES BARU</h3>
+                            <p class="text-[11px] text-slate-400">Buat akun Sales baru & tentukan wilayah penugasan area</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('modalAddSales').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition cursor-pointer text-xl font-bold">&times;</button>
+                </div>
+
+                <form action="{{ route('spv.tim.sales.store') }}" method="POST" class="space-y-4 text-xs">
+                    @csrf
+
+                    <!-- Informasi Role & Scope -->
+                    <div class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block">Scope Wilayah SPV: {{ $myWilayah }}</span>
+                            <span class="text-xs text-slate-600">Role & Jabatan otomatis: <strong class="text-emerald-700">Sales</strong></span>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Domain @cic.ac.id
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Nama Lengkap Sales *</label>
+                            <input type="text" name="name" required placeholder="Contoh: Budi Santoso" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-emerald-200">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Email Sales *</label>
+                            <div class="flex items-center rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-400 bg-white">
+                                <input type="text" name="email_username" required placeholder="budi.sales" class="w-full text-xs px-3.5 py-2.5 outline-none border-0 bg-transparent text-slate-800">
+                                <span class="bg-slate-100 text-slate-600 px-3 py-2.5 text-xs font-bold border-l border-slate-200 shrink-0 font-mono">
+                                    @cic.ac.id
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs text-slate-700 font-semibold">Password Awal Akun: <strong class="font-mono text-emerald-700">123</strong></span>
+                        </div>
+                        <span class="text-[10px] text-slate-400">Sales dapat mengganti password via Edit Profile</span>
+                    </div>
+
+                    <!-- Pilih Area / Kecamatan Active Scope SPV (RADIO BUTTONS) -->
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <label class="block font-bold text-slate-800 text-xs">Pilih Wilayah Sales (Radio Selection - Scope {{ $myWilayah }}) *</label>
+                        <p class="text-[11px] text-slate-400">Hanya wilayah yang belum memiliki Sales aktif yang dapat dipilih.</p>
+
+                        <div class="border border-slate-200 rounded-xl p-3 bg-white max-h-52 overflow-y-auto space-y-2">
+                            @foreach($kecamatanList as $kec)
+                                <label class="flex items-center justify-between p-2.5 rounded-xl border transition {{ !empty($kec->has_active_sales) ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-800 hover:bg-emerald-50/80 cursor-pointer' }}">
+                                    <div class="flex items-center gap-2.5">
+                                        <input 
+                                            type="radio" 
+                                            name="area_id" 
+                                            value="{{ $kec->id }}" 
+                                            {{ !empty($kec->has_active_sales) ? 'disabled' : '' }} 
+                                            required 
+                                            class="text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                                        >
+                                        <span class="font-semibold text-xs">{{ $kec->nama }}</span>
+                                    </div>
+                                    @if(!empty($kec->has_active_sales))
+                                        <span class="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
+                                            Sudah ada Sales ({{ $kec->active_sales_name ?? 'Aktif' }})
+                                        </span>
+                                    @else
+                                        <span class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                            Tersedia
+                                        </span>
+                                    @endif
+                                </label>
+                            @endforeach
+                            @if(count($kecamatanList) === 0)
+                                <div class="text-slate-400 text-xs text-center py-3">Belum ada data kecamatan di wilayah scope ini.</div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                        <button type="button" onclick="document.getElementById('modalAddSales').classList.add('hidden')" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+                        <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">Simpan & Buat Sales</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Penugasan Sales (Dedicated Sales Only) -->
         <div id="modalAddMember" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl">
+            <div id="territoryModalBox" class="bg-white rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl transition-all duration-200">
                 <div class="flex items-center justify-between border-b pb-3 border-slate-100">
                     <div class="flex items-center gap-2.5">
                         <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-slate-900 text-sm uppercase tracking-wide">PENUGASAN TIM SPV</h3>
-                            <p class="text-[11px] text-slate-400">Atur pembagian wilayah kecamatan untuk Sales dan CS</p>
+                            <h3 id="territoryModalTitle" class="font-bold text-slate-900 text-sm uppercase tracking-wide">PENUGASAN SALES</h3>
+                            <p id="territoryModalSubtitle" class="text-[11px] text-slate-400">Atur pembagian wilayah kecamatan untuk Sales</p>
                         </div>
                     </div>
                     <button type="button" onclick="document.getElementById('modalAddMember').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition cursor-pointer text-xl font-bold">&times;</button>
@@ -71,8 +175,8 @@
 
                 <form action="{{ route('spv.tim.territory.assign') }}" method="POST" class="space-y-4 text-xs">
                     @csrf
-                    
-                    <!-- 1. Wilayah Utama (Banner Header Landscape) -->
+
+                    <!-- Wilayah Utama Scope SPV -->
                     <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
                         <div>
                             <span class="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">Wilayah Utama Scope SPV</span>
@@ -83,73 +187,33 @@
                         </span>
                     </div>
 
-                    <!-- Landscape 2-Column Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        
-                        <!-- SISI KIRI: Sales & Area Sales -->
-                        <div class="bg-blue-50/40 border border-blue-100 rounded-xl p-4 space-y-4">
-                            <div class="flex items-center gap-2 border-b border-blue-100 pb-2">
-                                <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-                                <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Penugasan Sales</h4>
-                            </div>
-
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Pilih Sales</label>
-                                <select name="sales_id" id="salesSelect" onchange="onSalesChange(this.value)" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- Pilih Sales (Opsional) --</option>
-                                    @foreach($salesCandidates as $s)
-                                        <option value="{{ $s->id }}">{{ $s->name }} ({{ $s->email }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan Sales</label>
-                                <select name="sales_area_id" id="salesAreaSelect" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- Pilih Area / Kecamatan --</option>
-                                    @foreach($kecamatanList as $kec)
-                                        <option value="{{ $kec->id }}">{{ $kec->nama }}</option>
-                                    @endforeach
-                                </select>
-                                <p class="text-[10px] text-slate-400 mt-1">1 Area = 1 Sales Utama Aktif</p>
-                            </div>
+                    <!-- Single Column Sales Assignment -->
+                    <div class="bg-blue-50/40 border border-blue-100 rounded-xl p-4 space-y-4">
+                        <div class="flex items-center gap-2 border-b border-blue-100 pb-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                            <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Penugasan Sales</h4>
                         </div>
 
-                        <!-- SISI KANAN: CS & Area CS (Multi-Select) -->
-                        <div class="bg-purple-50/40 border border-purple-100 rounded-xl p-4 space-y-4">
-                            <div class="flex items-center gap-2 border-b border-purple-100 pb-2">
-                                <span class="w-2 h-2 rounded-full bg-purple-600"></span>
-                                <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Penugasan CS (Multi-Wilayah)</h4>
-                            </div>
-
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Pilih CS</label>
-                                <select name="cs_id" id="csSelect" onchange="onCsChange(this.value)" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-purple-500">
-                                    <option value="">-- Pilih CS (Opsional) --</option>
-                                    @foreach($csCandidates as $c)
-                                        <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->email }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan CS (Bisa Pilih Banyak)</label>
-                                <div class="border border-slate-200 rounded-xl p-3 bg-white max-h-48 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    @foreach($kecamatanList as $kec)
-                                        <label class="flex items-center gap-2 text-xs text-slate-800 font-medium cursor-pointer hover:bg-purple-50/80 p-1.5 rounded-lg border border-slate-100 transition">
-                                            <input type="checkbox" name="cs_area_ids[]" value="{{ $kec->id }}" class="cs-area-checkbox rounded border-slate-300 text-purple-600 focus:ring-purple-500">
-                                            <span class="truncate">{{ $kec->nama }}</span>
-                                        </label>
-                                    @endforeach
-                                    @if(count($kecamatanList) === 0)
-                                        <div class="col-span-2 text-slate-400 text-[11px] text-center py-2">
-                                            Belum ada data kecamatan di wilayah ini.
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Pilih Sales *</label>
+                            <select name="sales_id" id="salesSelect" required onchange="onSalesChange(this.value)" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Pilih Sales --</option>
+                                @foreach($salesCandidates as $s)
+                                    <option value="{{ $s->id }}">{{ $s->name }} ({{ $s->email }})</option>
+                                @endforeach
+                            </select>
                         </div>
 
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan Sales *</label>
+                            <select name="sales_area_id" id="salesAreaSelect" required class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Pilih Area / Kecamatan --</option>
+                                @foreach($kecamatanList as $kec)
+                                    <option value="{{ $kec->id }}">{{ $kec->nama }}</option>
+                                @endforeach
+                            </select>
+                            <p class="text-[10px] text-slate-400 mt-1">1 Area = 1 Sales Utama Aktif</p>
+                        </div>
                     </div>
 
                     <!-- Action Buttons -->
@@ -165,24 +229,11 @@
         </div>
 
         <script>
-            const csWilayahMap = {
-                @foreach($csCandidates as $c)
-                    "{{ $c->id }}": @json($c->activeWilayahes->pluck('id')->toArray()),
-                @endforeach
-            };
             const salesWilayahMap = {
                 @foreach($salesCandidates as $s)
                     "{{ $s->id }}": @json($s->wilayah_id ?? $s->activeWilayahes->pluck('id')->last()),
                 @endforeach
             };
-
-            function onCsChange(csId) {
-                const checkboxes = document.querySelectorAll('.cs-area-checkbox');
-                const activeIds = csWilayahMap[csId] || [];
-                checkboxes.forEach(cb => {
-                    cb.checked = activeIds.map(String).includes(String(cb.value));
-                });
-            }
 
             function onSalesChange(salesId) {
                 const select = document.getElementById('salesAreaSelect');
@@ -194,21 +245,21 @@
                 }
             }
 
+            function openModalGeneral() {
+                document.getElementById('modalAddMember').classList.remove('hidden');
+                document.getElementById('territoryModalTitle').textContent = 'PENUGASAN SALES';
+                document.getElementById('territoryModalSubtitle').textContent = 'Atur pembagian wilayah kecamatan untuk Sales';
+            }
+
             function openModalWithMember(member) {
                 document.getElementById('modalAddMember').classList.remove('hidden');
-                if (member.role === 'Sales' || member.role === 'sales') {
-                    const salesSel = document.getElementById('salesSelect');
-                    if (salesSel) {
-                        salesSel.value = member.id;
-                        onSalesChange(member.id);
-                    }
-                } else if (member.role === 'CS' || member.role === 'cs') {
-                    const csSel = document.getElementById('csSelect');
-                    if (csSel) {
-                        csSel.value = member.id;
-                        onCsChange(member.id);
-                    }
+                const salesSel = document.getElementById('salesSelect');
+                if (salesSel) {
+                    salesSel.value = member.id;
+                    onSalesChange(member.id);
                 }
+                const subtitle = document.getElementById('territoryModalSubtitle');
+                if (subtitle) subtitle.textContent = 'Atur wilayah kecamatan penugasan untuk Sales: ' + member.name;
             }
         </script>
 
@@ -224,9 +275,12 @@
                             </div>
                             <div>
                                 <h3 class="font-bold text-sm text-slate-900">{{ $member['name'] }}</h3>
-                                <div class="flex items-center gap-1.5 mt-0.5">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $member['role'] === 'Sales' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700' }}">
+                                <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $member['role'] === 'Sales' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200' }}">
                                         {{ $member['role'] }}
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                        🆔 {{ $member['kode'] ?? '-' }}
                                     </span>
                                 </div>
                             </div>
@@ -238,6 +292,10 @@
 
                     <!-- Contact & Wilayah -->
                     <div class="bg-slate-50 p-3 rounded-xl space-y-2 text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400 font-medium">Kode User:</span>
+                            <span class="font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100 text-[11px]">{{ $member['kode'] ?? '-' }}</span>
+                        </div>
                         <div class="flex items-center justify-between">
                             <span class="text-slate-400 font-medium">Email:</span>
                             <span class="font-semibold text-slate-800">{{ $member['email'] }}</span>

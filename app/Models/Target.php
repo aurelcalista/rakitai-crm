@@ -15,9 +15,64 @@ class Target extends Model
         'parent_id', 'target_type', 'wilayah_id', 'spv_id', 'sales_id', 'allocated_by',
         'tipe_periode', 'gelombang', 'academic_year_id', 'tahun_akademik', 'tanggal_mulai', 'tanggal_selesai',
         'target_kontak', 'target_menghubungi', 'target_followup', 'target_kunjungan',
-        'target_formulir', 'target_lunas', 'status',
+        'target_formulir', 'target_pemberkasan', 'target_lunas', 'status',
         'is_locked', 'locked_at', 'locked_by',
     ];
+
+    /**
+     * Distribute annual target into monthly (12 periods) or PMB gelombang (5 periods).
+     * Mode 1: 'rata' (12 months) -> total sum equals annual target exactly.
+     * Mode 2: 'pmb' (5 gelombang) -> total sum equals annual target exactly.
+     *
+     * @return array<string, int>
+     */
+    public static function distributeAnnualTarget(int $annualTarget, string $mode = 'rata'): array
+    {
+        if ($annualTarget <= 0) {
+            return [];
+        }
+
+        if (strtolower($mode) === 'pmb') {
+            // 5 PMB Periods: Early Bird (15%), Gelombang 1 (25%), Gelombang 2 (30%), Gelombang 3 (20%), Gelombang 4 (10%)
+            $weights = [
+                'Early Bird'   => 0.15,
+                'Gelombang 1' => 0.25,
+                'Gelombang 2' => 0.30,
+                'Gelombang 3' => 0.20,
+                'Gelombang 4' => 0.10,
+            ];
+
+            $result = [];
+            $sum = 0;
+            foreach ($weights as $label => $weight) {
+                $val = (int) floor($annualTarget * $weight);
+                $result[$label] = $val;
+                $sum += $val;
+            }
+
+            // Assign remainder to Gelombang 2 (peak gelombang)
+            $remainder = $annualTarget - $sum;
+            $result['Gelombang 2'] += $remainder;
+
+            return $result;
+        }
+
+        // Mode 1: 'rata' (12 Months)
+        $base = intdiv($annualTarget, 12);
+        $remainder = $annualTarget % 12;
+
+        $months = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+
+        $result = [];
+        foreach ($months as $i => $month) {
+            $result[$month] = $base + ($i < $remainder ? 1 : 0);
+        }
+
+        return $result;
+    }
 
     protected static function booted()
     {

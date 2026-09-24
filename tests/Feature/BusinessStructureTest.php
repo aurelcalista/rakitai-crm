@@ -18,6 +18,7 @@ class BusinessStructureTest extends TestCase
     protected User $hm;
     protected User $spv;
     protected User $salesInScope;
+    protected User $salesInScope2;
     protected User $salesOutScope;
     protected User $csInScope;
     
@@ -51,6 +52,7 @@ class BusinessStructureTest extends TestCase
         $this->spv = User::factory()->create(['role' => 'SPV', 'wilayah_id' => $this->kotaCirebon->id]);
         
         $this->salesInScope = User::factory()->create(['role' => 'Sales', 'wilayah_id' => $this->kecKesambi->id]);
+        $this->salesInScope2 = User::factory()->create(['role' => 'Sales', 'wilayah_id' => $this->kecHarjamukti->id]);
         $this->csInScope = User::factory()->create(['role' => 'CS', 'wilayah_id' => $this->kecHarjamukti->id]);
         $this->salesOutScope = User::factory()->create(['role' => 'Sales', 'wilayah_id' => $this->kotaLain->id]);
     }
@@ -117,14 +119,14 @@ class BusinessStructureTest extends TestCase
             'area_id' => $this->kecKesambi->id,
         ]);
         
-        // RoleMiddleware mengarahkan ke dashboard.hm karena tidak authorized sbg SPV
-        $res->assertRedirect(route('dashboard.hm'));
+        // RoleMiddleware mengembalikan 403 Forbidden karena non-GET request & not authorized sbg SPV
+        $res->assertStatus(403);
         
         // SPV juga punya endpoint alokasi target, HM harusnya tidak bisa
         $res2 = $this->post(route('spv.performa.alokasi'), [
             'sales_id' => $this->salesInScope->id,
         ]);
-        $res2->assertRedirect(route('dashboard.hm'));
+        $res2->assertStatus(403);
     }
 
     public function test_E_spv_assign_sales()
@@ -140,7 +142,7 @@ class BusinessStructureTest extends TestCase
         $this->assertEquals($this->spv->id, $this->salesInScope->supervisor_id);
     }
 
-    public function test_F_spv_assign_cs()
+    public function test_F_spv_assign_cs_returns_403()
     {
         $this->actingAs($this->spv);
         $res = $this->post(route('spv.tim.assign'), [
@@ -148,9 +150,7 @@ class BusinessStructureTest extends TestCase
             'area_id' => $this->kecHarjamukti->id,
         ]);
         
-        $res->assertRedirect();
-        $this->csInScope->refresh();
-        $this->assertEquals($this->spv->id, $this->csInScope->supervisor_id);
+        $res->assertStatus(403);
     }
 
     public function test_G_descendant_scope()
@@ -199,8 +199,8 @@ class BusinessStructureTest extends TestCase
         // 2. Sales in scope harus supervisor_id = SPV
         $this->salesInScope->supervisor_id = $this->spv->id;
         $this->salesInScope->save();
-        $this->csInScope->supervisor_id = $this->spv->id;
-        $this->csInScope->save();
+        $this->salesInScope2->supervisor_id = $this->spv->id;
+        $this->salesInScope2->save();
         
         // 3. SPV alokasi ke sales
         $this->actingAs($this->spv);
@@ -217,9 +217,9 @@ class BusinessStructureTest extends TestCase
         ]);
         $res1->assertSessionHasNoErrors();
         
-        // CS B = 70 (Total 100 -> valid)
+        // Sales B = 70 (Total 100 -> valid)
         $res2 = $this->post(route('spv.performa.alokasi'), [
-            'sales_id' => $this->csInScope->id,
+            'sales_id' => $this->salesInScope2->id,
             'tipe_periode' => 'Mingguan',
             'tanggal_mulai' => now()->startOfWeek()->toDateString(),
             'tanggal_selesai' => now()->endOfWeek()->toDateString(),
@@ -246,8 +246,8 @@ class BusinessStructureTest extends TestCase
         
         $this->salesInScope->supervisor_id = $this->spv->id;
         $this->salesInScope->save();
-        $this->csInScope->supervisor_id = $this->spv->id;
-        $this->csInScope->save();
+        $this->salesInScope2->supervisor_id = $this->spv->id;
+        $this->salesInScope2->save();
         
         $this->actingAs($this->spv);
         
@@ -263,9 +263,9 @@ class BusinessStructureTest extends TestCase
         ]);
         $res1->assertSessionHasNoErrors();
         
-        // CS B = 30 (Total 110 > 100 -> INVALID)
+        // Sales B = 30 (Total 110 > 100 -> INVALID)
         $res2 = $this->post(route('spv.performa.alokasi'), [
-            'sales_id' => $this->csInScope->id,
+            'sales_id' => $this->salesInScope2->id,
             'tipe_periode' => 'Mingguan',
             'tanggal_mulai' => now()->startOfWeek()->toDateString(),
             'tanggal_selesai' => now()->endOfWeek()->toDateString(),

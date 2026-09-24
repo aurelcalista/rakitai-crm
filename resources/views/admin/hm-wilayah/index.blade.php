@@ -161,7 +161,7 @@
                             <span class="text-[10px] uppercase font-bold text-slate-400 block">Target Wilayah</span>
                             @if($w->target_wilayah)
                                 <span class="font-bold text-emerald-600 text-[11px] mt-0.5 block">
-                                    🔒 {{ number_format($w->target_wilayah->target_lunas) }} Lunas
+                                     {{ number_format($w->target_wilayah->target_lunas) }} Lunas
                                 </span>
                             @else
                                 <span class="text-[11px] text-slate-400 mt-0.5 block">Belum Di-lock</span>

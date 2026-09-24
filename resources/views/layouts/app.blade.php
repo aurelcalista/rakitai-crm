@@ -398,6 +398,18 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Data Perusahaan</span>
                             </a>
                             <a 
+                                href="{{ route('infografis.index') }}" 
+                                title="Infografis"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('infografis.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('infografis.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Infografis</span>
+                            </a>
+                            <a 
                                 href="{{ route('admin.tahun-akademik.index') }}" 
                                 title="Tahun Akademik"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.tahun-akademik.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -600,6 +612,30 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Wilayah Saya</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('hm.sales.index') }}" 
+                                title="Kelola Sales"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.sales.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.sales.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola Sales</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('hm.cs.index') }}" 
+                                title="Kelola CS"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.cs.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.cs.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kelola CS</span>
                             </a>
 
                             <a 
@@ -2473,14 +2509,35 @@ x-init="
             const confirmMsg = form.getAttribute('data-confirm');
             if (confirmMsg && !form.dataset.confirmed) {
                 e.preventDefault();
-                const isDelete = form.querySelector('input[name="_method"][value="DELETE"]') || form.action.includes('destroy') || form.action.includes('delete');
-                window.confirmAction({
-                    title: isDelete ? 'Konfirmasi Hapus' : 'Konfirmasi Tindakan',
+                const action = form.action || '';
+                const isDelete   = form.querySelector('input[name="_method"][value="DELETE"]') || action.includes('destroy') || action.includes('delete');
+                const isApprove  = action.includes('/approve');
+                const isReject   = action.includes('/reject');
+                const isToggle   = action.includes('/toggle');
+                const isReset    = action.includes('/reset-password');
+
+                let opts = {
+                    title: 'Konfirmasi',
                     text: confirmMsg,
-                    icon: isDelete ? 'warning' : 'question',
-                    isDanger: isDelete,
-                    confirmButtonText: isDelete ? 'Ya, Hapus' : 'Ya, Lanjutkan'
-                }, function() {
+                    icon: 'question',
+                    confirmButtonColor: '#2563eb',
+                    confirmButtonText: 'Ya, Lanjutkan',
+                    cancelButtonText: 'Batal',
+                };
+
+                if (isApprove) {
+                    opts = { ...opts, title: 'ACC Pendaftaran', icon: 'question', confirmButtonColor: '#10b981', confirmButtonText: 'Ya, ACC Sekarang' };
+                } else if (isReject) {
+                    opts = { ...opts, title: 'Tolak Pendaftaran', icon: 'warning', confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Tolak' };
+                } else if (isDelete) {
+                    opts = { ...opts, title: 'Hapus Pengguna', icon: 'warning', confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Hapus', isDanger: true };
+                } else if (isToggle) {
+                    opts = { ...opts, title: 'Ubah Status Akun', icon: 'question', confirmButtonColor: '#f59e0b', confirmButtonText: 'Ya, Ubah' };
+                } else if (isReset) {
+                    opts = { ...opts, title: 'Reset Password', icon: 'warning', confirmButtonColor: '#f59e0b', confirmButtonText: 'Ya, Reset' };
+                }
+
+                window.confirmAction(opts, function() {
                     form.dataset.confirmed = 'true';
                     form.submit();
                 });

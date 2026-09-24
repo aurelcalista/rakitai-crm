@@ -32,9 +32,12 @@ class EventAssignmentService
             ]);
         }
 
-        // Get all events assigned to this sales on the same date
-        $existingEvents = Event::whereHas('sales', function ($q) use ($salesId) {
-                $q->where('users.id', $salesId);
+        // Get all events assigned to or created by this user on the same date
+        $existingEvents = Event::where(function($query) use ($salesId) {
+                $query->where('eo_id', $salesId)
+                      ->orWhereHas('sales', function ($q) use ($salesId) {
+                          $q->where('users.id', $salesId);
+                      });
             })
             ->whereDate('tanggal_mulai', $tanggal)
             ->when($excludeEventId, function ($q) use ($excludeEventId) {
@@ -43,29 +46,33 @@ class EventAssignmentService
             ->get();
 
         foreach ($existingEvents as $existing) {
-            $existingStart = Carbon::parse($existing->tanggal_mulai);
-            $existingEnd = Carbon::parse($existing->tanggal_selesai);
+            $eDate = $existing->tanggal ? Carbon::parse($existing->tanggal)->format('Y-m-d') : Carbon::parse($existing->tanggal_mulai)->format('Y-m-d');
+            $eStartStr = $existing->tanggal_mulai ?: ($eDate . ' ' . $existing->waktu_mulai);
+            $eEndStr = $existing->tanggal_selesai ?: ($eDate . ' ' . $existing->waktu_selesai);
+
+            $existingStart = Carbon::parse($eStartStr);
+            $existingEnd = Carbon::parse($eEndStr);
 
             // Check overlap
             if ($newStart->lt($existingEnd) && $newEnd->gt($existingStart)) {
                 throw ValidationException::withMessages([
-                    'sales_id' => "Jadwal bentrok dengan event '{$existing->name}' ({$existingStart->format('H:i')} - {$existingEnd->format('H:i')})."
+                    'waktu_mulai' => "Jadwal bentrok dengan event/schedule '{$existing->name}' ({$existingStart->format('H:i')} - {$existingEnd->format('H:i')})."
                 ]);
             }
 
-            // Check 2-hour gap
+            // Check minimum 1-hour gap (60 minutes)
             if ($newStart->gte($existingEnd)) {
-                $gap = $newStart->diffInMinutes($existingEnd);
-                if ($gap < 120) {
+                $gap = $existingEnd->diffInMinutes($newStart);
+                if ($gap < 60) {
                     throw ValidationException::withMessages([
-                        'sales_id' => "Jeda kurang dari 2 jam dengan event sebelumnya '{$existing->name}' (selesai {$existingEnd->format('H:i')})."
+                        'waktu_mulai' => "Jeda kurang dari 1 jam dengan event/schedule sebelumnya '{$existing->name}' (selesai {$existingEnd->format('H:i')}). Minimal jeda 1 jam."
                     ]);
                 }
             } elseif ($newEnd->lte($existingStart)) {
                 $gap = $newEnd->diffInMinutes($existingStart);
-                if ($gap < 120) {
+                if ($gap < 60) {
                     throw ValidationException::withMessages([
-                        'sales_id' => "Jeda kurang dari 2 jam dengan event berikutnya '{$existing->name}' (mulai {$existingStart->format('H:i')})."
+                        'waktu_mulai' => "Jeda kurang dari 1 jam dengan event/schedule berikutnya '{$existing->name}' (mulai {$existingStart->format('H:i')}). Minimal jeda 1 jam."
                     ]);
                 }
             }

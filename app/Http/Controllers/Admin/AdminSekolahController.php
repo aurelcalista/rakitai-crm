@@ -36,7 +36,7 @@ class AdminSekolahController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'kode' => 'required|string|max:50|unique:sekolahs,kode',
+            'kode' => 'nullable|string|max:50|unique:sekolahs,kode',
             'nama' => 'required|string|max:255',
             'kategori_id' => 'required|exists:master_data,id',
             'wilayah_id' => 'required|exists:wilayahs,id',
@@ -50,6 +50,10 @@ class AdminSekolahController extends Controller
             'pic_phone' => 'nullable|string|max:50',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
+
+        if (empty($validated['kode'])) {
+            $validated['kode'] = 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6));
+        }
 
         Sekolah::create($validated);
 
@@ -59,7 +63,7 @@ class AdminSekolahController extends Controller
     public function update(Request $request, Sekolah $sekolah)
     {
         $validated = $request->validate([
-            'kode' => 'required|string|max:50|unique:sekolahs,kode,' . $sekolah->id,
+            'kode' => 'nullable|string|max:50|unique:sekolahs,kode,' . $sekolah->id,
             'nama' => 'required|string|max:255',
             'kategori_id' => 'required|exists:master_data,id',
             'wilayah_id' => 'required|exists:wilayahs,id',
@@ -73,6 +77,10 @@ class AdminSekolahController extends Controller
             'pic_phone' => 'nullable|string|max:50',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
+
+        if (empty($validated['kode'])) {
+            unset($validated['kode']);
+        }
 
         $sekolah->update($validated);
 

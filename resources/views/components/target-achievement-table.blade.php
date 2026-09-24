@@ -19,13 +19,7 @@
 
 <div class="space-y-5" x-data="{
     currentPeriod: '{{ $currentKey }}',
-    filterWilayah: '{{ $selectedWilayah?->id ?? '' }}',
-    isRealtime: {{ ($periode['is_realtime'] ?? false) ? 'true' : 'false' }},
-    refreshing: false,
-    refreshRealtime() {
-        this.refreshing = true;
-        window.location.href = '{{ $actionUrl }}?periode=realtime' + (this.filterWilayah ? '&wilayah_id=' + this.filterWilayah : '');
-    }
+    filterWilayah: '{{ $selectedWilayah?->id ?? '' }}'
 }">
 
     <!-- Filter Bar Card -->
@@ -42,45 +36,105 @@
                     ">
                         Level {{ $level }}
                     </span>
-                    @if($periode['is_realtime'] ?? false)
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse">
-                            <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-                            Live Realtime
-                        </span>
-                    @endif
                 </div>
                 <p class="text-xs text-slate-500 mt-1">{{ $subtitle }}</p>
             </div>
 
             <!-- Periode & Wilayah Quick Controls -->
             <form method="GET" action="{{ $actionUrl }}" class="flex flex-wrap items-center gap-2" id="filterTargetAchievementForm">
-                <!-- Wilayah Filter (if applicable) -->
+                <!-- Wilayah Filter Searchable Dropdown Plugin (SPV, HM, Global) -->
                 @if(in_array($level, ['SPV', 'HM', 'Global']) && count($wilayahOptions) > 1)
-                    <div class="relative">
-                        <select name="wilayah_id" onchange="this.form.submit()" class="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-blue-500/20">
-                            <option value="">-- Semua Wilayah Teritori --</option>
+                    @php
+                        $selectedWilayahObj = $wilayahOptions->firstWhere('id', request('wilayah_id'));
+                        $selectedWilayahNama = $selectedWilayahObj ? $selectedWilayahObj->nama : 'Semua Wilayah Teritori';
+                    @endphp
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        selectedId: '{{ request('wilayah_id', '') }}',
+                        selectedNama: '{{ addslashes($selectedWilayahNama) }}',
+                        items: [
+                            { id: '', nama: 'Semua Wilayah Teritori' },
                             @foreach($wilayahOptions as $w)
-                                <option value="{{ $w->id }}" {{ request('wilayah_id') == $w->id ? 'selected' : '' }}>
-                                    📍 {{ $w->nama }}
-                                </option>
+                                { id: '{{ $w->id }}', nama: '{{ addslashes($w->nama) }}' },
                             @endforeach
-                        </select>
-                    </div>
-                @endif
+                        ],
+                        get filteredItems() {
+                            if (!this.search.trim()) return this.items;
+                            return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                        },
+                        selectWilayah(item) {
+                            this.selectedId = item.id;
+                            this.selectedNama = item.nama;
+                            this.open = false;
+                            $nextTick(() => {
+                                $refs.wilayahFormInput.value = item.id;
+                                document.getElementById('filterTargetAchievementForm').submit();
+                            });
+                        }
+                    }" @click.outside="open = false">
 
-                <!-- Refresh Button for Realtime -->
-                @if($periode['is_realtime'] ?? false)
-                    <button type="button" @click="refreshRealtime()" :disabled="refreshing" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
-                        <svg class="w-3.5 h-3.5 text-slate-600" :class="refreshing ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span>Refresh Data</span>
-                    </button>
+                        <input type="hidden" name="wilayah_id" x-ref="wilayahFormInput" :value="selectedId">
+
+                        <!-- Trigger Button Plugin -->
+                        <button type="button" @click="open = !open" class="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-blue-500/20 flex items-center gap-2 cursor-pointer transition">
+                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 12.414a5 5 0 10-1.414 1.414l4.243 4.243a1 1 0 001.414-1.414zM15 11a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span x-text="selectedId ? '📍 ' + selectedNama : ' Semua Wilayah Teritori'"></span>
+                            <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Searchable Dropdown Popup Menu -->
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute left-0 lg:right-0 lg:left-auto mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                             style="display: none;">
+                            
+                            <!-- Search Input Box Plugin -->
+                            <div class="relative mb-2">
+                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" 
+                                       x-model="search" 
+                                       placeholder="Cari Wilayah Teritori..." 
+                                       class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                       @keydown.escape="open = false">
+                            </div>
+
+                            <!-- Filtered Options List -->
+                            <div class="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+                                <template x-for="item in filteredItems" :key="item.id">
+                                    <button type="button" 
+                                            @click="selectWilayah(item)" 
+                                            class="w-full text-left px-3 py-1.5 text-xs rounded-xl transition flex items-center justify-between font-semibold"
+                                            :class="selectedId == item.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'">
+                                        <span x-text="item.id ? '📍 ' + item.nama : '🌐 ' + item.nama"></span>
+                                        <svg x-show="selectedId == item.id" class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                </template>
+                                
+                                <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                    Wilayah tidak ditemukan
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 @endif
             </form>
         </div>
 
-        <!-- 5 Tombol Filter Periode Wajib PRD Bab 6.2 -->
+        <!-- Filter Periode (Harian, Mingguan, Bulanan, Tahunan) -->
         <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
             <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter Periode:</span>
             @foreach($periodOptions as $opt)
@@ -93,9 +147,6 @@
                         ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/20' 
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80' }}
                 ">
-                    @if($opt['key'] === 'realtime')
-                        <span class="w-2 h-2 rounded-full {{ $isActive ? 'bg-amber-300' : 'bg-rose-500' }}"></span>
-                    @endif
                     <span>{{ $opt['label'] }}</span>
                 </a>
             @endforeach
@@ -118,8 +169,6 @@
                 <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">Hierarki Target Berjenjang & Sistem Defisit</span>
                 <h4 class="text-sm font-bold text-white flex items-center gap-2 mt-0.5">
                     <span>Target Akumulasi Cascading (Tahunan &rarr; Bulanan &rarr; Mingguan &rarr; Harian)</span>
-                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 font-semibold">Tersinkronisasi Realtime</span>
-                </h4>
             </div>
             
             <!-- Indikator Warna Dasar Legend -->
@@ -146,7 +195,6 @@
             <a href="{{ $actionUrl . '?periode=tahunan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
                class="p-3 rounded-xl border transition relative {{ $currentKey === 'tahunan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 1</span>
                     @if($currentKey === 'tahunan')
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
@@ -159,7 +207,6 @@
             <a href="{{ $actionUrl . '?periode=bulanan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
                class="p-3 rounded-xl border transition relative {{ $currentKey === 'bulanan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 2</span>
                     @if($currentKey === 'bulanan')
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
@@ -172,7 +219,6 @@
             <a href="{{ $actionUrl . '?periode=mingguan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
                class="p-3 rounded-xl border transition relative {{ $currentKey === 'mingguan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 3</span>
                     @if($currentKey === 'mingguan')
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
@@ -185,7 +231,6 @@
             <a href="{{ $actionUrl . '?periode=harian' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
                class="p-3 rounded-xl border transition relative {{ $currentKey === 'harian' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold uppercase text-indigo-300">Level 4</span>
                     @if($currentKey === 'harian')
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif

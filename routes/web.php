@@ -18,6 +18,8 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [CrmController::class, 'login'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
+    Route::post('/register', [AuthController::class, 'register']);
 });
 
 Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
@@ -29,6 +31,13 @@ Route::middleware('auth')->group(function () {
     // Internal Calendar
     Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/api/calendar/events', [\App\Http\Controllers\CalendarController::class, 'fetchEvents'])->name('api.calendar.events');
+    Route::post('/calendar/meetings', [\App\Http\Controllers\CalendarController::class, 'storeMeeting'])->name('calendar.meetings.store');
+
+    // Dependent Dropdown Master Data Wilayah & Sekolah
+    Route::get('/api/wilayah/{city}/kecamatan', [\App\Http\Controllers\WilayahController::class, 'getKecamatanByKota'])->name('api.wilayah.kecamatan');
+    Route::get('/api/kecamatan/{district}/sekolah', [\App\Http\Controllers\WilayahController::class, 'getSekolahByKecamatan'])->name('api.kecamatan.sekolah');
+    Route::get('/wilayah/{city}/kecamatan', [\App\Http\Controllers\WilayahController::class, 'getKecamatanByKota'])->name('wilayah.kecamatan');
+    Route::get('/kecamatan/{district}/sekolah', [\App\Http\Controllers\WilayahController::class, 'getSekolahByKecamatan'])->name('kecamatan.sekolah');
 
     // Unified role dashboard dispatcher
     Route::get('/dashboard', function () {
@@ -126,6 +135,7 @@ Route::middleware('auth')->group(function () {
 
             // Team Structure & Directory
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
+            Route::post('/tim/sales', [\App\Http\Controllers\Spv\TeamController::class, 'storeSales'])->name('tim.sales.store');
             Route::post('/tim/assign', [\App\Http\Controllers\Spv\TeamController::class, 'assignMember'])->name('tim.assign');
             Route::post('/tim/territory', [\App\Http\Controllers\Spv\TeamController::class, 'assignTeamTerritory'])->name('tim.territory.assign');
             Route::patch('/tim/{user}/wilayah', [\App\Http\Controllers\Spv\TeamController::class, 'assignWilayah'])->name('tim.wilayah.assign');
@@ -146,8 +156,24 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['role:Admin,HM'])->prefix('hm')->name('hm.')->group(function () {
         Route::get('/wilayah', [\App\Http\Controllers\Hm\HmWilayahController::class, 'index'])->name('wilayah.index');
         Route::post('/wilayah/{wilayah}/assign-spv', [\App\Http\Controllers\Hm\HmWilayahController::class, 'assignSpv'])->name('wilayah.assignSpv');
+        Route::post('/wilayah/{wilayah}/unassign-spv/{spv}', [\App\Http\Controllers\Hm\HmWilayahController::class, 'unassignSpv'])->name('wilayah.unassignSpv');
         Route::post('/wilayah/{wilayah}/target', [\App\Http\Controllers\Hm\HmWilayahController::class, 'setWilayahTarget'])->name('wilayah.setTarget');
+
+        // HM Sales Management
+        Route::get('/sales', [\App\Http\Controllers\Hm\HmSalesController::class, 'index'])->name('sales.index');
+        Route::post('/sales', [\App\Http\Controllers\Hm\HmSalesController::class, 'store'])->name('sales.store');
+        Route::post('/sales/assign', [\App\Http\Controllers\Hm\HmSalesController::class, 'assignTerritory'])->name('sales.territory.assign');
+        Route::patch('/sales/{user}/status', [\App\Http\Controllers\Hm\HmSalesController::class, 'updateStatus'])->name('sales.status.update');
+        Route::delete('/sales/{user}/wilayah/{wilayah}', [\App\Http\Controllers\Hm\HmSalesController::class, 'deactivateTerritory'])->name('sales.territory.deactivate');
+
+        // HM CS Management
+        Route::get('/cs', [\App\Http\Controllers\Hm\HmCsController::class, 'index'])->name('cs.index');
+        Route::post('/cs', [\App\Http\Controllers\Hm\HmCsController::class, 'store'])->name('cs.store');
+        Route::post('/cs/assign', [\App\Http\Controllers\Hm\HmCsController::class, 'assignTerritory'])->name('cs.territory.assign');
+        Route::patch('/cs/{user}/status', [\App\Http\Controllers\Hm\HmCsController::class, 'updateStatus'])->name('cs.status.update');
+        Route::delete('/cs/{user}/wilayah/{wilayah}', [\App\Http\Controllers\Hm\HmCsController::class, 'deactivateTerritory'])->name('cs.territory.deactivate');
     });
+
 
     // ──────────────────────────────────────────────────────────────
     // EO (Event Organizer) Role Routes
@@ -168,8 +194,6 @@ Route::middleware('auth')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
 
         // Custom Actions
-        Route::post('users/{user}/reset-password',             [\App\Http\Controllers\Admin\AdminUserController::class, 'resetPassword'])->name('users.reset-password');
-        Route::post('users/{user}/toggle-status',              [\App\Http\Controllers\Admin\AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
         Route::post('wilayah/{wilayah}/toggle-status',         [\App\Http\Controllers\Admin\AdminWilayahController::class, 'toggleStatus'])->name('wilayah.toggle-status');
         Route::post('sekolah/{sekolah}/toggle-status',         [\App\Http\Controllers\Admin\AdminSekolahController::class, 'toggleStatus'])->name('sekolah.toggle-status');
         Route::post('prodi/{prodi}/toggle-status',             [\App\Http\Controllers\Admin\AdminProdiController::class, 'toggleStatus'])->name('prodi.toggle-status');
@@ -181,8 +205,8 @@ Route::middleware('auth')->group(function () {
         Route::post('hm-wilayah/assign',          [\App\Http\Controllers\Admin\AdminHmWilayahController::class, 'assign'])->name('hm-wilayah.assign');
         Route::post('hm-wilayah/{user}/unassign', [\App\Http\Controllers\Admin\AdminHmWilayahController::class, 'unassign'])->name('hm-wilayah.unassign');
 
-        Route::resource('users',       \App\Http\Controllers\Admin\AdminUserController::class, $except);
         Route::resource('kunjungan',   \App\Http\Controllers\Admin\AdminKunjunganController::class, $except);
+        Route::post('master-data/update-weights', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'updateWeights'])->name('master-data.update-weights');
         Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except);
         Route::resource('wilayah',     \App\Http\Controllers\Admin\AdminWilayahController::class, $except);
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
@@ -196,9 +220,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
-    // Admin & HM Shared Modules
+    // Admin & HM Shared Modules (User Management & Target)
     Route::middleware(['role:Admin,HM'])->prefix('admin')->name('admin.')->group(function () {
         $except = ['except' => ['create', 'show', 'edit']];
+        Route::post('users/{user}/reset-password',             [\App\Http\Controllers\Admin\AdminUserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::post('users/{user}/toggle-status',              [\App\Http\Controllers\Admin\AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::post('users/{user}/approve',                    [\App\Http\Controllers\Admin\AdminUserController::class, 'approve'])->name('users.approve');
+        Route::post('users/{user}/reject',                     [\App\Http\Controllers\Admin\AdminUserController::class, 'reject'])->name('users.reject');
+        Route::resource('users', \App\Http\Controllers\Admin\AdminUserController::class, $except);
         Route::resource('target', \App\Http\Controllers\Admin\AdminTargetController::class, $except);
         Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
 
@@ -238,6 +267,7 @@ Route::middleware('auth')->group(function () {
         // Performance & Reports
         Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
         Route::get('/laporan',         [CrmController::class, 'laporanIndex'])->name('laporan.index');
+        Route::get('/infografis',      [\App\Http\Controllers\InfografisController::class, 'index'])->name('infografis.index');
     });
 
     // Account & Profile (all roles)

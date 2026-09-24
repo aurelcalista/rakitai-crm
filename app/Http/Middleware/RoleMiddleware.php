@@ -28,6 +28,10 @@ class RoleMiddleware
         $allowedRoles = array_map('strtolower', $roles);
 
         if (!in_array($userRole, $allowedRoles)) {
+            if ($request->expectsJson() || !$request->isMethod('GET')) {
+                abort(403, 'Anda tidak memiliki akses ke aksi tersebut.');
+            }
+
             // Redirect to their own dashboard instead of raw 403
             $redirectRoute = 'dashboard.' . $userRole;
             if (app('router')->has($redirectRoute)) {

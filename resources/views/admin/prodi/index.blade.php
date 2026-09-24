@@ -66,7 +66,8 @@
                             <th class="py-3.5 px-3 text-center">Jenjang</th>
                             <th class="py-3.5 px-3 text-center">Kuota</th>
                             <th class="py-3.5 px-3 text-center">Terdaftar</th>
-                            <th class="py-3.5 px-3">SPP</th>
+                            <th class="py-3.5 px-3">UKT</th>
+                            <th class="py-3.5 px-3">UKT Reguler</th>
                             <th class="py-3.5 px-3 text-center">Status</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
@@ -92,7 +93,8 @@
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="font-bold" :class="p.terdaftar >= p.kuota ? 'text-red-600' : 'text-emerald-600'" x-text="p.terdaftar + ' mhs'"></span>
                                 </td>
-                                <td class="py-3.5 px-3 text-slate-500" x-text="p.spp"></td>
+                                <td class="py-3.5 px-3 text-slate-500" x-text="p.ukt || p.spp"></td>
+                                <td class="py-3.5 px-3 text-slate-500" x-text="p.ukt_reguler || '-'"></td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
                                         :class="p.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'">
@@ -173,9 +175,15 @@
                                     <p class="text-[10px] text-emerald-400">mahasiswa</p>
                                 </div>
                             </div>
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                                <span class="text-slate-500">Biaya SPP</span>
-                                <span class="font-bold text-slate-800" x-text="selectedProdi.spp || '-'"></span>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-col">
+                                    <span class="text-slate-500">UKT</span>
+                                    <span class="font-bold text-slate-800" x-text="selectedProdi.ukt || selectedProdi.spp || '-'"></span>
+                                </div>
+                                <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-col">
+                                    <span class="text-slate-500">UKT Reguler</span>
+                                    <span class="font-bold text-slate-800" x-text="selectedProdi.ukt_reguler || '-'"></span>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -222,14 +230,18 @@
                                 @foreach($fakultasList as $f)<option value="{{ $f }}">{{ $f }}</option>@endforeach
                             </select>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kuota</label>
                                 <input type="number" name="kuota" required placeholder="100" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                             <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Biaya SPP/Semester</label>
-                                <input type="text" name="spp" placeholder="Rp 4.500.000" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                                <label class="block font-semibold text-slate-700 mb-1">UKT</label>
+                                <input type="text" name="ukt" placeholder="Rp 4.500.000" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">UKT Reguler</label>
+                                <input type="text" name="ukt_reguler" placeholder="Rp 5.500.000" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
                         <div>
@@ -281,14 +293,18 @@
                                 @foreach($fakultasList as $f)<option value="{{ $f }}">{{ $f }}</option>@endforeach
                             </select>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Kuota</label>
                                 <input type="number" name="kuota" required :value="selectedProdi ? selectedProdi.kuota : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none">
                             </div>
                             <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Biaya SPP</label>
-                                <input type="text" name="spp" :value="selectedProdi ? selectedProdi.spp : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none">
+                                <label class="block font-semibold text-slate-700 mb-1">UKT</label>
+                                <input type="text" name="ukt" :value="selectedProdi ? (selectedProdi.ukt || selectedProdi.spp) : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">UKT Reguler</label>
+                                <input type="text" name="ukt_reguler" :value="selectedProdi ? selectedProdi.ukt_reguler : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none">
                             </div>
                         </div>
                         <div>

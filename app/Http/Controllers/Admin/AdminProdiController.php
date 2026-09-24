@@ -11,10 +11,16 @@ class AdminProdiController extends Controller
 {
     public function index(): View
     {
-        $prodi = Prodi::latest()->get()->map(function ($item) {
-            $item->terdaftar = 0; // Mocked until we have a real relation
-            return $item;
-        });
+        // Exclude Prodi MI (Manajemen Informatika) per requirement
+        $prodi = Prodi::where('kode', '!=', 'MI-D3')
+            ->where('nama', 'NOT LIKE', '%Manajemen Informatika%')
+            ->latest()
+            ->get()
+            ->map(function ($item) {
+                $item->terdaftar = 0; // Mocked until we have a real relation
+                $item->ukt = $item->ukt ?: $item->spp;
+                return $item;
+            });
 
         $fakultasList = \App\Models\MasterData::where('type', 'fakultas')->pluck('nama');
         $jenjangList  = \App\Models\MasterData::where('type', 'jenjang')->pluck('nama');
@@ -30,9 +36,15 @@ class AdminProdiController extends Controller
             'fakultas' => 'required|string|max:255',
             'jenjang' => 'required|string|max:50',
             'kuota' => 'required|integer|min:0',
+            'ukt' => 'nullable|string|max:100',
+            'ukt_reguler' => 'nullable|string|max:100',
             'spp' => 'nullable|string|max:100',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
+
+        if (empty($validated['ukt']) && !empty($validated['spp'])) {
+            $validated['ukt'] = $validated['spp'];
+        }
 
         Prodi::create($validated);
 
@@ -47,9 +59,15 @@ class AdminProdiController extends Controller
             'fakultas' => 'required|string|max:255',
             'jenjang' => 'required|string|max:50',
             'kuota' => 'required|integer|min:0',
+            'ukt' => 'nullable|string|max:100',
+            'ukt_reguler' => 'nullable|string|max:100',
             'spp' => 'nullable|string|max:100',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
+
+        if (empty($validated['ukt']) && !empty($validated['spp'])) {
+            $validated['ukt'] = $validated['spp'];
+        }
 
         $prodi->update($validated);
 

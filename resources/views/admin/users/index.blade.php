@@ -47,6 +47,7 @@
                     <option value="all">Semua Status</option>
                     <option value="aktif">Aktif</option>
                     <option value="nonaktif">Nonaktif</option>
+                    <option value="pending">Pending</option>
                 </select>
             </div>
             <!-- Role Filter Buttons -->
@@ -63,6 +64,23 @@
                 <span class="ml-auto text-[11px] text-slate-400">Menampilkan <span class="font-bold text-slate-700" x-text="filtered.length"></span> user</span>
             </div>
         </div>
+
+        <!-- Pending Alert Banner -->
+        @php $pendingCount = $users->where('status', 'Pending')->count(); @endphp
+        @if($pendingCount > 0)
+        <div class="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5">
+            <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-bold text-amber-800">{{ $pendingCount }} Pendaftaran Menunggu Persetujuan</p>
+                <p class="text-xs text-amber-600 mt-0.5">Gunakan filter <strong>Pending</strong> atau klik tombol <strong>ACC</strong> di kolom Aksi untuk menyetujui.</p>
+            </div>
+            <button type="button" x-on:click="statusFilter = 'pending'" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition cursor-pointer">
+                Lihat Pending
+            </button>
+        </div>
+        @endif
 
         <!-- Table -->
         <div class="crm-card bg-white overflow-hidden">
@@ -92,7 +110,10 @@
                                             </template>
                                         </div>
                                         <div>
-                                            <div class="font-bold text-slate-900" x-text="user.name"></div>
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-bold text-slate-900" x-text="user.name"></span>
+                                                <span class="px-1.5 py-0.2 rounded font-mono text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200" x-show="user.kode" x-text="'🆔 ' + user.kode"></span>
+                                            </div>
                                             <div class="text-[11px] text-slate-400" x-text="user.email"></div>
                                         </div>
                                     </div>
@@ -111,35 +132,84 @@
                                 <td class="py-3.5 px-3 text-slate-700 font-medium" x-text="user.phone"></td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                                        :class="user.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'">
-                                        <span class="w-1.5 h-1.5 rounded-full" :class="user.status === 'Aktif' ? 'bg-emerald-500' : 'bg-red-500'"></span>
+                                        :class="{
+                                            'bg-emerald-50 text-emerald-700 border border-emerald-200': user.status === 'Aktif',
+                                            'bg-red-50 text-red-700 border border-red-200': user.status === 'Nonaktif',
+                                            'bg-amber-50 text-amber-700 border border-amber-300': user.status === 'Pending'
+                                        }">
+                                        <span class="w-1.5 h-1.5 rounded-full animate-pulse"
+                                            :class="{
+                                                'bg-emerald-500': user.status === 'Aktif',
+                                                'bg-red-500': user.status === 'Nonaktif',
+                                                'bg-amber-400': user.status === 'Pending'
+                                            }"></span>
                                         <span x-text="user.status"></span>
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-400 text-[11px]" x-text="user.created_at"></td>
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
-                                        <button @click="selectedUser = user; modalDetail = true" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer" title="Detail">Lihat</button>
-                                        <button @click="selectedUser = user; modalEdit = true" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition cursor-pointer" title="Edit">Edit</button>
-                                        <form :action="'/admin/users/' + user.id + '/reset-password'" method="POST" class="inline" @submit="if(!confirm('Reset password user ini ke default?')) $event.preventDefault()">
-                                            @csrf
-                                            <button type="submit" class="p-1.5 rounded-lg text-amber-500 hover:text-amber-700 hover:bg-amber-50 transition cursor-pointer" title="Reset Password">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                                            </button>
-                                        </form>
-                                        <form :action="'/admin/users/' + user.id + '/toggle-status'" method="POST" class="inline" @submit="if(!confirm(user.status === 'Aktif' ? 'Nonaktifkan user ini?' : 'Aktifkan user ini?')) $event.preventDefault()">
-                                            @csrf
-                                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer" :title="user.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                                            </button>
-                                        </form>
-                                        <form :action="'/admin/users/' + user.id" method="POST" class="inline" @submit="if(!confirm('Hapus pengguna ini?')) $event.preventDefault()">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-red-700 hover:bg-red-50 transition cursor-pointer" title="Hapus">
-                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                            </button>
-                                        </form>
+
+                                        <!-- Pending: ACC + Reject buttons -->
+                                        <template x-if="user.status === 'Pending'">
+                                            <div class="flex items-center gap-2">
+                                                <form :action="'/admin/users/' + user.id + '/approve'" method="POST" class="inline"
+                                                    :data-confirm="'Setujui dan aktifkan akun ' + user.name + '?'">
+                                                    @csrf
+                                                    <button type="submit" title="Setujui / ACC"
+                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold
+                                                               bg-emerald-500 hover:bg-emerald-600 active:scale-95
+                                                               text-white shadow-sm shadow-emerald-200/60
+                                                               transition-all duration-150 cursor-pointer">
+                                                        <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                        ACC
+                                                    </button>
+                                                </form>
+                                                <form :action="'/admin/users/' + user.id + '/reject'" method="POST" class="inline"
+                                                    :data-confirm="'Tolak pendaftaran ' + user.name + '? Akun akan dinonaktifkan.'">
+                                                    @csrf
+                                                    <button type="submit" title="Tolak"
+                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold
+                                                               bg-white hover:bg-red-50 active:scale-95
+                                                               text-red-500 border border-red-200 hover:border-red-300
+                                                               transition-all duration-150 cursor-pointer">
+                                                        <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                                        Tolak
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </template>
+
+                                        <!-- Non-Pending: normal actions -->
+                                        <template x-if="user.status !== 'Pending'">
+                                            <div class="flex items-center gap-1">
+                                                <button @click="selectedUser = user; modalDetail = true" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer" title="Detail">Lihat</button>
+                                                <button @click="selectedUser = user; modalEdit = true" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition cursor-pointer" title="Edit">Edit</button>
+                                                <form :action="'/admin/users/' + user.id + '/reset-password'" method="POST" class="inline"
+                                                    :data-confirm="'Reset password ' + user.name + ' ke password default?'">
+                                                    @csrf
+                                                    <button type="submit" class="p-1.5 rounded-lg text-amber-500 hover:text-amber-700 hover:bg-amber-50 transition cursor-pointer" title="Reset Password">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                                    </button>
+                                                </form>
+                                                <form :action="'/admin/users/' + user.id + '/toggle-status'" method="POST" class="inline"
+                                                    :data-confirm="user.status === 'Aktif' ? 'Nonaktifkan akun ' + user.name + '?' : 'Aktifkan kembali akun ' + user.name + '?'">
+                                                    @csrf
+                                                    <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer" :title="user.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                                    </button>
+                                                </form>
+                                                <form :action="'/admin/users/' + user.id" method="POST" class="inline"
+                                                    :data-confirm="'Hapus akun ' + user.name + '? Tindakan ini tidak bisa dibatalkan.'">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="p-1.5 rounded-lg text-slate-400 hover:text-red-700 hover:bg-red-50 transition cursor-pointer" title="Hapus">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </template>
+
                                     </div>
                                 </td>
                             </tr>

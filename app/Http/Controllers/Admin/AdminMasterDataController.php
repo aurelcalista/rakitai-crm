@@ -100,6 +100,26 @@ class AdminMasterDataController extends Controller
         return redirect()->back()->with('success', 'Master data berhasil diperbarui!');
     }
 
+    /**
+     * Admin update dynamic weights for Indikator Wilayah (Kontak + Closing = 100%).
+     */
+    public function updateWeights(Request $request)
+    {
+        if (strtolower(auth()->user()->role) !== 'admin') {
+            abort(403, 'Hanya Admin yang berwenang mengubah konfigurasi bobot indikator wilayah.');
+        }
+
+        $request->validate([
+            'bobot_kontak'  => 'required|numeric|min:0|max:100',
+            'bobot_closing' => 'required|numeric|min:0|max:100',
+        ]);
+
+        $service = new \App\Services\WilayahPerformanceService();
+        $service->updateWeights((float)$request->bobot_kontak, (float)$request->bobot_closing);
+
+        return redirect()->back()->with('success', "Bobot Indikator Wilayah berhasil diperbarui! (Kontak: {$request->bobot_kontak}%, Closing: {$request->bobot_closing}%)");
+    }
+
     public function destroy(MasterData $masterData)
     {
         $masterData->delete();

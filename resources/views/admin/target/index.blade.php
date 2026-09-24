@@ -8,9 +8,83 @@
         selectedTarget: null,
         filterStatus: 'all',
         filterRole: 'all',
-        selectedRoleAdd: '',
         targets: {{ json_encode($targets) }},
-        salesList: {{ json_encode($salesList) }},
+        wilayahTree: {{ json_encode($wilayahTree) }},
+
+        addForm: {
+            wilayah_id: '',
+            spv_id: '',
+            area_id: '',
+            target_type: 'spv',
+            sales_id: '',
+            selectedRole: ''
+        },
+
+        get availableSpvs() {
+            if (!this.addForm.wilayah_id) return [];
+            let w = this.wilayahTree.find(item => item.id == this.addForm.wilayah_id);
+            return w ? (w.spvs || []) : [];
+        },
+
+        get availableAreas() {
+            if (!this.addForm.wilayah_id) return [];
+            let w = this.wilayahTree.find(item => item.id == this.addForm.wilayah_id);
+            return w ? (w.areas || []) : [];
+        },
+
+        get availableSales() {
+            if (!this.addForm.wilayah_id) return [];
+            let w = this.wilayahTree.find(item => item.id == this.addForm.wilayah_id);
+            if (!w) return [];
+            
+            if (this.addForm.area_id) {
+                let area = (w.areas || []).find(a => a.id == this.addForm.area_id);
+                return area ? (area.sales_list || []) : [];
+            }
+            
+            return w.sales_list || [];
+        },
+
+        onWilayahChange() {
+            this.addForm.spv_id = '';
+            this.addForm.area_id = '';
+            this.addForm.sales_id = '';
+            this.addForm.selectedRole = '';
+            
+            let spvs = this.availableSpvs;
+            if (spvs.length > 0) {
+                this.addForm.spv_id = spvs[0].id;
+                if (this.addForm.target_type === 'spv') {
+                    this.addForm.sales_id = spvs[0].id;
+                    this.addForm.selectedRole = 'SPV';
+                }
+            }
+        },
+
+        onTargetTypeChange() {
+            this.addForm.sales_id = '';
+            this.addForm.selectedRole = '';
+            if (this.addForm.target_type === 'spv' && this.addForm.spv_id) {
+                this.addForm.sales_id = this.addForm.spv_id;
+                this.addForm.selectedRole = 'SPV';
+            }
+        },
+
+        onSpvChange() {
+            if (this.addForm.target_type === 'spv') {
+                this.addForm.sales_id = this.addForm.spv_id;
+                this.addForm.selectedRole = 'SPV';
+            }
+        },
+
+        onSalesChange() {
+            let candidates = [...this.availableSpvs, ...this.availableSales];
+            let found = candidates.find(c => c.id == this.addForm.sales_id);
+            if (found) {
+                this.addForm.selectedRole = found.role;
+            }
+        },
+
         get filtered() {
             return this.targets.filter(t => 
                 (this.filterStatus === 'all' || t.status.toLowerCase() === this.filterStatus.toLowerCase()) &&
@@ -29,8 +103,8 @@
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
-                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kelola Target Sales</h2>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Atur target harian/bulanan Sales, pantau realisasi, dan akumulasi kekurangan.</p>
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kelola Target Sales & SPV</h2>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Atur target harian/bulanan SPV dan Sales berbasis relasi Wilayah, pantau realisasi, dan akumulasi kekurangan.</p>
             </div>
             <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -38,13 +112,13 @@
             </button>
         </div>
 
-        <!-- Info Box: Aturan Akumulasi -->
+        <!-- Info Box: Aturan Akumulasi & Relasi Wilayah -->
         <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs">
             <div class="flex items-start gap-3">
                 <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <div>
-                    <p class="font-bold text-amber-800 mb-1">Aturan Akumulasi Target</p>
-                    <p class="text-amber-700 leading-relaxed">Kekurangan target hari ini (kontak baru & follow up) <strong>secara otomatis dibawa ke hari berikutnya</strong>. Target besok = Target Harian + Akumulasi Kekurangan. Contoh: Target 10 kontak, realisasi 7 → besok jadi 13 kontak.</p>
+                    <p class="font-bold text-amber-800 mb-1">Struktur Relasi Dinamis Wilayah → SPV → Sales</p>
+                    <p class="text-amber-700 leading-relaxed">Target ditentukan secara dinamis mengikuti hirarki Wilayah Saya. SPV dan Sales yang muncul otomatis terfilter sesuai Wilayah yang dipilih. Kekurangan target harian (kontak baru & follow up) secara otomatis dibawa ke hari berikutnya (snowball effect).</p>
                 </div>
             </div>
         </div>
@@ -101,8 +175,15 @@
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-sm shrink-0" x-text="t.avatar"></div>
                             <div>
-                                <div class="font-extrabold text-slate-900 text-sm" x-text="t.sales"></div>
-                                <div class="text-[11px] text-slate-400" x-text="t.periode_type + ' — ' + t.tanggal_mulai + ' s/d ' + t.tanggal_selesai"></div>
+                                <div class="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                                    <span x-text="t.sales"></span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-bold" x-text="t.role"></span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 font-medium">
+                                    <span class="text-purple-600 font-semibold" x-text="'Wilayah: ' + (t.wilayah_nama || '-')"></span>
+                                    <span x-show="t.spv_nama && t.spv_nama !== '-'" x-text="' | SPV: ' + t.spv_nama"></span>
+                                    <span x-text="' | ' + t.periode_type + ' (' + t.tanggal_mulai + ' - ' + t.tanggal_selesai + ')'"></span>
+                                </div>
                             </div>
                             <span class="px-2 py-0.5 rounded-md text-[10px] font-bold"
                                 :class="{
@@ -232,32 +313,103 @@
             </template>
         </div>
 
-        <!-- MODAL TAMBAH TARGET -->
+        <!-- MODAL TAMBAH TARGET (CASCADING SELECTION: WILAYAH -> SPV -> AREA -> SALES) -->
         <div x-show="modalAdd" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalAdd = false"></div>
                 <div class="inline-block w-full max-w-lg p-6 my-8 bg-white shadow-2xl rounded-2xl relative z-10">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                        <h3 class="text-base font-bold text-slate-900">Tambah Target Baru</h3>
+                        <h3 class="text-base font-bold text-slate-900">Tambah Target Baru (Relasi Dinamis)</h3>
                         <button @click="modalAdd = false" class="text-slate-400 hover:text-slate-600 cursor-pointer"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                     </div>
                     <form action="{{ route('admin.target.store') }}" method="POST" class="mt-4 space-y-3 text-xs">
                         @csrf
-                        <div class="grid grid-cols-2 gap-3">
+                        
+                        <!-- 1. Pilih Wilayah (Kota/Kabupaten) -->
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">1. Wilayah Saya / Kota *</label>
+                            <select name="wilayah_id" x-model="addForm.wilayah_id" @change="onWilayahChange()" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                <option value="">-- Pilih Wilayah / Kota --</option>
+                                <template x-for="w in wilayahTree" :key="w.id">
+                                    <option :value="w.id" x-text="w.nama"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <!-- Warning jika Wilayah belum ada SPV -->
+                        <template x-if="addForm.wilayah_id && availableSpvs.length === 0">
+                            <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                                ⚠️ Wilayah ini belum memiliki SPV aktif. Silakan tugaskan SPV di menu Wilayah terlebih dahulu.
+                            </div>
+                        </template>
+
+                        <!-- 2. Peruntukan Target & Dropdown SPV -->
+                        <div class="grid grid-cols-2 gap-3" x-show="addForm.wilayah_id">
                             <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Pilih Penerima Target (SPV / Sales / CS) *</label>
-                                <select name="sales_id" @change="selectedRoleAdd = $event.target.options[$event.target.selectedIndex].dataset.role" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
-                                    <option value="" data-role="">Pilih Penerima Target</option>
-                                    @foreach($salesList as $s)
-                                        <option value="{{ $s->id }}" data-role="{{ $s->role }}">{{ $s->name }} ({{ $s->role }}{{ $s->wilayah ? ' - ' . $s->wilayah->nama : '' }})</option>
-                                    @endforeach
+                                <label class="block font-semibold text-slate-700 mb-1">2. Peruntukan Target *</label>
+                                <select x-model="addForm.target_type" @change="onTargetTypeChange()" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                    <option value="spv">Target SPV (Tim Wilayah)</option>
+                                    <option value="sales">Target Sales / CS (Individu)</option>
                                 </select>
                             </div>
                             <div>
+                                <label class="block font-semibold text-slate-700 mb-1">3. SPV Naungan *</label>
+                                <select name="spv_id" x-model="addForm.spv_id" @change="onSpvChange()" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                    <option value="">-- Pilih SPV --</option>
+                                    <template x-for="spv in availableSpvs" :key="spv.id">
+                                        <option :value="spv.id" x-text="spv.name + ' (' + spv.role + ')'"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 3. Area (Kecamatan) & Sales/CS Dropdown (Jika Target Sales/CS) -->
+                        <template x-if="addForm.wilayah_id && addForm.target_type === 'sales'">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">4. Area (Kecamatan)</label>
+                                    <select x-model="addForm.area_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                        <option value="">-- Semua Area / Kecamatan --</option>
+                                        <template x-for="area in availableAreas" :key="area.id">
+                                            <option :value="area.id" x-text="area.nama"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">5. Penerima Target (Sales/CS) *</label>
+                                    <select name="sales_id" x-model="addForm.sales_id" @change="onSalesChange()" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                        <option value="">-- Pilih Sales / CS --</option>
+                                        <template x-for="s in availableSales" :key="s.id">
+                                            <option :value="s.id" x-text="s.name + ' (' + s.role + ')'"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Hidden input sales_id jika Target SPV -->
+                        <template x-if="addForm.target_type === 'spv'">
+                            <input type="hidden" name="sales_id" :value="addForm.spv_id">
+                        </template>
+
+                        <!-- Tipe Periode & Tanggal -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Tipe Periode *</label>
                                 <select name="tipe_periode" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
-                                    <option value="Harian">Harian</option><option value="Mingguan">Mingguan</option><option value="Bulanan" selected>Bulanan</option>
+                                    <option value="Harian">Harian</option>
+                                    <option value="Mingguan">Mingguan</option>
+                                    <option value="Bulanan" selected>Bulanan</option>
+                                    <option value="Tahunan">Tahunan</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Tanggal Mulai *</label>
+                                <input type="date" name="tanggal_mulai" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Tanggal Selesai *</label>
+                                <input type="date" name="tanggal_selesai" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
 
@@ -274,22 +426,13 @@
                                 <span class="text-[10px] text-purple-700 mt-0.5 block">Tahap pipeline Formulir</span>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Tanggal Mulai *</label>
-                                <input type="date" name="tanggal_mulai" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Tanggal Selesai *</label>
-                                <input type="date" name="tanggal_selesai" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
-                        </div>
+
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kontak</label>
                                 <input type="number" name="target_kontak" min="0" required placeholder="10" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
-                            <div x-show="selectedRoleAdd === 'CS'">
+                            <div x-show="addForm.selectedRole === 'CS'">
                                 <label class="block font-semibold text-slate-700 mb-1">Target Menghubungi</label>
                                 <input type="number" name="target_menghubungi" min="0" required placeholder="0" value="0" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
@@ -297,20 +440,22 @@
                                 <label class="block font-semibold text-slate-700 mb-1">Target Follow Up</label>
                                 <input type="number" name="target_followup" min="0" required placeholder="20" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
-                            <div x-show="selectedRoleAdd !== 'CS'">
+                            <div x-show="addForm.selectedRole !== 'CS'">
                                 <label class="block font-semibold text-slate-700 mb-1">Target Kunjungan</label>
                                 <input type="number" name="target_kunjungan" min="0" required placeholder="2" value="0" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                         </div>
+
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Status Target</label>
                             <select name="status" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
                                 <option value="Aktif">Aktif</option><option value="Selesai">Selesai</option><option value="Nonaktif">Nonaktif</option>
                             </select>
                         </div>
+
                         <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
                             <button type="button" @click="modalAdd = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
-                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white">Simpan Target</button>
+                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">Simpan Target</button>
                         </div>
                     </form>
                 </div>
@@ -329,9 +474,11 @@
                     <form :action="selectedTarget ? '/admin/target/' + selectedTarget.id : ''" method="POST" class="mt-4 space-y-3 text-xs">
                         @csrf
                         @method('PUT')
-                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700" x-text="selectedTarget ? selectedTarget.sales + ' — ' + selectedTarget.periode : ''"></div>
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700" x-text="selectedTarget ? selectedTarget.sales + ' (' + selectedTarget.role + ') — Wilayah: ' + (selectedTarget.wilayah_nama || '-') : ''"></div>
                         
                         <input type="hidden" name="sales_id" :value="selectedTarget ? selectedTarget.sales_id : ''">
+                        <input type="hidden" name="wilayah_id" :value="selectedTarget ? selectedTarget.wilayah_id : ''">
+                        <input type="hidden" name="spv_id" :value="selectedTarget ? selectedTarget.spv_id : ''">
                         <input type="hidden" name="tipe_periode" :value="selectedTarget ? selectedTarget.tipe_periode : ''">
                         
                         <div class="grid grid-cols-2 gap-3">
@@ -370,7 +517,7 @@
                         </div>
                         <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
                             <button type="button" @click="modalEdit = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
-                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white">Simpan</button>
+                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white cursor-pointer">Simpan</button>
                         </div>
                     </form>
                 </div>
@@ -380,3 +527,4 @@
     </div>
 
 </x-app-layout>
+

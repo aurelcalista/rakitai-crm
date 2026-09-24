@@ -46,7 +46,7 @@
             <x-target-achievement-table 
                 :data="$targetAchievementData" 
                 title="Target & Pencapaian Sales Pribadi" 
-                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, realtime, kekurangan, dan target harian berjalan"
+                subtitle="Monitoring target harian, mingguan, bulanan, tahunan, kekurangan, dan target harian berjalan"
             />
         @endif
 

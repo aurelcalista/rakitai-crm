@@ -143,21 +143,14 @@ class MultiWilayahAssignmentTest extends TestCase
 
     public function test_cs_can_have_multiple_active_wilayahs(): void
     {
-        $this->actingAs($this->spv);
+        $this->actingAs($this->hm);
 
-        // Assign CS A to Kejaksan
-        $res1 = $this->post(route('spv.tim.territory.assign'), [
-            'area_id' => $this->kejaksan->id,
-            'cs_id'   => $this->csA->id,
+        // Assign CS A to Kejaksan & Kesambi
+        $res1 = $this->post(route('hm.cs.territory.assign'), [
+            'cs_id'       => $this->csA->id,
+            'cs_area_ids' => [$this->kejaksan->id, $this->kesambi->id],
         ]);
         $res1->assertRedirect()->assertSessionHas('success');
-
-        // Assign CS A to Kesambi
-        $res2 = $this->post(route('spv.tim.territory.assign'), [
-            'area_id' => $this->kesambi->id,
-            'cs_id'   => $this->csA->id,
-        ]);
-        $res2->assertRedirect()->assertSessionHas('success');
 
         // Verify CS A has 2 active wilayahs in pivot table
         $activeIds = $this->csA->fresh()->activeWilayahIds();
@@ -188,18 +181,18 @@ class MultiWilayahAssignmentTest extends TestCase
 
     public function test_rejects_duplicate_active_cs_for_same_area(): void
     {
-        $this->actingAs($this->spv);
+        $this->actingAs($this->hm);
 
         // Assign CS A to Kesambi
-        $this->post(route('spv.tim.territory.assign'), [
-            'area_id' => $this->kesambi->id,
-            'cs_id'   => $this->csA->id,
+        $this->post(route('hm.cs.territory.assign'), [
+            'cs_id'       => $this->csA->id,
+            'cs_area_ids' => [$this->kesambi->id],
         ]);
 
         // Try to assign CS B to Kesambi (should be rejected because Kesambi already has active CS A)
-        $res = $this->post(route('spv.tim.territory.assign'), [
-            'area_id' => $this->kesambi->id,
-            'cs_id'   => $this->csB->id,
+        $res = $this->post(route('hm.cs.territory.assign'), [
+            'cs_id'       => $this->csB->id,
+            'cs_area_ids' => [$this->kesambi->id],
         ]);
 
         $res->assertRedirect();
@@ -209,13 +202,18 @@ class MultiWilayahAssignmentTest extends TestCase
 
     public function test_auto_routing_prospek_to_active_sales_and_cs(): void
     {
+        // Assign Sales A to Kesambi via SPV
         $this->actingAs($this->spv);
-
-        // Assign Kesambi -> Sales A & CS A
         $this->post(route('spv.tim.territory.assign'), [
             'area_id'  => $this->kesambi->id,
             'sales_id' => $this->salesA->id,
-            'cs_id'    => $this->csA->id,
+        ]);
+
+        // Assign CS A to Kesambi via HM
+        $this->actingAs($this->hm);
+        $this->post(route('hm.cs.territory.assign'), [
+            'cs_id'       => $this->csA->id,
+            'cs_area_ids' => [$this->kesambi->id],
         ]);
 
         // Create Prospek in Kesambi
@@ -279,14 +277,12 @@ class MultiWilayahAssignmentTest extends TestCase
 
     public function test_cs_can_be_assigned_multiple_areas_in_single_form_submission(): void
     {
-        $this->actingAs($this->spv);
+        $this->actingAs($this->hm);
 
         // Assign CS A to Kejaksan, Kesambi, and Harjamukti simultaneously
-        $res = $this->post(route('spv.tim.territory.assign'), [
-            'sales_id'      => $this->salesA->id,
-            'sales_area_id' => $this->kejaksan->id,
-            'cs_id'         => $this->csA->id,
-            'cs_area_ids'   => [$this->kejaksan->id, $this->kesambi->id, $this->harjamukti->id],
+        $res = $this->post(route('hm.cs.territory.assign'), [
+            'cs_id'       => $this->csA->id,
+            'cs_area_ids' => [$this->kejaksan->id, $this->kesambi->id, $this->harjamukti->id],
         ]);
 
         $res->assertRedirect()->assertSessionHas('success');
@@ -296,24 +292,20 @@ class MultiWilayahAssignmentTest extends TestCase
         $this->assertContains($this->kejaksan->id, $activePivotIds);
         $this->assertContains($this->kesambi->id, $activePivotIds);
         $this->assertContains($this->harjamukti->id, $activePivotIds);
-
-        // Check Sales A active area
-        $salesActiveIds = $this->salesA->fresh()->activeWilayahes->pluck('id')->toArray();
-        $this->assertContains($this->kejaksan->id, $salesActiveIds);
     }
 
     public function test_cs_area_unchecking_deactivates_removed_areas(): void
     {
-        $this->actingAs($this->spv);
+        $this->actingAs($this->hm);
 
         // Initial assignment: CS A -> Kejaksan, Kesambi, Harjamukti
-        $this->post(route('spv.tim.territory.assign'), [
+        $this->post(route('hm.cs.territory.assign'), [
             'cs_id'       => $this->csA->id,
             'cs_area_ids' => [$this->kejaksan->id, $this->kesambi->id, $this->harjamukti->id],
         ]);
 
         // Resubmit form for CS A with Harjamukti unchecked (only Kejaksan & Kesambi selected)
-        $res = $this->post(route('spv.tim.territory.assign'), [
+        $res = $this->post(route('hm.cs.territory.assign'), [
             'cs_id'       => $this->csA->id,
             'cs_area_ids' => [$this->kejaksan->id, $this->kesambi->id],
         ]);

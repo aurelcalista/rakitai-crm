@@ -12,12 +12,14 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable([
+    'kode',
     'name',
     'username',
     'email',
     'phone',
     'avatar',
     'role',
+    'jabatan',
     'status',
     'last_login_at',
     'password',
@@ -33,6 +35,77 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    public function getJabatanAttribute($value): string
+    {
+        return $value ?: ($this->role ?? 'Staff');
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function ($user) {
+            if (empty($user->kode) && !empty($user->role) && strtolower($user->status ?? 'aktif') !== 'pending') {
+                $user->kode = self::generateUserCode($user->role);
+            }
+        });
+    }
+
+    /**
+     * Auto-generate unique user code for users (Sales, CS, SPV, HM, Admin, EO, etc.).
+     * Format: YYMM + ROLE_LETTER + 3 DIGITS (e.g. 2609S001 for Sales, 2609A001 for Admin, 2609V001 for SPV).
+     * Sequence resets per role every calendar year.
+     * Safe against concurrent creations using lockForUpdate.
+     */
+    public static function generateUserCode(string|null $roleOrYearMonth = null, ?string $joinedYearMonth = null): string
+    {
+        $role = 'Sales';
+        $ym = null;
+
+        if ($roleOrYearMonth !== null) {
+            if (preg_match('/^\d{4}$/', $roleOrYearMonth)) {
+                $ym = $roleOrYearMonth;
+                if ($joinedYearMonth !== null && !preg_match('/^\d{4}$/', $joinedYearMonth)) {
+                    $role = $joinedYearMonth;
+                }
+            } else {
+                $role = $roleOrYearMonth;
+                $ym = $joinedYearMonth;
+            }
+        }
+
+        $prefixYM = $ym ?: date('ym');
+
+        $roleLetter = match (strtolower($role)) {
+            'cs'    => 'C',
+            'sales' => 'S',
+            'spv'   => 'V',
+            'hm'    => 'H',
+            'admin' => 'A',
+            'eo'    => 'E',
+            default => strtoupper(substr($role, 0, 1)),
+        };
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($prefixYM, $roleLetter, $role) {
+            // Find all matching codes for this role and year-month prefix
+            $matchingCodes = self::where('kode', 'like', "{$prefixYM}{$roleLetter}%")
+                ->lockForUpdate()
+                ->pluck('kode');
+
+            $maxSeq = 0;
+            foreach ($matchingCodes as $code) {
+                if (preg_match('/(\d{3})$/', $code, $matches)) {
+                    $seq = (int) $matches[1];
+                    if ($seq > $maxSeq) {
+                        $maxSeq = $seq;
+                    }
+                }
+            }
+
+            $nextSeq = sprintf('%03d', $maxSeq + 1);
+
+            return "{$prefixYM}{$roleLetter}{$nextSeq}";
+        });
+    }
 
     /**
      * Get avatar public URL if set.
@@ -211,17 +284,18 @@ class User extends Authenticatable
     }
 
     /**
-     * Get team member IDs for an SPV (subordinates with supervisor_id or Sales/CS in SPV's descendant Wilayahs).
+     * Get team member IDs for an SPV (subordinates with supervisor_id or Sales in SPV's descendant Wilayahs).
+     * Excludes CS as CS is managed directly by HM.
      */
     public function teamMemberIds(): array
     {
-        $subordinateIds = $this->subordinates()->pluck('id')->toArray();
+        $subordinateIds = $this->subordinates()->where('role', 'Sales')->pluck('id')->toArray();
 
         if ($this->wilayah_id) {
             $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
             $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
 
-            $wilayahMemberIds = User::whereIn('role', ['Sales', 'CS'])
+            $wilayahMemberIds = User::where('role', 'Sales')
                 ->where(function ($q) use ($descendantWilayahIds) {
                     $q->whereIn('wilayah_id', $descendantWilayahIds)
                       ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
@@ -240,7 +314,7 @@ class User extends Authenticatable
 
         return array_values(array_unique(array_merge(
             $subordinateIds,
-            User::whereIn('role', ['Sales', 'CS'])->pluck('id')->toArray()
+            User::where('role', 'Sales')->pluck('id')->toArray()
         )));
     }
 

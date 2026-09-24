@@ -45,7 +45,7 @@
         <div class="crm-card bg-white p-4 flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" x-model="searchQuery" placeholder="Cari nama perusahaan, kode, PIC..." class="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200">
+                <input type="text" x-model="searchQuery" placeholder="Cari nama perusahaan, PIC..." class="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200">
             </div>
             <select x-model="filterKategori" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-44">
                 <option value="all">Semua Kategori</option>
@@ -68,7 +68,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
-                            <th class="py-3.5 px-4">Kode / Nama Perusahaan</th>
+                            <th class="py-3.5 px-4">Nama Perusahaan</th>
                             <th class="py-3.5 px-3">Kategori</th>
                             <th class="py-3.5 px-3">Wilayah / Kecamatan</th>
                             <th class="py-3.5 px-3 text-center">Kunjungan</th>
@@ -81,7 +81,6 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-slate-900" x-text="p.nama"></div>
-                                    <div class="text-[11px] font-mono text-purple-600 mt-0.5" x-text="p.kode"></div>
                                 </td>
                                 <td class="py-3.5 px-3">
                                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border"
@@ -142,7 +141,6 @@
                 <div class="inline-block w-full max-w-lg bg-white shadow-2xl rounded-2xl relative z-10 overflow-hidden">
                     <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-start">
                         <div>
-                            <p class="text-[11px] font-mono text-purple-600 font-bold" x-text="selectedPrs ? selectedPrs.kode : ''"></p>
                             <h3 class="text-base font-bold text-slate-900" x-text="selectedPrs ? selectedPrs.nama : ''"></h3>
                         </div>
                         <button @click="modalDetail = false" class="text-slate-400 hover:text-slate-600 cursor-pointer mt-1"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
@@ -203,12 +201,8 @@
                     <form action="{{ route('admin.perusahaan.store') }}" method="POST" class="mt-4 space-y-3 text-xs px-1">
                         @csrf
 
-                        {{-- Baris 1: Kode | Nama | Kategori | Wilayah --}}
-                        <div class="grid grid-cols-4 gap-3">
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Kode *</label>
-                                <input type="text" name="kode" required placeholder="PRS-008" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
+                        {{-- Baris 1: Nama | Kategori | Wilayah --}}
+                        <div class="grid grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
                                 <input type="text" name="nama" required placeholder="PT Bina Karya Nusantara" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
@@ -296,12 +290,8 @@
                         @csrf
                         @method('PUT')
 
-                        {{-- Baris 1: Kode | Nama | Kategori | Wilayah --}}
-                        <div class="grid grid-cols-4 gap-3">
-                            <div>
-                                <label class="block font-semibold text-slate-700 mb-1">Kode *</label>
-                                <input type="text" name="kode" required :value="selectedPrs.kode" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
-                            </div>
+                        {{-- Baris 1: Nama | Kategori | Wilayah --}}
+                        <div class="grid grid-cols-3 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Nama Perusahaan *</label>
                                 <input type="text" name="nama" required :value="selectedPrs.nama" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">

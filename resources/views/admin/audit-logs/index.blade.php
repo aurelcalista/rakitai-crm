@@ -60,7 +60,7 @@
                             <th class="py-3.5 px-4">Pengguna</th>
                             <th class="py-3.5 px-3">Role</th>
                             <th class="py-3.5 px-3">Aktivitas / Event</th>
-                            <th class="py-3.5 px-3">Target Entitas</th>
+                            <th class="py-3.5 px-3">Target</th>
                             <th class="py-3.5 px-3">Rincian Perubahan</th>
                             <th class="py-3.5 px-3">Alamat IP</th>
                             <th class="py-3.5 px-4 text-right">Waktu Eksekusi</th>

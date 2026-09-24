@@ -22,10 +22,15 @@ class TeamController extends Controller
         $teamMemberIds = $user->teamMemberIds();
 
         $subordinates = User::whereIn('id', $teamMemberIds)
-            ->with(['wilayah.parent'])
+            ->with(['wilayah.parent', 'activeWilayahes.parent'])
             ->get();
 
-        $teamData = $subordinates->map(function ($member) {
+        $teamData = $subordinates->map(function ($member) use ($user) {
+            if (empty($member->kode)) {
+                $member->kode = User::generateUserCode($member->role ?? 'Sales');
+                $member->save();
+            }
+
             $prospectCount = Prospek::where('sales_id', $member->id)
                 ->orWhere('cs_id', $member->id)
                 ->count();
@@ -50,8 +55,35 @@ class TeamController extends Controller
                 ? implode(', ', $wilayahNames)
                 : ($member->role === 'CS' ? 'Centralized (Belum Ada Area)' : 'Belum Ditugaskan');
 
+            // Find parent Kota/Kabupaten name
+            $kotaName = null;
+            if ($member->wilayah) {
+                if ($member->wilayah->parent) {
+                    $kotaName = $member->wilayah->parent->nama;
+                } elseif ($member->wilayah->level === 'Kota/Kabupaten') {
+                    $kotaName = $member->wilayah->nama;
+                }
+            }
+
+            if (!$kotaName && $activeWilayahes->isNotEmpty()) {
+                $firstWithParent = $activeWilayahes->first(fn($w) => $w->parent !== null);
+                if ($firstWithParent && $firstWithParent->parent) {
+                    $kotaName = $firstWithParent->parent->nama;
+                }
+            }
+
+            if (!$kotaName && $user->wilayah) {
+                $spvW = $user->wilayah;
+                $kotaName = $spvW->level === 'Kota/Kabupaten' ? $spvW->nama : ($spvW->parent ? $spvW->parent->nama : null);
+            }
+
+            if (!$kotaName) {
+                $kotaName = $member->lokasi_penugasan ?: '-';
+            }
+
             return [
                 'id'               => $member->id,
+                'kode'             => $member->kode,
                 'name'             => $member->name,
                 'email'            => $member->email,
                 'phone'            => $member->phone ?? '-',
@@ -63,7 +95,7 @@ class TeamController extends Controller
                 'wilayah_id'       => $member->wilayah_id,
                 'lokasi_penugasan' => $member->lokasi_penugasan,
                 'is_other_city'    => !empty($member->lokasi_penugasan) && empty($member->wilayah_id),
-                'kota'             => $member->wilayah && $member->wilayah->parent ? $member->wilayah->parent->nama : ($member->lokasi_penugasan ?: '-'),
+                'kota'             => $kotaName,
                 'prospects'        => $prospectCount,
                 'closings'         => $closingCount,
                 'visits'           => $visitCount,
@@ -92,13 +124,27 @@ class TeamController extends Controller
                 ->where('level', 'Kecamatan')
                 ->where('status', 'Aktif')
                 ->orderBy('nama')
-                ->get();
+                ->get()
+                ->map(function ($kec) {
+                    $activeSalesPivot = \Illuminate\Support\Facades\DB::table('user_wilayah')
+                        ->where('wilayah_id', $kec->id)
+                        ->where('role', 'Sales')
+                        ->where('is_active', true)
+                        ->first();
+
+                    $kec->has_active_sales = !empty($activeSalesPivot);
+                    if ($activeSalesPivot) {
+                        $sUser = User::find($activeSalesPivot->user_id);
+                        $kec->active_sales_name = $sUser ? $sUser->name : 'Sales lain';
+                    }
+                    return $kec;
+                });
         }
 
         $descendantWilayahIds = $spvKota ? $spvKota->getDescendantIds() : [];
         $spvTeamMemberIds = $user->teamMemberIds();
 
-        // 3. Candidates filtered strictly within SPV Kota scope
+        // 3. Sales Candidates filtered strictly within SPV Kota scope
         $salesCandidates = User::whereRaw('LOWER(role) = ?', ['sales'])
             ->where(function($q) use ($user, $descendantWilayahIds, $spvTeamMemberIds) {
                 if (!empty($descendantWilayahIds)) {
@@ -115,30 +161,8 @@ class TeamController extends Controller
             ->orderBy('name')
             ->get();
 
-        $csCandidates = User::whereRaw('LOWER(role) = ?', ['cs'])
-            ->where(function($q) use ($user, $descendantWilayahIds, $spvTeamMemberIds) {
-                if (!empty($descendantWilayahIds)) {
-                    $q->where('supervisor_id', $user->id)
-                      ->orWhereIn('id', $spvTeamMemberIds)
-                      ->orWhereNull('wilayah_id')
-                      ->orWhereIn('wilayah_id', $descendantWilayahIds)
-                      ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
-                          $wq->whereIn('wilayah_id', $descendantWilayahIds);
-                      });
-                }
-            })
-            ->with(['activeWilayahes'])
-            ->orderBy('name')
-            ->get();
-
-        $candidates = User::whereIn('role', ['Sales', 'CS'])
-            ->where(function($q) use ($descendantWilayahIds) {
-                if (!empty($descendantWilayahIds)) {
-                    $q->whereIn('wilayah_id', $descendantWilayahIds)->orWhereNull('wilayah_id');
-                }
-            })
-            ->orderBy('name')
-            ->get();
+        $candidates = $salesCandidates;
+        $csCandidates = collect();
 
         $availableAreas = $kecamatanList;
 
@@ -146,7 +170,7 @@ class TeamController extends Controller
     }
 
     /**
-     * SPV Select/Assign a Sales or CS user into their team.
+     * SPV Select/Assign a Sales user into their team.
      * Enforces strict backend descendant scope validation. ID tampering returns 403.
      */
     public function assignMember(Request $request): RedirectResponse
@@ -159,6 +183,10 @@ class TeamController extends Controller
         ]);
 
         $candidate = User::findOrFail($request->user_id);
+
+        if (strtolower($candidate->role) !== 'sales') {
+            abort(403, 'SPV hanya berwenang mengelola Sales.');
+        }
 
         \Illuminate\Support\Facades\Gate::authorize('assignTeamMember', $candidate);
 
@@ -177,52 +205,53 @@ class TeamController extends Controller
         ]);
 
         if ($areaId) {
-            $role = $candidate->role;
-            if ($role === 'Sales') {
-                \Illuminate\Support\Facades\DB::table('user_wilayah')
-                    ->where('user_id', $candidate->id)
-                    ->where('role', 'Sales')
-                    ->where('wilayah_id', '!=', $areaId)
-                    ->where('is_active', true)
-                    ->update([
-                        'is_active'      => false,
-                        'deactivated_at' => now(),
-                        'updated_at'     => now(),
-                    ]);
-            }
+            \Illuminate\Support\Facades\DB::table('user_wilayah')
+                ->where('user_id', $candidate->id)
+                ->where('role', 'Sales')
+                ->where('wilayah_id', '!=', $areaId)
+                ->where('is_active', true)
+                ->update([
+                    'is_active'      => false,
+                    'deactivated_at' => now(),
+                    'updated_at'     => now(),
+                ]);
 
             \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
-                ['user_id' => $candidate->id, 'wilayah_id' => $areaId, 'role' => $role],
+                ['user_id' => $candidate->id, 'wilayah_id' => $areaId, 'role' => 'Sales'],
                 ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
             );
         }
 
-        return redirect()->back()->with('success', "Anggota tim {$candidate->name} ({$candidate->role}) berhasil ditambahkan ke tim SPV!");
+        return redirect()->back()->with('success', "Anggota tim Sales {$candidate->name} berhasil ditambahkan ke tim SPV!");
     }
 
     /**
-     * SPV Form: Assign Sales & CS to an Area/Kecamatan under SPV scope.
-     * Enforces unique 1 active Sales & unique 1 active CS per area rule.
+     * SPV Form: Assign Sales to an Area/Kecamatan under SPV scope.
+     * Enforces unique 1 active Sales per area rule. CS assignment is forbidden (403).
      */
     public function assignTeamTerritory(Request $request): RedirectResponse
     {
         $spv = auth()->user();
 
+        if ($request->filled('cs_id') || $request->has('cs_area_ids')) {
+            abort(403, 'SPV hanya berwenang menugaskan wilayah Sales. Penugasan CS dikelola oleh HM.');
+        }
+
         $request->validate([
-            'sales_id'      => 'nullable|exists:users,id',
+            'sales_id'      => 'required|exists:users,id',
             'sales_area_id' => 'nullable|exists:wilayahs,id',
             'area_id'       => 'nullable|exists:wilayahs,id',
-            'cs_id'         => 'nullable|exists:users,id',
-            'cs_area_ids'   => 'nullable|array',
-            'cs_area_ids.*' => 'exists:wilayahs,id',
         ]);
 
-        $spvWilayahId = $spv->wilayah_id;
-        $salesAreaId = $request->sales_area_id ?? $request->area_id;
+        return \Illuminate\Support\Facades\DB::transaction(function() use ($request, $spv) {
+            $spvWilayahId = $spv->wilayah_id;
+            $salesAreaId = $request->sales_area_id ?? $request->area_id;
 
-        // 1. Validate Sales Assignment
-        if ($request->filled('sales_id')) {
             $sales = User::findOrFail($request->sales_id);
+
+            if (strtolower($sales->role) !== 'sales') {
+                abort(403, 'SPV hanya berwenang menugaskan Sales.');
+            }
 
             $salesInScope = !$spvWilayahId 
                 || !$sales->wilayah_id
@@ -232,10 +261,6 @@ class TeamController extends Controller
 
             if (!$salesInScope) {
                 abort(403, 'Sales yang dipilih berada di luar cakupan Wilayah SPV.');
-            }
-
-            if (strtolower($sales->role) !== 'sales') {
-                return redirect()->back()->with('error', "User {$sales->name} bukan ber-role Sales.");
             }
 
             if ($salesAreaId) {
@@ -282,118 +307,29 @@ class TeamController extends Controller
                     ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
                 );
             }
-        }
 
-        // 2. Validate CS Assignment
-        if ($request->filled('cs_id')) {
-            $cs = User::findOrFail($request->cs_id);
-
-            $csInScope = !$spvWilayahId 
-                || !$cs->wilayah_id
-                || $cs->isWithinWilayahScope($spvWilayahId) 
-                || $spv->isSupervisorOf($cs) 
-                || in_array($cs->id, $spv->teamMemberIds());
-
-            if (!$csInScope) {
-                abort(403, 'CS yang dipilih berada di luar cakupan Wilayah SPV.');
-            }
-
-            if (strtolower($cs->role) !== 'cs') {
-                return redirect()->back()->with('error', "User {$cs->name} bukan ber-role CS.");
-            }
-
-            $hasMultiSelect = $request->has('cs_area_ids');
-            $csAreaIds = array_filter((array) ($request->cs_area_ids ?? ($request->area_id ? [$request->area_id] : [])));
-
-            if (!empty($csAreaIds)) {
-                // Strict SPV Scope check for each requested area
-                foreach ($csAreaIds as $cAreaId) {
-                    $cArea = Wilayah::findOrFail($cAreaId);
-                    if ($spvWilayahId && !$cArea->isDescendantOf($spvWilayahId) && $cArea->id != $spvWilayahId) {
-                        abort(403, 'Area penugasan berada di luar cakupan Wilayah SPV.');
-                    }
-                }
-
-                // Check unique active CS per area rule for all requested areas
-                foreach ($csAreaIds as $cAreaId) {
-                    $existingActiveCs = \Illuminate\Support\Facades\DB::table('user_wilayah')
-                        ->where('wilayah_id', $cAreaId)
-                        ->where('role', 'CS')
-                        ->where('is_active', true)
-                        ->where('user_id', '!=', $cs->id)
-                        ->first();
-
-                    if ($existingActiveCs) {
-                        $cArea = Wilayah::find($cAreaId);
-                        $areaName = $cArea ? $cArea->nama : "ID {$cAreaId}";
-                        return redirect()->back()->with('error', "Area {$areaName} sudah memiliki CS aktif. Silakan nonaktifkan atau ubah assignment sebelumnya.");
-                    }
-                }
-
-                $cs->update([
-                    'supervisor_id' => $spv->id,
-                    'wilayah_id'    => $cs->wilayah_id ?: $spvWilayahId,
-                ]);
-
-                // Deactivate CS active areas under SPV scope that are no longer selected (only when multi-select input is explicitly passed)
-                if ($hasMultiSelect) {
-                    $spvMainWilayah = $spvWilayahId ? Wilayah::find($spvWilayahId) : null;
-                    $spvScopeAreaIds = $spvMainWilayah ? $spvMainWilayah->getDescendantIds() : Wilayah::pluck('id')->toArray();
-
-                    \Illuminate\Support\Facades\DB::table('user_wilayah')
-                        ->where('user_id', $cs->id)
-                        ->where('role', 'CS')
-                        ->whereIn('wilayah_id', $spvScopeAreaIds)
-                        ->whereNotIn('wilayah_id', $csAreaIds)
-                        ->where('is_active', true)
-                        ->update([
-                            'is_active'      => false,
-                            'deactivated_at' => now(),
-                            'updated_at'     => now(),
-                        ]);
-                }
-
-                // Activate selected CS areas
-                foreach ($csAreaIds as $cAreaId) {
-                    \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
-                        ['user_id' => $cs->id, 'wilayah_id' => $cAreaId, 'role' => 'CS'],
-                        ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
-                    );
-                }
-            }
-        }
-
-        if (!$request->filled('sales_id') && !$request->filled('cs_id')) {
-            return redirect()->back()->with('error', 'Silakan pilih Sales atau CS untuk ditugaskan.');
-        }
-
-        return redirect()->route('spv.tim.index')
-            ->with('success', 'Penugasan tim berhasil diperbarui!');
+            return redirect()->route('spv.tim.index')
+                ->with('success', "Penugasan wilayah Sales {$sales->name} berhasil diperbarui!");
+        });
     }
 
     /**
-     * Assign Kecamatan (wilayah) ke Sales/CS oleh SPV.
+     * Assign Kecamatan (wilayah) ke Sales oleh SPV.
      */
     public function assignWilayah(Request $request, User $user): RedirectResponse
     {
         $spv = auth()->user();
+
+        if (strtolower($user->role) !== 'sales') {
+            abort(403, 'SPV hanya berwenang mengelola Sales.');
+        }
 
         if (!$spv->isSupervisorOf($user) && !in_array($user->id, $spv->teamMemberIds())) {
             abort(403, 'Anda tidak berwenang mengatur anggota tim ini.');
         }
 
         if ($request->boolean('is_other_city')) {
-            $request->validate([
-                'custom_city' => 'required|string|max:255',
-            ]);
-
-            $user->update([
-                'wilayah_id'       => null,
-                'lokasi_penugasan' => $request->custom_city,
-            ]);
-
-            return redirect()->route('spv.tim.index')
-                ->with('success', "Wilayah {$user->name} berhasil ditugaskan di Kota Lainnya: {$request->custom_city}.");
+            abort(403, 'Kota Lainnya tidak dapat dijadikan wilayah operasional Sales/Field Team.');
         }
 
         $request->validate([
@@ -401,6 +337,10 @@ class TeamController extends Controller
         ]);
 
         $wilayah = Wilayah::findOrFail($request->wilayah_id);
+
+        if (str_contains(strtolower($wilayah->nama), 'lainnya') || $wilayah->kode === 'W-LAIN') {
+            abort(403, 'Kota Lainnya tidak dapat dijadikan wilayah operasional.');
+        }
 
         if ($wilayah->level !== 'Kecamatan') {
             return redirect()->route('spv.tim.index')
@@ -459,6 +399,10 @@ class TeamController extends Controller
     {
         $spv = auth()->user();
 
+        if (strtolower($user->role) !== 'sales') {
+            abort(403, 'SPV hanya berwenang mengelola Sales.');
+        }
+
         if (!$spv->isSupervisorOf($user) && !in_array($user->id, $spv->teamMemberIds()) && strtolower($spv->role) !== 'admin') {
             abort(403, 'Anda tidak berwenang mengelola wilayah user ini.');
         }
@@ -466,13 +410,139 @@ class TeamController extends Controller
         \Illuminate\Support\Facades\DB::table('user_wilayah')
             ->where('user_id', $user->id)
             ->where('wilayah_id', $wilayah->id)
+            ->where('role', 'Sales')
             ->update([
                 'is_active'      => false,
                 'deactivated_at' => now(),
                 'updated_at'     => now(),
             ]);
 
-        return redirect()->back()->with('success', "Penugasan wilayah {$wilayah->nama} untuk {$user->name} telah dinonaktifkan.");
+        return redirect()->back()->with('success', "Penugasan wilayah {$wilayah->nama} untuk Sales {$user->name} telah dinonaktifkan.");
+    }
+
+    /**
+     * SPV Create new Sales user under SPV scope.
+     * Enforces:
+     * - Role strictly 'Sales', Jabatan strictly 'Sales'
+     * - Email domain strictly '@cic.ac.id'
+     * - Auto-generated unique code (YYMM-XXX, sequence resets yearly)
+     * - Multi-wilayah checkbox assignment within SPV Kota/Kabupaten scope
+     * - Strict SPV Scope backend check (ID tampering -> 403)
+     * - Max 1 active Sales per area constraint
+     * - Wrapped in DB transaction
+     */
+    public function storeSales(Request $request): RedirectResponse
+    {
+        $spv = auth()->user();
+
+        \Illuminate\Support\Facades\Gate::authorize('createSales', User::class);
+
+        // Auto-append @cic.ac.id if input is just username prefix or from email_username
+        $rawEmail = trim((string) ($request->input('email_username') ?: $request->input('email')));
+        if (!empty($rawEmail)) {
+            if (!str_contains($rawEmail, '@')) {
+                $rawEmail .= '@cic.ac.id';
+            }
+            $request->merge(['email' => strtolower($rawEmail)]);
+        }
+
+        $request->validate([
+            'name'       => 'required|string|max:255',
+            'email'      => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                'unique:users',
+                'regex:/^[a-zA-Z0-9._%+-]+@cic\.ac\.id$/i',
+            ],
+            'phone'      => 'nullable|string|max:20',
+            'password'   => 'nullable|string',
+            'area_id'    => 'nullable|exists:wilayahs,id',
+            'area_ids'   => 'nullable|array',
+            'area_ids.*' => 'exists:wilayahs,id',
+        ], [
+            'email.regex' => 'Email Sales wajib menggunakan domain @cic.ac.id.',
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function() use ($request, $spv) {
+            // Resolve SPV Kota ID
+            $mainWilayah = $spv->wilayah_id ? Wilayah::find($spv->wilayah_id) : null;
+            $spvKotaId = null;
+            if ($mainWilayah) {
+                if ($mainWilayah->level === 'Kota/Kabupaten') {
+                    $spvKotaId = $mainWilayah->id;
+                } elseif ($mainWilayah->parent_id) {
+                    $spvKotaId = $mainWilayah->parent_id;
+                }
+            }
+
+            // Accept area_id (single area) or area_ids array
+            $selectedAreaIds = [];
+            if ($request->filled('area_id')) {
+                $selectedAreaIds[] = (int) $request->area_id;
+            } elseif ($request->filled('area_ids')) {
+                $selectedAreaIds = array_filter((array) $request->area_ids);
+            }
+
+            // Validate SPV Scope for each area ID (ID tampering check & Kota Lainnya rejection)
+            if (!empty($selectedAreaIds)) {
+                foreach ($selectedAreaIds as $areaId) {
+                    $area = Wilayah::findOrFail($areaId);
+                    if (str_contains(strtolower($area->nama), 'lainnya') || $area->kode === 'W-LAIN') {
+                        abort(403, 'Kota Lainnya tidak dapat dijadikan wilayah operasional.');
+                    }
+                    if ($spvKotaId && !$area->isDescendantOf($spvKotaId) && $area->id != $spvKotaId && $area->id != $spv->wilayah_id) {
+                        abort(403, 'Area penugasan berada di luar cakupan Wilayah SPV.');
+                    }
+                }
+            }
+
+            // Validate 1 Area = Max 1 Active Sales
+            foreach ($selectedAreaIds as $areaId) {
+                $existingActiveSales = \Illuminate\Support\Facades\DB::table('user_wilayah')
+                    ->where('wilayah_id', $areaId)
+                    ->where('role', 'Sales')
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($existingActiveSales) {
+                    $area = Wilayah::find($areaId);
+                    $areaName = $area ? $area->nama : "ID {$areaId}";
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', "Area {$areaName} sudah memiliki Sales aktif. Silakan nonaktifkan atau ubah assignment sebelumnya.");
+                }
+            }
+
+            $primaryAreaId = !empty($selectedAreaIds) ? $selectedAreaIds[0] : ($spv->wilayah_id ?? null);
+            $rawPassword = $request->filled('password') ? $request->input('password') : '123';
+
+            // Create Sales User
+            $sales = User::create([
+                'name'          => $request->name,
+                'email'         => strtolower(trim($request->email)),
+                'phone'         => $request->input('phone', '-'),
+                'password'      => \Illuminate\Support\Facades\Hash::make($rawPassword),
+                'role'          => 'Sales',
+                'jabatan'       => 'Sales',
+                'status'        => 'Aktif',
+                'kode'          => User::generateUserCode('Sales'),
+                'supervisor_id' => $spv->id,
+                'wilayah_id'    => $primaryAreaId,
+            ]);
+
+            // Assign Multi-Wilayah
+            foreach ($selectedAreaIds as $areaId) {
+                \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
+                    ['user_id' => $sales->id, 'wilayah_id' => $areaId, 'role' => 'Sales'],
+                    ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
+                );
+            }
+
+            return redirect()->route('spv.tim.index')
+                ->with('success', "Sales baru {$sales->name} ({$sales->kode}) berhasil dibuat dengan password awal '123'!");
+        });
     }
 }
 

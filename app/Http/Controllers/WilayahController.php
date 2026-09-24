@@ -152,4 +152,85 @@ class WilayahController extends Controller
         $message = $wilayah->status === 'Aktif' ? 'Wilayah berhasil diaktifkan.' : 'Wilayah berhasil dinonaktifkan.';
         return redirect()->route('wilayah.index')->with('success', $message);
     }
+
+    /**
+     * Get active Kecamatan records for a given Kota/Kabupaten ID.
+     */
+    public function getKecamatanByKota($cityId)
+    {
+        $city = Wilayah::where('id', $cityId)->first();
+
+        if (!$city) {
+            return response()->json([], 200);
+        }
+
+        $kecamatans = Wilayah::where('parent_id', $city->id)
+            ->where('level', 'Kecamatan')
+            ->where('status', 'Aktif')
+            ->orderBy('nama')
+            ->get(['id', 'kode', 'nama', 'parent_id', 'level']);
+
+        return response()->json($kecamatans);
+    }
+
+    /**
+     * Get active Sekolah records for a given Kecamatan ID.
+     */
+    public function getSekolahByKecamatan($districtId)
+    {
+        $district = Wilayah::where('id', $districtId)->first();
+
+        if (!$district) {
+            return response()->json([], 200);
+        }
+
+        $sekolahs = \App\Models\Sekolah::where(function ($q) use ($district) {
+                $q->where('wilayah_id', $district->id)
+                  ->orWhere('kecamatan', $district->nama);
+            })
+            ->where('status', 'Aktif')
+            ->orderBy('nama')
+            ->get(['id', 'kode', 'nama', 'wilayah_id', 'kecamatan', 'alamat', 'telepon', 'tier']);
+
+        return response()->json($sekolahs);
+    }
+
+    /**
+     * Static security validator: Enforce that district belongs to city.
+     * Throws ValidationException if tampered.
+     */
+    public static function validateDistrictBelongsToCity(int $cityId, int $districtId): void
+    {
+        $district = Wilayah::where('id', $districtId)->where('level', 'Kecamatan')->first();
+
+        if (!$district || $district->parent_id != $cityId) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'district_id' => 'Kecamatan yang dipilih tidak berada di bawah Kota/Kabupaten tersebut.',
+            ]);
+        }
+    }
+
+    /**
+     * Static security validator: Enforce that school belongs to district.
+     * Throws ValidationException if tampered.
+     */
+    public static function validateSchoolBelongsToDistrict(int $districtId, int $schoolId): void
+    {
+        $school = \App\Models\Sekolah::where('id', $schoolId)->first();
+        $district = Wilayah::where('id', $districtId)->where('level', 'Kecamatan')->first();
+
+        if (!$school || !$district) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'school_id' => 'Data sekolah atau kecamatan tidak ditemukan.',
+            ]);
+        }
+
+        $isValid = ($school->wilayah_id == $districtId) || (strcasecmp($school->kecamatan ?? '', $district->nama) === 0);
+
+        if (!$isValid) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'school_id' => 'Sekolah yang dipilih tidak terdaftar pada Kecamatan tersebut.',
+            ]);
+        }
+    }
 }

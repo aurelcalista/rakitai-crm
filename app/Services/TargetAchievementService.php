@@ -161,6 +161,7 @@ class TargetAchievementService
             $hierarchyRows = $data['hierarchy_rows'];
             $wilayahOptions = $data['wilayah_options'];
             $selectedWilayah = $data['selected_wilayah'];
+            $territoryTable = $data['territory_table'] ?? [];
         } else { // Global / Admin
             $data = $this->buildGlobalLevelData($periodInfo, $wilayahId, $ta);
             $kpiRows = $data['kpi_rows'];
@@ -177,6 +178,7 @@ class TargetAchievementService
             'tahun_akademik'   => $ta,
             'kpi_rows'         => $kpiRows,
             'hierarchy_rows'   => $hierarchyRows,
+            'territory_table'  => $territoryTable ?? [],
             'wilayah_options'  => $wilayahOptions,
             'selected_wilayah' => $selectedWilayah,
             'period_options'   => [
@@ -184,7 +186,6 @@ class TargetAchievementService
                 ['key' => self::PERIODE_MINGGUAN, 'label' => 'Mingguan'],
                 ['key' => self::PERIODE_BULANAN,  'label' => 'Bulanan'],
                 ['key' => self::PERIODE_TAHUNAN,  'label' => 'Tahunan'],
-                ['key' => self::PERIODE_REALTIME, 'label' => 'Realtime ⚡'],
             ],
         ];
     }
@@ -257,11 +258,11 @@ class TargetAchievementService
             ->latest()
             ->first();
 
-        $tLunas     = $this->prorateTarget($target ? $target->target_lunas : 8, $period);
-        $tFormulir  = $this->prorateTarget($target ? $target->target_formulir : 15, $period);
-        $tKontak    = $this->prorateTarget($target ? $target->target_kontak : 30, $period);
-        $tFollowup  = $this->prorateTarget($target ? $target->target_followup : 40, $period);
-        $tKunjungan = $this->prorateTarget($target ? $target->target_kunjungan : 8, $period);
+        $tLunas     = $this->prorateTarget($target ? $target->target_lunas : 8, $period, $target?->tipe_periode);
+        $tFormulir  = $this->prorateTarget($target ? $target->target_formulir : 15, $period, $target?->tipe_periode);
+        $tKontak    = $this->prorateTarget($target ? $target->target_kontak : 30, $period, $target?->tipe_periode);
+        $tFollowup  = $this->prorateTarget($target ? $target->target_followup : 40, $period, $target?->tipe_periode);
+        $tKunjungan = $this->prorateTarget($target ? $target->target_kunjungan : 8, $period, $target?->tipe_periode);
 
         // Realisasi Aktual
         $pLunas = Prospek::where('sales_id', $sales->id)
@@ -361,11 +362,11 @@ class TargetAchievementService
         $tHmFormulir = $targetHm ? $targetHm->target_formulir : 60;
         $tHmLunas    = $targetHm ? $targetHm->target_lunas : 35;
 
-        $tLunas     = $this->prorateTarget($tHmLunas, $period);
-        $tFormulir  = $this->prorateTarget($tHmFormulir, $period);
-        $tKontak    = $this->prorateTarget($tHmKontak, $period);
-        $tFollowup  = $this->prorateTarget(150, $period);
-        $tKunjungan = $this->prorateTarget(30, $period);
+        $tLunas     = $this->prorateTarget($tHmLunas, $period, $targetHm?->tipe_periode);
+        $tFormulir  = $this->prorateTarget($tHmFormulir, $period, $targetHm?->tipe_periode);
+        $tKontak    = $this->prorateTarget($tHmKontak, $period, $targetHm?->tipe_periode);
+        $tFollowup  = $this->prorateTarget(150, $period, $targetHm?->tipe_periode);
+        $tKunjungan = $this->prorateTarget(30, $period, $targetHm?->tipe_periode);
 
         // Realisasi Tim (roll-up)
         $pLunas = Prospek::whereIn('sales_id', $teamMemberIds)
@@ -451,7 +452,7 @@ class TargetAchievementService
                 ->latest()
                 ->first();
 
-            $mTgtLunas = $this->prorateTarget($mTarget ? $mTarget->target_lunas : ($member->role === 'CS' ? 5 : 8), $period);
+            $mTgtLunas = $this->prorateTarget($mTarget ? $mTarget->target_lunas : ($member->role === 'CS' ? 5 : 8), $period, $mTarget?->tipe_periode);
 
             if ($member->role === 'CS') {
                 $mPencapaian = Prospek::where('cs_id', $member->id)
@@ -551,9 +552,10 @@ class TargetAchievementService
                 $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
             });
 
-        $totTgtLunas    = $this->prorateTarget($targetSpvQuery->sum('target_lunas') ?: 100, $period);
-        $totTgtFormulir = $this->prorateTarget($targetSpvQuery->sum('target_formulir') ?: 200, $period);
-        $totTgtKontak   = $this->prorateTarget($targetSpvQuery->sum('target_kontak') ?: 400, $period);
+        $firstTgt       = (clone $targetSpvQuery)->latest()->first();
+        $totTgtLunas    = $this->prorateTarget($targetSpvQuery->sum('target_lunas') ?: 100, $period, $firstTgt?->tipe_periode);
+        $totTgtFormulir = $this->prorateTarget($targetSpvQuery->sum('target_formulir') ?: 200, $period, $firstTgt?->tipe_periode);
+        $totTgtKontak   = $this->prorateTarget($targetSpvQuery->sum('target_kontak') ?: 400, $period, $firstTgt?->tipe_periode);
 
         $kpiRows = [
             $this->formatMetricRow('Maba Lunas (Closing Kampus)', $totTgtLunas, $pLunas, $sisa, ['icon' => 'closing', 'badge' => 'KPI Utama HM', 'akumulasi' => $akLunas]),
@@ -565,7 +567,7 @@ class TargetAchievementService
 
         // Hierarchy Rows: Baris per SPV & Teritori
         $hierarchyRows = [];
-        $hierarchyRows[] = $this->formatMetricRow('🏛️ TOTAL KAMPUS UCIC (Semua Wilayah)', $totTgtLunas, $pLunas, $sisa, [
+        $hierarchyRows[] = $this->formatMetricRow(' TOTAL KAMPUS UCIC (Semua Wilayah)', $totTgtLunas, $pLunas, $sisa, [
             'entity_id'   => 0,
             'entity_type' => 'campus_total',
             'role'        => 'HM',
@@ -584,7 +586,7 @@ class TargetAchievementService
                 ->latest()
                 ->first();
 
-            $spvTgtLunas = $this->prorateTarget($spvTarget ? $spvTarget->target_lunas : 35, $period);
+            $spvTgtLunas = $this->prorateTarget($spvTarget ? $spvTarget->target_lunas : 35, $period, $spvTarget?->tipe_periode);
 
             // Realisasi SPV & timnya
             $teamIds = $spv->teamMemberIds();
@@ -611,9 +613,83 @@ class TargetAchievementService
             ]);
         }
 
+        // Build Table Per Wilayah data
+        $territoryTable = [];
+        $hmKotaId = null;
+        $mainWilayah = $hm->wilayah_id ? Wilayah::find($hm->wilayah_id) : null;
+        if ($mainWilayah) {
+            $hmKotaId = $mainWilayah->level === 'Kota/Kabupaten' ? $mainWilayah->id : $mainWilayah->parent_id;
+        }
+
+        $wilayahsList = $hmKotaId 
+            ? Wilayah::where('parent_id', $hmKotaId)->orWhere('id', $hmKotaId)->where('status', 'Aktif')->orderBy('nama')->get()
+            : Wilayah::where('status', 'Aktif')->orderBy('nama')->get();
+
+        foreach ($wilayahsList as $w) {
+            // SPV covering this Wilayah or parent
+            $spvUser = User::where('role', 'SPV')
+                ->where('status', 'Aktif')
+                ->where(function($q) use ($w) {
+                    $q->where('wilayah_id', $w->id);
+                    if ($w->parent_id) {
+                        $q->orWhere('wilayah_id', $w->parent_id);
+                    }
+                })
+                ->first();
+
+            // Active Sales assigned to this Wilayah (user_wilayah is_active = 1)
+            $activeSalesIds = \Illuminate\Support\Facades\DB::table('user_wilayah')
+                ->where('wilayah_id', $w->id)
+                ->where('role', 'Sales')
+                ->where('is_active', true)
+                ->pluck('user_id');
+
+            $salesNames = User::whereIn('id', $activeSalesIds)->pluck('name')->toArray();
+            if (empty($salesNames) && $w->users()->where('role', 'Sales')->where('status', 'Aktif')->exists()) {
+                $salesNames = $w->users()->where('role', 'Sales')->where('status', 'Aktif')->pluck('name')->toArray();
+            }
+
+            // Active CS assigned to this Wilayah (user_wilayah is_active = 1)
+            $activeCsIds = \Illuminate\Support\Facades\DB::table('user_wilayah')
+                ->where('wilayah_id', $w->id)
+                ->where('role', 'CS')
+                ->where('is_active', true)
+                ->pluck('user_id');
+
+            $csNames = User::whereIn('id', $activeCsIds)->pluck('name')->toArray();
+            if (empty($csNames) && $w->users()->where('role', 'CS')->where('status', 'Aktif')->exists()) {
+                $csNames = $w->users()->where('role', 'CS')->where('status', 'Aktif')->pluck('name')->toArray();
+            }
+
+            // Target & Achievement
+            $wTarget = Target::where('wilayah_id', $w->id)
+                ->where('status', 'Aktif')
+                ->where(function ($q) use ($ta) {
+                    $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                })
+                ->latest()
+                ->first();
+
+            $targetVal = $this->prorateTarget($wTarget ? $wTarget->target_lunas : 15, $period, $wTarget?->tipe_periode);
+            $achievementVal = Prospek::where('wilayah_id', $w->id)
+                ->where('status', 'LUNAS')
+                ->whereBetween('updated_at', [$start, $end])
+                ->count();
+
+            $rowFormatted = $this->formatMetricRow($w->nama, $targetVal, $achievementVal, $sisa, [
+                'wilayah_nama' => $w->nama,
+                'spv_name'     => $spvUser ? $spvUser->name : '-',
+                'sales_names'  => !empty($salesNames) ? implode(', ', $salesNames) : 'Belum Ada',
+                'cs_names'     => !empty($csNames) ? implode(', ', $csNames) : 'Belum Ada',
+            ]);
+
+            $territoryTable[] = $rowFormatted;
+        }
+
         return [
             'kpi_rows'         => $kpiRows,
             'hierarchy_rows'   => $hierarchyRows,
+            'territory_table'  => $territoryTable,
             'wilayah_options'  => $wilayahOptions,
             'selected_wilayah' => $selectedWilayah,
         ];
@@ -666,7 +742,7 @@ class TargetAchievementService
 
         // Breakdown per Teritori / Wilayah
         $hierarchyRows = [];
-        $hierarchyRows[] = $this->formatMetricRow('🌐 TOTAL GLOBAL CRM UCIC', $totTgtLunas, $pLunas, $sisa, [
+        $hierarchyRows[] = $this->formatMetricRow(' TOTAL GLOBAL CRM UCIC', $totTgtLunas, $pLunas, $sisa, [
             'entity_id'   => 0,
             'entity_type' => 'global_total',
             'role'        => 'Global',
@@ -704,18 +780,30 @@ class TargetAchievementService
     }
 
     /**
-     * Hitung proration target sesuai periode (Harian = Monthly/working_days, Mingguan = Monthly/4, dsb).
+     * Hitung proration target sesuai periode (Harian = Base/25, Mingguan = Base/4, Tahunan = Base*12, dsb).
+     * Mampu menangani target harian, mingguan, bulanan, maupun tahunan secara dinamis.
      */
-    private function prorateTarget(int $monthlyBase, array $period): int
+    private function prorateTarget(int $baseValue, array $period, ?string $targetTipePeriode = 'Bulanan'): int
     {
-        if ($monthlyBase <= 0) return 0;
+        if ($baseValue <= 0) return 0;
 
-        return match ($period['key']) {
-            self::PERIODE_HARIAN   => max(1, (int)round($monthlyBase / max(1, $period['total_hari'] ?: 25))),
-            self::PERIODE_MINGGUAN => max(1, (int)round($monthlyBase / 4)),
-            self::PERIODE_TAHUNAN  => (int)($monthlyBase * 12),
-            self::PERIODE_REALTIME => max(1, (int)round($monthlyBase / max(1, $period['total_hari'] ?: 25))),
-            default                => $monthlyBase,
+        $targetTipe = strtolower($targetTipePeriode ?: 'bulanan');
+        $viewPeriod = strtolower($period['key'] ?? self::PERIODE_BULANAN);
+
+        // Convert baseValue to a monthly equivalent first
+        $monthlyBase = match ($targetTipe) {
+            'harian'   => $baseValue * 25,
+            'mingguan' => $baseValue * 4,
+            'tahunan'  => (int) round($baseValue / 12),
+            default    => $baseValue, // 'bulanan'
+        };
+
+        // Convert monthlyBase to requested viewPeriod
+        return match ($viewPeriod) {
+            self::PERIODE_HARIAN, self::PERIODE_REALTIME => max(1, (int) round($monthlyBase / 25)),
+            self::PERIODE_MINGGUAN                       => max(1, (int) round($monthlyBase / 4)),
+            self::PERIODE_TAHUNAN                        => (int) ($monthlyBase * 12),
+            default                                      => $monthlyBase, // 'bulanan'
         };
     }
 

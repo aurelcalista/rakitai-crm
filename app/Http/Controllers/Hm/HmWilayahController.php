@@ -74,7 +74,37 @@ class HmWilayahController extends Controller
         // Assign SPV to this Wilayah
         $spv->update(['wilayah_id' => $wilayah->id]);
 
+        // Sync active assignment in user_wilayah pivot table
+        \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
+            ['user_id' => $spv->id, 'wilayah_id' => $wilayah->id, 'role' => 'SPV'],
+            ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
+        );
+
         return redirect()->back()->with('success', "SPV {$spv->name} berhasil ditunjuk untuk Wilayah {$wilayah->nama}.");
+    }
+
+    /**
+     * HM Deactivate SPV assignment from a Wilayah.
+     */
+    public function unassignSpv(Request $request, Wilayah $wilayah, User $spv): RedirectResponse
+    {
+        Gate::authorize('assignSpv', [$spv, $wilayah]);
+
+        if ($spv->wilayah_id == $wilayah->id) {
+            $spv->update(['wilayah_id' => null]);
+        }
+
+        \Illuminate\Support\Facades\DB::table('user_wilayah')
+            ->where('user_id', $spv->id)
+            ->where('wilayah_id', $wilayah->id)
+            ->where('role', 'SPV')
+            ->update([
+                'is_active'      => false,
+                'deactivated_at' => now(),
+                'updated_at'     => now(),
+            ]);
+
+        return redirect()->back()->with('success', "Penugasan SPV {$spv->name} dari Wilayah {$wilayah->nama} telah dinonaktifkan.");
     }
 
     /**
@@ -125,6 +155,7 @@ class HmWilayahController extends Controller
             'target_type'      => 'Wilayah',
             'wilayah_id'       => $wilayah->id,
             'spv_id'           => $spv->id,
+            'sales_id'         => $spv->id,
             'academic_year_id' => $activeTA->id,
             'tahun_akademik'   => $activeTA->nama,
             'allocated_by'     => $user->id,
@@ -141,6 +172,7 @@ class HmWilayahController extends Controller
             'locked_by'        => $user->id,
         ];
 
+
         if ($target) {
             $target->update($targetData);
         } else {
@@ -150,6 +182,12 @@ class HmWilayahController extends Controller
         // Also ensure SPV is linked to this Wilayah
         $spv->update(['wilayah_id' => $wilayah->id]);
 
+        \Illuminate\Support\Facades\DB::table('user_wilayah')->updateOrInsert(
+            ['user_id' => $spv->id, 'wilayah_id' => $wilayah->id, 'role' => 'SPV'],
+            ['is_active' => true, 'assigned_at' => now(), 'deactivated_at' => null, 'updated_at' => now()]
+        );
+
         return redirect()->back()->with('success', "Target Wilayah {$wilayah->nama} berhasil ditetapkan dan dikunci oleh HM!");
     }
 }
+

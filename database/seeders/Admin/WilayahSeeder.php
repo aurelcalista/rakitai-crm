@@ -13,26 +13,62 @@ class WilayahSeeder extends Seeder
     public function run(): void
     {
         $wilayahs = [
-            ['kode' => 'W-CRB', 'nama' => 'Kota Cirebon', 'kecamatans' => ['Kejaksan', 'Kesambi', 'Pekalipan', 'Lemahwungkuk', 'Harjamukti']],
-            ['kode' => 'W-KAB-CRB', 'nama' => 'Kabupaten Cirebon', 'kecamatans' => ['Kedawung', 'Weru', 'Sumber', 'Plumbon']],
-            ['kode' => 'W-IND', 'nama' => 'Indramayu', 'kecamatans' => ['Indramayu', 'Karangampel', 'Jatibarang']],
-            ['kode' => 'W-MJL', 'nama' => 'Majalengka', 'kecamatans' => ['Majalengka', 'Kadipaten', 'Jatiwangi']],
-            ['kode' => 'W-KNG', 'nama' => 'Kuningan', 'kecamatans' => ['Kuningan', 'Cilimus', 'Luragung']],
-            ['kode' => 'W-LAIN', 'nama' => 'Di Kota Lainnya', 'kecamatans' => ['Lainnya']],
+            [
+                'kode' => 'W-CRB',
+                'nama' => 'Kota Cirebon',
+                'level' => 'Kota/Kabupaten',
+                'kecamatans' => ['Kejaksan', 'Kesambi', 'Pekalipan', 'Lemahwungkuk', 'Harjamukti']
+            ],
+            [
+                'kode' => 'W-KAB-CRB',
+                'nama' => 'Kabupaten Cirebon',
+                'level' => 'Kota/Kabupaten',
+                'kecamatans' => ['Kedawung', 'Weru', 'Sumber', 'Plumbon', 'Astanajapura', 'Arjawinangun', 'Ciwaringin', 'Babakan']
+            ],
+            [
+                'kode' => 'W-IND',
+                'nama' => 'Kabupaten Indramayu',
+                'level' => 'Kota/Kabupaten',
+                'kecamatans' => ['Indramayu', 'Karangampel', 'Jatibarang', 'Haurgeulis']
+            ],
+            [
+                'kode' => 'W-MJL',
+                'nama' => 'Kabupaten Majalengka',
+                'level' => 'Kota/Kabupaten',
+                'kecamatans' => ['Majalengka', 'Kadipaten', 'Jatiwangi', 'Rajagaluh']
+            ],
+            [
+                'kode' => 'W-KNG',
+                'nama' => 'Kabupaten Kuningan',
+                'level' => 'Kota/Kabupaten',
+                'kecamatans' => ['Kuningan', 'Cilimus', 'Luragung', 'Jalaksana']
+            ],
         ];
 
         foreach ($wilayahs as $w) {
             $parent = Wilayah::updateOrCreate(
                 ['kode' => $w['kode']],
-                ['nama' => $w['nama'], 'level' => 'Kota/Kabupaten', 'parent_id' => null]
+                [
+                    'nama' => $w['nama'],
+                    'level' => 'Kota/Kabupaten',
+                    'parent_id' => null,
+                    'status' => 'Aktif',
+                ]
             );
 
             foreach ($w['kecamatans'] as $index => $kec) {
-                // Generate a unique code for the kecamatan
-                $kodeKecamatan = $w['kode'] . '-' . ($index + 1);
+                $kodeKecamatan = Wilayah::generateKecamatanKode($parent, $kec);
+
                 Wilayah::updateOrCreate(
-                    ['kode' => $kodeKecamatan],
-                    ['nama' => $kec, 'level' => 'Kecamatan', 'parent_id' => $parent->id]
+                    [
+                        'nama' => $kec,
+                        'parent_id' => $parent->id,
+                    ],
+                    [
+                        'kode' => $kodeKecamatan,
+                        'level' => 'Kecamatan',
+                        'status' => 'Aktif',
+                    ]
                 );
             }
         }

@@ -30,7 +30,7 @@ class AdminPerusahaanController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'kode' => 'required|string|max:50|unique:perusahaans,kode',
+            'kode' => 'nullable|string|max:50|unique:perusahaans,kode',
             'nama' => 'required|string|max:255',
             'kategori_id' => 'required|exists:master_data,id',
             'wilayah_id' => 'required|exists:wilayahs,id',
@@ -44,6 +44,10 @@ class AdminPerusahaanController extends Controller
             'pic_phone' => 'nullable|string|max:50',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
+
+        if (empty($validated['kode'])) {
+            $validated['kode'] = 'PRS-' . strtoupper(\Illuminate\Support\Str::random(6));
+        }
 
         Perusahaan::create($validated);
 
@@ -53,7 +57,7 @@ class AdminPerusahaanController extends Controller
     public function update(Request $request, Perusahaan $perusahaan)
     {
         $validated = $request->validate([
-            'kode' => 'required|string|max:50|unique:perusahaans,kode,' . $perusahaan->id,
+            'kode' => 'nullable|string|max:50|unique:perusahaans,kode,' . $perusahaan->id,
             'nama' => 'required|string|max:255',
             'kategori_id' => 'required|exists:master_data,id',
             'wilayah_id' => 'required|exists:wilayahs,id',
@@ -67,6 +71,10 @@ class AdminPerusahaanController extends Controller
             'pic_phone' => 'nullable|string|max:50',
             'status' => 'required|in:Aktif,Nonaktif',
         ]);
+
+        if (empty($validated['kode'])) {
+            unset($validated['kode']);
+        }
 
         $perusahaan->update($validated);
 

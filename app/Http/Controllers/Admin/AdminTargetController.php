@@ -13,41 +13,77 @@ class AdminTargetController extends Controller
 {
     public function index(): View
     {
-        $targets = Target::with('sales')->latest()->get()->map(function ($t) {
-            $salesName = $t->sales ? $t->sales->name : '-';
-            $avatar = implode('', array_map(function($word) { return strtoupper($word[0] ?? ''); }, explode(' ', $salesName)));
-            $avatar = substr($avatar, 0, 2);
-            if (!$avatar) $avatar = 'NA';
-            $realisasi_kunjungan = Kunjungan::where('sales_id', $t->sales_id)
+        $user = auth()->user();
+
+        // 1. Scoped Targets list based on user authorization
+        $targetsQuery = Target::with(['sales', 'spv', 'wilayah', 'allocator'])->latest();
+
+        if (strtolower($user->role) === 'hm') {
+            $hmWilayahIds = $user->activeWilayahIds();
+            $hmMemberIds = $user->hmMemberIds();
+
+            $targetsQuery->where(function($q) use ($hmWilayahIds, $hmMemberIds) {
+                $q->whereIn('wilayah_id', $hmWilayahIds)
+                  ->orWhereIn('sales_id', $hmMemberIds)
+                  ->orWhereIn('spv_id', $hmMemberIds);
+            });
+        } elseif (strtolower($user->role) === 'spv') {
+            $spvTeamIds = $user->teamMemberIds();
+            $spvTeamIds[] = $user->id;
+
+            $targetsQuery->where(function($q) use ($user, $spvTeamIds) {
+                $q->where('spv_id', $user->id)
+                  ->orWhereIn('sales_id', $spvTeamIds);
+            });
+        }
+
+        $targets = $targetsQuery->get()->map(function ($t) {
+            $targetUser = $t->sales ?? $t->spv;
+            $salesName = $targetUser ? $targetUser->name : ($t->spv ? $t->spv->name : '-');
+            $userRole = $targetUser ? $targetUser->role : ($t->target_type === 'Wilayah' || $t->spv_id ? 'SPV' : '-');
+            
+            $words = array_values(array_filter(explode(' ', trim($salesName))));
+            $avatar = '';
+            if (!empty($words) && $words[0] !== '-') {
+                $avatar = strtoupper(substr($words[0] ?? '', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+            }
+            if (!$avatar || $avatar === '-') $avatar = 'NA';
+
+            $salesId = $t->sales_id ?: $t->spv_id;
+
+            $realisasi_kunjungan = $salesId ? Kunjungan::where('sales_id', $salesId)
                 ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
-                ->count();
+                ->count() : 0;
 
             // Realisasi Kontak
-            $realisasi_kontak = \App\Models\Prospek::where(function($q) use ($t) {
-                if ($t->sales && $t->sales->role === 'CS') {
-                    $q->where('cs_id', $t->sales_id);
+            $realisasi_kontak = \App\Models\Prospek::where(function($q) use ($salesId, $targetUser) {
+                if ($targetUser && $targetUser->role === 'CS') {
+                    $q->where('cs_id', $salesId);
                 } else {
-                    $q->where('sales_id', $t->sales_id);
+                    $q->where('sales_id', $salesId);
                 }
             })->whereBetween('created_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])->count();
 
             // Realisasi Menghubungi (khusus CS)
             $realisasi_menghubungi = 0;
-            if ($t->sales && $t->sales->role === 'CS') {
-                $realisasi_menghubungi = \App\Models\FollowUp::where('user_id', $t->sales_id)
+            if ($targetUser && $targetUser->role === 'CS') {
+                $realisasi_menghubungi = \App\Models\FollowUp::where('user_id', $salesId)
                     ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
                     ->distinct('prospek_id')
                     ->count('prospek_id');
             }
 
             // Realisasi Follow-up
-            $realisasi_followup = \App\Models\FollowUp::where('user_id', $t->sales_id)
+            $realisasi_followup = $salesId ? \App\Models\FollowUp::where('user_id', $salesId)
                 ->whereBetween('tanggal', [$t->tanggal_mulai, $t->tanggal_selesai])
-                ->count();
+                ->count() : 0;
+
             // Realisasi Lunas & Formulir
-            if ($t->sales && $t->sales->role === 'SPV') {
-                $teamIds = $t->sales->teamMemberIds();
-                $teamIds[] = $t->sales_id;
+            if ($userRole === 'SPV' || $t->target_type === 'Wilayah') {
+                $spvUser = $targetUser ?? $t->spv;
+                $teamIds = $spvUser ? $spvUser->teamMemberIds() : [];
+                if ($spvUser) $teamIds[] = $spvUser->id;
+
                 $realisasi_lunas = \App\Models\Prospek::whereIn('sales_id', $teamIds)
                     ->where('status', 'LUNAS')
                     ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
@@ -59,12 +95,12 @@ class AdminTargetController extends Controller
                     ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
                     ->count();
             } else {
-                $realisasi_lunas = \App\Models\Prospek::where('sales_id', $t->sales_id)
+                $realisasi_lunas = \App\Models\Prospek::where('sales_id', $salesId)
                     ->where('status', 'LUNAS')
                     ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
                     ->count();
-                $realisasi_formulir = \App\Models\Prospek::where(function($q) use ($t) {
-                        $q->where('sales_id', $t->sales_id)->orWhere('cs_id', $t->sales_id);
+                $realisasi_formulir = \App\Models\Prospek::where(function($q) use ($salesId) {
+                        $q->where('sales_id', $salesId)->orWhere('cs_id', $salesId);
                     })
                     ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
                     ->whereBetween('updated_at', [$t->tanggal_mulai . ' 00:00:00', $t->tanggal_selesai . ' 23:59:59'])
@@ -92,7 +128,7 @@ class AdminTargetController extends Controller
                 return [
                     'id' => $t->id,
                     'sales' => $salesName,
-                    'role' => $t->sales ? $t->sales->role : '-',
+                    'role' => $userRole,
                     'avatar' => $avatar,
                     'allocated_by' => $t->allocator?->name ?? 'Head of Marketing',
                     'tahun_akademik' => $t->tahun_akademik ?? '2027/2028',
@@ -106,10 +142,15 @@ class AdminTargetController extends Controller
                     'target_menghubungi' => $t->target_menghubungi ?? 0,
                     'target_followup' => $t->target_followup,
                     'target_kunjungan' => $t->target_kunjungan,
+                    'wilayah_nama' => $t->wilayah?->nama ?? ($targetUser?->wilayah?->nama ?? '-'),
+                    'spv_nama' => $t->spv?->name ?? ($targetUser?->supervisor?->name ?? $salesName),
+                    'wilayah_id' => $t->wilayah_id,
+                    'spv_id' => $t->spv_id,
                     
                     'realisasi_lunas' => $realisasi_lunas,
                     'realisasi_formulir' => $realisasi_formulir,
                     'realisasi_kontak' => $realisasi_kontak,
+
                     'realisasi_menghubungi' => $realisasi_menghubungi,
                     'realisasi_followup' => $realisasi_followup,
                     'realisasi_kunjungan' => $realisasi_kunjungan,
@@ -135,20 +176,110 @@ class AdminTargetController extends Controller
                 ];
             });
 
-        // Sertakan SPV, Sales, dan CS agar HM dapat memberikan target langsung ke SPV
+        // 2. Build structured tree for cascading dropdowns (Wilayah -> SPV -> Area -> Sales/CS)
+        if (strtolower($user->role) === 'admin') {
+            $kotas = \App\Models\Wilayah::where(function($q) {
+                $q->whereNull('parent_id')->orWhere('level', 'Kota/Kabupaten');
+            })->where('status', 'Aktif')->orderBy('nama')->get();
+        } else {
+            $accessibleWilayahIds = $user->activeWilayahIds();
+            $kotas = \App\Models\Wilayah::whereIn('id', $accessibleWilayahIds)
+                ->where('status', 'Aktif')
+                ->get()
+                ->map(function($w) {
+                    return $w->parent_id ? \App\Models\Wilayah::find($w->parent_id) : $w;
+                })
+                ->filter()
+                ->unique('id')
+                ->values();
+
+            if ($kotas->isEmpty() && $user->wilayah_id) {
+                $w = \App\Models\Wilayah::find($user->wilayah_id);
+                if ($w) {
+                    $kota = $w->parent_id ? \App\Models\Wilayah::find($w->parent_id) : $w;
+                    if ($kota) $kotas = collect([$kota]);
+                }
+            }
+
+            if ($kotas->isEmpty()) {
+                $kotas = \App\Models\Wilayah::where(function($q) {
+                    $q->whereNull('parent_id')->orWhere('level', 'Kota/Kabupaten');
+                })->where('status', 'Aktif')->orderBy('nama')->get();
+            }
+        }
+
+        $wilayahTree = $kotas->map(function ($kota) {
+            $spvs = User::where('role', 'SPV')
+                ->where('status', 'Aktif')
+                ->where(function ($q) use ($kota) {
+                    $q->where('wilayah_id', $kota->id)
+                      ->orWhereHas('activeWilayahes', function ($wq) use ($kota) {
+                          $wq->where('wilayah_id', $kota->id);
+                      });
+                })
+                ->orderBy('name')
+                ->get()
+                ->map(function ($spv) {
+                    return [
+                        'id'   => $spv->id,
+                        'name' => $spv->name,
+                        'role' => $spv->role,
+                        'kode' => $spv->kode ?? '-',
+                    ];
+                });
+
+            $spvIds = $spvs->pluck('id')->toArray();
+
+            $kotaSalesList = User::whereIn('role', ['Sales', 'CS'])
+                ->where('status', 'Aktif')
+                ->where(function ($q) use ($kota, $spvIds) {
+                    $q->where('wilayah_id', $kota->id)
+                      ->orWhereHas('activeWilayahes', function ($wq) use ($kota) {
+                          $wq->where('wilayah_id', $kota->id);
+                      });
+
+                    if (!empty($spvIds)) {
+                        $q->orWhereIn('supervisor_id', $spvIds);
+                    }
+                })
+                ->orderBy('role')
+                ->orderBy('name')
+                ->get()
+                ->map(function ($s) {
+                    return [
+                        'id'         => $s->id,
+                        'name'       => $s->name,
+                        'role'       => $s->role,
+                        'kode'       => $s->kode ?? '-',
+                        'wilayah_id' => $s->wilayah_id,
+                    ];
+                });
+
+            return [
+                'id'         => $kota->id,
+                'nama'       => $kota->nama,
+                'spvs'       => $spvs->toArray(),
+                'sales_list' => $kotaSalesList->toArray(),
+            ];
+        })->values()->toArray();
+
         $salesList = User::whereIn('role', ['SPV', 'Sales', 'CS'])->orderBy('role')->orderBy('name')->get();
-        return view('admin.target.index', compact('targets', 'salesList'));
+
+        return view('admin.target.index', compact('targets', 'wilayahTree', 'salesList'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'wilayah_id'         => 'required|exists:wilayahs,id',
+            'spv_id'             => 'nullable|exists:users,id',
             'sales_id'           => 'required|exists:users,id',
-            'tipe_periode'       => 'required|in:Harian,Mingguan,Bulanan',
+            'tipe_periode'       => 'required|in:Harian,Mingguan,Bulanan,Tahunan',
             'tanggal_mulai'      => 'required|date',
             'tanggal_selesai'    => 'required|date|after_or_equal:tanggal_mulai',
             'target_lunas'       => 'nullable|integer|min:0',
             'target_formulir'    => 'nullable|integer|min:0',
+            'target_pemberkasan' => 'nullable|integer|min:0',
             'target_kontak'      => 'required|integer|min:0',
             'target_menghubungi' => 'nullable|integer|min:0',
             'target_followup'    => 'required|integer|min:0',
@@ -157,16 +288,105 @@ class AdminTargetController extends Controller
             'tahun_akademik'     => 'nullable|string|max:20',
         ]);
 
-        $validated['allocated_by'] = auth()->id();
+        $user = auth()->user();
+        $targetWilayah = \App\Models\Wilayah::findOrFail($request->wilayah_id);
+
+        // 1. Strict Backend Security Boundary Check: Logged-in user Wilayah Scope
+        if (strtolower($user->role) !== 'admin') {
+            $hmWilayahIds = $user->activeWilayahIds();
+            $inScope = $user->isWithinWilayahScope($targetWilayah->id)
+                || in_array($targetWilayah->id, $hmWilayahIds)
+                || ($targetWilayah->parent_id && in_array($targetWilayah->parent_id, $hmWilayahIds));
+
+            if (!$inScope) {
+                abort(403, 'Anda tidak memiliki hak akses untuk mengelola target pada wilayah ini.');
+            }
+        }
+
+        // 2. Resolve & validate SPV assignment from Wilayah Saya
+        $targetUser = User::findOrFail($request->sales_id);
+        $spvId = $request->spv_id;
+
+        if (strtolower($targetUser->role) === 'spv') {
+            $spvId = $targetUser->id;
+            $validated['target_type'] = 'Wilayah';
+        } else {
+            $validated['target_type'] = 'Individual';
+            if (!$spvId) {
+                $spvId = $targetUser->supervisor_id;
+            }
+        }
+
+        // Check if selected SPV is assigned to target Wilayah by HM in Wilayah Saya
+        if ($spvId) {
+            $spvUser = User::find($spvId);
+            if ($spvUser) {
+                $spvInWilayah = $spvUser->wilayah_id == $targetWilayah->id
+                    || $spvUser->isWithinWilayahScope($targetWilayah->id)
+                    || $targetWilayah->isDescendantOf($spvUser->wilayah_id)
+                    || in_array($targetWilayah->id, $spvUser->activeWilayahIds());
+
+                if (!$spvInWilayah) {
+                    abort(403, 'SPV yang dipilih tidak ditugaskan pada Wilayah yang ditentukan.');
+                }
+            }
+        }
+
+        // 3. Check if target user (Sales/CS) belongs to target Wilayah scope or SPV
+        if (strtolower($targetUser->role) !== 'spv' && strtolower($user->role) !== 'admin') {
+            $userInWilayah = $targetUser->isWithinWilayahScope($targetWilayah->id)
+                || $targetWilayah->isDescendantOf($targetUser->wilayah_id)
+                || ($spvId && $targetUser->supervisor_id == $spvId)
+                || in_array($targetUser->id, $user->hmMemberIds())
+                || in_array($targetWilayah->id, $targetUser->activeWilayahIds());
+
+            if (!$userInWilayah) {
+                abort(403, 'Penerima target tidak berada dalam cakupan Wilayah / SPV yang ditentukan.');
+            }
+        }
+
+
+        // 4. Validate Target Cascading Constraints
+        $ta = $validated['tahun_akademik'] ?? '2027/2028';
+        if (strtolower($targetUser->role) === 'sales' && $spvId) {
+            $spvTarget = Target::where('spv_id', $spvId)
+                ->where('target_type', 'Wilayah')
+                ->where('status', 'Aktif')
+                ->where(function($q) use ($ta) {
+                    $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                })
+                ->latest()
+                ->first();
+
+            if ($spvTarget && $spvTarget->target_lunas > 0) {
+                $otherSalesAllocated = Target::where('spv_id', $spvId)
+                    ->where('target_type', 'Individual')
+                    ->where('status', 'Aktif')
+                    ->where(function($q) use ($ta) {
+                        $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                    })
+                    ->sum('target_lunas');
+
+                if (($otherSalesAllocated + (int)($validated['target_lunas'] ?? 0)) > $spvTarget->target_lunas) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', "Total alokasi target Sales melebihi Target SPV (" . $spvTarget->target_lunas . ").");
+                }
+            }
+        }
+
+        $validated['spv_id'] = $spvId;
+        $validated['wilayah_id'] = $targetWilayah->id;
+        $validated['allocated_by'] = $user->id;
         $validated['target_lunas'] = (int)($validated['target_lunas'] ?? 0);
         $validated['target_formulir'] = (int)($validated['target_formulir'] ?? 0);
+        $validated['target_pemberkasan'] = (int)($validated['target_pemberkasan'] ?? 0);
         if (empty($validated['tahun_akademik'])) {
             $validated['tahun_akademik'] = '2027/2028';
         }
 
         $target = Target::create($validated);
 
-        $targetUser = User::find($validated['sales_id']);
         $allocator = auth()->user();
         $tipe = $target->tipe_periode ?? 'Bulanan';
         $lunas = $target->target_lunas ?? 0;
@@ -198,7 +418,7 @@ class AdminTargetController extends Controller
         }
 
         $roleName = $targetUser ? $targetUser->role : 'User';
-        return redirect()->back()->with('success', "Target untuk {$roleName} '{$targetUser->name}' berhasil ditambahkan dan notifikasi telah dikirim!");
+        return redirect()->back()->with('success', "Target untuk {$roleName} '{$targetUser->name}' di Wilayah '{$targetWilayah->nama}' berhasil ditambahkan!");
     }
 
     public function update(Request $request, Target $target)
@@ -207,7 +427,9 @@ class AdminTargetController extends Controller
 
         $validated = $request->validate([
             'sales_id'           => 'required|exists:users,id',
-            'tipe_periode'       => 'required|in:Harian,Mingguan,Bulanan',
+            'wilayah_id'         => 'nullable|exists:wilayahs,id',
+            'spv_id'             => 'nullable|exists:users,id',
+            'tipe_periode'       => 'required|in:Harian,Mingguan,Bulanan,Tahunan',
             'tanggal_mulai'      => 'required|date',
             'tanggal_selesai'    => 'required|date|after_or_equal:tanggal_mulai',
             'target_lunas'       => 'nullable|integer|min:0',
@@ -220,7 +442,25 @@ class AdminTargetController extends Controller
             'tahun_akademik'     => 'nullable|string|max:20',
         ]);
 
-        $validated['allocated_by'] = auth()->id();
+        $user = auth()->user();
+
+        if ($request->filled('wilayah_id')) {
+            $targetWilayah = \App\Models\Wilayah::findOrFail($request->wilayah_id);
+            if (strtolower($user->role) !== 'admin') {
+                if (!$user->isWithinWilayahScope($targetWilayah->id) && !in_array($targetWilayah->id, $user->activeWilayahIds())) {
+                    abort(403, 'Anda tidak memiliki hak akses untuk mengelola target pada wilayah ini.');
+                }
+            }
+            $validated['wilayah_id'] = $targetWilayah->id;
+        }
+
+        $targetUser = User::findOrFail($request->sales_id);
+        if ($targetUser->role === 'SPV') {
+            $validated['spv_id'] = $targetUser->id;
+            $validated['target_type'] = 'Wilayah';
+        }
+
+        $validated['allocated_by'] = $user->id;
         $target->update($validated);
 
         $targetUser = User::find($target->sales_id);
@@ -238,6 +478,7 @@ class AdminTargetController extends Controller
 
         return redirect()->back()->with('success', 'Target berhasil diperbarui dan notifikasi telah dikirim!');
     }
+
 
     public function lock(Request $request, Target $target)
     {

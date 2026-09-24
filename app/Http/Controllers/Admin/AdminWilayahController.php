@@ -50,7 +50,7 @@ class AdminWilayahController extends Controller
 
         foreach ($validated['kecamatans'] as $index => $kec) {
             Wilayah::create([
-                'kode' => $wilayah->kode . '-' . uniqid(),
+                'kode' => Wilayah::generateKecamatanKode($wilayah, $kec),
                 'nama' => $kec,
                 'level' => 'Kecamatan',
                 'parent_id' => $wilayah->id,
@@ -95,7 +95,7 @@ class AdminWilayahController extends Controller
         foreach ($newKecNames as $index => $nama) {
             if (!$existingKecs->has($nama)) {
                 Wilayah::create([
-                    'kode' => $wilayah->kode . '-' . uniqid(),
+                    'kode' => Wilayah::generateKecamatanKode($wilayah, $nama),
                     'nama' => $nama,
                     'level' => 'Kecamatan',
                     'parent_id' => $wilayah->id,
