@@ -818,20 +818,31 @@ class CrmController extends Controller
         }
 
         $user = auth()->user();
+        $spvId = $request->get('spv_id');
 
         // Active Tahun Akademik
         $activeAyId = \App\Services\AkademikService::getAktifId();
         $targetService = app(\App\Services\TargetAchievementService::class);
 
-        // Global stats (all prospects)
-        $totalProspek  = Prospek::count();
-        $closing       = Prospek::where('status', 'LUNAS')->count();
-        $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
-        $lost          = Prospek::where('status', 'DINGIN')->count();
+        // Subquery or ids for Sales filtering
+        $salesIdsScope = null;
+        if ($spvId) {
+            $salesIdsScope = \App\Models\User::where('supervisor_id', $spvId)
+                ->where('role', 'Sales')
+                ->pluck('id')->toArray();
+        }
+
+        // Global stats (all prospects or filtered by SPV's Sales)
+        $totalProspek  = Prospek::when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
+        $closing       = Prospek::whereIn('status', ['CLOSING', 'LUNAS'])->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
+        $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN', 'CANCEL'])->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
+        $lost          = Prospek::where('status', 'DINGIN')->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
+        $cancelCount   = Prospek::where('status', 'CANCEL')->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
 
         // Global target rollup (sum of all active Sales targets)
         $totalTargetLunas = \App\Models\Target::where('status', 'Aktif')
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
             ->sum('target_lunas');
         $sisaTarget = max(0, $totalTargetLunas - $closing);
         $pctLunas   = $totalTargetLunas > 0 ? round(($closing / $totalTargetLunas) * 100, 1) : 0;
@@ -840,22 +851,23 @@ class CrmController extends Controller
         $stats = [
             'total_prospek'   => $totalProspek,
             'active_prospek'  => $activeProspek,
-            'LUNAS'           => $closing,
+            'LUNAS'           => $closing, // Keep keys for compatibility
             'closing'         => $closing,
             'DINGIN'          => $lost,
             'lost'            => $lost,
+            'cancel'          => $cancelCount,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
-            'total_sales'     => \App\Models\User::where('role', 'Sales')->count(),
-            'total_cs'        => \App\Models\User::where('role', 'CS')->count(),
+            'total_sales'     => \App\Models\User::where('role', 'Sales')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->count(),
+            'total_cs'        => \App\Models\User::where('role', 'CS')->count(), // Usually global
             'target_global'   => $totalTargetLunas,
             'sisa_target'     => $sisaTarget,
             'pct_lunas'       => $pctLunas,
             'color_status'    => $colorStatus,
         ];
 
-        $salesUsers = \App\Models\User::where('role', 'Sales')->get();
+        $salesUsers = \App\Models\User::where('role', 'Sales')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->get();
         $team = $salesUsers->map(function ($s) use ($activeAyId) {
-            $closing        = Prospek::where('sales_id', $s->id)->where('status', 'LUNAS')
+            $closing        = Prospek::where('sales_id', $s->id)->whereIn('status', ['CLOSING', 'LUNAS'])
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
             $prospectsCount = Prospek::where('sales_id', $s->id)
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
@@ -883,6 +895,7 @@ class CrmController extends Controller
         $stagesCount = array_fill_keys(\App\Models\Prospek::ACTIVE_STAGES, 0);
         $prospectsData = Prospek::select('status')
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
+            ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
             ->get();
         foreach ($prospectsData as $p) {
             if (isset($stagesCount[$p->status])) {
@@ -914,9 +927,10 @@ class CrmController extends Controller
                 DB::raw('MONTH(updated_at) as month'),
                 DB::raw('COUNT(*) as count')
             )
-            ->where('status', 'LUNAS')
+            ->whereIn('status', ['CLOSING', 'LUNAS'])
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
             ->when($user->wilayah_id, fn($q) => $q->where('wilayah_id', $user->wilayah_id))
+            ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
             ->whereYear('updated_at', $currentYear)
             ->groupBy('month')
             ->pluck('count', 'month')
@@ -944,7 +958,9 @@ class CrmController extends Controller
             ];
         }
 
-        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData', 'monthlyTrend', 'currentYear'));
+        $spvs = \App\Models\User::where('role', 'SPV')->where('status', 'Aktif')->get();
+
+        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData', 'monthlyTrend', 'currentYear', 'spvs'));
     }
 
     /**
@@ -1323,11 +1339,27 @@ class CrmController extends Controller
             'status' => 'required|string',
         ]);
 
+        $user = auth()->user();
         $oldStatus = $prospek->status;
-        $prospek->status = $request->status;
+        $newStatus = strtoupper($request->status);
 
-        if (isset(\App\Models\Prospek::STAGES[$request->status])) {
-            $prospek->stage_number = \App\Models\Prospek::STAGES[$request->status];
+        // Status LUNAS cannot be changed to anything else
+        if ($oldStatus === 'LUNAS' && $newStatus !== 'LUNAS') {
+            return redirect()->back()->withErrors(['status' => 'Prospek yang sudah Lunas tidak dapat diubah statusnya.']);
+        }
+
+        if ($user && strtolower($user->role) === 'sales' && $newStatus === 'LUNAS') {
+            return redirect()->back()->withErrors(['status' => 'Sales tidak dapat mengubah status menjadi Lunas.']);
+        }
+
+        if ($user && strtolower($user->role) === 'cs' && $newStatus !== 'LUNAS' && $oldStatus !== $newStatus) {
+            return redirect()->back()->withErrors(['status' => 'CS hanya dapat mengubah status menjadi Lunas.']);
+        }
+
+        $prospek->status = $newStatus;
+
+        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
+            $prospek->stage_number = \App\Models\Prospek::STAGES[$newStatus];
         }
 
         $prospek->save();
@@ -1438,11 +1470,27 @@ class CrmController extends Controller
         $prospek = Prospek::findOrFail($request->prospek_id);
         \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
         
+        $user = auth()->user();
         $oldStatus = $prospek->status;
-        $prospek->status = $request->status;
+        $newStatus = strtoupper($request->status);
+
+        // Status LUNAS cannot be changed to anything else
+        if ($oldStatus === 'LUNAS' && $newStatus !== 'LUNAS') {
+            return response()->json(['success' => false, 'message' => 'Prospek yang sudah Lunas tidak dapat diubah statusnya.'], 403);
+        }
+
+        if ($user && strtolower($user->role) === 'sales' && $newStatus === 'LUNAS') {
+            return response()->json(['success' => false, 'message' => 'Sales tidak dapat mengubah status menjadi Lunas.'], 403);
+        }
+
+        if ($user && strtolower($user->role) === 'cs' && $newStatus !== 'LUNAS' && $oldStatus !== $newStatus) {
+            return response()->json(['success' => false, 'message' => 'CS hanya dapat mengubah status menjadi Lunas.'], 403);
+        }
+
+        $prospek->status = $newStatus;
         
-        if (isset(\App\Models\Prospek::STAGES[$request->status])) {
-            $prospek->stage_number = \App\Models\Prospek::STAGES[$request->status];
+        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
+            $prospek->stage_number = \App\Models\Prospek::STAGES[$newStatus];
         }
         
         $prospek->save();
@@ -1733,7 +1781,7 @@ class CrmController extends Controller
     public function pipelineIndex(): View
     {
         $prospects = $this->getDbProspects();
-        $pipelineStages = ['BARU', 'KONTAK', 'HANGAT', 'PANAS', 'FORMULIR', 'BERKAS', 'LUNAS'];
+        $pipelineStages = \App\Models\Prospek::ACTIVE_STAGES;
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }

@@ -27,8 +27,13 @@ class AdminHmWilayahController extends Controller
             ->map(function ($kota) use ($activeTA) {
                 $descendantIds = $kota->getDescendantIds();
 
-                // HM currently assigned to this Kota
-                $assignedHm = $kota->users->where('role', 'HM')->first();
+                // HM currently assigned to this Kota (check both wilayah_id and pivot)
+                $assignedHm = User::where('role', 'HM')->where(function($q) use ($kota) {
+                    $q->where('wilayah_id', $kota->id)
+                      ->orWhereHas('activeWilayahes', function($wq) use ($kota) {
+                          $wq->where('wilayah_id', $kota->id);
+                      });
+                })->first();
 
                 // SPV currently assigned to this Kota
                 $assignedSpv = $kota->users->where('role', 'SPV')->first();
@@ -70,8 +75,10 @@ class AdminHmWilayahController extends Controller
             ->orderBy('name')
             ->get();
 
-        // HMs without any assigned wilayah
-        $unassignedHms = $hmList->whereNull('wilayah_id');
+        // HMs without any assigned wilayah (neither main nor pivot)
+        $unassignedHms = $hmList->filter(function($hm) {
+            return empty($hm->wilayah_id) && $hm->activeWilayahes->isEmpty();
+        });
 
         return view('admin.hm-wilayah.index', compact('wilayahs', 'hmList', 'unassignedHms', 'activeTA'));
     }
@@ -93,17 +100,44 @@ class AdminHmWilayahController extends Controller
             return redirect()->back()->with('error', 'User yang dipilih bukan Head Marketing (HM).');
         }
 
-        // Reassign previous HM if any
-        $previousHm = User::where('role', 'HM')
-            ->where('wilayah_id', $wilayah->id)
+        // Reassign previous HMs if any
+        $previousHms = User::where('role', 'HM')
+            ->where(function($q) use ($wilayah) {
+                $q->where('wilayah_id', $wilayah->id)
+                  ->orWhereHas('activeWilayahes', function($wq) use ($wilayah) {
+                      $wq->where('wilayah_id', $wilayah->id);
+                  });
+            })
             ->where('id', '!=', $hm->id)
-            ->first();
+            ->get();
 
-        if ($previousHm) {
-            $previousHm->update(['wilayah_id' => null]);
+        foreach ($previousHms as $prevHm) {
+            if ($prevHm->wilayah_id == $wilayah->id) {
+                $prevHm->update(['wilayah_id' => null]);
+            }
+            // Deactivate pivot
+            if ($prevHm->activeWilayahes()->where('wilayah_id', $wilayah->id)->exists()) {
+                $prevHm->activeWilayahes()->updateExistingPivot($wilayah->id, ['is_active' => false, 'deactivated_at' => now()]);
+            }
         }
 
-        $hm->update(['wilayah_id' => $wilayah->id]);
+        if (empty($hm->wilayah_id)) {
+            $hm->update(['wilayah_id' => $wilayah->id]);
+        }
+
+        // Attach or update pivot for this new HM
+        if (!$hm->activeWilayahes()->where('wilayah_id', $wilayah->id)->exists()) {
+            $hm->activeWilayahes()->attach($wilayah->id, [
+                'role' => 'HM', 
+                'is_active' => true, 
+                'assigned_at' => now()
+            ]);
+        } else {
+            $hm->activeWilayahes()->updateExistingPivot($wilayah->id, [
+                'is_active' => true, 
+                'deactivated_at' => null
+            ]);
+        }
 
         return redirect()->back()->with('success', "Berhasil menugaskan HM {$hm->name} ke Wilayah {$wilayah->nama}!");
     }
@@ -117,8 +151,28 @@ class AdminHmWilayahController extends Controller
             return redirect()->back()->with('error', 'User bukan HM.');
         }
 
-        $wilayahNama = $user->wilayah ? $user->wilayah->nama : 'wilayah';
-        $user->update(['wilayah_id' => null]);
+        $wilayahNama = 'wilayah yang dipilih';
+        
+        $wilayahId = request('wilayah_id');
+        if ($wilayahId) {
+            if ($user->wilayah_id == $wilayahId) {
+                $user->update(['wilayah_id' => null]);
+            }
+            if ($user->activeWilayahes()->where('wilayah_id', $wilayahId)->exists()) {
+                $user->activeWilayahes()->updateExistingPivot($wilayahId, ['is_active' => false, 'deactivated_at' => now()]);
+            }
+            $wilayah = Wilayah::find($wilayahId);
+            if ($wilayah) {
+                $wilayahNama = $wilayah->nama;
+            }
+        } else {
+            // Unassign all if no specific wilayah_id provided
+            $user->update(['wilayah_id' => null]);
+            foreach ($user->activeWilayahes as $w) {
+                $user->activeWilayahes()->updateExistingPivot($w->id, ['is_active' => false, 'deactivated_at' => now()]);
+            }
+            $wilayahNama = 'seluruh wilayah';
+        }
 
         return redirect()->back()->with('success', "Penugasan HM {$user->name} dari {$wilayahNama} berhasil dilepas.");
     }

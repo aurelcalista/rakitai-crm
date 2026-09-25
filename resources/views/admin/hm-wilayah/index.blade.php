@@ -128,6 +128,7 @@
                             @if($w->assigned_hm)
                                 <form action="{{ route('admin.hm-wilayah.unassign', $w->assigned_hm->id) }}" method="POST" onsubmit="return confirm('Lepas penugasan HM {{ $w->assigned_hm->name }} dari wilayah {{ $w->nama }}?')">
                                     @csrf
+                                    <input type="hidden" name="wilayah_id" value="{{ $w->id }}">
                                     <button type="submit" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-700 text-slate-500 text-xs font-semibold transition" title="Lepas penugasan HM">
                                         Lepas
                                     </button>
@@ -219,7 +220,7 @@
                                 @endforeach
                             </select>
                             <p class="text-[10px] text-slate-400 mt-1">
-                                Jika HM tersebut sebelumnya memegang wilayah lain, penugasan lama akan dialihkan ke wilayah baru ini.
+                                HM yang dipilih akan ditugaskan ke wilayah ini. HM dapat memegang lebih dari satu wilayah sekaligus.
                             </p>
                         </div>
 

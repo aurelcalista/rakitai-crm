@@ -61,8 +61,8 @@ class Prospek extends Model
                 $prospek->active_follow_up_count = 0;
             }
 
-            // Auto-handover to CS when status enters handover stages ('FORMULIR', 'BERKAS', 'LUNAS')
-            if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS'])) {
+            // Auto-handover to CS when status enters handover stages
+            if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
                     $cs = \App\Models\User::where('role', 'CS')
                         ->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))
@@ -322,8 +322,10 @@ class Prospek extends Model
         'PANAS',
         'FORMULIR',
         'BERKAS',
+        'CLOSING',
         'LUNAS',
         'DINGIN',
+        'CANCEL',
     ];
 
     public const PIPELINE_8_STAGES = self::ACTIVE_STAGES;
@@ -349,15 +351,17 @@ class Prospek extends Model
      * 8 Status Pipeline Standar PMB & Backward-Compatibility Map
      */
     public const STAGES = [
-        // 8 Pipeline Wajib Resmi PMB TA 2027/2028
+        // 8 Pipeline Wajib Resmi PMB TA 2027/2028 + CLOSING & CANCEL
         'BARU'                => 1,
         'KONTAK'              => 2,
         'HANGAT'              => 3,
         'PANAS'               => 4,
         'FORMULIR'            => 5,
         'BERKAS'              => 6,
-        'LUNAS'               => 7,
-        'DINGIN'              => 8,
+        'CLOSING'             => 7,
+        'LUNAS'               => 8,
+        'DINGIN'              => 9,
+        'CANCEL'              => 10,
 
         // Legacy / Backward Compatibility
         'Baru'                => 1,
@@ -553,10 +557,10 @@ class Prospek extends Model
     }
 
     /**
-     * Scope: active prospects (not Lost or Closing).
+     * Scope: active prospects (not Lost, Lunas, or Cancel).
      */
     public function scopeActive($query)
     {
-        return $query->whereNotIn('status', ['DINGIN', 'LUNAS']);
+        return $query->whereNotIn('status', ['DINGIN', 'LUNAS', 'CANCEL']);
     }
 }

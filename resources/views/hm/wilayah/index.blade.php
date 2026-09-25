@@ -5,6 +5,7 @@
     <div class="space-y-6" x-data="{
         modalSpv: false,
         modalTarget: false,
+        modalAddSpv: false,
         selectedWil: null,
         spvList: {{ json_encode($spvCandidates->map(fn($c) => ['id' => (string)$c->id, 'name' => $c->name, 'email' => $c->email])) }},
         spvForm: {
@@ -91,9 +92,15 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Wilayah Saya & Target Wilayah</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola penunjukan SPV dan tentukan Target Wilayah untuk mendistribusikan target ke tim lapangan.</p>
             </div>
-            <span class="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-bold text-xs border border-purple-200">
-                Tahun Akademik: {{ $activeTA->nama ?? '2027/2028' }} (AKTIF)
-            </span>
+            <div class="flex items-center gap-3">
+                <span class="hidden sm:inline-block px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-bold text-xs border border-purple-200">
+                    TA: {{ $activeTA->nama ?? '2027/2028' }}
+                </span>
+                <button type="button" @click="modalAddSpv = true" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span>Tambah SPV Baru</span>
+                </button>
+            </div>
         </div>
 
         <!-- Notification Banner -->
@@ -326,6 +333,44 @@
                             </div>
                         </form>
                     </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: TAMBAH SPV BARU -->
+        <div x-show="modalAddSpv" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalAddSpv = false"></div>
+                <div class="inline-block w-full max-w-lg p-6 my-8 overflow-hidden text-left align-middle bg-white shadow-2xl rounded-2xl relative z-10">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <h3 class="text-base font-bold text-slate-900">Tambah SPV Baru</h3>
+                        <button @click="modalAddSpv = false" class="text-slate-400 hover:text-slate-600 cursor-pointer"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                    </div>
+                    <form action="{{ route('hm.wilayah.storeSpv') }}" method="POST" class="mt-4 space-y-3 text-xs">
+                        @csrf
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap *</label>
+                            <input type="text" name="name" required placeholder="Masukkan Nama Lengkap ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
+                                <input type="email" name="email" required placeholder="Masukkan Email ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor HP *</label>
+                                <input type="tel" name="phone" required placeholder="Masukkan Nomor HP ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Password *</label>
+                            <input type="password" name="password" required placeholder="Masukkan Password (min. 8 karakter)" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                        </div>
+                        <div class="pt-3 border-t border-slate-100 flex justify-end gap-2 mt-4">
+                            <button type="button" @click="modalAddSpv = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">Batal</button>
+                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition cursor-pointer">Simpan SPV</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

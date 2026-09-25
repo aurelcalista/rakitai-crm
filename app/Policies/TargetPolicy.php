@@ -16,16 +16,20 @@ class TargetPolicy
             return true; // Admin HAS GLOBAL ACCESS
         }
 
-        if (is_null($user->wilayah_id)) {
+        $activeWilayahIds = $user->activeWilayahIds();
+        if (empty($activeWilayahIds)) {
             return true;
         }
 
         if ($target->wilayah_id) {
-            return $user->isWithinWilayahScope($target->wilayah_id);
-        }
-
-        if ($target->sales) {
-            return $user->isWithinWilayahScope($target->sales->wilayah_id);
+            $targetWilayah = \App\Models\Wilayah::find($target->wilayah_id);
+            if ($targetWilayah) {
+                foreach ($activeWilayahIds as $hmWilayahId) {
+                    if ($targetWilayah->id == $hmWilayahId || $targetWilayah->isDescendantOf($hmWilayahId)) {
+                        return true;
+                    }
+                }
+            }
         }
 
         return in_array($target->sales_id, $user->hmMemberIds());
@@ -65,13 +69,25 @@ class TargetPolicy
         }
 
         if ($role === 'hm') {
-            if (!$user->wilayah_id) {
+            $activeWilayahIds = $user->activeWilayahIds();
+            if (empty($activeWilayahIds)) {
                 return true; // Global HM without scope restriction
             }
             if (!$wilayahId) {
                 return true;
             }
-            return ($user->wilayah_id == $wilayahId) || (\App\Models\Wilayah::find($wilayahId)?->isDescendantOf($user->wilayah_id) ?? false);
+            
+            $targetWilayah = \App\Models\Wilayah::find($wilayahId);
+            if (!$targetWilayah) {
+                return false;
+            }
+            
+            foreach ($activeWilayahIds as $hmWilayahId) {
+                if ($wilayahId == $hmWilayahId || $targetWilayah->isDescendantOf($hmWilayahId)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         return false;

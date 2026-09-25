@@ -103,15 +103,22 @@
                                 <td class="py-3.5 px-3 text-center font-extrabold text-purple-700 text-sm">
                                     {{ $ind['skor_wilayah'] !== null ? $ind['skor_wilayah'] . '%' : 'N/A' }}
                                 </td>
-                                <td class="py-3.5 px-3 text-center">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold border {{ $ind['grade']['badge'] }}">
-                                        {{ $ind['grade']['code'] === 'N/A' ? 'N/A' : $ind['grade']['code'] . ' — ' . str_replace($ind['grade']['code'] . ' — ', '', $ind['grade']['label']) }}
-                                    </span>
+                                <td class="py-3.5 px-3 text-center align-middle">
+                                    <div class="flex flex-col items-center justify-center gap-1.5 mt-1">
+                                        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold border {{ $ind['grade']['badge'] }}">
+                                            {{ $ind['grade']['code'] === 'N/A' ? 'N/A' : 'Grade ' . $ind['grade']['code'] }}
+                                        </span>
+                                        @if($ind['grade']['code'] !== 'N/A')
+                                            <span class="text-[10px] text-slate-500 font-medium max-w-[100px] leading-tight break-words text-center">
+                                                {{ trim(str_replace($ind['grade']['code'] . ' — ', '', $ind['grade']['label'])) }}
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
-                                <td class="py-3.5 px-4">
-                                    <div class="flex flex-col">
-                                        <span class="font-bold text-slate-800">{{ $ind['matrix']['label'] }}</span>
-                                        <span class="text-[10px] text-slate-400">{{ $ind['matrix']['desc'] }}</span>
+                                <td class="py-3.5 px-4 max-w-[220px] align-middle">
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="font-bold text-slate-800 text-xs leading-tight whitespace-normal">{{ $ind['matrix']['label'] }}</span>
+                                        <span class="text-[10px] text-slate-500 leading-tight whitespace-normal">{{ $ind['matrix']['desc'] }}</span>
                                     </div>
                                 </td>
                             </tr>

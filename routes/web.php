@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
 
     // Role-specific dashboard entry points
     Route::prefix('dashboard')->group(function () {
-        Route::get('/sales', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
+        Route::get('/spv', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
         Route::get('/cs',    [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
         Route::get('/spv',   [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
         Route::get('/hm',    [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
@@ -56,7 +56,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // ──────────────────────────────────────────────────────────────
-    // SALES Role Routes — prefix: /sales, name: sales.*
+    // SALES Role Routes — prefix: /spv, name: sales.*
     // Protected by role:Sales middleware
     // ──────────────────────────────────────────────────────────────
     Route::middleware('role:Sales')
@@ -135,7 +135,7 @@ Route::middleware('auth')->group(function () {
 
             // Team Structure & Directory
             Route::get('/tim', [\App\Http\Controllers\Spv\TeamController::class, 'index'])->name('tim.index');
-            Route::post('/tim/sales', [\App\Http\Controllers\Spv\TeamController::class, 'storeSales'])->name('tim.sales.store');
+            Route::post('/tim/spv', [\App\Http\Controllers\Spv\TeamController::class, 'storeSales'])->name('tim.sales.store');
             Route::post('/tim/assign', [\App\Http\Controllers\Spv\TeamController::class, 'assignMember'])->name('tim.assign');
             Route::post('/tim/territory', [\App\Http\Controllers\Spv\TeamController::class, 'assignTeamTerritory'])->name('tim.territory.assign');
             Route::patch('/tim/{user}/wilayah', [\App\Http\Controllers\Spv\TeamController::class, 'assignWilayah'])->name('tim.wilayah.assign');
@@ -158,6 +158,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/wilayah/{wilayah}/assign-spv', [\App\Http\Controllers\Hm\HmWilayahController::class, 'assignSpv'])->name('wilayah.assignSpv');
         Route::post('/wilayah/{wilayah}/unassign-spv/{spv}', [\App\Http\Controllers\Hm\HmWilayahController::class, 'unassignSpv'])->name('wilayah.unassignSpv');
         Route::post('/wilayah/{wilayah}/target', [\App\Http\Controllers\Hm\HmWilayahController::class, 'setWilayahTarget'])->name('wilayah.setTarget');
+        Route::post('/wilayah/spv', [\App\Http\Controllers\Hm\HmWilayahController::class, 'storeSpv'])->name('wilayah.storeSpv');
+
+        // HM SPV Management
+        Route::get('/spv', [\App\Http\Controllers\Hm\HmSpvController::class, 'index'])->name('spv.index');
+        Route::post('/spv', [\App\Http\Controllers\Hm\HmSpvController::class, 'store'])->name('spv.store');
+        Route::post('/spv/assign', [\App\Http\Controllers\Hm\HmSpvController::class, 'assignTerritory'])->name('spv.territory.assign');
+        Route::patch('/spv/{user}/status', [\App\Http\Controllers\Hm\HmSpvController::class, 'updateStatus'])->name('spv.status.update');
+        Route::delete('/spv/{user}/wilayah/{wilayah}', [\App\Http\Controllers\Hm\HmSpvController::class, 'deactivateTerritory'])->name('spv.territory.deactivate');
 
         // HM Sales Management
         Route::get('/sales', [\App\Http\Controllers\Hm\HmSalesController::class, 'index'])->name('sales.index');
@@ -212,6 +220,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
         Route::resource('perusahaan',  \App\Http\Controllers\Admin\AdminPerusahaanController::class, $except);
+        Route::resource('events',      \App\Http\Controllers\Admin\AdminEventController::class)->except(['create', 'edit']);
+        Route::resource('event-types', \App\Http\Controllers\Admin\AdminEventTypeController::class)->except(['create', 'show', 'edit']);
 
         Route::post('tahun-akademik',                          [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'storeTahunAkademik'])->name('tahun-akademik.store');
         Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'activateTahunAkademik'])->name('tahun-akademik.activate');
@@ -263,6 +273,8 @@ Route::middleware('auth')->group(function () {
         //   Admin → admin.wilayah.* (AdminWilayahController — full CRUD)
         //   HM    → hm.wilayah.*   (HmWilayahController   — assign SPV + set target)
         // The old shared WilayahController is no longer exposed here.
+
+        Route::get('/potensi-wilayah', [\App\Http\Controllers\PotensiWilayahController::class, 'index'])->name('potensi-wilayah.index');
 
         // Performance & Reports
         Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');

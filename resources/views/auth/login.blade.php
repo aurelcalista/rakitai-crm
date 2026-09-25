@@ -54,7 +54,7 @@
                 <div class="mb-5 animate-fade-in-up animation-delay-100">
                     <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                         <span>Selamat Datang Kembali</span>
-                        <span class="inline-block transform hover:rotate-12 transition-transform cursor-default">👋</span>
+                        <span class="inline-block transform hover:rotate-12 transition-transform cursor-default"></span>
                     </h1>
                     <p class="text-xs sm:text-sm text-slate-500 mt-1 font-medium leading-relaxed">
                         Kelola prospek, follow-up, dan performa marketing dalam satu platform.

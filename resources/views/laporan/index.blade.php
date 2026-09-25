@@ -214,8 +214,8 @@
                         <tr class="bg-slate-100/80 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200 print:bg-slate-200 print:text-slate-900">
                             <th class="py-3 px-3 w-10 text-center print:border print:border-slate-400">No</th>
                             <th class="py-3 px-4 print:border print:border-slate-400">Nama Prospek / Sekolah</th>
-                            <th class="py-3 px-3 print:border print:border-slate-400">Tipe</th>
-                            <th class="py-3 px-3 print:border print:border-slate-400">PIC / Kontak</th>
+                            <th class="py-3 px-3 print:border print:border-slate-400">Sumber</th>
+                            <th class="py-3 px-3 print:border print:border-slate-400">Nama Camaba</th>
                             <th class="py-3 px-3 print:border print:border-slate-400">Status Terakhir</th>
                             <th class="py-3 px-3 print:border print:border-slate-400">Sales Incharge</th>
                             <th class="py-3 px-3 print:border print:border-slate-400">CS Incharge</th>

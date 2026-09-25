@@ -109,10 +109,19 @@ class UserPolicy
         }
 
         // Validate HM scope over target Wilayah
-        if ($targetWilayah && $user->wilayah_id) {
-            $isSameOrChild = ($targetWilayah->id == $user->wilayah_id) || $targetWilayah->isDescendantOf($user->wilayah_id);
-            if (!$isSameOrChild) {
-                return false;
+        if ($targetWilayah) {
+            $activeWilayahIds = $user->activeWilayahIds();
+            if (!empty($activeWilayahIds)) {
+                $isSameOrChild = false;
+                foreach ($activeWilayahIds as $hmWilayahId) {
+                    if ($targetWilayah->id == $hmWilayahId || $targetWilayah->isDescendantOf($hmWilayahId)) {
+                        $isSameOrChild = true;
+                        break;
+                    }
+                }
+                if (!$isSameOrChild) {
+                    return false;
+                }
             }
         }
 
@@ -149,10 +158,19 @@ class UserPolicy
             return false;
         }
 
-        if ($targetWilayah && $user->wilayah_id) {
-            $isSameOrChild = ($targetWilayah->id == $user->wilayah_id) || $targetWilayah->isDescendantOf($user->wilayah_id);
-            if (!$isSameOrChild) {
-                return false;
+        if ($targetWilayah) {
+            $activeWilayahIds = $user->activeWilayahIds();
+            if (!empty($activeWilayahIds)) {
+                $isSameOrChild = false;
+                foreach ($activeWilayahIds as $hmWilayahId) {
+                    if ($targetWilayah->id == $hmWilayahId || $targetWilayah->isDescendantOf($hmWilayahId)) {
+                        $isSameOrChild = true;
+                        break;
+                    }
+                }
+                if (!$isSameOrChild) {
+                    return false;
+                }
             }
         }
 

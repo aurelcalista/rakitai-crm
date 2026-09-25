@@ -30,12 +30,7 @@ class PipelineController extends Controller
 
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
-        $pipelineStages = \App\Models\MasterData::where('type', 'status_prospek')
-            ->where('status', 'Aktif')
-            ->whereNotIn('nama', ['DINGIN', 'Ditolak/Batal', 'Ditolak / Batal'])
-            ->orderBy('id')
-            ->pluck('nama')
-            ->toArray();
+        $pipelineStages = \App\Models\Prospek::ACTIVE_STAGES;
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }
@@ -67,6 +62,13 @@ class PipelineController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Prospek dengan status Lost tidak dapat diubah.',
+            ], 422);
+        }
+
+        if ($request->status === 'LUNAS' && strtolower($user->role) === 'sales') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status LUNAS hanya dapat diproses oleh CS. Ubah status menjadi CLOSING untuk melimpahkan ke CS.',
             ], 422);
         }
 

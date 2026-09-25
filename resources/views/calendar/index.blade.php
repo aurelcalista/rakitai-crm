@@ -8,10 +8,20 @@
             <p class="text-sm text-slate-500 mt-1">Jadwal event dan kegiatan operasional tim.</p>
         </div>
         <div class="flex items-center gap-3">
+            <select x-model="agendaFilter" class="text-xs sm:text-sm border-slate-200 rounded-xl bg-slate-50 text-slate-700 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                <option value="Semua">Semua Agenda</option>
+                <option value="Pribadi">Agenda Pribadi</option>
+                <option value="Tim">Agenda Tim</option>
+            </select>
+            <button @click="modalAddAgenda = true" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5">
+                <svg class="w-4 h-4 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                <span>Tambah Agenda</span>
+            </button>
+            <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <button @click="prevMonth()" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm text-slate-600">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <h2 class="text-lg font-bold text-slate-800 w-40 text-center" x-text="monthNames[month] + ' ' + year"></h2>
+            <h2 class="text-sm sm:text-lg font-bold text-slate-800 w-28 sm:w-40 text-center" x-text="monthNames[month] + ' ' + year"></h2>
             <button @click="nextMonth()" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm text-slate-600">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </button>
@@ -150,6 +160,105 @@
         </div>
     </div>
 
+    <!-- Modal Tambah Agenda -->
+    <div x-show="modalAddAgenda" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div x-show="modalAddAgenda" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="modalAddAgenda = false"></div>
+        <div x-show="modalAddAgenda" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="relative bg-white rounded-2xl shadow-xl w-full max-w-xl flex flex-col max-h-[90vh]">
+            <form action="{{ route('calendar.meetings.store') }}" method="POST" class="flex flex-col h-full">
+                @csrf
+                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                    <h3 class="text-lg font-bold text-slate-900">Buat Agenda Baru</h3>
+                    <button type="button" @click="modalAddAgenda = false" class="text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Agenda <span class="text-rose-500">*</span></label>
+                        <input type="text" name="name" required class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-slate-400" placeholder="Contoh: Kunjungan SMA N 1">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Tanggal <span class="text-rose-500">*</span></label>
+                            <input type="date" name="tanggal" required class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Jenis Agenda <span class="text-rose-500">*</span></label>
+                            <select name="jenis" required class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                <option value="Kunjungan Sekolah">Kunjungan Sekolah</option>
+                                <option value="Rapat Internal">Rapat Internal</option>
+                                <option value="Koordinasi">Koordinasi</option>
+                                <option value="Follow Up">Follow Up</option>
+                                <option value="Event">Event</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Mulai <span class="text-rose-500">*</span></label>
+                            <input type="time" name="waktu_mulai" required class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Selesai <span class="text-rose-500">*</span></label>
+                            <input type="time" name="waktu_selesai" required class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Lokasi / Instansi Tujuan</label>
+                        <input type="text" name="lokasi" class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-slate-400" placeholder="Contoh: SMA N 1 Cirebon">
+                    </div>
+                    
+                    @if(isset($bawahan) && count($bawahan) > 0)
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim (Opsional)</label>
+                        <p class="text-[10px] text-slate-500 mb-2">Anggota Tim dikosongkan = Agenda Pribadi.</p>
+                        
+                        <div class="relative" @click.away="dropdownOpen = false">
+                            <div class="w-full border border-slate-200 rounded-xl bg-white p-1.5 flex flex-wrap gap-1.5 min-h-[42px] cursor-text focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow" @click="dropdownOpen = true; $refs.searchInput.focus()">
+                                <template x-for="id in selectedUserIds" :key="id">
+                                    <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-1 rounded-lg">
+                                        <span x-text="getUser(id)?.name"></span>
+                                        <button type="button" @click.stop="removeUser(id)" class="text-blue-400 hover:text-blue-600 focus:outline-none">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                        <input type="hidden" name="assigned_users[]" :value="id">
+                                    </span>
+                                </template>
+                                <input x-ref="searchInput" x-model="searchUser" @focus="dropdownOpen = true" type="text" class="flex-1 min-w-[100px] border-none focus:ring-0 text-sm p-1 placeholder:text-slate-400 bg-transparent" placeholder="Cari & pilih anggota...">
+                            </div>
+                            
+                            <div x-show="dropdownOpen" x-transition class="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                <template x-for="user in filteredUsers" :key="user.id">
+                                    <div @click.stop="toggleUser(user.id)" class="px-3 py-2 cursor-pointer hover:bg-slate-50 flex items-center justify-between border-b border-slate-100 last:border-0">
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-700" x-text="user.name"></div>
+                                            <div class="text-[10px] text-slate-500" x-text="user.role"></div>
+                                        </div>
+                                        <div x-show="selectedUserIds.includes(user.id)" class="text-blue-600">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="filteredUsers.length === 0" class="px-3 py-4 text-center text-sm text-slate-500">
+                                    Tidak ada anggota ditemukan.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Deskripsi Tambahan</label>
+                        <textarea name="deskripsi" rows="2" class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-slate-400" placeholder="Catatan opsional..."></textarea>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
+                    <button type="button" @click="modalAddAgenda = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition shadow-sm">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition shadow-sm">Simpan Agenda</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 <style>
@@ -171,8 +280,36 @@
             calendarDays: [],
             events: [],
             loading: false,
+            agendaFilter: 'Semua',
             modalEventDetail: false,
+            modalAddAgenda: false,
             selectedEvent: null,
+
+            usersList: {!! isset($bawahan) ? json_encode($bawahan) : '[]' !!},
+            selectedUserIds: [],
+            searchUser: '',
+            dropdownOpen: false,
+
+            get filteredUsers() {
+                if (this.searchUser === '') return this.usersList;
+                return this.usersList.filter(u => u.name.toLowerCase().includes(this.searchUser.toLowerCase()) || u.role.toLowerCase().includes(this.searchUser.toLowerCase()));
+            },
+            
+            toggleUser(id) {
+                if (this.selectedUserIds.includes(id)) {
+                    this.selectedUserIds = this.selectedUserIds.filter(i => i !== id);
+                } else {
+                    this.selectedUserIds.push(id);
+                }
+            },
+            
+            removeUser(id) {
+                this.selectedUserIds = this.selectedUserIds.filter(i => i !== id);
+            },
+            
+            getUser(id) {
+                return this.usersList.find(u => u.id === id);
+            },
 
             init() {
                 this.generateCalendar();
@@ -259,7 +396,12 @@
             },
 
             getEventsForDate(dateString) {
-                return this.events.filter(e => e.tanggal === dateString).sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai));
+                return this.events.filter(e => {
+                    if (e.tanggal !== dateString) return false;
+                    if (this.agendaFilter === 'Pribadi') return e.is_personal;
+                    if (this.agendaFilter === 'Tim') return !e.is_personal;
+                    return true;
+                }).sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai));
             },
 
             getEventColor(status) {

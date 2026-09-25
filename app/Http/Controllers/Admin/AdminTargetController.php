@@ -263,7 +263,7 @@ class AdminTargetController extends Controller
             ];
         })->values()->toArray();
 
-        $salesList = User::whereIn('role', ['SPV', 'Sales', 'CS'])->orderBy('role')->orderBy('name')->get();
+        $salesList = User::whereIn('role', ['HM', 'SPV', 'Sales', 'CS'])->orderBy('role')->orderBy('name')->get();
 
         return view('admin.target.index', compact('targets', 'wilayahTree', 'salesList'));
     }
@@ -307,7 +307,7 @@ class AdminTargetController extends Controller
         $targetUser = User::findOrFail($request->sales_id);
         $spvId = $request->spv_id;
 
-        if (strtolower($targetUser->role) === 'spv') {
+        if (strtolower($targetUser->role) === 'spv' || strtolower($targetUser->role) === 'hm') {
             $spvId = $targetUser->id;
             $validated['target_type'] = 'Wilayah';
         } else {
@@ -348,29 +348,65 @@ class AdminTargetController extends Controller
 
         // 4. Validate Target Cascading Constraints
         $ta = $validated['tahun_akademik'] ?? '2027/2028';
-        if (strtolower($targetUser->role) === 'sales' && $spvId) {
-            $spvTarget = Target::where('spv_id', $spvId)
-                ->where('target_type', 'Wilayah')
-                ->where('status', 'Aktif')
-                ->where(function($q) use ($ta) {
-                    $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
-                })
-                ->latest()
-                ->first();
+        $newTargetLunas = (int)($validated['target_lunas'] ?? 0);
 
-            if ($spvTarget && $spvTarget->target_lunas > 0) {
-                $otherSalesAllocated = Target::where('spv_id', $spvId)
-                    ->where('target_type', 'Individual')
+        if (strtolower($targetUser->role) === 'sales' || strtolower($targetUser->role) === 'cs') {
+            if ($spvId) {
+                $spvTarget = Target::where('sales_id', $spvId)
+                    ->where('status', 'Aktif')
+                    ->where(function($q) use ($ta) {
+                        $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                    })
+                    ->latest()
+                    ->first();
+
+                if ($spvTarget && $spvTarget->target_lunas > 0) {
+                    $otherSalesAllocated = Target::where('spv_id', $spvId)
+                        ->where('target_type', 'Individual')
+                        ->where('status', 'Aktif')
+                        ->where(function($q) use ($ta) {
+                            $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                        })
+                        ->sum('target_lunas');
+
+                    if (($otherSalesAllocated + $newTargetLunas) > $spvTarget->target_lunas) {
+                        return redirect()->back()
+                            ->withInput()
+                            ->with('error', "Total alokasi target Sales/CS melebihi Target SPV (" . $spvTarget->target_lunas . ").");
+                    }
+                }
+            }
+        } elseif (strtolower($targetUser->role) === 'spv') {
+            // Check SPV allocation against HM's Global Target
+            $hmUsers = User::where('role', 'HM')->where('status', 'Aktif')->get();
+            $hmTargetTotal = 0;
+            foreach ($hmUsers as $hm) {
+                $hmTarget = Target::where('sales_id', $hm->id)
+                    ->where('status', 'Aktif')
+                    ->where(function($q) use ($ta) {
+                        $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
+                    })
+                    ->latest()
+                    ->first();
+                if ($hmTarget) {
+                    $hmTargetTotal += $hmTarget->target_lunas;
+                }
+            }
+
+            if ($hmTargetTotal > 0) {
+                $otherSpvAllocated = Target::whereHas('sales', function($q) {
+                        $q->where('role', 'SPV');
+                    })
                     ->where('status', 'Aktif')
                     ->where(function($q) use ($ta) {
                         $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik');
                     })
                     ->sum('target_lunas');
 
-                if (($otherSalesAllocated + (int)($validated['target_lunas'] ?? 0)) > $spvTarget->target_lunas) {
+                if (($otherSpvAllocated + $newTargetLunas) > $hmTargetTotal) {
                     return redirect()->back()
                         ->withInput()
-                        ->with('error', "Total alokasi target Sales melebihi Target SPV (" . $spvTarget->target_lunas . ").");
+                        ->with('error', "Total alokasi target SPV melebihi Target Global HM (" . $hmTargetTotal . ").");
                 }
             }
         }

@@ -10,6 +10,7 @@ use App\Models\Wilayah;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Services\AkademikService;
 
 class WilayahPerformanceService
 {
@@ -205,7 +206,7 @@ class WilayahPerformanceService
      */
     public function getWilayahPerformance(Wilayah $wilayah, ?string $tahunAkademik = null): array
     {
-        $activeTA = $tahunAkademik ?: AkademikService::getAktifKode();
+        $activeTA = $tahunAkademik ?: AkademikService::getAktifNama();
         $weights = $this->getWeights();
 
         // 1. Resolve descendant territory IDs (Kota -> Kecamatans)

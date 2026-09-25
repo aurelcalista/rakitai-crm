@@ -291,9 +291,17 @@ class User extends Authenticatable
     {
         $subordinateIds = $this->subordinates()->where('role', 'Sales')->pluck('id')->toArray();
 
-        if ($this->wilayah_id) {
-            $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
-            $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
+        $activeWilayahIds = $this->activeWilayahIds();
+        if (!empty($activeWilayahIds)) {
+            $descendantWilayahIds = [];
+            foreach ($activeWilayahIds as $wid) {
+                $wilayah = Wilayah::find($wid);
+                if ($wilayah) {
+                    $descendantWilayahIds = array_merge($descendantWilayahIds, $wilayah->getDescendantIds());
+                }
+                $descendantWilayahIds[] = $wid;
+            }
+            $descendantWilayahIds = array_unique($descendantWilayahIds);
 
             $wilayahMemberIds = User::where('role', 'Sales')
                 ->where(function ($q) use ($descendantWilayahIds) {
@@ -327,9 +335,17 @@ class User extends Authenticatable
             return User::pluck('id')->toArray(); // Admin = global
         }
 
-        if ($this->wilayah_id) {
-            $mainWilayah = $this->wilayah ?? Wilayah::find($this->wilayah_id);
-            $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [$this->wilayah_id];
+        $activeWilayahIds = $this->activeWilayahIds();
+        if (!empty($activeWilayahIds)) {
+            $descendantWilayahIds = [];
+            foreach ($activeWilayahIds as $wid) {
+                $wilayah = Wilayah::find($wid);
+                if ($wilayah) {
+                    $descendantWilayahIds = array_merge($descendantWilayahIds, $wilayah->getDescendantIds());
+                }
+                $descendantWilayahIds[] = $wid;
+            }
+            $descendantWilayahIds = array_unique($descendantWilayahIds);
 
             return User::where(function($q) use ($descendantWilayahIds) {
                 $q->whereIn('wilayah_id', $descendantWilayahIds)
@@ -366,8 +382,17 @@ class User extends Authenticatable
     public function teamProspeks()
     {
         $memberIds = $this->teamMemberIds();
-        $mainWilayah = $this->wilayah ?? ($this->wilayah_id ? Wilayah::find($this->wilayah_id) : null);
-        $descendantWilayahIds = $mainWilayah ? $mainWilayah->getDescendantIds() : [];
+        $activeWilayahIds = $this->activeWilayahIds();
+        $descendantWilayahIds = [];
+        
+        foreach ($activeWilayahIds as $wid) {
+            $wilayah = Wilayah::find($wid);
+            if ($wilayah) {
+                $descendantWilayahIds = array_merge($descendantWilayahIds, $wilayah->getDescendantIds());
+            }
+            $descendantWilayahIds[] = $wid;
+        }
+        $descendantWilayahIds = array_unique($descendantWilayahIds);
 
         return Prospek::where(function ($q) use ($memberIds, $descendantWilayahIds) {
             $q->whereIn('sales_id', $memberIds)

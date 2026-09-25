@@ -14,7 +14,7 @@ class CalendarController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $pageTitle = 'Kalender Internal';
+        $pageTitle = 'Agenda CRM';
         $currentUser = [
             'name' => $user->name,
             'role' => $user->role,
@@ -22,7 +22,16 @@ class CalendarController extends Controller
             'avatar' => strtoupper(substr($user->name, 0, 1)),
         ];
 
-        return view('calendar.index', compact('pageTitle', 'currentUser'));
+        // Prepare data for the Add Agenda modal
+        $bawahan = collect();
+        if (in_array(strtolower($user->role), ['hm', 'admin'])) {
+            $bawahan = \App\Models\User::whereIn('role', ['SPV', 'Sales', 'CS'])->where('status', 'Aktif')->orderBy('name')->get();
+        } elseif (strtolower($user->role) === 'spv') {
+            $teamIds = $user->teamMemberIds();
+            $bawahan = \App\Models\User::whereIn('id', $teamIds)->where('status', 'Aktif')->orderBy('name')->get();
+        }
+
+        return view('calendar.index', compact('pageTitle', 'currentUser', 'bawahan'));
     }
 
     /**
@@ -37,19 +46,13 @@ class CalendarController extends Controller
 
         if ($role === 'admin') {
             // Admin sees all
-        } elseif ($role === 'eo') {
-            $query->where(function($q) use ($user) {
-                $q->where('eo_id', $user->id)
-                  ->orWhereHas('sales', function ($sq) use ($user) { $sq->where('users.id', $user->id); });
-            });
         } elseif (in_array($role, ['hm', 'head marketing'])) {
             $hmTeamIds = $user->hmMemberIds();
             $hmTeamIds[] = $user->id;
             $query->where(function($q) use ($user, $hmTeamIds) {
                 $q->where('eo_id', $user->id)
-                  ->orWhereIn('eo_id', $hmTeamIds)
-                  ->orWhereHas('spvs', function ($sq) use ($hmTeamIds) { $sq->whereIn('users.id', $hmTeamIds); })
-                  ->orWhereHas('sales', function ($sq) use ($hmTeamIds) { $sq->whereIn('users.id', $hmTeamIds); });
+                  ->orWhereHas('sales', function ($sq) use ($hmTeamIds) { $sq->whereIn('users.id', $hmTeamIds); })
+                  ->orWhereHas('spvs', function ($sq) use ($hmTeamIds) { $sq->whereIn('users.id', $hmTeamIds); });
             });
         } elseif (in_array($role, ['spv', 'supervisor', 'supervisor marketing'])) {
             $spvTeamIds = $user->teamMemberIds();
@@ -65,18 +68,30 @@ class CalendarController extends Controller
                   ->orWhereHas('sales', function ($sq) use ($user) { $sq->where('users.id', $user->id); });
             });
         } else {
-            $query->where('id', -1);
+            $query->where('eo_id', $user->id);
         }
 
-        $events = $query->get()->map(function ($event) {
+        $events = $query->get()->map(function ($event) use ($user) {
             $start = \Carbon\Carbon::parse($event->tanggal_mulai);
             $end = \Carbon\Carbon::parse($event->tanggal_selesai);
 
-            $jenisLabel = $event->type ? $event->type->nama : ($event->jenis_institusi ?: 'Meeting / Internal Schedule');
+            $jenisLabel = $event->type ? $event->type->nama : ($event->jenis_institusi ?: 'Agenda / Meeting');
+            $title = $event->nama ?: $event->name;
+            
+            // Extract custom jenis from title if it was prefixed with [Jenis]
+            if (preg_match('/^\[(.*?)\]\s*(.*)$/', $title, $matches)) {
+                $jenisLabel = $matches[1];
+                $title = $matches[2];
+            }
+            
+            $salesIds = $event->sales->pluck('id')->toArray();
+            $isCreator = $event->eo_id === $user->id;
+            // Personal if creator and no one else is assigned, or only creator is assigned.
+            $isPersonal = $isCreator && (count($salesIds) === 0 || (count($salesIds) === 1 && in_array($user->id, $salesIds)));
 
             return [
                 'id'            => $event->id,
-                'title'         => $event->nama ?: $event->name,
+                'title'         => $title,
                 'start'         => $start->format('Y-m-d\TH:i:s'),
                 'end'           => $end->format('Y-m-d\TH:i:s'),
                 'tanggal'       => $start->format('Y-m-d'),
@@ -87,6 +102,7 @@ class CalendarController extends Controller
                 'jenis'         => $jenisLabel,
                 'eo_name'       => $event->eo ? $event->eo->name : '-',
                 'status'        => $event->status,
+                'is_personal'   => $isPersonal,
                 'spvs'          => $event->spvs->map(fn($spv) => ['id' => $spv->id, 'name' => $spv->name]),
                 'sales'         => $event->sales->map(fn($s) => ['id' => $s->id, 'name' => $s->name]),
             ];
@@ -112,7 +128,9 @@ class CalendarController extends Controller
             'waktu_selesai' => 'required|date_format:H:i|after:waktu_mulai',
             'lokasi'        => 'nullable|string|max:255',
             'deskripsi'     => 'nullable|string',
-            'jenis'         => 'nullable|string|max:100',
+            'jenis'         => 'required|string|max:100',
+            'assigned_users'=> 'nullable|array',
+            'assigned_users.*' => 'exists:users,id',
         ], [
             'waktu_selesai.after' => 'Waktu selesai harus setelah waktu mulai.',
         ]);
@@ -120,27 +138,38 @@ class CalendarController extends Controller
         $startStr = $request->tanggal . ' ' . $request->waktu_mulai . ':00';
         $endStr = $request->tanggal . ' ' . $request->waktu_selesai . ':00';
 
-        // Validate Minimum 1-Hour Gap / Overlap Conflict
-        $assignmentService = new \App\Services\EventAssignmentService();
-        $assignmentService->validateSalesSchedule($user->id, $request->tanggal, $request->waktu_mulai, $request->waktu_selesai);
+        $namaAgenda = $request->name;
+        $jenisInstitusi = in_array($request->jenis, ['Sekolah', 'Perusahaan']) ? $request->jenis : null;
+        
+        // If it's a custom type not in the enum, embed it in the name so we can retrieve it later
+        if (!$jenisInstitusi && $request->jenis && $request->jenis !== 'Lainnya') {
+            $namaAgenda = '[' . $request->jenis . '] ' . $namaAgenda;
+        }
 
         $event = Event::create([
-            'name'            => $request->name,
-            'nama'            => $request->name,
+            'name'            => $namaAgenda,
+            'nama'            => $namaAgenda,
             'tanggal'         => $request->tanggal,
             'waktu_mulai'     => $request->waktu_mulai,
             'waktu_selesai'   => $request->waktu_selesai,
             'tanggal_mulai'   => $startStr,
             'tanggal_selesai' => $endStr,
-            'lokasi'          => $request->lokasi ?: 'Kantor UCIC / Online Meeting',
+            'lokasi'          => $request->lokasi,
             'deskripsi'       => $request->deskripsi,
-            'jenis_institusi' => in_array($request->jenis, ['Sekolah', 'Perusahaan']) ? $request->jenis : null,
+            'jenis_institusi' => $jenisInstitusi,
             'eo_id'           => $user->id,
             'status'          => 'Scheduled',
         ]);
 
-        $event->sales()->attach($user->id, ['assigned_by_spv_id' => $user->id]);
+        $assignedIds = $request->input('assigned_users', []);
+        
+        // Always assign the creator if they didn't assign anyone else, or if they explicitly assigned themselves
+        if (empty($assignedIds)) {
+            $assignedIds[] = $user->id;
+        }
 
-        return redirect()->back()->with('success', "Kegiatan/Meeting '{$event->nama}' berhasil dijadwalkan!");
+        $event->sales()->attach($assignedIds, ['assigned_by_spv_id' => $user->id]);
+
+        return redirect()->back()->with('success', "Agenda '{$event->nama}' berhasil dijadwalkan!");
     }
 }

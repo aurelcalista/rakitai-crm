@@ -23,24 +23,26 @@ class HmCsController extends Controller
         $user = auth()->user();
 
         // 1. Resolve HM's Kota/Kabupaten scope
-        $mainWilayah = $user->wilayah_id ? Wilayah::find($user->wilayah_id) : null;
-        $hmKotaId = null;
-        if ($mainWilayah) {
-            if ($mainWilayah->level === 'Kota/Kabupaten') {
-                $hmKotaId = $mainWilayah->id;
-            } elseif ($mainWilayah->parent_id) {
-                $hmKotaId = $mainWilayah->parent_id;
+        $activeWilayahIds = $user->activeWilayahIds();
+        $hmKotas = Wilayah::whereIn('id', $activeWilayahIds)->get();
+        
+        $myWilayah = $hmKotas->isNotEmpty() ? $hmKotas->pluck('nama')->join(', ') : 'Semua Wilayah (Global HM/Admin)';
+        
+        $descendantWilayahIds = [];
+        if ($hmKotas->isNotEmpty()) {
+            foreach ($hmKotas as $kota) {
+                $descendantWilayahIds = array_merge($descendantWilayahIds, $kota->getDescendantIds());
             }
+            $descendantWilayahIds = array_unique($descendantWilayahIds);
+        } else {
+            $descendantWilayahIds = Wilayah::pluck('id')->toArray();
         }
-
-        $hmKota = $hmKotaId ? Wilayah::find($hmKotaId) : $mainWilayah;
-        $myWilayah = $hmKota ? $hmKota->nama : ($user->wilayah ? $user->wilayah->nama : 'Semua Wilayah (Global HM/Admin)');
-        $descendantWilayahIds = $hmKota ? $hmKota->getDescendantIds() : Wilayah::pluck('id')->toArray();
 
         // 2. Fetch active Kecamatan list under HM scope
         $kecamatanList = collect();
-        if ($hmKotaId) {
-            $kecamatanList = Wilayah::where('parent_id', $hmKotaId)
+        if ($hmKotas->isNotEmpty()) {
+            $hmKotaIds = $hmKotas->pluck('id')->toArray();
+            $kecamatanList = Wilayah::whereIn('parent_id', $hmKotaIds)
                 ->where('level', 'Kecamatan')
                 ->where('status', 'Aktif')
                 ->orderBy('nama')
@@ -67,14 +69,14 @@ class HmCsController extends Controller
             ->orderBy('name')
             ->get();
 
-        $csData = $csUsers->map(function ($cs) use ($hmKota, $hmKotaId, $user) {
+        $csData = $csUsers->map(function ($cs) use ($hmKotas, $user) {
             if (empty($cs->kode)) {
                 $cs->kode = User::generateUserCode('CS');
                 $cs->save();
             }
 
             // Auto-assign CS without wilayah_id to HM's Wilayah scope
-            $targetWilayahId = $hmKotaId ?? ($user->wilayah_id ?? null);
+            $targetWilayahId = $hmKotas->first()?->id ?? null;
             if (empty($cs->wilayah_id) && $targetWilayahId) {
                 $cs->wilayah_id = $targetWilayahId;
                 $cs->save();
@@ -121,8 +123,8 @@ class HmCsController extends Controller
                 }
             }
 
-            if (!$kotaName && $hmKota) {
-                $kotaName = $hmKota->nama;
+            if (!$kotaName && $hmKotas->isNotEmpty()) {
+                $kotaName = $hmKotas->first()->nama;
             }
 
             return [
@@ -190,15 +192,8 @@ class HmCsController extends Controller
 
         return DB::transaction(function () use ($request, $hm) {
             // Resolve HM Kota ID scope
-            $mainWilayah = $hm->wilayah_id ? Wilayah::find($hm->wilayah_id) : null;
-            $hmKotaId = null;
-            if ($mainWilayah) {
-                if ($mainWilayah->level === 'Kota/Kabupaten') {
-                    $hmKotaId = $mainWilayah->id;
-                } elseif ($mainWilayah->parent_id) {
-                    $hmKotaId = $mainWilayah->parent_id;
-                }
-            }
+            $activeWilayahIds = $hm->activeWilayahIds();
+            $hmKotaIds = Wilayah::whereIn('id', $activeWilayahIds)->pluck('id')->toArray();
 
             $selectedAreaIds = array_filter((array) ($request->cs_area_ids ?? []));
 
@@ -209,13 +204,22 @@ class HmCsController extends Controller
                     if (str_contains(strtolower($area->nama), 'lainnya') || $area->kode === 'W-LAIN') {
                         abort(403, 'Kota Lainnya tidak dapat dijadikan wilayah operasional.');
                     }
-                    if ($hmKotaId && strtolower($hm->role) !== 'admin' && !$area->isDescendantOf($hmKotaId) && $area->id != $hmKotaId && $area->id != $hm->wilayah_id) {
-                        abort(403, 'Area penugasan berada di luar cakupan Wilayah HM.');
+                    if (!empty($hmKotaIds) && strtolower($hm->role) !== 'admin') {
+                        $isWithin = false;
+                        foreach ($hmKotaIds as $hmKotaId) {
+                            if ($area->isDescendantOf($hmKotaId) || $area->id == $hmKotaId) {
+                                $isWithin = true;
+                                break;
+                            }
+                        }
+                        if (!$isWithin) {
+                            abort(403, 'Area penugasan berada di luar cakupan Wilayah HM.');
+                        }
                     }
                 }
             }
 
-            $defaultWilayahId = $hmKotaId ?? ($hm->wilayah_id ?? null);
+            $defaultWilayahId = !empty($hmKotaIds) ? $hmKotaIds[0] : null;
             $primaryAreaId = !empty($selectedAreaIds) ? $selectedAreaIds[0] : $defaultWilayahId;
 
             // Create CS User with automatic role = CS & jabatan = CS
@@ -276,16 +280,20 @@ class HmCsController extends Controller
         $selectedAreaIds = array_filter((array) ($request->cs_area_ids ?? []));
 
         // Resolve HM Scope
-        $mainWilayah = $hm->wilayah_id ? Wilayah::find($hm->wilayah_id) : null;
-        $hmKotaId = null;
-        if ($mainWilayah) {
-            $hmKotaId = $mainWilayah->level === 'Kota/Kabupaten' ? $mainWilayah->id : $mainWilayah->parent_id;
-        }
+        $activeWilayahIds = $hm->activeWilayahIds();
+        $hmKotaIds = Wilayah::whereIn('id', $activeWilayahIds)->pluck('id')->toArray();
 
-        if (!empty($selectedAreaIds) && $hmKotaId && strtolower($hm->role) !== 'admin') {
+        if (!empty($selectedAreaIds) && !empty($hmKotaIds) && strtolower($hm->role) !== 'admin') {
             foreach ($selectedAreaIds as $areaId) {
                 $area = Wilayah::findOrFail($areaId);
-                if (!$area->isDescendantOf($hmKotaId) && $area->id != $hmKotaId && $area->id != $hm->wilayah_id) {
+                $isWithin = false;
+                foreach ($hmKotaIds as $hmKotaId) {
+                    if ($area->isDescendantOf($hmKotaId) || $area->id == $hmKotaId) {
+                        $isWithin = true;
+                        break;
+                    }
+                }
+                if (!$isWithin) {
                     abort(403, 'Area penugasan berada di luar cakupan Wilayah HM.');
                 }
             }
@@ -309,7 +317,13 @@ class HmCsController extends Controller
             ]);
 
             // Deactivate areas under HM scope no longer selected
-            $hmDescendantIds = $hmKotaId ? Wilayah::find($hmKotaId)->getDescendantIds() : Wilayah::pluck('id')->toArray();
+            $hmDescendantIds = [];
+            foreach ($hmKotaIds as $hmKotaId) {
+                $hmDescendantIds = array_merge($hmDescendantIds, Wilayah::find($hmKotaId)->getDescendantIds());
+            }
+            if (empty($hmDescendantIds)) {
+                $hmDescendantIds = Wilayah::pluck('id')->toArray();
+            }
 
             DB::table('user_wilayah')
                 ->where('user_id', $cs->id)

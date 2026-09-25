@@ -37,7 +37,15 @@
                 <p class="text-xs text-slate-500 mt-0.5">Ringkasan cepat konversi lead inbound, performa unit sales, dan kemitraan UCIC 2026/2027.</p>
             </div>
             
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+                <form action="{{ route('dashboard.hm') }}" method="GET" class="flex items-center" id="filterSpvForm">
+                    <select name="spv_id" onchange="document.getElementById('filterSpvForm').submit()" class="text-xs rounded-xl border-slate-200 shadow-sm focus:border-purple-500 focus:ring focus:ring-purple-200 transition py-2 pl-3 pr-8">
+                        <option value="">Semua SPV</option>
+                        @foreach($spvs as $spv)
+                            <option value="{{ $spv->id }}" {{ request('spv_id') == $spv->id ? 'selected' : '' }}>{{ $spv->name }}</option>
+                        @endforeach
+                    </select>
+                </form>
                 <a 
                     href="{{ route('admin.target.index') }}"
                     class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5"

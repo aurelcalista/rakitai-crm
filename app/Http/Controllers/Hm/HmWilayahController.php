@@ -21,11 +21,11 @@ class HmWilayahController extends Controller
     {
         $user = auth()->user();
 
-        $mainWilayah = $user->wilayah_id ? Wilayah::find($user->wilayah_id) : null;
+        $activeWilayahIds = $user->activeWilayahIds();
 
-        if ($mainWilayah) {
+        if (count($activeWilayahIds) > 0) {
             // HM mengelola level Kota/Kabupaten yang menjadi tanggung jawabnya
-            $wilayahs = Wilayah::where('id', $mainWilayah->id)
+            $wilayahs = Wilayah::whereIn('id', $activeWilayahIds)
                 ->with(['children', 'users' => function($q) {
                     $q->whereIn('role', ['SPV', 'Sales', 'CS']);
                 }])
@@ -105,6 +105,30 @@ class HmWilayahController extends Controller
             ]);
 
         return redirect()->back()->with('success', "Penugasan SPV {$spv->name} dari Wilayah {$wilayah->nama} telah dinonaktifkan.");
+    }
+
+    /**
+     * HM Create new SPV Account
+     */
+    public function storeSpv(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email',
+            'phone'    => 'required|string|max:20',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $spv = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'phone'    => $request->phone,
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+            'role'     => 'SPV',
+            'status'   => 'Aktif',
+        ]);
+
+        return redirect()->back()->with('success', 'Akun SPV ' . $spv->name . ' berhasil dibuat.');
     }
 
     /**
