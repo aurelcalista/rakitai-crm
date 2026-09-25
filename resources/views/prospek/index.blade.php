@@ -97,7 +97,31 @@
 
             <!-- Filter Dropdowns & Chips -->
             <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+                <!-- Takeover Filter -->
+                <select x-model="selectedTakeover" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                    <option value="all">Semua Takeover</option>
+                    <option value="sales">Takeover Sales</option>
+                    <option value="cs">Takeover CS</option>
+                </select>
                 
+                @if(isset($isHm) && $isHm)
+                <!-- Filter SPV -->
+                <select @change="window.location.href = '?spv_id=' + $event.target.value" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">Semua SPV</option>
+                    @foreach($spvs as $spv)
+                        <option value="{{ $spv->id }}" {{ request('spv_id') == $spv->id ? 'selected' : '' }}>{{ $spv->name }}</option>
+                    @endforeach
+                </select>
+
+                <!-- Filter Sales -->
+                <select @change="window.location.href = '?spv_id={{ request('spv_id') }}&sales_id=' + $event.target.value" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                    <option value="">Semua Sales</option>
+                    @foreach($salesList as $s)
+                        <option value="{{ $s->id }}" {{ request('sales_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+                @endif
+
                 <!-- Status Filter -->
                 <select x-model="selectedStatus" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
                     <option value="all">Semua Status</option>
@@ -114,17 +138,11 @@
                     <option value="Individu">Individu</option>
                 </select>
 
-                <!-- Takeover Filter -->
-                <select x-model="selectedTakeover" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                    <option value="all">Semua Takeover</option>
-                    <option value="sales">Takeover Sales</option>
-                    <option value="cs">Takeover CS</option>
-                </select>
 
                 <!-- Reset Filter Button -->
                 <button 
                     type="button" 
-                    @click="selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; searchQuery = ''"
+                    @click="selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
                     class="ml-auto text-slate-400 hover:text-slate-600 font-medium px-2 py-1"
                 >
                     Reset Filter

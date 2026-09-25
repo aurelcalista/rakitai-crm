@@ -526,8 +526,8 @@ class TeamController extends Controller
                 'password'      => \Illuminate\Support\Facades\Hash::make($rawPassword),
                 'role'          => 'Sales',
                 'jabatan'       => 'Sales',
-                'status'        => 'Aktif',
-                'kode'          => User::generateUserCode('Sales'),
+                'status'        => 'Pending',
+                'kode'          => null,
                 'supervisor_id' => $spv->id,
                 'wilayah_id'    => $primaryAreaId,
             ]);
@@ -540,8 +540,23 @@ class TeamController extends Controller
                 );
             }
 
+            // Send Notification to Admin and HM
+            $approvers = User::whereIn('role', ['Admin', 'HM'])->get();
+            foreach ($approvers as $approver) {
+                $approver->notify(new \App\Notifications\CrmActivityNotification(
+                    'Persetujuan Sales Baru',
+                    "SPV {$spv->name} menambahkan Sales baru ({$sales->name}) dan menunggu persetujuan Anda.",
+                    'info',
+                    route('admin.users.index'),
+                    '👨‍💼',
+                    $spv->name,
+                    $spv->role,
+                    'Menambahkan Sales'
+                ));
+            }
+
             return redirect()->route('spv.tim.index')
-                ->with('success', "Sales baru {$sales->name} ({$sales->kode}) berhasil dibuat dengan password awal '123'!");
+                ->with('success', "Sales baru {$sales->name} berhasil didaftarkan dan menunggu ACC dari Admin atau HM!");
         });
     }
 }

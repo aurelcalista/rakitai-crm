@@ -686,7 +686,7 @@ class CrmController extends Controller
             $request->session()->put('user_role', 'cs');
         }
         
-        $prospects = $this->getDbProspects();
+        $prospects = $this->getDbProspects(request());
         
         $today = now()->toDateString();
         $followUpTodayCount = 0;
@@ -1010,7 +1010,7 @@ class CrmController extends Controller
     /**
      * Daftar Prospek (Scoped to authenticated user role / team hierarchy).
      */
-    private function getDbProspects()
+    private function getDbProspects(?Request $request = null)
     {
         $user = auth()->user();
         $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'followUps' => function($q) {
@@ -1038,8 +1038,37 @@ class CrmController extends Controller
                       ->orWhereNotNull('sales_id');
                 });
             } elseif (in_array($role, ['hm', 'eo'])) {
-                if ($user->wilayah_id) {
-                    $query->where('wilayah_id', $user->wilayah_id);
+                if ($role === 'hm') {
+                    $hmMemberIds = $user->hmMemberIds();
+                    
+                    if ($request && $request->sales_id) {
+                        $query->where('sales_id', $request->sales_id);
+                    } elseif ($request && $request->spv_id) {
+                        $spvSalesIds = \App\Models\User::where('supervisor_id', $request->spv_id)
+                                          ->where('role', 'Sales')
+                                          ->pluck('id')->toArray();
+                        $query->whereIn('sales_id', $spvSalesIds);
+                    } else {
+                        // See all prospects whose sales are under SPVs in HM's scope
+                        $spvsInScope = \App\Models\User::whereIn('id', $hmMemberIds)->where('role', 'SPV')->pluck('id')->toArray();
+                        $salesInScope = \App\Models\User::whereIn('supervisor_id', $spvsInScope)->where('role', 'Sales')->pluck('id')->toArray();
+                        // Also include Sales who might have explicitly matched HM's wilayah_id
+                        $directSalesInScope = \App\Models\User::whereIn('id', $hmMemberIds)->where('role', 'Sales')->pluck('id')->toArray();
+                        
+                        $allSalesInScope = array_unique(array_merge($salesInScope, $directSalesInScope));
+                        
+                        $query->where(function($q) use ($allSalesInScope, $user) {
+                            $q->whereIn('sales_id', $allSalesInScope);
+                            if ($user->wilayah_id) {
+                                // Also include any prospects explicitly assigned to HM's wilayah
+                                $q->orWhere('wilayah_id', $user->wilayah_id);
+                            }
+                        });
+                    }
+                } else {
+                    if ($user->wilayah_id) {
+                        $query->where('wilayah_id', $user->wilayah_id);
+                    }
                 }
             }
         }
@@ -1091,12 +1120,35 @@ class CrmController extends Controller
 
     public function prospekIndex(Request $request): View
     {
-        $prospects = $this->getDbProspects();
+        $prospects = $this->getDbProspects($request);
         $sekolahs = \App\Models\Sekolah::where('status', 'Aktif')->get();
         $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
         $statuses = \App\Models\Prospek::ACTIVE_STAGES;
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses'));
+        $user = auth()->user();
+        $isHm = $user && strtolower($user->role) === 'hm';
+        $spvs = [];
+        $salesList = [];
+
+        if ($isHm) {
+            $hmMemberIds = $user->hmMemberIds();
+            $spvs = \App\Models\User::where('role', 'SPV')->whereIn('id', $hmMemberIds)->get();
+            
+            if ($request->spv_id) {
+                $salesList = \App\Models\User::where('role', 'Sales')
+                    ->where('supervisor_id', $request->spv_id)
+                    ->get();
+            } else {
+                $spvIds = $spvs->pluck('id')->toArray();
+                $salesList = \App\Models\User::where('role', 'Sales')
+                    ->where(function($q) use ($spvIds, $hmMemberIds) {
+                        $q->whereIn('supervisor_id', $spvIds)
+                          ->orWhereIn('id', $hmMemberIds);
+                    })->get();
+            }
+        }
+
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList'));
     }
 
     public function prospekStore(Request $request)
@@ -1549,7 +1601,7 @@ class CrmController extends Controller
      */
     public function followUpIndex(): View
     {
-        $allProspects = collect($this->getDbProspects());
+        $allProspects = collect($this->getDbProspects(request()));
         $today = now()->toDateString();
         
         $prospects = [

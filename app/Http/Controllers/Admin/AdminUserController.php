@@ -129,8 +129,9 @@ class AdminUserController extends Controller
      */
     public function approve(User $user)
     {
-        if (strtolower(auth()->user()->role) !== 'admin') {
-            abort(403, 'Hanya Admin yang berwenang melakukan ACC/Approval user baru.');
+        $authUser = auth()->user();
+        if (!in_array(strtolower($authUser->role), ['admin', 'hm'])) {
+            abort(403, 'Hanya Admin dan HM yang berwenang melakukan ACC/Approval user baru.');
         }
 
         if ($user->status === 'Aktif') {
@@ -156,8 +157,9 @@ class AdminUserController extends Controller
      */
     public function reject(User $user)
     {
-        if (strtolower(auth()->user()->role) !== 'admin') {
-            abort(403, 'Hanya Admin yang berwenang menolak pendaftaran user.');
+        $authUser = auth()->user();
+        if (!in_array(strtolower($authUser->role), ['admin', 'hm'])) {
+            abort(403, 'Hanya Admin dan HM yang berwenang menolak pendaftaran user.');
         }
 
         $user->update(['status' => 'Nonaktif']);
