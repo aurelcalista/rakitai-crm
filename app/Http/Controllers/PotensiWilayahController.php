@@ -23,19 +23,19 @@ class PotensiWilayahController extends Controller
             }])
             ->orderBy('nama');
 
-        if ($user->role === 'SPV') {
-            $spvWilayahIds = $user->activeWilayahes()->pluck('wilayah_id')->toArray();
-            if ($user->wilayah_id) {
-                $spvWilayahIds[] = $user->wilayah_id;
-            }
+        if (in_array($user->role, ['SPV', 'HM'])) {
+            $wilayahIds = $user->activeWilayahIds();
             
-            if (!empty($spvWilayahIds)) {
-                $query->where(function($q) use ($spvWilayahIds) {
-                    $q->whereIn('id', $spvWilayahIds)
-                      ->orWhereHas('children', function($cq) use ($spvWilayahIds) {
-                          $cq->whereIn('id', $spvWilayahIds);
+            if (!empty($wilayahIds)) {
+                $query->where(function($q) use ($wilayahIds) {
+                    $q->whereIn('id', $wilayahIds)
+                      ->orWhereHas('children', function($cq) use ($wilayahIds) {
+                          $cq->whereIn('id', $wilayahIds);
                       });
                 });
+            } else {
+                // Ensure no data is shown if no wilayah is assigned to SPV/HM
+                $query->whereRaw('1 = 0');
             }
         }
         
