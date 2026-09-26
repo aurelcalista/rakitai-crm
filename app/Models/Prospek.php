@@ -65,7 +65,6 @@ class Prospek extends Model
             if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
                     $cs = \App\Models\User::where('role', 'CS')
-                        ->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))
                         ->where('status', 'Aktif')
                         ->first();
                         

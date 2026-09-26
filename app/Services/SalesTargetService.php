@@ -116,19 +116,22 @@ class SalesTargetService
         $taId      = $target->academic_year_id ?? AkademikService::getAktifId();
 
         // 1. Daily Kontak
+        $elapsedDays = max(0, $start->startOfDay()->diffInDays($now->copy()->startOfDay()));
         if ($target->tipe_periode === 'Harian') {
             $dailyKontak = (int) $target->target_kontak;
+            $dailyFollowup = (int) $target->target_followup;
+            $expectedKontak   = $dailyKontak * $elapsedDays;
+            $expectedFollowup = $dailyFollowup * $elapsedDays;
         } else {
-            $dailyKontak = (int) ceil($target->target_kontak / $totalDays);
+            $expectedKontak = (int) floor(($target->target_kontak * $elapsedDays) / $totalDays);
+            $expectedFollowup = (int) floor(($target->target_followup * $elapsedDays) / $totalDays);
+            
+            $nextExpectedKontak = (int) floor(($target->target_kontak * ($elapsedDays + 1)) / $totalDays);
+            $nextExpectedFollowup = (int) floor(($target->target_followup * ($elapsedDays + 1)) / $totalDays);
+            
+            $dailyKontak = max(0, $nextExpectedKontak - $expectedKontak);
+            $dailyFollowup = max(0, $nextExpectedFollowup - $expectedFollowup);
         }
-
-        $dailyFollowup = $target->tipe_periode === 'Harian'
-            ? (int) $target->target_followup
-            : (int) ceil($target->target_followup / $totalDays);
-
-        $elapsedDays = max(0, $start->startOfDay()->diffInDays($now->copy()->startOfDay()));
-        $expectedKontak   = $dailyKontak * $elapsedDays;
-        $expectedFollowup = $dailyFollowup * $elapsedDays;
 
         $achievedUpToYesterday = $this->getAchievementUpToDate($sales, $target, $now->copy()->subDay(), $taId);
 
@@ -154,14 +157,15 @@ class SalesTargetService
         $pencapaianFollowupHariIni = max(0, $achievedToday['follow_up'] - $achievedUpToYesterday['follow_up']);
 
         // 2. Weekly Formulir (strictly independent)
+        $elapsedWeeks = (int) floor($elapsedDays / 7);
         if ($target->tipe_periode === 'Mingguan') {
             $weeklyFormulir = (int) $target->target_formulir;
+            $expectedFormulir = $weeklyFormulir * $elapsedWeeks;
         } else {
-            $weeklyFormulir = (int) ceil($target->target_formulir / $totalWeeks);
+            $expectedFormulir = (int) floor(($target->target_formulir * $elapsedWeeks) / $totalWeeks);
+            $nextExpectedFormulir = (int) floor(($target->target_formulir * ($elapsedWeeks + 1)) / $totalWeeks);
+            $weeklyFormulir = max(0, $nextExpectedFormulir - $expectedFormulir);
         }
-
-        $elapsedWeeks = (int) floor($elapsedDays / 7);
-        $expectedFormulir = $weeklyFormulir * $elapsedWeeks;
 
         $lastWeekEnd = $start->copy()->addDays($elapsedWeeks * 7)->subSecond();
         if ($elapsedWeeks > 0) {
@@ -291,8 +295,9 @@ class SalesTargetService
         $activeProspek = (clone $prospekQuery)
             ->whereNotIn('status', ['LUNAS', 'DINGIN'])
             ->count();
+        $closingStatuses = strtolower($user->role) === 'sales' ? ['CLOSING'] : ['LUNAS'];
         $closing = (clone $prospekQuery)
-            ->where('status', 'LUNAS')
+            ->whereIn('status', $closingStatuses)
             ->count();
         $lost = (clone $prospekQuery)
             ->where('status', 'DINGIN')
@@ -342,7 +347,10 @@ class SalesTargetService
     public function getPipelineStages(User $sales): array
     {
         $taId = AkademikService::getAktifId();
-        $stageNames = ['BARU', 'KONTAK', 'HANGAT', 'PANAS', 'FORMULIR', 'BERKAS', 'LUNAS', 'DINGIN'];
+        $stageNames = ['BARU', 'KONTAK', 'HANGAT', 'PANAS', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'DINGIN'];
+        if (strtolower($sales->role) === 'sales') {
+            $stageNames = array_filter($stageNames, fn($s) => strtoupper($s) !== 'LUNAS');
+        }
 
         $colorMap = [
             'BARU'     => 'badge-cold-lead',
@@ -351,6 +359,7 @@ class SalesTargetService
             'PANAS'    => 'badge-hot-lead',
             'FORMULIR' => 'badge-beli-formulir',
             'BERKAS'   => 'badge-pembayaran-termin-1',
+            'CLOSING'  => 'badge-closing',
             'LUNAS'    => 'badge-closing',
             'DINGIN'   => 'badge-lost',
         ];

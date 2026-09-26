@@ -1682,6 +1682,7 @@ class CrmController extends Controller
     {
         $request->validate([
             'prospek_id' => 'required|exists:prospeks,id',
+            'metode' => 'nullable|string',
             'hasil' => 'required|string',
             'catatan' => 'required|string',
             'status' => 'required|string',
@@ -1692,10 +1693,12 @@ class CrmController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('followUp', $prospek);
         
         // Save follow up log
-        $catatan = '[' . $request->hasil . '] ' . $request->catatan;
+        $catatan = '[Status: ' . $request->hasil . '] ' . $request->catatan;
         \App\Models\FollowUp::create([
             'prospek_id' => $prospek->id,
             'user_id' => auth()->id() ?? 1,
+            'metode' => $request->metode ?? 'WhatsApp',
+            'hasil' => $request->hasil,
             'tanggal' => now(),
             'catatan' => $catatan,
             'next_follow_up' => $request->next_follow_up,
@@ -1716,7 +1719,7 @@ class CrmController extends Controller
                 'prospek_id' => $prospek->id,
                 'user_id' => auth()->id() ?? 1,
                 'title' => 'Follow Up & Update Status',
-                'notes' => 'Status diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status . ' (Hasil: ' . $request->hasil . ')',
+                'notes' => 'Status diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
                 'status_before' => $oldStatus,
                 'status_after' => $prospek->status,
                 'time' => now(),

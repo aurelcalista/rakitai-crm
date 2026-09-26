@@ -1734,6 +1734,9 @@ x-init="
                             $sekolahsList = \App\Models\Sekolah::getDynamicSchools();
                             $perusahaansList = \App\Models\Perusahaan::getDynamicPerusahaans();
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
+                            if (strtolower(auth()->user()->role ?? '') === 'sales') {
+                                $statusProspekList = $statusProspekList->filter(fn($item) => strtoupper($item->nama) !== 'LUNAS');
+                            }
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
                             $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
                             $currentUser = auth()->user();
@@ -1919,13 +1922,16 @@ x-init="
                             <input name="next_follow_up" type="date" value="{{ date('Y-m-d', strtotime('+3 days')) }}" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status</label>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status Prospek</label>
                             @php
-                                $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
+                                $activeStagesFU = \App\Models\Prospek::ACTIVE_STAGES;
+                                if (strtolower(auth()->user()->role ?? '') === 'sales') {
+                                    $activeStagesFU = array_filter($activeStagesFU, fn($s) => strtoupper($s) !== 'LUNAS');
+                                }
                             @endphp
                             <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                @foreach($statusProspekList as $status)
-                                    <option value="{{ $status->nama }}" {{ $status->nama == 'Follow Up' ? 'selected' : '' }}>{{ $status->nama }}</option>
+                                @foreach($activeStagesFU as $stage)
+                                    <option value="{{ $stage }}" x-bind:selected="selectedProspect.status === '{{ $stage }}'">{{ $stage }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -1967,6 +1973,9 @@ x-init="
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Status Baru *</label>
                         @php
                             $statusProspekList = \App\Models\MasterData::where('type', 'status_prospek')->where('status', 'Aktif')->get();
+                            if (strtolower(auth()->user()->role ?? '') === 'sales') {
+                                $statusProspekList = $statusProspekList->filter(fn($item) => strtoupper($item->nama) !== 'LUNAS');
+                            }
                         @endphp
                         <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                             @foreach($statusProspekList as $status)

@@ -151,9 +151,10 @@ class ProspectController extends Controller
 
         $isHandler = $prospek->isHandledBySales(auth()->user());
 
+        $activeStagesSales = array_filter(Prospek::ACTIVE_STAGES, fn($s) => strtoupper($s) !== 'LUNAS');
         $allStages = array_map(function ($stageName) {
             return ['name' => $stageName, 'number' => Prospek::STAGES[$stageName]];
-        }, Prospek::ACTIVE_STAGES);
+        }, array_values($activeStagesSales));
 
         $prospect   = $this->formatProspekDetail($prospek);
         $lostReasons = Prospek::LOST_REASONS;

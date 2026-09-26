@@ -31,6 +31,9 @@ class PipelineController extends Controller
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
         $pipelineStages = \App\Models\Prospek::ACTIVE_STAGES;
+        if (strtolower($user->role) === 'sales') {
+            $pipelineStages = array_values(array_filter($pipelineStages, fn($s) => strtoupper($s) !== 'LUNAS'));
+        }
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }

@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
 
     // Role-specific dashboard entry points
     Route::prefix('dashboard')->group(function () {
-        Route::get('/spv', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
+        Route::get('/sales', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
         Route::get('/cs',    [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
         Route::get('/spv',   [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
         Route::get('/hm',    [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
