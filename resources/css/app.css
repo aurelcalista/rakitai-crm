@@ -35,14 +35,26 @@
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .crm-card-hover:hover {
-    border-color: #e2e8f0;
-    box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+    transform: translateY(-1.5px);
 }
 
-/* Status Colors Definition */
+/* Unified Brand Header Gradient */
+.crm-brand-gradient {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+}
+
+.crm-glass-header {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Status Colors Definition - Unified Palette */
 .badge-cold-lead {
-    background-color: #f1f5f9;
+    background-color: #f8fafc;
     color: #475569;
     border: 1px solid #e2e8f0;
 }
@@ -83,9 +95,23 @@
     border: 1px solid #fecaca;
 }
 
+/* Responsive Table Wrapper & Utilities */
+.responsive-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 1rem;
+    border: 1px solid #f1f5f9;
+}
+
+.responsive-table-wrapper table {
+    width: 100%;
+    white-space: nowrap;
+}
+
 /* Mobile safe area helper */
 .pb-mobile-nav {
-    padding-bottom: 1.5rem;
+    padding-bottom: 2rem;
 }
 
 /* Custom Keyframe Animations */

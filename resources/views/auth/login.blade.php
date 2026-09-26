@@ -241,7 +241,7 @@
                     <!-- FLOATING UI BADGE 1: Analytics Bar Chart (Top Left) -->
                     <div class="absolute top-2 -left-3 xl:-left-5 z-30 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl sm:rounded-2xl shadow-lg shadow-blue-500/10 border border-white/80 flex items-center gap-2 animate-float">
                         <div class="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
-                            📊
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                         </div>
                         <div>
                             <div class="text-[9px] sm:text-[10px] font-extrabold text-slate-800">Pipeline Analytics</div>
@@ -251,7 +251,7 @@
 
                     <!-- FLOATING UI BADGE 2: Chat Bubble Notification (Bottom Left) -->
                     <div class="absolute bottom-8 -left-3 xl:-left-5 z-30 bg-blue-600 text-white px-2.5 py-1.5 rounded-xl sm:rounded-2xl shadow-md shadow-blue-600/30 flex items-center gap-1.5 animate-float-reverse">
-                        <span class="text-xs">💬</span>
+                        <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         <span class="text-[9px] sm:text-[10px] font-bold">Follow-Up Terjadwal</span>
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                     </div>
@@ -259,7 +259,7 @@
                     <!-- FLOATING UI BADGE 3: Active User Pill (Bottom Right) -->
                     <div class="absolute bottom-6 -right-2 xl:-right-4 z-30 bg-white/95 backdrop-blur-md p-1.5 sm:p-2 rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-500/10 border border-white/80 flex items-center gap-1.5 animate-float-slow">
                         <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 text-white flex items-center justify-center text-[10px] font-bold">
-                            👤
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         </div>
                         <div class="pr-1">
                             <div class="text-[9px] sm:text-[10px] font-bold text-slate-800">Sales & CS Active</div>

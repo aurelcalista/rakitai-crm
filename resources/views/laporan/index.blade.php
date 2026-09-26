@@ -213,9 +213,8 @@
                     <thead>
                         <tr class="bg-slate-100/80 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200 print:bg-slate-200 print:text-slate-900">
                             <th class="py-3 px-3 w-10 text-center print:border print:border-slate-400">No</th>
-                            <th class="py-3 px-4 print:border print:border-slate-400">Nama Prospek / Sekolah</th>
-                            <th class="py-3 px-3 print:border print:border-slate-400">Sumber</th>
-                            <th class="py-3 px-3 print:border print:border-slate-400">Nama Camaba</th>
+                            <th class="py-3 px-4 print:border print:border-slate-400">Nama Calon Mahasiswa Baru (Camaba)</th>
+                            <th class="py-3 px-3 print:border print:border-slate-400">Sumber Informasi</th>
                             <th class="py-3 px-3 print:border print:border-slate-400">Status Terakhir</th>
                             <th class="py-3 px-3 print:border print:border-slate-400">Sales Incharge</th>
                             <th class="py-3 px-3 print:border print:border-slate-400">CS Incharge</th>
@@ -228,14 +227,13 @@
                                 <td class="py-3 px-3 text-center text-slate-500 font-medium print:border print:border-slate-400">{{ $index + 1 }}</td>
                                 <td class="py-3 px-4 font-semibold text-slate-900 print:border print:border-slate-400">
                                     <span class="no-print">
-                                        <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '') . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline">
-                                            {{ $prospect['name'] }}
+                                        <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '') . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline font-bold">
+                                            {{ $prospect['pic'] ?: $prospect['name'] }}
                                         </a>
                                     </span>
-                                    <span class="print-only font-bold text-slate-900">{{ $prospect['name'] }}</span>
+                                    <span class="print-only font-bold text-slate-900">{{ $prospect['pic'] ?: $prospect['name'] }}</span>
                                 </td>
-                                <td class="py-3 px-3 text-slate-600 print:border print:border-slate-400">{{ $prospect['type'] }}</td>
-                                <td class="py-3 px-3 text-slate-800 font-medium print:border print:border-slate-400">{{ $prospect['pic'] }}</td>
+                                <td class="py-3 px-3 text-slate-600 print:border print:border-slate-400 font-medium">{{ $prospect['type'] }}</td>
                                 <td class="py-3 px-3 print:border print:border-slate-400">
                                     <x-status-badge :status="$prospect['status']" />
                                 </td>
@@ -245,7 +243,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="py-6 text-center text-slate-400 italic">Tidak ada data prospek yang ditemukan untuk kriteria filter ini.</td>
+                                <td colspan="7" class="py-6 text-center text-slate-400 italic">Tidak ada data prospek yang ditemukan untuk kriteria filter ini.</td>
                             </tr>
                         @endforelse
                     </tbody>

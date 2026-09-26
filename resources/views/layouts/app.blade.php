@@ -604,14 +604,14 @@ x-init="
                         <div class="space-y-1">
                             <a 
                                 href="{{ route('spv.tim.index') }}" 
-                                title="Tim"
+                                title="Kelola Sales"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('spv.tim.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
                                 <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.tim.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                                <span x-show="!sidebarCollapsed">Tim</span>
+                                <span x-show="!sidebarCollapsed">Kelola Sales</span>
                             </a>
                             <a 
                                 href="{{ route('spv.events.index') }}" 
@@ -682,18 +682,6 @@ x-init="
                             </a>
 
                             <a 
-                                href="{{ route('hm.sales.index') }}" 
-                                title="Kelola Sales"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.sales.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.sales.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Kelola Sales</span>
-                            </a>
-
-                            <a 
                                 href="{{ route('hm.cs.index') }}" 
                                 title="Kelola CS"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.cs.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -704,6 +692,8 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola CS</span>
                             </a>
+
+
 
                             <a 
                                 href="{{ route('admin.target.index') }}" 
@@ -1520,14 +1510,14 @@ x-init="
                                 <a 
                                     href="{{ route('spv.tim.index') }}" 
                                     @click="mobileMenuOpen = false"
-                                    data-menu-keywords="tim spv manajemen tim supervisor sales staf"
-                                    x-show="matches('tim spv manajemen tim supervisor sales staf')"
+                                    data-menu-keywords="kelola sales tim spv manajemen tim supervisor sales staf"
+                                    x-show="matches('kelola sales tim spv manajemen tim supervisor sales staf')"
                                     class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('spv.tim.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 >
                                     <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('spv.tim.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                     </svg>
-                                    <span class="flex-1">Tim</span>
+                                    <span class="flex-1">Kelola Sales</span>
                                 </a>
 
                                 <a 
@@ -2393,13 +2383,87 @@ x-init="
                                         <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Perusahaan *</label>
                                         @php
                                             $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+                                            $modalPerusahaanOptions = [];
+                                            foreach($perusahaansList as $per) {
+                                                $modalPerusahaanOptions[] = [
+                                                    'val' => (string)$per->id,
+                                                    'label' => $per->nama,
+                                                    'sub' => 'Database Perusahaan' . ($per->kota ? ' • ' . $per->kota : ''),
+                                                ];
+                                            }
                                         @endphp
-                                        <select name="perusahaan_id" id="perusahaan_id_select" x-model="selectedPerusahaanId" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'corporate' && !isEventMode">
-                                            <option value="">-- Pilih Perusahaan --</option>
-                                            @foreach($perusahaansList as $per)
-                                                <option value="{{ $per->id }}">{{ $per->nama }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="relative" x-data="{
+                                            open: false,
+                                            search: '',
+                                            items: @json($modalPerusahaanOptions),
+                                            get filteredItems() {
+                                                if (!this.search.trim()) return this.items;
+                                                const q = this.search.toLowerCase();
+                                                return this.items.filter(i => i.label.toLowerCase().includes(q) || (i.sub && i.sub.toLowerCase().includes(q)));
+                                            },
+                                            get selectedLabel() {
+                                                const found = this.items.find(i => i.val === String(selectedPerusahaanId));
+                                                return found ? found.label : '';
+                                            },
+                                            selectPerusahaan(item) {
+                                                selectedPerusahaanId = item.val;
+                                                this.open = false;
+                                            }
+                                        }" @click.outside="open = false">
+
+                                            <input type="hidden" name="perusahaan_id" :value="selectedPerusahaanId">
+
+                                            <!-- Trigger Button -->
+                                            <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-purple-500/20 flex items-center justify-between cursor-pointer transition">
+                                                <div class="flex items-center gap-2 truncate">
+                                                    <svg class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 v5m-4 0h4" />
+                                                    </svg>
+                                                    <span class="truncate font-semibold" x-text="selectedPerusahaanId ? selectedLabel : '-- Cari & Pilih Perusahaan --'"></span>
+                                                </div>
+                                                <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </button>
+
+                                            <!-- Dropdown Menu -->
+                                            <div x-show="open" 
+                                                 x-transition:enter="transition ease-out duration-100"
+                                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                                 x-transition:leave="transition ease-in duration-75"
+                                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                                 class="absolute left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                                 style="display: none;">
+                                                
+                                                <div class="relative mb-2">
+                                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                    </svg>
+                                                    <input type="text" 
+                                                           x-model="search" 
+                                                           placeholder="Ketik nama perusahaan..." 
+                                                           class="w-full text-xs pl-7 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+                                                           @keydown.escape="open = false">
+                                                </div>
+
+                                                <div class="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                                                    <template x-for="item in filteredItems" :key="item.val">
+                                                        <div @click="selectPerusahaan(item)" 
+                                                             class="w-full px-2.5 py-1.5 text-xs rounded-lg transition cursor-pointer font-semibold border flex flex-col gap-0.5"
+                                                             :class="String(selectedPerusahaanId) === item.val ? 'bg-purple-50 text-purple-700 font-bold border-purple-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
+                                                            <span x-text="item.label" class="font-bold"></span>
+                                                            <span x-text="item.sub" class="text-[10px] text-slate-400 font-normal"></span>
+                                                        </div>
+                                                    </template>
+                                                    
+                                                    <div x-show="filteredItems.length === 0" class="px-2 py-2 text-xs text-slate-400 italic text-center">
+                                                        Perusahaan tidak ditemukan
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2512,16 +2576,8 @@ x-init="
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Dosen Pemateri (Wajib untuk Training)</label>
-                                @php
-                                    $dosensList = \App\Models\User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
-                                @endphp
-                                <select name="dosen_id" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                    <option value="">-- Pilih Dosen Pemateri --</option>
-                                    @foreach($dosensList as $dsn)
-                                        <option value="{{ $dsn->id }}">{{ $dsn->name }}</option>
-                                    @endforeach
-                                </select>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Dosen / Pemateri</label>
+                                <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
                             </div>
                         </div>
                     </div>

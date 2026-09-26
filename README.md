@@ -1,58 +1,122 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🎓 CRM UCIC — Sistem CRM Pemasaran & Penerimaan Mahasiswa Baru
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**CRM UCIC** adalah aplikasi *Customer Relationship Management* (CRM) terpadu yang dirancang khusus untuk mengoptimalkan alur kerja tim pemasaran dan penerimaan mahasiswa baru di kampus **Universitas Catur Insan Cendekia (UCIC)**. 
 
-## About Laravel
+Aplikasi ini menghubungkan seluruh proses dari kegiatan lapangan, penanganan *lead*, pencapaian target berjenjang, hingga transaksi pelunasan secara *real-time*.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🌟 Fitur Utama & Hirarki Hak Akses
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Sistem ini mendukung 6 tingkat hak akses (*role-based access control*) yang saling terintegrasi:
 
-## Learning Laravel
+### 1. 🛡️ **Admin Panel**
+* **Manajemen Pengguna**: Pendaftaran, verifikasi, reset password, dan status aktif/nonaktif akun.
+* **Penugasan Wilayah HM**: Pengaturan wilayah binaan untuk Head of Marketing.
+* **Master Data**: Pengelolaan data Sekolah (SMA/SMK), Perusahaan/Corporate, Program Studi, dan Wilayah (Provinsi/Kota/Kecamatan).
+* **Pengaturan CRM & Audit**: Pengaturan bobot performa indikator, tahun akademik aktif, dan *audit log*.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 2. 📊 **HM (Head of Marketing)**
+* **Hierarki Target**: Penentuan target tahunan & bulanan per wilayah ke Supervisor (SPV).
+* **Monitoring Evaluasi Performa**: Pantauan akumulasi realisasi target tim, defisit target, dan matriks kesehatan wilayah.
+* **Potensi Wilayah & Infografis**: Peta sebaran potensi wilayah binaan HM.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3. 👥 **SPV (Supervisor)**
+* **Pembagian Target Tim**: Pembagian target bulanan ke Sales/CS (dibatasi tidak melebihi target SPV).
+* **Breakdown Target Otomatis**: Pembagian target bulanan menjadi mingguan dan harian secara akurat tanpa pembengkakan target (menggunakan *floor math*).
+* **Penugasan Event & Bantuan Closing**: Penugasan event ke Sales serta fitur bantuan *closing* transaksi di lapangan.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### 4. 🚀 **Sales Lapangan**
+* **Input Prospek Lapangan**: Pencatatan prospek baru (Sekolah, Corporate, Individu) lengkap dengan fitur *Searchable Dropdown Plugin*.
+* **Laporan Kunjungan Mandiri**: Dokumentasi foto kegiatan dan deteksi geolokasi GPS otomatis.
+* **Jadwal Event & Pipeline**: Pengelolaan pipeline prospek dari prospek awal hingga tahap `CLOSING`.
 
-## Agentic Development
+### 5. 🎧 **CS (Customer Service)**
+* **Handover Lead**: Menerima pendelegasian prospek dari Sales tanpa pembatas wilayah.
+* **Follow-Up & Transaksi**: Pencatatan riwayat interaksi serta pembayaran Formulir Pendaftaran dan Termin 1.
+* **Status Lunas**: Memvalidasi dan mengubah status prospek menjadi `LUNAS` (Stage 7).
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 6. 🎪 **EO (Event Organizer)**
+* **Pengelolaan Event**: Pembuatan jadwal pameran, sosialisasi, dan pengelolaan Master Tipe Event.
 
+---
+
+## ⚡ Teknologi & Dependensi
+
+* **Backend Framework**: Laravel 11.x (PHP 8.2+)
+* **Frontend Components**: Blade Templating, Alpine.js, TailwindCSS (Vanilla UI)
+* **Database**: MySQL / MariaDB
+* **Build Tool**: Vite (JavaScript & CSS bundling)
+
+---
+
+## 🚀 Panduan Instalasi & Penggunaan
+
+### 1. Clone Repository & Install Dependensi
 ```bash
-composer require laravel/boost --dev
+git clone https://github.com/aurelcalista/rakitai-crm.git
+cd rakitai-crm
 
-php artisan boost:install
+composer install
+npm install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Konfigurasi Environment
+Salin file `.env.example` menjadi `.env` dan sesuaikan konfigurasi database:
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-## Contributing
+### 3. Migrasi Database & Seeding Data Test
+Jalankan migrasi dan seeder untuk mengisi database dengan data dummy awal beserta seluruh akun uji coba:
+```bash
+php artisan migrate:fresh --seed
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 4. Menjalankan Server Lokal
+Buka dua terminal dan jalankan server lokal:
+```bash
+# Terminal 1: Server Laravel
+php artisan serve
 
-## Code of Conduct
+# Terminal 2: Vite Dev Server
+npm run dev
+```
+Aplikasi dapat diakses melalui browser di **`http://127.0.0.1:8000`**.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## 🔑 Kredensial Akun Uji Coba (Testing Accounts)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Semua akun seeder menggunakan password baku: **`password`**
 
-## License
+| Role | Email Login | Password | Nama / Keterangan |
+| :--- | :--- | :--- | :--- |
+| **Admin 1** | `admin@cic.ac.id` | `password` | Admin Utama CRM |
+| **Admin 2** | `admin2@cic.ac.id` | `password` | Admin System Support |
+| **HM 1** | `hm@cic.ac.id` | `password` | HM Marketing Eksekutif (Cirebon) |
+| **HM 2** | `hm2@cic.ac.id` | `password` | HM Marketing (Majalengka & Kuningan) |
+| **HM 3** | `hm3@cic.ac.id` | `password` | HM Marketing (Indramayu) |
+| **SPV 1** | `spv@cic.ac.id` | `password` | Hendra Setiawan, S.Kom (SPV) |
+| **SPV 2** | `spv2@cic.ac.id` | `password` | Maya Kartika, M.M (SPV) |
+| **SPV 3** | `spv3@cic.ac.id` | `password` | Rian Hidayat, S.T (SPV) |
+| **EO 1** | `eo@cic.ac.id` | `password` | Tim Event Organizer (EO Utama) |
+| **EO 2** | `eo2@cic.ac.id` | `password` | EO Event Pameran & Expo |
+| **CS 1** | `cs@cic.ac.id` | `password` | Dina Marlina (CS) |
+| **CS 2** | `cs2@cic.ac.id` | `password` | Siti Nurhaliza (CS) |
+| **CS 3** | `cs3@cic.ac.id` | `password` | Amanda Putri (CS) |
+| **Sales 1** | `sales@cic.ac.id` | `password` | Sales Utama CIC |
+| **Sales 2** | `aurel.calista@cic.ac.id` | `password` | Aurel Calista |
+| **Sales 3** | `rizky.pratama@cic.ac.id` | `password` | Rizky Pratama |
+| **Sales 4** | `budi.santoso@cic.ac.id` | `password` | Budi Santoso |
+| **Sales 5** | `dewi.anggraini@cic.ac.id` | `password` | Dewi Anggraini |
+| **Sales 6** | `fajar.ramadhan@cic.ac.id` | `password` | Fajar Ramadhan |
+| **Sales 7** | `nabila.syahrani@cic.ac.id` | `password` | Nabila Syahrani |
+| **Sales 8** | `kevin.wijaya@cic.ac.id` | `password` | Kevin Wijaya |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## 📝 Lisensi & Hak Cipta
+
+Dikembangkan untuk **Universitas Catur Insan Cendekia (UCIC)** — CRM Pemasaran & Penerimaan Mahasiswa Baru.

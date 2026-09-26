@@ -132,7 +132,7 @@
                     </div>
 
                     <div x-show="assignType === 'self'" x-cloak class="text-[11px] text-slate-600 bg-white/80 p-2.5 rounded-xl border border-indigo-100">
-                        ℹ️ Penanganan mandiri: SPV bertindak langsung sebagai pemegang sekaligus penutup lead.
+                        Penanganan mandiri: SPV bertindak langsung sebagai pemegang sekaligus penutup lead.
                     </div>
                 </div>
 
@@ -154,17 +154,17 @@
                                 <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-semibold text-center transition"
                                     :class="prospectType === 'Individu' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-1 ring-blue-600/20' : 'bg-slate-50 border-slate-200 text-slate-600'">
                                     <input type="radio" name="type" value="Individu" x-model="prospectType" class="hidden">
-                                    <span>👤 Siswa / Individu</span>
+                                    <span>Siswa / Individu</span>
                                 </label>
                                 <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-semibold text-center transition"
                                     :class="prospectType === 'Sekolah' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-1 ring-blue-600/20' : 'bg-slate-50 border-slate-200 text-slate-600'">
                                     <input type="radio" name="type" value="Sekolah" x-model="prospectType" class="hidden">
-                                    <span>🏫 Sekolah (SMA)</span>
+                                    <span>Sekolah (SMA)</span>
                                 </label>
                                 <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-semibold text-center transition"
                                     :class="prospectType === 'Corporate' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-1 ring-blue-600/20' : 'bg-slate-50 border-slate-200 text-slate-600'">
                                     <input type="radio" name="type" value="Corporate" x-model="prospectType" class="hidden">
-                                    <span>🏢 Perusahaan</span>
+                                    <span>Perusahaan</span>
                                 </label>
                             </div>
                         </div>
@@ -309,7 +309,7 @@
                         <!-- Step 1: Pilih Kota / Kabupaten -->
                         <div class="space-y-1">
                             <label class="block text-xs font-semibold text-slate-700">
-                                🏙️ Kota / Kabupaten Prospek
+                                Kota / Kabupaten Prospek
                             </label>
                             <select 
                                 name="kota_id"
@@ -327,7 +327,7 @@
                         <!-- Step 2: Pilih Kecamatan -->
                         <div class="space-y-1">
                             <label class="block text-xs font-semibold text-slate-700">
-                                📍 Kecamatan Prospek
+                                Kecamatan Prospek
                             </label>
                             <select 
                                 name="wilayah_id" 

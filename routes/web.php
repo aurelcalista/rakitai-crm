@@ -165,15 +165,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/spv', [\App\Http\Controllers\Hm\HmSpvController::class, 'store'])->name('spv.store');
         Route::post('/spv/assign', [\App\Http\Controllers\Hm\HmSpvController::class, 'assignTerritory'])->name('spv.territory.assign');
         Route::patch('/spv/{user}/status', [\App\Http\Controllers\Hm\HmSpvController::class, 'updateStatus'])->name('spv.status.update');
-        Route::delete('/spv/{user}/wilayah/{wilayah}', [\App\Http\Controllers\Hm\HmSpvController::class, 'deactivateTerritory'])->name('spv.territory.deactivate');
-
-        // HM Sales Management
-        Route::get('/sales', [\App\Http\Controllers\Hm\HmSalesController::class, 'index'])->name('sales.index');
-        Route::post('/sales', [\App\Http\Controllers\Hm\HmSalesController::class, 'store'])->name('sales.store');
-        Route::post('/sales/assign', [\App\Http\Controllers\Hm\HmSalesController::class, 'assignTerritory'])->name('sales.territory.assign');
-        Route::patch('/sales/{user}/status', [\App\Http\Controllers\Hm\HmSalesController::class, 'updateStatus'])->name('sales.status.update');
-        Route::delete('/sales/{user}/wilayah/{wilayah}', [\App\Http\Controllers\Hm\HmSalesController::class, 'deactivateTerritory'])->name('sales.territory.deactivate');
-
         // HM CS Management
         Route::get('/cs', [\App\Http\Controllers\Hm\HmCsController::class, 'index'])->name('cs.index');
         Route::post('/cs', [\App\Http\Controllers\Hm\HmCsController::class, 'store'])->name('cs.store');

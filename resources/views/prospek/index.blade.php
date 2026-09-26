@@ -105,13 +105,78 @@
                 </select>
                 
                 @if(isset($isHm) && $isHm)
-                <!-- Filter SPV -->
-                <select @change="window.location.href = '?spv_id=' + $event.target.value" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
-                    <option value="">Semua SPV</option>
-                    @foreach($spvs as $spv)
-                        <option value="{{ $spv->id }}" {{ request('spv_id') == $spv->id ? 'selected' : '' }}>{{ $spv->name }}</option>
-                    @endforeach
-                </select>
+                @php
+                    $selectedSpvObj = isset($spvs) ? $spvs->firstWhere('id', request('spv_id')) : null;
+                    $selectedSpvNama = $selectedSpvObj ? $selectedSpvObj->name : 'Semua SPV';
+                @endphp
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedId: '{{ request('spv_id', '') }}',
+                    selectedNama: '{{ addslashes($selectedSpvNama) }}',
+                    items: [
+                        { id: '', nama: 'Semua SPV' },
+                        @if(isset($spvs))
+                        @foreach($spvs as $spv)
+                            { id: '{{ $spv->id }}', nama: '{{ addslashes($spv->name) }}' },
+                        @endforeach
+                        @endif
+                    ],
+                    get filteredItems() {
+                        if (!this.search.trim()) return this.items;
+                        return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    selectSpv(item) {
+                        window.location.href = '?spv_id=' + item.id;
+                    }
+                }" @click.outside="open = false">
+
+                    <button type="button" @click="open = !open" class="px-3 py-2 text-xs rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-purple-500/20 flex items-center gap-2 cursor-pointer transition">
+                        <svg class="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span x-text="selectedId ? selectedNama : 'Semua SPV'"></span>
+                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute left-0 mt-1.5 w-60 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                         style="display: none;">
+                        
+                        <div class="relative mb-2">
+                            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" 
+                                   x-model="search" 
+                                   placeholder="Cari Nama SPV..." 
+                                   class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+                                   @keydown.escape="open = false">
+                        </div>
+
+                        <div class="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+                            <template x-for="item in filteredItems" :key="item.id">
+                                <button type="button" 
+                                        @click="selectSpv(item)" 
+                                        class="w-full text-left px-3 py-1.5 text-xs rounded-xl transition flex items-center justify-between font-semibold"
+                                        :class="selectedId == item.id ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50'">
+                                    <span x-text="item.nama"></span>
+                                    <svg x-show="selectedId == item.id" class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Filter Sales -->
                 <select @change="window.location.href = '?spv_id={{ request('spv_id') }}&sales_id=' + $event.target.value" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">

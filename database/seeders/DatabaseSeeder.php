@@ -21,6 +21,12 @@ class DatabaseSeeder extends Seeder
             ProdiSeeder::class,
             SekolahSeeder::class,
             PerusahaanSeeder::class,
+            TargetSeeder::class,
+            EventSeeder::class,
+            ProspekSeeder::class,
+            FollowUpSeeder::class,
+            KunjunganSeeder::class,
+            TransaksiSeeder::class,
         ]);
     }
 }

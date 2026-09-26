@@ -819,30 +819,43 @@ class CrmController extends Controller
 
         $user = auth()->user();
         $spvId = $request->get('spv_id');
+        $salesId = $request->get('sales_id');
+        $wilayahId = $request->get('wilayah_id');
 
         // Active Tahun Akademik
         $activeAyId = \App\Services\AkademikService::getAktifId();
         $targetService = app(\App\Services\TargetAchievementService::class);
 
-        // Subquery or ids for Sales filtering
+        // Subquery or ids for Sales/Tim filtering
         $salesIdsScope = null;
-        if ($spvId) {
+        if ($salesId) {
+            $salesIdsScope = [(int)$salesId];
+        } elseif ($spvId) {
             $salesIdsScope = \App\Models\User::where('supervisor_id', $spvId)
-                ->where('role', 'Sales')
+                ->whereIn('role', ['Sales', 'CS'])
+                ->pluck('id')->toArray();
+        } elseif ($wilayahId) {
+            $salesIdsScope = \App\Models\User::where('wilayah_id', $wilayahId)
+                ->whereIn('role', ['Sales', 'CS'])
                 ->pluck('id')->toArray();
         }
 
-        // Global stats (all prospects or filtered by SPV's Sales)
-        $totalProspek  = Prospek::when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
-        $closing       = Prospek::whereIn('status', ['CLOSING', 'LUNAS'])->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
-        $activeProspek = Prospek::whereNotIn('status', ['LUNAS', 'DINGIN', 'CANCEL'])->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
-        $lost          = Prospek::where('status', 'DINGIN')->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
-        $cancelCount   = Prospek::where('status', 'CANCEL')->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))->count();
+        // Global stats (all prospects or filtered by scope & wilayah)
+        $prospekQuery = Prospek::query()
+            ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
+            ->when($wilayahId, fn($q) => $q->where('wilayah_id', $wilayahId));
+
+        $totalProspek  = (clone $prospekQuery)->count();
+        $closing       = (clone $prospekQuery)->whereIn('status', ['CLOSING', 'LUNAS'])->count();
+        $activeProspek = (clone $prospekQuery)->whereNotIn('status', ['LUNAS', 'DINGIN', 'CANCEL'])->count();
+        $lost          = (clone $prospekQuery)->where('status', 'DINGIN')->count();
+        $cancelCount   = (clone $prospekQuery)->where('status', 'CANCEL')->count();
 
         // Global target rollup (sum of all active Sales targets)
         $totalTargetLunas = \App\Models\Target::where('status', 'Aktif')
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
             ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
+            ->when($wilayahId, fn($q) => $q->whereHas('user', fn($uq) => $uq->where('wilayah_id', $wilayahId)))
             ->sum('target_lunas');
         $sisaTarget = max(0, $totalTargetLunas - $closing);
         $pctLunas   = $totalTargetLunas > 0 ? round(($closing / $totalTargetLunas) * 100, 1) : 0;
@@ -857,15 +870,20 @@ class CrmController extends Controller
             'lost'            => $lost,
             'cancel'          => $cancelCount,
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
-            'total_sales'     => \App\Models\User::where('role', 'Sales')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->count(),
-            'total_cs'        => \App\Models\User::where('role', 'CS')->count(), // Usually global
+            'total_sales'     => \App\Models\User::where('role', 'Sales')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->when($salesId, fn($q) => $q->where('id', $salesId))->count(),
+            'total_cs'        => \App\Models\User::where('role', 'CS')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->when($salesId, fn($q) => $q->where('id', $salesId))->count(),
             'target_global'   => $totalTargetLunas,
             'sisa_target'     => $sisaTarget,
             'pct_lunas'       => $pctLunas,
             'color_status'    => $colorStatus,
         ];
 
-        $salesUsers = \App\Models\User::where('role', 'Sales')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->get();
+        $salesUsers = \App\Models\User::whereIn('role', ['Sales', 'CS'])
+            ->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))
+            ->when($salesId, fn($q) => $q->where('id', $salesId))
+            ->when($wilayahId, fn($q) => $q->where('wilayah_id', $wilayahId))
+            ->get();
+
         $team = $salesUsers->map(function ($s) use ($activeAyId) {
             $closing        = Prospek::where('sales_id', $s->id)->whereIn('status', ['CLOSING', 'LUNAS'])
                 ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))->count();
@@ -896,6 +914,7 @@ class CrmController extends Controller
         $prospectsData = Prospek::select('status')
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
             ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
+            ->when($wilayahId, fn($q) => $q->where('wilayah_id', $wilayahId))
             ->get();
         foreach ($prospectsData as $p) {
             if (isset($stagesCount[$p->status])) {
@@ -929,7 +948,7 @@ class CrmController extends Controller
             )
             ->whereIn('status', ['CLOSING', 'LUNAS'])
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
-            ->when($user->wilayah_id, fn($q) => $q->where('wilayah_id', $user->wilayah_id))
+            ->when($wilayahId, fn($q) => $q->where('wilayah_id', $wilayahId))
             ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
             ->whereYear('updated_at', $currentYear)
             ->groupBy('month')
@@ -959,8 +978,10 @@ class CrmController extends Controller
         }
 
         $spvs = \App\Models\User::where('role', 'SPV')->where('status', 'Aktif')->get();
+        $salesList = \App\Models\User::whereIn('role', ['Sales', 'CS'])->where('status', 'Aktif')->when($spvId, fn($q) => $q->where('supervisor_id', $spvId))->get();
+        $wilayahList = \App\Models\Wilayah::orderBy('nama')->get();
 
-        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData', 'monthlyTrend', 'currentYear', 'spvs'));
+        return view('hm.dashboard', compact('stats', 'team', 'pipelineStages', 'targetAchievementData', 'monthlyTrend', 'currentYear', 'spvs', 'salesList', 'wilayahList'));
     }
 
     /**

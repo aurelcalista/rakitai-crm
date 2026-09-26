@@ -176,13 +176,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Dosen Pemateri</label>
-                        <select name="dosen_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Dosen Pemateri --</option>
-                            @foreach($dosens as $dosen)
-                                <option value="{{ $dosen->id }}">{{ $dosen->name }}</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Dosen / Pemateri</label>
+                        <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Program Studi</label>
@@ -297,13 +292,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Dosen Pemateri</label>
-                        <select name="dosen_id" :value="selectedEvent?.dosen_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Dosen Pemateri --</option>
-                            @foreach($dosens as $dosen)
-                                <option value="{{ $dosen->id }}" :selected="selectedEvent?.dosen_id == {{ $dosen->id }}">{{ $dosen->name }}</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Dosen / Pemateri</label>
+                        <input type="text" name="dosen_pemateri" :value="selectedEvent?.dosen_pemateri || selectedEvent?.dosen?.name" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Program Studi</label>

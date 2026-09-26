@@ -38,14 +38,257 @@
             </div>
             
             <div class="flex items-center gap-2 flex-wrap">
-                <form action="{{ route('dashboard.hm') }}" method="GET" class="flex items-center" id="filterSpvForm">
-                    <select name="spv_id" onchange="document.getElementById('filterSpvForm').submit()" class="text-xs rounded-xl border-slate-200 shadow-sm focus:border-purple-500 focus:ring focus:ring-purple-200 transition py-2 pl-3 pr-8">
-                        <option value="">Semua SPV</option>
-                        @foreach($spvs as $spv)
-                            <option value="{{ $spv->id }}" {{ request('spv_id') == $spv->id ? 'selected' : '' }}>{{ $spv->name }}</option>
-                        @endforeach
-                    </select>
+                <!-- Unified Filter Form -->
+                <form action="{{ route('dashboard.hm') }}" method="GET" id="filterDashboardForm">
+                    <input type="hidden" name="spv_id" id="form_spv_id" value="{{ request('spv_id', '') }}">
+                    <input type="hidden" name="sales_id" id="form_sales_id" value="{{ request('sales_id', '') }}">
+                    <input type="hidden" name="wilayah_id" id="form_wilayah_id" value="{{ request('wilayah_id', '') }}">
                 </form>
+
+                <!-- 1. FILTER SPV DROPDOWN -->
+                @php
+                    $selectedSpvObj = $spvs->firstWhere('id', request('spv_id'));
+                    $selectedSpvNama = $selectedSpvObj ? $selectedSpvObj->name : 'Semua SPV';
+                @endphp
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedId: '{{ request('spv_id', '') }}',
+                    selectedNama: '{{ addslashes($selectedSpvNama) }}',
+                    items: [
+                        { id: '', nama: 'Semua SPV' },
+                        @foreach($spvs as $spv)
+                            { id: '{{ $spv->id }}', nama: '{{ addslashes($spv->name) }}' },
+                        @endforeach
+                    ],
+                    get filteredItems() {
+                        if (!this.search.trim()) return this.items;
+                        return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    selectSpv(item) {
+                        this.selectedId = item.id;
+                        this.selectedNama = item.nama;
+                        this.open = false;
+                        document.getElementById('form_spv_id').value = item.id;
+                        document.getElementById('filterDashboardForm').submit();
+                    }
+                }" @click.outside="open = false">
+
+                    <button type="button" @click="open = !open" class="text-xs font-semibold px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-purple-500/20 flex items-center gap-2 cursor-pointer transition shadow-xs">
+                        <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span x-text="selectedId ? selectedNama : 'Semua SPV'"></span>
+                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute right-0 mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                         style="display: none;">
+                        
+                        <div class="relative mb-2">
+                            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" 
+                                   x-model="search" 
+                                   placeholder="Cari Nama SPV..." 
+                                   class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+                                   @keydown.escape="open = false">
+                        </div>
+
+                        <div class="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+                            <template x-for="item in filteredItems" :key="item.id">
+                                <button type="button" 
+                                        @click="selectSpv(item)" 
+                                        class="w-full text-left px-3 py-1.5 text-xs rounded-xl transition flex items-center justify-between font-semibold"
+                                        :class="selectedId == item.id ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50'">
+                                    <span x-text="item.nama"></span>
+                                    <svg x-show="selectedId == item.id" class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                            </template>
+                            
+                            <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                SPV tidak ditemukan
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. FILTER TIM / SALES DROPDOWN -->
+                @php
+                    $selectedSalesObj = isset($salesList) ? $salesList->firstWhere('id', request('sales_id')) : null;
+                    $selectedSalesNama = $selectedSalesObj ? $selectedSalesObj->name . ' (' . $selectedSalesObj->role . ')' : 'Semua Tim / Sales';
+                @endphp
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedId: '{{ request('sales_id', '') }}',
+                    selectedNama: '{{ addslashes($selectedSalesNama) }}',
+                    items: [
+                        { id: '', nama: 'Semua Tim / Sales' },
+                        @if(isset($salesList))
+                            @foreach($salesList as $sUser)
+                                { id: '{{ $sUser->id }}', nama: '{{ addslashes($sUser->name) }} ({{ $sUser->role }})' },
+                            @endforeach
+                        @endif
+                    ],
+                    get filteredItems() {
+                        if (!this.search.trim()) return this.items;
+                        return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    selectSales(item) {
+                        this.selectedId = item.id;
+                        this.selectedNama = item.nama;
+                        this.open = false;
+                        document.getElementById('form_sales_id').value = item.id;
+                        document.getElementById('filterDashboardForm').submit();
+                    }
+                }" @click.outside="open = false">
+
+                    <button type="button" @click="open = !open" class="text-xs font-semibold px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-blue-500/20 flex items-center gap-2 cursor-pointer transition shadow-xs">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span x-text="selectedId ? selectedNama : 'Semua Tim / Sales'"></span>
+                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute right-0 mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                         style="display: none;">
+                        
+                        <div class="relative mb-2">
+                            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" 
+                                   x-model="search" 
+                                   placeholder="Cari Nama Tim / Sales..." 
+                                   class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                   @keydown.escape="open = false">
+                        </div>
+
+                        <div class="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+                            <template x-for="item in filteredItems" :key="item.id">
+                                <button type="button" 
+                                        @click="selectSales(item)" 
+                                        class="w-full text-left px-3 py-1.5 text-xs rounded-xl transition flex items-center justify-between font-semibold"
+                                        :class="selectedId == item.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'">
+                                    <span x-text="item.nama"></span>
+                                    <svg x-show="selectedId == item.id" class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                            </template>
+                            
+                            <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                Anggota tim tidak ditemukan
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. FILTER WILAYAH / KECAMATAN DROPDOWN -->
+                @php
+                    $selectedWilayahObj = isset($wilayahList) ? $wilayahList->firstWhere('id', request('wilayah_id')) : null;
+                    $selectedWilayahNama = $selectedWilayahObj ? $selectedWilayahObj->nama : 'Semua Kecamatan / Wilayah';
+                @endphp
+                <div class="relative" x-data="{
+                    open: false,
+                    search: '',
+                    selectedId: '{{ request('wilayah_id', '') }}',
+                    selectedNama: '{{ addslashes($selectedWilayahNama) }}',
+                    items: [
+                        { id: '', nama: 'Semua Kecamatan / Wilayah' },
+                        @if(isset($wilayahList))
+                            @foreach($wilayahList as $w)
+                                { id: '{{ $w->id }}', nama: '{{ addslashes($w->nama) }}' },
+                            @endforeach
+                        @endif
+                    ],
+                    get filteredItems() {
+                        if (!this.search.trim()) return this.items;
+                        return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    selectWilayah(item) {
+                        this.selectedId = item.id;
+                        this.selectedNama = item.nama;
+                        this.open = false;
+                        document.getElementById('form_wilayah_id').value = item.id;
+                        document.getElementById('filterDashboardForm').submit();
+                    }
+                }" @click.outside="open = false">
+
+                    <button type="button" @click="open = !open" class="text-xs font-semibold px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-emerald-500/20 flex items-center gap-2 cursor-pointer transition shadow-xs">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span x-text="selectedId ? selectedNama : 'Semua Wilayah'"></span>
+                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div x-show="open" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute right-0 mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                         style="display: none;">
+                        
+                        <div class="relative mb-2">
+                            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" 
+                                   x-model="search" 
+                                   placeholder="Cari Wilayah / Kecamatan..." 
+                                   class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-800 font-medium"
+                                   @keydown.escape="open = false">
+                        </div>
+
+                        <div class="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
+                            <template x-for="item in filteredItems" :key="item.id">
+                                <button type="button" 
+                                        @click="selectWilayah(item)" 
+                                        class="w-full text-left px-3 py-1.5 text-xs rounded-xl transition flex items-center justify-between font-semibold"
+                                        :class="selectedId == item.id ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-700 hover:bg-slate-50'">
+                                    <span x-text="item.nama"></span>
+                                    <svg x-show="selectedId == item.id" class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                            </template>
+                            
+                            <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                Wilayah tidak ditemukan
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <a 
                     href="{{ route('admin.target.index') }}"
                     class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5"

@@ -1,9 +1,20 @@
 @php
     $pageTitle = 'Direktori Tim Sales (SPV)';
     $pageSubtitle = 'Daftar Anggota Tim Sales di Bawah Pengawasan SPV';
+    $kecamatanJson = $kecamatanList->map(function($kec) {
+        return [
+            'id' => (string)$kec->id,
+            'nama' => $kec->nama,
+            'hasActiveSales' => !empty($kec->has_active_sales),
+            'salesName' => $kec->active_sales_name ?? 'Aktif'
+        ];
+    })->values();
 @endphp
 
 <x-app-layout :title="'Anggota Tim Sales - Supervisor CRM'">
+    <script>
+        window.spvKecamatanList = @json($kecamatanJson);
+    </script>
 
     <div class="space-y-6" x-data="{
         modalKecamatan: false,
@@ -113,39 +124,89 @@
                         <span class="text-[10px] text-slate-400">Sales dapat mengganti password via Edit Profile</span>
                     </div>
 
-                    <!-- Pilih Area / Kecamatan Active Scope SPV (RADIO BUTTONS) -->
+                    <!-- Pilih Area / Kecamatan Active Scope SPV (SEARCHABLE DROPDOWN PLUGIN) -->
                     <div class="space-y-2 pt-2 border-t border-slate-100">
-                        <label class="block font-bold text-slate-800 text-xs">Pilih Wilayah Sales (Radio Selection - Scope {{ $myWilayah }}) *</label>
+                        <label class="block font-bold text-slate-800 text-xs">Pilih Area / Kecamatan Sales (Scope {{ $myWilayah }}) *</label>
                         <p class="text-[11px] text-slate-400">Hanya wilayah yang belum memiliki Sales aktif yang dapat dipilih.</p>
 
-                        <div class="border border-slate-200 rounded-xl p-3 bg-white max-h-52 overflow-y-auto space-y-2">
-                            @foreach($kecamatanList as $kec)
-                                <label class="flex items-center justify-between p-2.5 rounded-xl border transition {{ !empty($kec->has_active_sales) ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-800 hover:bg-emerald-50/80 cursor-pointer' }}">
-                                    <div class="flex items-center gap-2.5">
-                                        <input 
-                                            type="radio" 
-                                            name="area_id" 
-                                            value="{{ $kec->id }}" 
-                                            {{ !empty($kec->has_active_sales) ? 'disabled' : '' }} 
-                                            required 
-                                            class="text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
-                                        >
-                                        <span class="font-semibold text-xs">{{ $kec->nama }}</span>
+                        <div class="relative" x-data="{
+                            open: false,
+                            search: '',
+                            selectedId: '',
+                            selectedNama: '',
+                            get items() { return window.spvKecamatanList || []; },
+                            get filteredItems() {
+                                if (!this.search.trim()) return this.items;
+                                return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                            },
+                            selectArea(item) {
+                                if (item.hasActiveSales) return;
+                                this.selectedId = String(item.id);
+                                this.selectedNama = item.nama;
+                                this.open = false;
+                            }
+                        }" @click.outside="open = false">
+
+                            <input type="hidden" name="area_id" :value="selectedId" required>
+
+                            <!-- Trigger Button Plugin -->
+                            <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-emerald-500/20 flex items-center justify-between cursor-pointer transition shadow-xs">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span x-text="selectedId ? selectedNama : '-- Pilih Area / Kecamatan --'"></span>
+                                </div>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            <!-- Dropdown Menu Plugin -->
+                            <div x-show="open" 
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="absolute left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                                 style="display: none;">
+                                
+                                <div class="relative mb-2">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" 
+                                           x-model="search" 
+                                           placeholder="Cari Area / Kecamatan..." 
+                                           class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-800 font-medium"
+                                           @keydown.escape="open = false">
+                                </div>
+
+                                <div class="max-h-52 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <template x-for="item in filteredItems" :key="item.id">
+                                        <div @click="selectArea(item)" 
+                                             class="w-full px-3 py-2 text-xs rounded-xl transition flex items-center justify-between font-semibold"
+                                             :class="item.hasActiveSales ? 'bg-slate-100/70 text-slate-400 cursor-not-allowed border border-slate-100' : (selectedId == item.id ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 cursor-pointer' : 'text-slate-700 hover:bg-slate-50 border border-transparent cursor-pointer')">
+                                            
+                                            <span x-text="item.nama"></span>
+                                            
+                                            <template x-if="item.hasActiveSales">
+                                                <span class="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 shrink-0 ml-2" x-text="'Sudah ada Sales (' + item.salesName + ')'"></span>
+                                            </template>
+                                            <template x-if="!item.hasActiveSales">
+                                                <span class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 shrink-0 ml-2">Tersedia</span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    
+                                    <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                        Kecamatan tidak ditemukan
                                     </div>
-                                    @if(!empty($kec->has_active_sales))
-                                        <span class="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
-                                            Sudah ada Sales ({{ $kec->active_sales_name ?? 'Aktif' }})
-                                        </span>
-                                    @else
-                                        <span class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                                            Tersedia
-                                        </span>
-                                    @endif
-                                </label>
-                            @endforeach
-                            @if(count($kecamatanList) === 0)
-                                <div class="text-slate-400 text-xs text-center py-3">Belum ada data kecamatan di wilayah scope ini.</div>
-                            @endif
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -206,12 +267,93 @@
 
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan Sales *</label>
-                            <select name="sales_area_id" id="salesAreaSelect" required class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 bg-white focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Pilih Area / Kecamatan --</option>
-                                @foreach($kecamatanList as $kec)
-                                    <option value="{{ $kec->id }}">{{ $kec->nama }}</option>
-                                @endforeach
-                            </select>
+                            
+                            <div class="relative" x-data="{
+                                open: false,
+                                search: '',
+                                selectedId: '',
+                                selectedNama: '',
+                                get items() { return window.spvKecamatanList || []; },
+                                get filteredItems() {
+                                    if (!this.search.trim()) return this.items;
+                                    return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                selectArea(item) {
+                                    this.selectedId = String(item.id);
+                                    this.selectedNama = item.nama;
+                                    this.open = false;
+                                },
+                                init() {
+                                    window.addEventListener('sales-selected', (e) => {
+                                        const areaId = e.detail.areaId;
+                                        this.selectedId = areaId ? String(areaId) : '';
+                                        const found = this.items.find(i => String(i.id) === String(this.selectedId));
+                                        this.selectedNama = found ? found.nama : '';
+                                    });
+                                }
+                            }" @click.outside="open = false" id="salesAreaContainer">
+
+                                <input type="hidden" name="sales_area_id" id="salesAreaSelect" :value="selectedId" required>
+
+                                <!-- Trigger Button Plugin -->
+                                <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-indigo-500/20 flex items-center justify-between cursor-pointer transition shadow-xs">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <span x-text="selectedId ? selectedNama : '-- Pilih Area / Kecamatan --'"></span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <!-- Dropdown Menu Plugin -->
+                                <div x-show="open" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                                     style="display: none;">
+                                    
+                                    <div class="relative mb-2">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" 
+                                               x-model="search" 
+                                               placeholder="Cari Area / Kecamatan..." 
+                                               class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 font-medium"
+                                               @keydown.escape="open = false">
+                                    </div>
+
+                                    <div class="max-h-52 overflow-y-auto space-y-1 custom-scrollbar">
+                                        <template x-for="item in filteredItems" :key="item.id">
+                                            <div @click="selectArea(item)" 
+                                                 class="w-full px-3 py-2 text-xs rounded-xl transition flex items-center justify-between font-semibold border cursor-pointer"
+                                                 :class="selectedId == item.id ? 'bg-indigo-50 text-indigo-700 font-bold border-indigo-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
+                                                
+                                                <span x-text="item.nama"></span>
+                                                
+                                                <template x-if="item.hasActiveSales">
+                                                    <span class="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 shrink-0 ml-2" x-text="'Sudah ada Sales (' + item.salesName + ')'"></span>
+                                                </template>
+                                                <template x-if="!item.hasActiveSales">
+                                                    <span class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 shrink-0 ml-2">Tersedia</span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        
+                                        <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                            Kecamatan tidak ditemukan
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <p class="text-[10px] text-slate-400 mt-1">1 Area = 1 Sales Utama Aktif</p>
                         </div>
                     </div>
@@ -236,13 +378,8 @@
             };
 
             function onSalesChange(salesId) {
-                const select = document.getElementById('salesAreaSelect');
-                const activeAreaId = salesWilayahMap[salesId];
-                if (activeAreaId) {
-                    select.value = activeAreaId;
-                } else {
-                    select.value = '';
-                }
+                const activeAreaId = salesWilayahMap[salesId] ? String(salesWilayahMap[salesId]) : '';
+                window.dispatchEvent(new CustomEvent('sales-selected', { detail: { areaId: activeAreaId } }));
             }
 
             function openModalGeneral() {
@@ -405,17 +542,89 @@
 
                     <input type="hidden" name="is_other_city" :value="useOtherCity ? '1' : '0'">
 
-                    <!-- 1. Pilihan Master Kecamatan -->
+                    <!-- 1. Pilihan Master Kecamatan (SEARCHABLE DROPDOWN PLUGIN) -->
                     <div x-show="!useOtherCity" class="space-y-1">
                         <label class="block font-semibold text-slate-700">Pilih Kecamatan *</label>
-                        <select name="wilayah_id" :required="!useOtherCity" x-model="selectedWilayahId"
-                            class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-indigo-500 bg-white"
-                        >
-                            <option value="">-- Pilih Kecamatan --</option>
-                            @foreach($kecamatanList as $kec)
-                                <option value="{{ $kec->id }}">{{ $kec->nama }}</option>
-                            @endforeach
-                        </select>
+                        
+                        <div class="relative" x-data="{
+                            open: false,
+                            search: '',
+                            get items() { return window.spvKecamatanList || []; },
+                            get filteredItems() {
+                                if (!this.search.trim()) return this.items;
+                                return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                            },
+                            get selectedNama() {
+                                const found = this.items.find(i => String(i.id) === String(selectedWilayahId));
+                                return found ? found.nama : '';
+                            },
+                            selectArea(item) {
+                                selectedWilayahId = String(item.id);
+                                this.open = false;
+                            }
+                        }" @click.outside="open = false">
+
+                            <input type="hidden" name="wilayah_id" :value="selectedWilayahId" :required="!useOtherCity">
+
+                            <!-- Trigger Button Plugin -->
+                            <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-indigo-500/20 flex items-center justify-between cursor-pointer transition shadow-xs">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span x-text="selectedWilayahId ? selectedNama : '-- Pilih Kecamatan --'"></span>
+                                </div>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            <!-- Dropdown Menu Plugin -->
+                            <div x-show="open" 
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="absolute left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                                 style="display: none;">
+                                
+                                <div class="relative mb-2">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" 
+                                           x-model="search" 
+                                           placeholder="Cari Kecamatan..." 
+                                           class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 font-medium"
+                                           @keydown.escape="open = false">
+                                </div>
+
+                                <div class="max-h-52 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <template x-for="item in filteredItems" :key="item.id">
+                                        <div @click="selectArea(item)" 
+                                             class="w-full px-3 py-2 text-xs rounded-xl transition flex items-center justify-between font-semibold border cursor-pointer"
+                                             :class="selectedWilayahId == item.id ? 'bg-indigo-50 text-indigo-700 font-bold border-indigo-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
+                                            
+                                            <span x-text="item.nama"></span>
+                                            
+                                            <template x-if="item.hasActiveSales">
+                                                <span class="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 shrink-0 ml-2" x-text="'Sudah ada Sales (' + item.salesName + ')'"></span>
+                                            </template>
+                                            <template x-if="!item.hasActiveSales">
+                                                <span class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 shrink-0 ml-2">Tersedia</span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    
+                                    <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                        Kecamatan tidak ditemukan
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         @if(count($kecamatanList) == 0)
                             <p class="text-[11px] text-amber-600 font-semibold mt-1">⚠️ Belum ada kecamatan di bawah wilayah SPV ini. Silakan gunakan opsi 'Di Kota Lainnya' atau koordinasikan dengan HM.</p>
                         @endif

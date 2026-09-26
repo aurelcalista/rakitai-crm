@@ -1,3 +1,39 @@
+@php
+    $mobileSchoolOptions = [];
+    if(isset($availableProspekSekolah) && $availableProspekSekolah->isNotEmpty()) {
+        foreach($availableProspekSekolah as $p) {
+            $mobileSchoolOptions[] = [
+                'val' => 'prospek_' . $p->id,
+                'label' => $p->name,
+                'sub' => 'Prospek • Status: ' . $p->status . ($p->pic ? ' • PIC: ' . $p->pic : ''),
+            ];
+        }
+    }
+    if(isset($sekolahs) && $sekolahs->isNotEmpty()) {
+        foreach($sekolahs as $s) {
+            $mobileSchoolOptions[] = [
+                'val' => 'sekolah_' . $s->id,
+                'label' => $s->nama,
+                'sub' => 'Master Database Sekolah' . ($s->kota ? ' • ' . $s->kota : ''),
+            ];
+        }
+    $mobilePerusahaanOptions = [];
+    if(isset($perusahaans) && $perusahaans->isNotEmpty()) {
+        foreach($perusahaans as $p) {
+            $mobilePerusahaanOptions[] = [
+                'val' => (string)$p->id,
+                'label' => $p->nama,
+                'sub' => 'Database Perusahaan' . ($p->kota ? ' • ' . $p->kota : ''),
+            ];
+        }
+    }
+@endphp
+
+<script>
+    window.mobileSchoolOptionsList = @json($mobileSchoolOptions);
+    window.mobilePerusahaanOptionsList = @json($mobilePerusahaanOptions);
+</script>
+
 <x-mobile-form-layout :title="'Laporan Kunjungan Lapangan - UCIC'" :pageHeader="'Laporan Kunjungan'">
     <div 
         class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs"
@@ -109,7 +145,7 @@
                         :class="jenisTab === 'Sekolah' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 font-medium'"
                         class="py-2 text-xs rounded-xl transition text-center"
                     >
-                        🏫 Sekolah (SMA/SMK)
+                        Sekolah (SMA/SMK)
                     </button>
                     <button 
                         type="button" 
@@ -117,7 +153,7 @@
                         :class="jenisTab === 'Perusahaan' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 font-medium'"
                         class="py-2 text-xs rounded-xl transition text-center"
                     >
-                        🏢 Corporate / Mitra
+                        Corporate / Mitra
                     </button>
                 </div>
                 <input type="hidden" name="jenis" :value="jenisTab">
@@ -135,35 +171,86 @@
                 >
             </div>
 
-            <!-- DROPDOWN NAMA SEKOLAH DARI DATA PROSPEK -->
+            <!-- DROPDOWN NAMA SEKOLAH DARI DATA PROSPEK (SEARCHABLE DROPDOWN PLUGIN) -->
             <div x-show="jenisTab === 'Sekolah'" class="space-y-3">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="block text-xs font-bold text-slate-700">Pilih Nama Sekolah *</label>
-                        <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Sumber: Prospek</span>
+                        <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Searchable</span>
                     </div>
-                    <select 
-                        x-model="selectedSource"
-                        @change="handleSchoolSelect($event.target.value)"
-                        required
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-medium text-slate-800"
-                    >
-                        <option value="">-- Pilih Sekolah dari Prospek --</option>
-                        @if($availableProspekSekolah->isNotEmpty())
-                            <optgroup label="📋 Prospek Sekolah Anda / Tim">
-                                @foreach($availableProspekSekolah as $p)
-                                    <option value="prospek_{{ $p->id }}">{{ $p->name }} [{{ $p->status }} - PIC: {{ $p->pic }}]</option>
-                                @endforeach
-                            </optgroup>
-                        @endif
-                        @if($sekolahs->isNotEmpty())
-                            <optgroup label="🏫 Master Database Sekolah">
-                                @foreach($sekolahs as $sek)
-                                    <option value="sekolah_{{ $sek->id }}">{{ $sek->nama }}</option>
-                                @endforeach
-                            </optgroup>
-                        @endif
-                    </select>
+
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        get items() { return window.mobileSchoolOptionsList || []; },
+                        get filteredItems() {
+                            if (!this.search.trim()) return this.items;
+                            const q = this.search.toLowerCase();
+                            return this.items.filter(i => i.label.toLowerCase().includes(q) || (i.sub && i.sub.toLowerCase().includes(q)));
+                        },
+                        get selectedLabel() {
+                            const found = this.items.find(i => i.val === selectedSource);
+                            return found ? found.label : '';
+                        },
+                        selectSchool(item) {
+                            selectedSource = item.val;
+                            handleSchoolSelect(item.val);
+                            this.open = false;
+                        }
+                    }" @click.outside="open = false">
+
+                        <!-- Trigger Button -->
+                        <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-blue-500/20 flex items-center justify-between cursor-pointer transition shadow-xs">
+                            <div class="flex items-center gap-2 truncate">
+                                <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 v5m-4 0h4" />
+                                </svg>
+                                <span class="truncate font-semibold" x-text="selectedSource ? selectedLabel : '-- Cari & Pilih Nama Sekolah --'"></span>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu Popup -->
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                             style="display: none;">
+                            
+                            <div class="relative mb-2">
+                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" 
+                                       x-model="search" 
+                                       placeholder="Cari nama sekolah / PIC..." 
+                                       class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                       @keydown.escape="open = false">
+                            </div>
+
+                            <div class="max-h-56 overflow-y-auto space-y-1 custom-scrollbar">
+                                <template x-for="item in filteredItems" :key="item.val">
+                                    <div @click="selectSchool(item)" 
+                                         class="w-full px-3 py-2 text-xs rounded-xl transition cursor-pointer font-semibold border flex flex-col gap-0.5"
+                                         :class="selectedSource === item.val ? 'bg-blue-50 text-blue-700 font-bold border-blue-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
+                                        <span x-text="item.label" class="font-bold"></span>
+                                        <span x-text="item.sub" class="text-[10px] text-slate-400 font-normal"></span>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                    Sekolah tidak ditemukan
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <input type="hidden" name="prospek_id" :value="prospek_id">
                     <input type="hidden" name="sekolah_id" :value="sekolah_id">
                     <input type="hidden" name="nama_institusi" :value="namaInstitusi">
@@ -174,17 +261,79 @@
             <div x-show="jenisTab === 'Perusahaan'" class="space-y-3" style="display: none;">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Pilih Perusahaan *</label>
-                    <select 
-                        name="perusahaan_id"
-                        x-model="perusahaan_id"
-                        @change="handlePerusahaanSelect($event.target.value)"
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-medium"
-                    >
-                        <option value="">-- Pilih Perusahaan --</option>
-                        @foreach($perusahaans as $per)
-                            <option value="{{ $per->id }}">{{ $per->nama }}</option>
-                        @endforeach
-                    </select>
+                    
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        get items() { return window.mobilePerusahaanOptionsList || []; },
+                        get filteredItems() {
+                            if (!this.search.trim()) return this.items;
+                            const q = this.search.toLowerCase();
+                            return this.items.filter(i => i.label.toLowerCase().includes(q) || (i.sub && i.sub.toLowerCase().includes(q)));
+                        },
+                        get selectedLabel() {
+                            const found = this.items.find(i => i.val === String(perusahaan_id));
+                            return found ? found.label : '';
+                        },
+                        selectPerusahaan(item) {
+                            handlePerusahaanSelect(item.val);
+                            this.open = false;
+                        }
+                    }" @click.outside="open = false">
+
+                        <input type="hidden" name="perusahaan_id" :value="perusahaan_id">
+
+                        <!-- Trigger Button -->
+                        <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-purple-500/20 flex items-center justify-between cursor-pointer transition shadow-xs">
+                            <div class="flex items-center gap-2 truncate">
+                                <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 v5m-4 0h4" />
+                                </svg>
+                                <span class="truncate font-semibold" x-text="perusahaan_id ? selectedLabel : '-- Cari & Pilih Perusahaan --'"></span>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                             style="display: none;">
+                            
+                            <div class="relative mb-2">
+                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" 
+                                       x-model="search" 
+                                       placeholder="Ketik nama perusahaan..." 
+                                       class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+                                       @keydown.escape="open = false">
+                            </div>
+
+                            <div class="max-h-56 overflow-y-auto space-y-1 custom-scrollbar">
+                                <template x-for="item in filteredItems" :key="item.val">
+                                    <div @click="selectPerusahaan(item)" 
+                                         class="w-full px-3 py-2.5 text-xs rounded-xl transition cursor-pointer font-semibold border flex flex-col gap-0.5"
+                                         :class="String(perusahaan_id) === item.val ? 'bg-purple-50 text-purple-700 font-bold border-purple-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
+                                        <span x-text="item.label" class="font-bold"></span>
+                                        <span x-text="item.sub" class="text-[10px] text-slate-400 font-normal"></span>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                    Perusahaan tidak ditemukan
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <input type="hidden" name="nama_institusi" :value="namaInstitusi">
                 </div>
             </div>

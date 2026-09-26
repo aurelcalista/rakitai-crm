@@ -88,7 +88,8 @@ class SpvPerformanceService
             'allocated_lunas'    => $allocatedLunas,
             'sisa_kontak'        => $sisaKontak,
             'sisa_formulir'      => $sisaFormulir,
-            'sisa_lunas'         => max(0, $targetLunas - $realisasi['lunas']),
+            'sisa_lunas'         => $sisaLunas,
+            'sisa_capaian_lunas' => max(0, $targetLunas - $realisasi['lunas']),
             'realisasi_kontak'   => $realisasi['kontak'],
             'realisasi_formulir' => $realisasi['formulir'],
             'realisasi_lunas'    => $realisasi['lunas'],
@@ -497,10 +498,12 @@ class SpvPerformanceService
                 : Prospek::where('sales_id', $s->id)->where(function ($q) use ($ta) { $q->where('tahun_akademik', $ta)->orWhereNull('tahun_akademik'); })->whereIn('status', ['LUNAS', 'Closing', '07 LUNAS'])->count();
 
             $salesTarget = Target::where('sales_id', $s->id)->where('status', 'Aktif')->latest()->first();
-            $targetPersonal = $salesTarget ? (int)$salesTarget->target_lunas : 10;
+            $defaultTargetPerSales = max(0, (int)floor(($targetHm['target_lunas'] ?? 15) / max(1, $salesUsers->count())));
+            $targetPersonal = $salesTarget ? (int)$salesTarget->target_lunas : $defaultTargetPerSales;
             $achievement    = $targetPersonal > 0 ? round(($lunasCount / $targetPersonal) * 100) : 0;
 
             $salesBreakdown[] = [
+                'id'              => $s->id,
                 'user'            => $s,
                 'name'            => $s->name,
                 'role'            => $s->role,

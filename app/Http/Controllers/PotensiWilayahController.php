@@ -33,6 +33,15 @@ class PotensiWilayahController extends Controller
                           $cq->whereIn('id', $wilayahIds);
                       });
                 });
+
+                $query->with(['children' => function($q) use ($wilayahIds) {
+                    $q->where(function($subQ) use ($wilayahIds) {
+                        $subQ->whereIn('id', $wilayahIds)
+                             ->orWhereIn('parent_id', $wilayahIds);
+                    })->with(['assignedUsers' => function($qu) {
+                        $qu->wherePivot('role', 'Sales')->wherePivot('is_active', true);
+                    }]);
+                }]);
             } else {
                 // Ensure no data is shown if no wilayah is assigned to SPV/HM
                 $query->whereRaw('1 = 0');

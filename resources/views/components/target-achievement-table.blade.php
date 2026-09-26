@@ -81,7 +81,7 @@
                             <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 12.414a5 5 0 10-1.414 1.414l4.243 4.243a1 1 0 001.414-1.414zM15 11a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
-                            <span x-text="selectedId ? '📍 ' + selectedNama : ' Semua Wilayah Teritori'"></span>
+                            <span x-text="selectedId ? selectedNama : 'Semua Wilayah Teritori'"></span>
                             <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
@@ -117,7 +117,7 @@
                                             @click="selectWilayah(item)" 
                                             class="w-full text-left px-3 py-1.5 text-xs rounded-xl transition flex items-center justify-between font-semibold"
                                             :class="selectedId == item.id ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-50'">
-                                        <span x-text="item.id ? '📍 ' + item.nama : '🌐 ' + item.nama"></span>
+                                        <span x-text="item.nama"></span>
                                         <svg x-show="selectedId == item.id" class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                         </svg>

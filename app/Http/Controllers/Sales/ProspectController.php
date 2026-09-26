@@ -220,9 +220,15 @@ class ProspectController extends Controller
                 ->withErrors(['status' => 'Gunakan tombol "Mark as Lost" untuk mengubah ke status Lost.']);
         }
 
-        if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
-            return redirect()->back()
-                ->withErrors(['status' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.']);
+        if ($newStatus === 'LUNAS') {
+            if (strtolower(auth()->user()->role ?? '') === 'sales') {
+                return redirect()->back()
+                    ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
+            }
+            if (!\App\Services\ProspekService::isClosingValid($prospek)) {
+                return redirect()->back()
+                    ->withErrors(['status' => 'Status LUNAS tidak valid. Prospek harus melunasi Pembayaran Formulir dan Termin 1.']);
+            }
         }
 
         $prospek->update([

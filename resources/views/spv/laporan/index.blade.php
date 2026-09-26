@@ -117,8 +117,8 @@
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
                             <th class="py-3 px-3">Tanggal</th>
-                            <th class="py-3 px-4">Nama Prospek / Sekolah</th>
-                            <th class="py-3 px-3">PIC & Kontak</th>
+                            <th class="py-3 px-4">Nama Calon Mahasiswa Baru (Camaba)</th>
+                            <th class="py-3 px-3">Sumber Informasi</th>
                             <th class="py-3 px-3">Sales Handler</th>
                             <th class="py-3 px-3 text-center">Status</th>
                             <th class="py-3 px-3">Follow Up Terakhir</th>
@@ -129,12 +129,11 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3 px-3 text-slate-500 whitespace-nowrap">{{ $p['created_at'] }}</td>
                                 <td class="py-3 px-4">
-                                    <div class="font-bold text-slate-900">{{ $p['name'] }}</div>
-                                    <div class="text-[10px] text-slate-400">{{ $p['type'] }} &bull; {{ $p['source'] }}</div>
-                                </td>
-                                <td class="py-3 px-3">
-                                    <div class="font-medium text-slate-800">{{ $p['pic'] }}</div>
+                                    <div class="font-bold text-slate-900">{{ $p['pic'] ?: $p['name'] }}</div>
                                     <div class="text-[11px] text-emerald-600 font-semibold">{{ $p['whatsapp'] }}</div>
+                                </td>
+                                <td class="py-3 px-3 text-slate-600 font-medium">
+                                    {{ $p['source'] ?? $p['type'] }}
                                 </td>
                                 <td class="py-3 px-3">
                                     <div class="font-semibold text-slate-700">{{ $p['sales_name'] }}</div>

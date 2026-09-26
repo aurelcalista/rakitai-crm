@@ -1,3 +1,19 @@
+@php
+    $perusahaanOptions = [];
+    if(isset($perusahaans) && $perusahaans->isNotEmpty()) {
+        foreach($perusahaans as $p) {
+            $perusahaanOptions[] = [
+                'val' => (string)$p->id,
+                'label' => $p->nama,
+                'sub' => 'Database Perusahaan' . ($p->kota ? ' • ' . $p->kota : ''),
+            ];
+        }
+    }
+@endphp
+<script>
+    window.mobilePerusahaanList = @json($perusahaanOptions);
+</script>
+
 <x-mobile-form-layout :title="'Input Prospek Lapangan - UCIC'" :pageHeader="'Input Prospek Lapangan'">
     <div 
         class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs"
@@ -47,7 +63,7 @@
                         :class="prospekType === 'Sekolah' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 font-medium'"
                         class="py-2 text-xs rounded-xl transition text-center"
                     >
-                        🏫 Sekolah
+                        Sekolah
                     </button>
                     <button 
                         type="button" 
@@ -55,7 +71,7 @@
                         :class="prospekType === 'Corporate' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 font-medium'"
                         class="py-2 text-xs rounded-xl transition text-center"
                     >
-                        🏢 Corporate
+                        Corporate
                     </button>
                     <button 
                         type="button" 
@@ -63,7 +79,7 @@
                         :class="prospekType === 'Individu' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 font-medium'"
                         class="py-2 text-xs rounded-xl transition text-center"
                     >
-                        👤 Siswa
+                        Siswa
                     </button>
                 </div>
                 <input type="hidden" name="type" :value="prospekType">
@@ -113,17 +129,79 @@
             <div x-show="prospekType === 'Corporate'" class="space-y-3" style="display: none;">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Pilih Perusahaan Terdaftar</label>
-                    <select 
-                        name="perusahaan_id" 
-                        x-model="selectedPerusahaanId" 
-                        @change="handlePerusahaanChange($event.target.value)"
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-medium"
-                    >
-                        <option value="">-- Pilih dari database corporate --</option>
-                        @foreach($perusahaans as $per)
-                            <option value="{{ $per->id }}">{{ $per->nama }}</option>
-                        @endforeach
-                    </select>
+                    <div class="relative" x-data="{
+                        open: false,
+                        search: '',
+                        get items() { return window.mobilePerusahaanList || []; },
+                        get filteredItems() {
+                            if (!this.search.trim()) return this.items;
+                            const q = this.search.toLowerCase();
+                            return this.items.filter(i => i.label.toLowerCase().includes(q) || (i.sub && i.sub.toLowerCase().includes(q)));
+                        },
+                        get selectedLabel() {
+                            const found = this.items.find(i => i.val === String(selectedPerusahaanId));
+                            return found ? found.label : '';
+                        },
+                        selectPerusahaan(item) {
+                            selectedPerusahaanId = item.val;
+                            handlePerusahaanChange(item.val);
+                            this.open = false;
+                        }
+                    }" @click.outside="open = false">
+
+                        <input type="hidden" name="perusahaan_id" :value="selectedPerusahaanId">
+
+                        <!-- Trigger Button -->
+                        <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-purple-500/20 flex items-center justify-between cursor-pointer transition shadow-xs">
+                            <div class="flex items-center gap-2 truncate">
+                                <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 v5m-4 0h4" />
+                                </svg>
+                                <span class="truncate font-semibold" x-text="selectedPerusahaanId ? selectedLabel : '-- Cari & Pilih Perusahaan --'"></span>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                             style="display: none;">
+                            
+                            <div class="relative mb-2">
+                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" 
+                                       x-model="search" 
+                                       placeholder="Ketik nama perusahaan..." 
+                                       class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
+                                       @keydown.escape="open = false">
+                            </div>
+
+                            <div class="max-h-56 overflow-y-auto space-y-1 custom-scrollbar">
+                                <template x-for="item in filteredItems" :key="item.val">
+                                    <div @click="selectPerusahaan(item)" 
+                                         class="w-full px-3 py-2.5 text-xs rounded-xl transition cursor-pointer font-semibold border flex flex-col gap-0.5"
+                                         :class="String(selectedPerusahaanId) === item.val ? 'bg-purple-50 text-purple-700 font-bold border-purple-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
+                                        <span x-text="item.label" class="font-bold"></span>
+                                        <span x-text="item.sub" class="text-[10px] text-slate-400 font-normal"></span>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="filteredItems.length === 0" class="px-3 py-3 text-xs text-slate-400 italic text-center">
+                                    Perusahaan tidak ditemukan
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama Perusahaan *</label>
