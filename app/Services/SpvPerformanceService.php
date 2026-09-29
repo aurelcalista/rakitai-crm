@@ -143,9 +143,10 @@ class SpvPerformanceService
 
         $realisasiFormulir = max($realisasiFormulir, $statusFormulirCount);
 
-        // Realisasi Maba Lunas = Transaksi Termin 1 + Formulir ATAU status LUNAS
+        // Realisasi Maba Lunas = Transaksi Termin 1 VERIFIED + Formulir ATAU status LUNAS
         $transaksiLunasCount = empty($prospekIds) ? 0 : Transaksi::whereIn('prospek_id', $prospekIds)
             ->where('jenis', 'Pembayaran Termin 1')
+            ->where('payment_status', \App\Models\Transaksi::STATUS_VERIFIED)
             ->whereBetween('tanggal', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->distinct('prospek_id')
             ->count('prospek_id');
@@ -328,7 +329,9 @@ class SpvPerformanceService
 
             $capaianKemarinLunas = Transaksi::whereHas('prospek', function ($q) use ($member, $isCs) {
                     $isCs ? $q->where('cs_id', $member->id) : $q->where('sales_id', $member->id);
-                })->where('jenis', 'Pembayaran Termin 1')->whereDate('tanggal', $yesterday->toDateString())->count();
+                })->where('jenis', 'Pembayaran Termin 1')
+                ->where('payment_status', \App\Models\Transaksi::STATUS_VERIFIED)
+                ->whereDate('tanggal', $yesterday->toDateString())->count();
 
             $utangKontak   = max(0, $targetNormalKontak - $capaianKemarinKontak);
             $utangFormulir = max(0, $targetNormalFormulir - $capaianKemarinFormulir);
