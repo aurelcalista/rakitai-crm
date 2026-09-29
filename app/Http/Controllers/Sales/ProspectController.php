@@ -25,9 +25,7 @@ class ProspectController extends Controller
     {
         $user = auth()->user();
 
-        $query = Prospek::with(['cs', 'owner', 'sekolah', 'perusahaan', 'sales', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }])
+        $query = Prospek::with(['cs', 'owner', 'sekolah', 'perusahaan', 'sales', 'latestFollowUp'])
             ->where('sales_id', $user->id);
 
         // Optional status filter
@@ -72,15 +70,45 @@ class ProspectController extends Controller
 
         $user = auth()->user();
 
-        // Resolve name from Master Data if applicable
+        // Resolve name from Master Data or Manual Input if applicable
         $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
 
-        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $sekolah = Sekolah::find($validated['sekolah_id']);
-            if ($sekolah) $name = $sekolah->nama;
-        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
-            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-            if ($perusahaan) $name = $perusahaan->nama;
+        if ($validated['type'] === 'Sekolah') {
+            if (!empty($request->sekolah_manual)) {
+                $manualName = trim($request->sekolah_manual);
+                if ($manualName !== '') {
+                    $sekolah = Sekolah::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['sekolah_id'] = $sekolah->id;
+                    $name = $sekolah->nama;
+                }
+            } elseif (!empty($validated['sekolah_id'])) {
+                $sekolah = Sekolah::find($validated['sekolah_id']);
+                if ($sekolah) $name = $sekolah->nama;
+            }
+        } elseif ($validated['type'] === 'Corporate') {
+            if (!empty($request->perusahaan_manual)) {
+                $manualName = trim($request->perusahaan_manual);
+                if ($manualName !== '') {
+                    $perusahaan = Perusahaan::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['perusahaan_id'] = $perusahaan->id;
+                    $name = $perusahaan->nama;
+                }
+            } elseif (!empty($validated['perusahaan_id'])) {
+                $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+                if ($perusahaan) $name = $perusahaan->nama;
+            }
         }
 
         DB::transaction(function () use ($validated, $user, $name) {
@@ -143,7 +171,7 @@ class ProspectController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('view', $prospek);
 
-        $prospek->load(['sales', 'cs', 'owner', 'followUps' => function ($q) {
+        $prospek->load(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'prodi', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -160,6 +188,12 @@ class ProspectController extends Controller
         $lostReasons = Prospek::LOST_REASONS;
         $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
 
+        $sekolahsList        = Sekolah::getDynamicSchools();
+        $perusahaansList     = Perusahaan::getDynamicPerusahaans();
+        $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+        $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+
         // Sales tidak bisa re-alokasi, kirim collection kosong agar view tidak error
         $salesTeam = \Illuminate\Support\Collection::make();
 
@@ -169,7 +203,12 @@ class ProspectController extends Controller
             'allStages',
             'lostReasons',
             'metodeOptions',
-            'salesTeam'
+            'salesTeam',
+            'sekolahsList',
+            'perusahaansList',
+            'prodisList',
+            'sumberProspekList',
+            'kategoriProspekList'
         ));
     }
 
@@ -182,6 +221,52 @@ class ProspectController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
 
         $validated = $request->validated();
+
+        if ($validated['type'] === 'Sekolah') {
+            $validated['perusahaan_id'] = null;
+            if (!empty($request->sekolah_manual)) {
+                $manualName = trim($request->sekolah_manual);
+                if ($manualName !== '') {
+                    $sekolah = Sekolah::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['sekolah_id'] = $sekolah->id;
+                    $validated['name'] = $sekolah->nama;
+                }
+            } elseif (!empty($validated['sekolah_id'])) {
+                $sekolah = Sekolah::find($validated['sekolah_id']);
+                if ($sekolah) $validated['name'] = $sekolah->nama;
+            }
+        } elseif ($validated['type'] === 'Corporate') {
+            $validated['sekolah_id'] = null;
+            if (!empty($request->perusahaan_manual)) {
+                $manualName = trim($request->perusahaan_manual);
+                if ($manualName !== '') {
+                    $perusahaan = Perusahaan::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['perusahaan_id'] = $perusahaan->id;
+                    $validated['name'] = $perusahaan->nama;
+                }
+            } elseif (!empty($validated['perusahaan_id'])) {
+                $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+                if ($perusahaan) $validated['name'] = $perusahaan->nama;
+            }
+        } else {
+            $validated['sekolah_id'] = null;
+            $validated['perusahaan_id'] = null;
+            if (empty($validated['name'])) {
+                $validated['name'] = $validated['pic'] ?? $prospek->name;
+            }
+        }
 
         $prospek->update($validated);
 
@@ -333,12 +418,16 @@ class ProspectController extends Controller
      */
     private function formatProspek(\App\Models\Prospek $p): array
     {
-        $latestFollowUp = $p->followUps->first();
+        $latestFollowUp = $p->latestFollowUp ?? $p->followUps->first();
 
         return [
             'id'             => $p->id,
             'name'           => $p->name,
             'type'           => $p->type,
+            'sekolah_id'     => $p->sekolah_id,
+            'perusahaan_id'  => $p->perusahaan_id,
+            'prodi_id'       => $p->prodi_id,
+            'prodi_nama'     => $p->prodi ? $p->prodi->nama : '-',
             'sekolah_name'   => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
             'sales_name'     => $p->sales ? $p->sales->name : '-',
             'category'       => $p->category ?? '-',
@@ -351,16 +440,16 @@ class ProspectController extends Controller
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
             'active_takeover' => $p->activeHandlerLabel(),
             'owner'          => $p->owner ? $p->owner->name : 'Sistem',
-            'last_activity'  => $p->updated_at->diffForHumans(),
+            'last_activity'  => $p->updated_at ? $p->updated_at->diffForHumans() : '-',
             'potential'      => $p->potential ?? '-',
             'ai_training'    => $p->ai_training ?? '-',
-            'notes'          => $p->notes ?? '',
+            'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
             'source'         => $p->source ?? '-',
             'lost_reason'    => $p->lost_reason,
             'lost_note'      => $p->lost_note,
             'created_at'     => $p->created_at ? $p->created_at->format('d M Y') : '-',
             'takeover_time'  => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
-            'last_contact'   => $latestFollowUp
+            'last_contact'   => $latestFollowUp && $latestFollowUp->tanggal
                 ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i')
                 : '-',
             'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up
@@ -369,6 +458,8 @@ class ProspectController extends Controller
             'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up
                 ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString()
                 : null,
+            'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
+            'hasil_terakhir'  => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
         ];
     }
 
@@ -380,8 +471,9 @@ class ProspectController extends Controller
         $base = $this->formatProspek($p);
 
         $base['timeline'] = $p->timelines->map(function ($t) {
+            $timeObj = $t->time ?? $t->created_at;
             return [
-                'time'   => $t->time ? $t->time->format('d M Y, H:i') : '-',
+                'time'   => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
                 'title'  => $t->title,
                 'notes'  => $t->notes,
                 'status' => $t->status_after,

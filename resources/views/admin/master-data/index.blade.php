@@ -83,6 +83,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[11px] bg-slate-50/50">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Tahun Akademik</th>
                             <th class="py-3.5 px-4">Status Sistem</th>
                             <th class="py-3.5 px-4">Basis Data Terhubung</th>
@@ -92,6 +93,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($tahunAkademiks as $ta)
                             <tr class="hover:bg-slate-50/80 transition {{ $ta->status === 'Aktif' ? 'bg-emerald-50/30' : '' }}">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                 <td class="py-3.5 px-4 font-bold text-sm text-slate-900">
                                     {{ $ta->nama }}
                                 </td>

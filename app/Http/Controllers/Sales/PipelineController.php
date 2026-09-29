@@ -21,9 +21,7 @@ class PipelineController extends Controller
     {
         $user = auth()->user();
 
-        $prospectsRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }])
+        $prospectsRaw = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp'])
             ->where('sales_id', $user->id)
             ->orderBy('updated_at', 'desc')
             ->get();
@@ -121,7 +119,7 @@ class PipelineController extends Controller
 
     private function formatProspek(Prospek $p): array
     {
-        $latestFU = $p->followUps->first();
+        $latestFU = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
 
         return [
             'id'             => $p->id,
@@ -131,12 +129,12 @@ class PipelineController extends Controller
             'whatsapp'       => $p->whatsapp ?? '-',
             'status'         => $p->status,
             'stage_number'   => Prospek::STAGES[$p->status] ?? 0,
-            'notes'          => $p->notes ?? '',
+            'notes'          => $latestFU && $latestFU->catatan ? $latestFU->catatan : ($p->notes ?? ''),
             'takeover_sales' => $p->sales ? $p->sales->name : null,
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
             'active_takeover'=> $p->activeHandlerLabel(),
             'last_activity'  => $p->updated_at->diffForHumans(),
-            'last_contact'   => $latestFU
+            'last_contact'   => $latestFU && $latestFU->tanggal
                 ? \Carbon\Carbon::parse($latestFU->tanggal)->format('d M Y, H:i')
                 : '-',
             'next_follow_up' => $latestFU && $latestFU->next_follow_up

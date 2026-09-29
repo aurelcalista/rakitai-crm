@@ -130,6 +130,7 @@
                 <table class="w-full text-left border-collapse text-xs border border-slate-200">
                     <thead>
                         <tr class="bg-slate-100/90 text-slate-800 font-bold uppercase tracking-wider border-b border-slate-300 text-center">
+                            <th rowspan="2" class="py-3 px-3 w-10 text-center border-r border-slate-200">No</th>
                             <th rowspan="2" class="py-3 px-4 border-r border-slate-200 text-left">NAMA TIM (SALES / CS)</th>
                             <th rowspan="2" class="py-3 px-3 border-r border-slate-200 bg-blue-50/60 text-blue-900">TARGET NORMAL</th>
                             <th colspan="3" class="py-2 px-3 border-r border-slate-200 bg-slate-200/70 text-slate-800">Capaian Kemarin (kontak/Form/Lunas)</th>
@@ -146,6 +147,7 @@
                     <tbody class="divide-y divide-slate-200 font-medium">
                         @forelse($performaHarian['rows'] as $salesRow)
                             <tr class="hover:bg-slate-50/80 transition {{ ($salesRow['is_cs'] ?? false) ? 'bg-violet-50/30' : '' }}">
+                                <td class="py-3.5 px-3 text-center border-r border-slate-200 font-bold text-slate-400">{{ $loop->iteration }}</td>
                                 <td class="py-3.5 px-4 border-r border-slate-200 font-bold text-slate-900">
                                     <div class="flex items-center gap-2.5">
                                         <div class="w-7 h-7 rounded-full {{ ($salesRow['is_cs'] ?? false) ? 'bg-purple-600' : 'bg-blue-600' }} text-white font-bold flex items-center justify-center text-xs shrink-0">
@@ -351,6 +353,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                            <th class="py-3 px-3 w-10 text-center">No</th>
                             <th class="py-3 px-4">Personil Sales</th>
                             <th class="py-3 px-3 text-center">Potensi Mahasiswa</th>
                             <th class="py-3 px-3 text-center">Pembayaran Formulir</th>
@@ -363,6 +366,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @foreach($akumulasi['sales_breakdown'] as $sb)
                             <tr class="hover:bg-slate-50/80 transition">
+                                <td class="py-3 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                 <td class="py-3 px-4 font-semibold text-slate-900">
                                     <div class="flex items-center gap-2.5">
                                         <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">

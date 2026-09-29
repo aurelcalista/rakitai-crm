@@ -343,6 +343,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3 px-3 w-10 text-center">No</th>
                             <th class="py-3 px-4">Pengguna</th>
                             <th class="py-3 px-3">Role</th>
                             <th class="py-3 px-3">Aktivitas</th>
@@ -353,6 +354,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @foreach($recentActivities as $act)
                             <tr class="hover:bg-slate-50/80 transition duration-300">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                 <td class="py-3.5 px-4">
                                     <div class="flex items-center gap-2.5">
                                         <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-[11px] shrink-0">{{ substr($act['user'],0,1) }}</div>

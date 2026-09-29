@@ -66,6 +66,23 @@
                             <span class="block text-xs font-medium text-slate-400 mb-1">Alamat Institusi</span>
                             <span class="font-medium text-slate-700">{{ $visit['address'] }}</span>
                         </div>
+                        {{-- Program Studi Dipromosikan --}}
+                        <div class="md:col-span-2">
+                            <span class="block text-xs font-medium text-slate-400 mb-1">Program Studi yang Dipromosikan</span>
+                            @if(!empty($visit['prodi']) && $visit['prodi'] !== '-')
+                                <div class="flex flex-wrap gap-1.5 mt-0.5">
+                                    @foreach(explode(', ', $visit['prodi']) as $pName)
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold">
+                                            <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
+                                            {{ trim($pName) }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-xs text-slate-500 italic">Semua Jurusan / Umum</span>
+                            @endif
+                        </div>
+
                         {{-- Event Terkait --}}
                         <div class="md:col-span-2">
                             <span class="block text-xs font-medium text-slate-400 mb-1">Event Terkait</span>

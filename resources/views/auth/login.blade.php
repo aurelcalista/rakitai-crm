@@ -99,6 +99,36 @@
                         </div>
                     </div>
 
+                    <!-- Field Role / Hak Akses (Opsional) -->
+                    <div class="animate-fade-in-up animation-delay-250">
+                        <div class="flex items-center justify-between mb-1">
+                            <label for="role" class="block text-xs font-bold text-slate-700">
+                                Role / Hak Akses
+                            </label>
+                            <span class="text-[10px] text-slate-400 font-normal">Opsional (Otomatis jika kosong)</span>
+                        </div>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            <select 
+                                id="role" 
+                                name="role"
+                                class="w-full text-xs sm:text-sm pl-10 pr-4 py-2.5 sm:py-3 rounded-xl bg-[#eef4fe] border border-slate-200/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all duration-200 text-slate-800 shadow-xs cursor-pointer"
+                            >
+                                <option value="">-- Masuk Otomatis (Default Akun) --</option>
+                                <option value="Admin">Admin</option>
+                                <option value="HM">Head Marketing (HM)</option>
+                                <option value="SPV">Supervisor (SPV)</option>
+                                <option value="Sales">Sales Representative</option>
+                                <option value="CS">Customer Service (CS)</option>
+                                <option value="EO">Event Organizer (EO)</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Field Password -->
                     <div class="animate-fade-in-up animation-delay-300">
                         <label for="password" class="block text-xs font-bold text-slate-700 mb-1">

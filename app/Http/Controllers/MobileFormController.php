@@ -64,7 +64,7 @@ class MobileFormController extends Controller
 
         $request->validate([
             'type'      => 'required|in:Sekolah,Corporate,Individu',
-            'prodi_id'  => 'required|exists:prodis,id',
+            'prodi_id'  => 'nullable|exists:prodis,id',
             'pic'       => 'required|string|max:255',
             'whatsapp'  => 'required|string|max:30',
             'source'    => 'required|string|max:100',
@@ -173,7 +173,22 @@ class MobileFormController extends Controller
         $namaInstitusi = $request->nama_institusi;
         $tujuanId = 0;
         if ($request->jenis === 'Sekolah') {
-            if ($request->filled('prospek_id')) {
+            if ($request->filled('sekolah_manual')) {
+                $manualName = trim($request->sekolah_manual);
+                if ($manualName !== '') {
+                    $s = Sekolah::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif',
+                            'pic_name' => $request->pic_name,
+                            'pic_phone' => $request->pic_whatsapp,
+                        ]
+                    );
+                    $namaInstitusi = $s->nama;
+                    $tujuanId = $s->id;
+                }
+            } elseif ($request->filled('prospek_id')) {
                 $p = Prospek::find($request->prospek_id);
                 if ($p) {
                     $namaInstitusi = $p->name;
@@ -187,7 +202,22 @@ class MobileFormController extends Controller
                 }
             }
         } else {
-            if ($request->filled('perusahaan_id')) {
+            if ($request->filled('perusahaan_manual')) {
+                $manualName = trim($request->perusahaan_manual);
+                if ($manualName !== '') {
+                    $per = Perusahaan::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif',
+                            'pic_name' => $request->pic_name,
+                            'pic_phone' => $request->pic_whatsapp,
+                        ]
+                    );
+                    $namaInstitusi = $per->nama;
+                    $tujuanId = $per->id;
+                }
+            } elseif ($request->filled('perusahaan_id')) {
                 $per = Perusahaan::find($request->perusahaan_id);
                 if ($per) {
                     $namaInstitusi = $per->nama;
@@ -205,12 +235,23 @@ class MobileFormController extends Controller
 
         $activeTa = TahunAkademik::getAktif();
 
+        $rawProdiIds = $request->input('prodi_ids', []);
+        if (!is_array($rawProdiIds)) {
+            $rawProdiIds = !empty($rawProdiIds) ? [$rawProdiIds] : [];
+        }
+        if (empty($rawProdiIds) && $request->filled('prodi_id')) {
+            $rawProdiIds = [$request->input('prodi_id')];
+        }
+        $prodiIds = array_values(array_unique(array_filter(array_map('intval', $rawProdiIds))));
+        $firstProdiId = $prodiIds[0] ?? $request->input('prodi_id') ?? 1;
+
         $kunjungan = Kunjungan::create([
             'nomor'                 => $nomor,
             'tanggal'               => $request->tanggal,
             'waktu'                 => now()->format('H:i:s'),
             'sales_id'              => $salesId,
-            'prodi_id'              => $request->input('prodi_id') ?? 1,
+            'prodi_id'              => $firstProdiId,
+            'prodi_ids'             => !empty($prodiIds) ? $prodiIds : [$firstProdiId],
             'jenis'                 => $request->jenis,
             'tujuan_id'             => $tujuanId,
             'tujuan_kunjungan'      => $namaInstitusi,

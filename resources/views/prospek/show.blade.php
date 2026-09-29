@@ -8,7 +8,8 @@
     <div class="space-y-6" x-data="{
         prospect: {{ json_encode($prospect) }},
         currentStatus: '{{ $prospect['status'] }}',
-        modalRealokasi: false
+        modalRealokasi: false,
+        modalEditProspek: false
     }">
 
         <!-- Back Button & Breadcrumbs -->
@@ -67,6 +68,19 @@
                     >
                         <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         <span>Update Status</span>
+                    </button>
+                    @endcan
+
+                    @can('update', $prospekModel)
+                    <button 
+                        type="button" 
+                        @click="modalEditProspek = true"
+                        class="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span>Edit Data Prospek</span>
                     </button>
                     @endcan
 
@@ -355,6 +369,256 @@
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                         <button type="button" @click="modalTransaksi = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
                         <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs">Simpan Transaksi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT DATA PROSPEK -->
+    <div 
+        x-show="modalEditProspek" 
+        x-cloak 
+        class="fixed inset-0 z-50 overflow-y-auto"
+        role="dialog" 
+        aria-modal="true"
+    >
+        <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div x-show="modalEditProspek" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalEditProspek = false"></div>
+
+            <div 
+                x-show="modalEditProspek" 
+                class="inline-block w-full max-w-4xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto"
+            >
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Edit Data Prospek</h3>
+                        <p class="text-xs text-slate-500">Perbarui data prospek, informasi sekolah/perusahaan, dan kontak PIC.</p>
+                    </div>
+                    <button @click="modalEditProspek = false" class="text-slate-400 hover:text-slate-600 p-1">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <form action="{{ route((strtolower(auth()->user()->role ?? '') === 'sales' ? 'sales.' : '') . 'prospek.update', $prospect['id']) }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: '{{ $prospect['type'] }}', modeManualSekolah: {{ empty($prospect['sekolah_id']) && ($prospect['type'] ?? '') === 'Sekolah' ? 'true' : 'false' }}, modeManualCorp: {{ empty($prospect['perusahaan_id']) && ($prospect['type'] ?? '') === 'Corporate' ? 'true' : 'false' }} }">
+                    @csrf
+                    @method('PUT')
+
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center">Tipe Prospek <span class="text-rose-500 ml-0.5">*</span></label>
+                                <select name="type" x-model="prospekType" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="Sekolah">Sekolah (SMA/SMK/MA)</option>
+                                    <option value="Corporate">Corporate / Perusahaan</option>
+                                    <option value="Individu">Individu / Siswa Langsung</option>
+                                </select>
+                            </div>
+
+                            <!-- Input Sekolah (Search & Manual Mode) -->
+                            <div x-show="prospekType === 'Sekolah'" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                                <div class="flex items-center justify-between mb-1.5 h-5">
+                                    <template x-if="!modeManualSekolah">
+                                        <div class="flex items-center justify-between w-full">
+                                            <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualSekolah = true; const sel = $el.closest('.space-y-1').querySelector('input[name=sekolah_id]'); if(sel) sel.value = '';" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition cursor-pointer group"
+                                            >
+                                                <svg class="w-3 h-3 text-blue-500 group-hover:text-blue-700 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                <span>Input Manual</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="modeManualSekolah">
+                                        <div class="flex items-center justify-between w-full">
+                                            <div class="flex items-center gap-1.5">
+                                                <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                                    Manual
+                                                </span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualSekolah = false;" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer"
+                                            >
+                                                <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                <span>Cari Database</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div x-show="!modeManualSekolah">
+                                    <x-searchable-select 
+                                        name="sekolah_id" 
+                                        :options="$sekolahsList ?? []" 
+                                        :value="$prospect['sekolah_id'] ?? ''"
+                                        placeholder="-- Ketik untuk mencari Sekolah... --" 
+                                    />
+                                </div>
+
+                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-1.5">
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            name="sekolah_manual" 
+                                            value="{{ old('sekolah_manual', empty($prospect['sekolah_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
+                                            placeholder="Ketik nama sekolah (misal: SMAN 1 Cirebon)..." 
+                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
+                                        >
+                                    </div>
+                                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
+                                        <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Sekolah baru akan otomatis tersimpan ke master data.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Input Corporate (Search & Manual Mode) -->
+                            <div x-show="prospekType === 'Corporate'" x-on:switch-manual.stop="if ($event.detail.name === 'perusahaan_id') { modeManualCorp = true; $nextTick(function() { const inp = $el.querySelector('input[name=perusahaan_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" style="display: none;" class="space-y-1">
+                                <div class="flex items-center justify-between mb-1.5 h-5">
+                                    <template x-if="!modeManualCorp">
+                                        <div class="flex items-center justify-between w-full">
+                                            <label class="block text-xs font-semibold text-slate-700">Nama Perusahaan <span class="text-rose-500">*</span></label>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualCorp = true; const sel = $el.closest('.space-y-1').querySelector('input[name=perusahaan_id]'); if(sel) sel.value = '';" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition cursor-pointer group"
+                                            >
+                                                <svg class="w-3 h-3 text-blue-500 group-hover:text-blue-700 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                <span>Input Manual</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="modeManualCorp">
+                                        <div class="flex items-center justify-between w-full">
+                                            <div class="flex items-center gap-1.5">
+                                                <label class="block text-xs font-semibold text-slate-700">Nama Perusahaan <span class="text-rose-500">*</span></label>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                                    Manual
+                                                </span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualCorp = false;" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer"
+                                            >
+                                                <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                <span>Cari Database</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div x-show="!modeManualCorp">
+                                    <x-searchable-select 
+                                        name="perusahaan_id" 
+                                        :options="$perusahaansList ?? []" 
+                                        :value="$prospect['perusahaan_id'] ?? ''"
+                                        placeholder="-- Ketik untuk mencari Perusahaan... --" 
+                                    />
+                                </div>
+
+                                <div x-show="modeManualCorp" style="display: none;" class="space-y-1.5">
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            name="perusahaan_manual" 
+                                            value="{{ old('perusahaan_manual', empty($prospect['perusahaan_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
+                                            placeholder="Ketik nama perusahaan (misal: PT Telkom Cirebon)..." 
+                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
+                                        >
+                                    </div>
+                                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
+                                        <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Perusahaan baru akan otomatis tersimpan ke master data.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Calon Mahasiswa / Prospek</label>
+                                <input type="text" name="name" value="{{ $prospect['name'] }}" placeholder="Nama prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
+                                <select name="prodi_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Program Studi --</option>
+                                    @foreach($prodisList ?? [] as $prd)
+                                        <option value="{{ $prd->id }}" {{ ($prospect['prodi_id'] ?? '') == $prd->id ? 'selected' : '' }}>{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pipeline *</label>
+                                <input type="text" readonly name="status" value="{{ $prospect['status'] }}" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-600 font-bold cursor-not-allowed">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
+                                <input type="text" name="pic" required value="{{ $prospect['pic'] }}" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
+                                <input type="tel" name="whatsapp" required value="{{ $prospect['whatsapp'] }}" placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>
+                                <select name="source" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Sumber --</option>
+                                    @foreach($sumberProspekList ?? [] as $sumber)
+                                        <option value="{{ $sumber->nama }}" {{ ($prospect['source'] ?? '') == $sumber->nama ? 'selected' : '' }}>{{ $sumber->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Prospek</label>
+                                <select name="category" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Kategori --</option>
+                                    @foreach($kategoriProspekList ?? [] as $kategori)
+                                        <option value="{{ $kategori->nama }}" {{ ($prospect['category'] ?? '') == $kategori->nama ? 'selected' : '' }}>{{ $kategori->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
+                                <textarea name="notes" rows="2" placeholder="Catatan hasil perbincangan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">{{ $prospect['notes'] ?? '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                        <button type="button" @click="modalEditProspek = false" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer">Simpan Perubahan</button>
                     </div>
                 </form>
             </div>

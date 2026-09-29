@@ -114,6 +114,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3 px-3 w-10 text-center">No</th>
                             <th class="py-3 px-4">Sales Representative</th>
                             <th class="py-3 px-3 text-center">Target</th>
                             <th class="py-3 px-3 text-center">Total Prospek</th>
@@ -126,6 +127,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @foreach($team as $member)
                             <tr class="hover:bg-slate-50/80 transition">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                 <td class="py-3.5 px-4 font-semibold text-slate-900 flex items-center gap-2.5">
                                     <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
                                         {{ $member['avatar'] }}

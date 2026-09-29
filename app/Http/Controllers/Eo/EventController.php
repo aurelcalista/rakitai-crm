@@ -44,7 +44,7 @@ class EventController extends Controller
         $events = Event::with(['type', 'spvs', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
             ->where('eo_id', $user->id)
             ->orderBy('tanggal_mulai', 'desc')
-            ->paginate(10);
+            ->paginate(25);
 
         $eventTypes  = MasterData::where('type', 'jenis_event')->where('status', 'Aktif')->get();
         $spvs        = User::whereIn('role', ['SPV', 'Supervisor Marketing', 'Supervisor'])->where('status', 'Aktif')->get();

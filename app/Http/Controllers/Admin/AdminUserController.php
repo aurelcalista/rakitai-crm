@@ -19,6 +19,7 @@ class AdminUserController extends Controller
             }
             $user->avatar_url = $user->avatar_url;
             $user->avatar = $user->initials;
+            $user->formatted_created_at = $user->created_at ? $user->created_at->format('d-m-Y') : '-';
             return $user;
         });
 
@@ -36,13 +37,17 @@ class AdminUserController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users,email',
             'phone' => 'required|string|max:20',
             'role' => 'required|in:' . $allowedRoles,
             'status' => 'required|in:Aktif,Nonaktif',
             'wilayah_id' => 'nullable|exists:wilayahs,id',
             'supervisor_id' => 'nullable|exists:users,id',
             'password' => 'required|string|confirmed',
+        ], [
+            'email.unique' => 'Alamat email sudah terdaftar pada pengguna lain. Silakan gunakan email lain.',
+            'email.email' => 'Format email tidak valid.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok dengan password yang dimasukkan.',
         ]);
 
         if (strtolower($authUser->role) === 'hm' && !empty($validated['wilayah_id'])) {
@@ -80,6 +85,9 @@ class AdminUserController extends Controller
             'status' => 'required|in:Aktif,Nonaktif',
             'wilayah_id' => 'nullable|exists:wilayahs,id',
             'supervisor_id' => 'nullable|exists:users,id',
+        ], [
+            'email.unique' => 'Alamat email sudah terdaftar pada pengguna lain. Silakan gunakan email lain.',
+            'email.email' => 'Format email tidak valid.',
         ]);
 
         if (strtolower($authUser->role) === 'hm' && !empty($validated['wilayah_id'])) {

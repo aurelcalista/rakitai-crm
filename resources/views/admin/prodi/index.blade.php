@@ -5,6 +5,8 @@
     <div class="space-y-6" x-data="{
         modalAdd: false, modalEdit: false, modalDetail: false,
         selectedProdi: null, searchQuery: '', filterFakultas: 'all', filterJenjang: 'all',
+        currentPage: 1,
+        perPage: 25,
         prodi: {{ json_encode($prodi) }},
         get filtered() {
             return this.prodi.filter(p => {
@@ -14,8 +16,15 @@
                 const mJ = this.filterJenjang === 'all' || p.jenjang === this.filterJenjang;
                 return mQ && mF && mJ;
             });
+        },
+        get paginated() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filtered.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filtered.length / this.perPage) || 1;
         }
-    }">
+    }" x-effect="searchQuery; filterFakultas; filterJenjang; currentPage = 1">
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -61,6 +70,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Kode / Nama Prodi</th>
                             <th class="py-3.5 px-3">Fakultas</th>
                             <th class="py-3.5 px-3 text-center">Jenjang</th>
@@ -73,8 +83,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="p in filtered" :key="p.id">
-                            <tr class="hover:bg-slate-50/80 transition">
+                        <template x-for="(p, index) in paginated" :key="p.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-slate-900" x-text="p.nama"></div>
                                     <div class="text-[11px] font-mono text-purple-600 mt-0.5" x-text="p.kode"></div>
@@ -91,7 +102,7 @@
                                 </td>
                                 <td class="py-3.5 px-3 text-center font-bold text-slate-800" x-text="p.kuota + ' mhs'"></td>
                                 <td class="py-3.5 px-3 text-center">
-                                    <span class="font-bold" :class="p.terdaftar >= p.kuota ? 'text-red-600' : 'text-emerald-600'" x-text="p.terdaftar + ' mhs'"></span>
+                                    <span class="font-bold" :class="p.terdaftar >= p.kuota ? 'text-red-600' : 'text-emerald-700'" x-text="p.terdaftar + ' mhs'"></span>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-500" x-text="p.ukt || p.spp"></td>
                                 <td class="py-3.5 px-3 text-slate-500" x-text="p.ukt_reguler || '-'"></td>
@@ -123,9 +134,23 @@
                                 </td>
                             </tr>
                         </template>
+                        <tr x-show="filtered.length === 0">
+                            <td colspan="10" class="py-12 text-center text-slate-400 text-xs">
+                                Tidak ada program studi yang cocok.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filtered.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="purple"
+            />
         </div>
 
         <!-- MODAL DETAIL PRODI -->

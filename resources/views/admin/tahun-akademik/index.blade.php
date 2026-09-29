@@ -67,6 +67,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                            <th class="py-3 px-3 w-10 text-center">No</th>
                             <th class="py-3 px-5">Tahun Akademik</th>
                             <th class="py-3 px-4">Status Transaksi</th>
                             <th class="py-3 px-4">Keterangan SOP</th>
@@ -76,6 +77,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @foreach($list as $ta)
                             <tr class="hover:bg-slate-50/80 transition {{ $ta->status === 'Aktif' ? 'bg-blue-50/40' : '' }}">
+                                <td class="py-4 px-3 text-center font-bold text-slate-400 text-xs">{{ $loop->iteration }}</td>
                                 <td class="py-4 px-5">
                                     <div class="font-extrabold text-sm text-slate-900">{{ $ta->nama }}</div>
                                     <div class="text-[10px] text-slate-400">ID: TA-{{ $ta->id }}</div>

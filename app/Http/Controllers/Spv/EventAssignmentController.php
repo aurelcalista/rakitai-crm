@@ -43,7 +43,7 @@ class EventAssignmentController extends Controller
             $q->where('users.id', $user->id);
         })
         ->orderBy('tanggal_mulai', 'desc')
-        ->paginate(10);
+        ->paginate(25);
 
         // SPV's team Sales
         $teamSales = $user->teamSales()->get();

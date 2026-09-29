@@ -12,6 +12,8 @@
         filterJenis: 'all',
         filterStatus: 'all',
         filterSales: 'all',
+        currentPage: 1,
+        perPage: 25,
         kunjungan: {{ json_encode($kunjungan) }},
         get filtered() {
             return this.kunjungan.filter(k => {
@@ -22,8 +24,15 @@
                 const matchSales = this.filterSales === 'all' || k.sales === this.filterSales;
                 return matchQ && matchJ && matchS && matchSales;
             });
+        },
+        get paginated() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filtered.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filtered.length / this.perPage) || 1;
         }
-    }">
+    }" x-effect="searchQuery; filterJenis; filterStatus; filterSales; currentPage = 1">
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -70,7 +79,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
-                            <th class="py-3.5 px-4">No. Kunjungan</th>
+                            <th class="py-3.5 px-4 w-12 text-center">No</th>
                             <th class="py-3.5 px-3">Tanggal</th>
                             <th class="py-3.5 px-3">Sales</th>
                             <th class="py-3.5 px-3">Jenis</th>
@@ -81,9 +90,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="k in filtered" :key="k.id">
-                            <tr class="hover:bg-slate-50/80 transition">
-                                <td class="py-3.5 px-4 font-mono font-bold text-purple-700 text-[11px]" x-text="k.id"></td>
+                        <template x-for="(k, idx) in paginated" :key="k.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-4 font-bold text-slate-400 text-center" x-text="(currentPage - 1) * perPage + idx + 1"></td>
                                 <td class="py-3.5 px-3">
                                     <div class="font-semibold text-slate-800" x-text="k.tanggal"></div>
                                     <div class="text-[11px] text-slate-400" x-text="k.waktu + ' WIB'"></div>
@@ -103,7 +112,7 @@
                                 <td class="py-3.5 px-3 text-center">
                                     <template x-if="k.foto">
                                         <button type="button" @click="selectedFoto = k.foto; modalFoto = true" class="inline-block cursor-pointer">
-                                            <img :src="k.foto" class="h-10 w-10 rounded-md object-cover shadow-sm border border-slate-200 hover:scale-105 transition" alt="Foto">
+                                             <img :src="k.foto" class="h-10 w-10 rounded-md object-cover shadow-sm border border-slate-200 hover:scale-105 transition" alt="Foto">
                                         </button>
                                     </template>
                                     <template x-if="!k.foto">
@@ -134,9 +143,23 @@
                                 </td>
                             </tr>
                         </template>
+                        <tr x-show="filtered.length === 0">
+                            <td colspan="8" class="py-12 text-center text-slate-400 text-xs">
+                                Tidak ada data kunjungan yang ditemukan.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filtered.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="blue"
+            />
         </div>
 
         <!-- MODAL DETAIL KUNJUNGAN -->

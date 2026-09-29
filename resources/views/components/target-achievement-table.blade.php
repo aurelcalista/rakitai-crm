@@ -267,6 +267,7 @@
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                        <th class="py-3 px-3 w-10 text-center">No</th>
                         <th class="py-3 px-4">Indikator Kinerja</th>
                         <th class="py-3 px-3 text-center">Target {{ $periodeLabelNama }}</th>
                         <th class="py-3 px-3 text-center">Realisasi {{ $periodeLabelNama }}</th>
@@ -287,6 +288,7 @@
                             $akumulasi = $row['akumulasi_realisasi'] ?? $row['pencapaian'];
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition">
+                            <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                             <td class="py-3.5 px-4">
                                 <div class="flex items-center gap-2">
                                     <span class="font-extrabold text-slate-900 text-xs">{{ $row['label'] }}</span>
@@ -366,6 +368,7 @@
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                        <th class="py-3 px-3 w-10 text-center">No</th>
                         <th class="py-3 px-4">Nama Personil / Teritori</th>
                         <th class="py-3 px-3">Role & Wilayah</th>
                         <th class="py-3 px-3 text-center">Target {{ $periodeLabelNama }}</th>
@@ -388,6 +391,7 @@
                             $hAkumulasi = $hRow['akumulasi_realisasi'] ?? $hRow['pencapaian'];
                         @endphp
                         <tr class="{{ $isTotal ? 'bg-slate-50 font-bold border-y-2 border-slate-200' : 'hover:bg-slate-50/80 transition' }}">
+                            <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $isTotal ? '-' : $loop->iteration }}</td>
                             <td class="py-3.5 px-4">
                                 <div class="font-extrabold {{ $isTotal ? 'text-slate-900 text-sm' : 'text-slate-800 text-xs' }}">
                                     {{ $hRow['label'] }}

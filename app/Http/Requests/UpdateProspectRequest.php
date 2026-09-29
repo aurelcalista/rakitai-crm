@@ -28,7 +28,9 @@ class UpdateProspectRequest extends FormRequest
             'name'     => 'nullable|string|max:255',
             'type'     => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
+            'sekolah_manual' => 'nullable|string|max:255',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string|max:255',
             'category' => 'nullable|string|max:100',
             'pic'      => 'required|string|max:255',
             'pic_phone'=> 'nullable|string|max:20',
@@ -84,12 +86,20 @@ class UpdateProspectRequest extends FormRequest
             $name = $validated['name'] ?? $validated['pic'] ?? 'Prospek Baru';
             $prospekId = $this->route('prospek') ? $this->route('prospek')->id : $this->route('id');
 
-            if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-                $sekolah = Sekolah::find($validated['sekolah_id']);
-                if ($sekolah) $name = $sekolah->nama;
-            } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
-                $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-                if ($perusahaan) $name = $perusahaan->nama;
+            if ($validated['type'] === 'Sekolah') {
+                if (!empty($validated['sekolah_id'])) {
+                    $sekolah = Sekolah::find($validated['sekolah_id']);
+                    if ($sekolah) $name = $sekolah->nama;
+                } elseif (!empty($validated['sekolah_manual'])) {
+                    $name = trim($validated['sekolah_manual']);
+                }
+            } elseif ($validated['type'] === 'Corporate') {
+                if (!empty($validated['perusahaan_id'])) {
+                    $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+                    if ($perusahaan) $name = $perusahaan->nama;
+                } elseif (!empty($validated['perusahaan_manual'])) {
+                    $name = trim($validated['perusahaan_manual']);
+                }
             }
 
             $duplicate = Prospek::with(['owner', 'sales'])->where(function($query) use ($validated, $name) {

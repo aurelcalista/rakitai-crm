@@ -21,9 +21,7 @@ class PipelineController extends Controller
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
 
-        $query = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }])->where(function ($q) use ($teamMemberIds, $user) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp'])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
               ->orWhereIn('cs_id', $teamMemberIds);
@@ -105,7 +103,7 @@ class PipelineController extends Controller
 
     private function formatProspek(Prospek $p): array
     {
-        $latestFU = $p->followUps->first();
+        $latestFU = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
         $normalizedStatus = strtoupper(trim($p->status));
         $stageMap = [
             'BARU'                => 'BARU',
@@ -140,13 +138,13 @@ class PipelineController extends Controller
             'status'         => $canonicalStatus,
             'raw_status'     => $p->status,
             'stage_number'   => Prospek::STAGES[$canonicalStatus] ?? (Prospek::STAGES[$p->status] ?? 1),
-            'notes'          => $p->notes ?? '',
+            'notes'          => $latestFU && $latestFU->catatan ? $latestFU->catatan : ($p->notes ?? ''),
             'sales_id'       => $p->sales_id,
             'takeover_sales' => $p->sales ? $p->sales->name : null,
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
             'active_takeover'=> $p->activeHandlerLabel(),
             'last_activity'  => $p->updated_at->diffForHumans(),
-            'last_contact'   => $latestFU
+            'last_contact'   => $latestFU && $latestFU->tanggal
                 ? \Carbon\Carbon::parse($latestFU->tanggal)->format('d M Y, H:i')
                 : '-',
             'next_follow_up' => $latestFU && $latestFU->next_follow_up

@@ -28,9 +28,7 @@ class ProspectController extends Controller
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
 
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }])->where(function ($q) use ($teamMemberIds, $user) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'latestFollowUp'])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
               ->orWhereIn('cs_id', $teamMemberIds);
@@ -177,7 +175,9 @@ class ProspectController extends Controller
             'name'          => 'nullable|string|max:255',
             'type'          => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
+            'sekolah_manual' => 'nullable|string|max:255',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string|max:255',
             'pic'           => 'required|string|max:255',
             'pic_phone'     => 'nullable|string|max:20',
             'whatsapp'      => 'required|string|max:20',
@@ -196,17 +196,47 @@ class ProspectController extends Controller
 
         $user = auth()->user();
 
-        // 1. Resolve Nama Prospek
+        // 1. Resolve Nama Prospek & Foreign Key
         $name = trim($validated['name'] ?? '');
         if (empty($name)) {
             $name = $validated['pic'] ?? 'Prospek Baru';
         }
-        if ($validated['type'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $sekolah = Sekolah::find($validated['sekolah_id']);
-            if ($sekolah) $name = $sekolah->nama;
-        } elseif ($validated['type'] === 'Corporate' && !empty($validated['perusahaan_id'])) {
-            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-            if ($perusahaan) $name = $perusahaan->nama;
+        if ($validated['type'] === 'Sekolah') {
+            if (!empty($request->sekolah_manual)) {
+                $manualName = trim($request->sekolah_manual);
+                if ($manualName !== '') {
+                    $sekolah = Sekolah::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['sekolah_id'] = $sekolah->id;
+                    $name = $sekolah->nama;
+                }
+            } elseif (!empty($validated['sekolah_id'])) {
+                $sekolah = Sekolah::find($validated['sekolah_id']);
+                if ($sekolah) $name = $sekolah->nama;
+            }
+        } elseif ($validated['type'] === 'Corporate') {
+            if (!empty($request->perusahaan_manual)) {
+                $manualName = trim($request->perusahaan_manual);
+                if ($manualName !== '') {
+                    $perusahaan = Perusahaan::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['perusahaan_id'] = $perusahaan->id;
+                    $name = $perusahaan->nama;
+                }
+            } elseif (!empty($validated['perusahaan_id'])) {
+                $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+                if ($perusahaan) $name = $perusahaan->nama;
+            }
         }
         if (empty($name)) {
             $name = $validated['pic'];
@@ -395,6 +425,12 @@ class ProspectController extends Controller
         Gate::authorize('update', $prospek);
 
         $validated = $request->validate([
+            'type'        => 'nullable|in:Sekolah,Corporate,Individu',
+            'sekolah_id'  => 'nullable|exists:sekolahs,id',
+            'sekolah_manual' => 'nullable|string|max:255',
+            'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string|max:255',
+            'name'        => 'nullable|string|max:255',
             'pic'         => 'required|string|max:255',
             'pic_phone'   => 'nullable|string|max:20',
             'whatsapp'    => 'required|string|max:20',
@@ -407,9 +443,50 @@ class ProspectController extends Controller
             'kelas'       => 'nullable|in:Reguler,Karyawan',
         ]);
 
+        $type = $validated['type'] ?? $prospek->type;
+        if ($type === 'Sekolah') {
+            $validated['perusahaan_id'] = null;
+            if (!empty($request->sekolah_manual)) {
+                $manualName = trim($request->sekolah_manual);
+                if ($manualName !== '') {
+                    $sekolah = Sekolah::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['sekolah_id'] = $sekolah->id;
+                    $validated['name'] = $sekolah->nama;
+                }
+            } elseif (!empty($validated['sekolah_id'])) {
+                $sekolah = Sekolah::find($validated['sekolah_id']);
+                if ($sekolah) $validated['name'] = $sekolah->nama;
+            }
+        } elseif ($type === 'Corporate') {
+            $validated['sekolah_id'] = null;
+            if (!empty($request->perusahaan_manual)) {
+                $manualName = trim($request->perusahaan_manual);
+                if ($manualName !== '') {
+                    $perusahaan = Perusahaan::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif'
+                        ]
+                    );
+                    $validated['perusahaan_id'] = $perusahaan->id;
+                    $validated['name'] = $perusahaan->nama;
+                }
+            } elseif (!empty($validated['perusahaan_id'])) {
+                $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+                if ($perusahaan) $validated['name'] = $perusahaan->nama;
+            }
+        }
+
         $duplicate = Prospek::where('id', '!=', $prospek->id)
             ->where(function ($q) use ($validated, $prospek) {
-                $name = $request->input('name', $prospek->name);
+                $name = $validated['name'] ?? $request->input('name', $prospek->name);
                 $q->where('whatsapp', $validated['whatsapp'])
                   ->orWhere('name', $name);
             })->first();
@@ -608,7 +685,7 @@ class ProspectController extends Controller
      */
     private function formatProspek(Prospek $p): array
     {
-        $latestFollowUp = $p->followUps->first();
+        $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
 
         return [
             'id'             => $p->id,
@@ -637,14 +714,19 @@ class ProspectController extends Controller
             'kelas'          => $p->kelas ?: 'Reguler',
             'source'         => $p->source ?? '-',
             'ai_training'    => $p->ai_training ?? '-',
-            'notes'          => $p->notes ?? '',
+            'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
             'created_at'     => $p->created_at ? $p->created_at->format('d M Y') : '-',
-            'last_contact'   => $latestFollowUp
+            'last_contact'   => $latestFollowUp && $latestFollowUp->tanggal
                 ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i')
                 : '-',
             'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up
                 ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i')
                 : '-',
+            'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up
+                ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString()
+                : null,
+            'metode_terakhir'=> $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
+            'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
             'sla_status'     => $p->sla_status,
         ];
     }
@@ -657,8 +739,9 @@ class ProspectController extends Controller
         $base = $this->formatProspek($p);
 
         $base['timeline'] = $p->timelines->map(function ($t) {
+            $timeObj = $t->time ?? $t->created_at;
             return [
-                'time'   => $t->time ? $t->time->format('d M Y, H:i') : '-',
+                'time'   => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
                 'title'  => $t->title,
                 'notes'  => $t->notes,
                 'status' => $t->status_after,

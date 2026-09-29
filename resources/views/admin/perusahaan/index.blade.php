@@ -5,6 +5,8 @@
     <div class="space-y-6" x-data="{
         modalAdd: false, modalEdit: false, modalDetail: false,
         selectedPrs: null, searchQuery: '', filterWilayah: 'all', filterKategori: 'all', filterStatus: 'all',
+        currentPage: 1,
+        perPage: 25,
         perusahaan: {{ json_encode($perusahaan) }},
         wilayahData: {{ json_encode($wilayahList->map(fn($w) => ['id' => $w->id, 'nama' => $w->nama, 'kecamatans' => $w->children->pluck('nama')->toArray()])) }},
         addKecList: [],
@@ -26,8 +28,15 @@
                 const mS = this.filterStatus === 'all' || p.status.toLowerCase() === this.filterStatus.toLowerCase();
                 return mQ && mW && mK && mS;
             });
+        },
+        get paginated() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filtered.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filtered.length / this.perPage) || 1;
         }
-    }">
+    }" x-effect="searchQuery; filterWilayah; filterKategori; filterStatus; currentPage = 1">
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -68,6 +77,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Perusahaan</th>
                             <th class="py-3.5 px-3">Kategori</th>
                             <th class="py-3.5 px-3">Wilayah / Kecamatan</th>
@@ -77,8 +87,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="p in filtered" :key="p.id">
-                            <tr class="hover:bg-slate-50/80 transition">
+                        <template x-for="(p, index) in paginated" :key="p.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-slate-900" x-text="p.nama"></div>
                                 </td>
@@ -129,9 +140,23 @@
                                 </td>
                             </tr>
                         </template>
+                        <tr x-show="filtered.length === 0">
+                            <td colspan="7" class="py-12 text-center text-slate-400 text-xs">
+                                Tidak ada data perusahaan yang cocok.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filtered.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="purple"
+            />
         </div>
 
         <!-- MODAL DETAIL PERUSAHAAN -->

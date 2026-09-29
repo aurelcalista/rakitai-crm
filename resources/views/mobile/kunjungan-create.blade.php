@@ -365,13 +365,19 @@
             </div>
 
             <!-- Prodi Target -->
-            <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">Program Studi Unggulan yang Dipromosikan *</label>
-                <select name="prodi_id" required class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-medium">
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold text-slate-700">Program Studi yang Dipromosikan</label>
+                    <span class="text-[10px] text-blue-700 bg-blue-50 font-bold px-2 py-0.5 rounded-full">Bisa Banyak</span>
+                </div>
+                <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-1">
                     @foreach($prodis as $prd)
-                        <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                        <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white active:bg-blue-50 transition cursor-pointer">
+                            <input type="checkbox" name="prodi_ids[]" value="{{ $prd->id }}" class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+                            <span class="text-xs font-medium text-slate-800">{{ $prd->nama }} ({{ $prd->jenjang }})</span>
+                        </label>
                     @endforeach
-                </select>
+                </div>
             </div>
 
             <!-- GPS LOCATION CAPTURE -->

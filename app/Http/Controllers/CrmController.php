@@ -1050,9 +1050,7 @@ class CrmController extends Controller
     private function getDbProspects(?Request $request = null)
     {
         $user = auth()->user();
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'followUps' => function($q) {
-            $q->orderBy('tanggal', 'desc');
-        }, 'timelines' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
         }]);
 
@@ -1113,6 +1111,8 @@ class CrmController extends Controller
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
         return $prospectsRaw->map(function ($p) {
+            $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
+
             return [
                 'id' => $p->id,
                 'name' => $p->name,
@@ -1133,14 +1133,16 @@ class CrmController extends Controller
                 'potential' => $p->potential ?? '-',
                 'source' => $p->source ?? '-',
                 'ai_training' => $p->ai_training ?? '-',
-                'notes' => $p->notes ?? '',
+                'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
                 'lost_reason' => $p->lost_reason ?? null,
                 'lost_note' => $p->lost_note ?? null,
                 'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
                 'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
-                'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
-                'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
-                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
+                'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
+                'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
+                'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
+                'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
                 'timeline' => $p->timelines->map(function ($t) {
                     return [
                         'time' => $t->time ? $t->time->format('d M, H:i') : '-',
@@ -1286,8 +1288,8 @@ class CrmController extends Controller
      */
     public function prospekShow(int $id): View
     {
-        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
-            $q->orderBy('tanggal', 'desc');
+        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp', 'followUps' => function($q) {
+            $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with('user');
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])->findOrFail($id);
@@ -1297,6 +1299,8 @@ class CrmController extends Controller
         $activeTakeover = [];
         if ($prospectRaw->sales) $activeTakeover[] = 'Sales';
         if ($prospectRaw->cs) $activeTakeover[] = 'CS';
+
+        $latestFollowUp = $prospectRaw->latestFollowUp ?? ($prospectRaw->relationLoaded('followUps') ? $prospectRaw->followUps->first() : null);
 
         $prospect = [
             'id' => $prospectRaw->id,
@@ -1316,14 +1320,16 @@ class CrmController extends Controller
             'source' => $prospectRaw->source ?? '-',
             'potential' => $prospectRaw->potential ?? '-',
             'ai_training' => $prospectRaw->ai_training ?? '-',
-            'notes' => $prospectRaw->notes ?? '',
+            'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($prospectRaw->notes ?? ''),
             'lost_reason' => $prospectRaw->lost_reason ?? null,
             'lost_note' => $prospectRaw->lost_note ?? null,
             'created_at' => $prospectRaw->created_at ? $prospectRaw->created_at->format('d M Y') : '-',
             'takeover_time' => $prospectRaw->updated_at ? $prospectRaw->updated_at->format('d M Y, H:i') : '-',
-            'last_contact' => $prospectRaw->followUps->first() ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
-            'next_follow_up' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
-            'next_follow_up_date' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->toDateString() : null,
+            'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
+            'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
+            'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
+            'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
+            'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
             'timeline' => $prospectRaw->timelines->map(function ($t) {
                 return [
                     'time' => $t->time ? $t->time->format('d M, H:i') : '-',
@@ -1560,8 +1566,42 @@ class CrmController extends Controller
     {
         $user = auth()->user();
 
-        // Resolve nama_institusi from prospek or sekolah if not directly filled
-        if (!$request->filled('nama_institusi')) {
+        // Resolve nama_institusi from manual input, prospek, or sekolah
+        if ($request->filled('sekolah_manual')) {
+            $manualName = trim($request->sekolah_manual);
+            if ($manualName !== '') {
+                $sek = \App\Models\Sekolah::firstOrCreate(
+                    ['nama' => $manualName],
+                    [
+                        'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                        'status' => 'Aktif',
+                        'pic_name' => $request->input('pic_name'),
+                        'pic_phone' => $request->input('pic_whatsapp'),
+                    ]
+                );
+                $request->merge([
+                    'sekolah_id' => $sek->id,
+                    'nama_institusi' => $sek->nama,
+                ]);
+            }
+        } elseif ($request->filled('perusahaan_manual')) {
+            $manualName = trim($request->perusahaan_manual);
+            if ($manualName !== '') {
+                $per = \App\Models\Perusahaan::firstOrCreate(
+                    ['nama' => $manualName],
+                    [
+                        'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                        'status' => 'Aktif',
+                        'pic_name' => $request->input('pic_name'),
+                        'pic_phone' => $request->input('pic_whatsapp'),
+                    ]
+                );
+                $request->merge([
+                    'perusahaan_id' => $per->id,
+                    'nama_institusi' => $per->nama,
+                ]);
+            }
+        } elseif (!$request->filled('nama_institusi')) {
             if ($request->filled('prospek_id')) {
                 $prospek = \App\Models\Prospek::find($request->prospek_id);
                 if ($prospek) {
@@ -1745,6 +1785,8 @@ class CrmController extends Controller
                 'status_after' => $prospek->status,
                 'time' => now(),
             ]);
+        } else {
+            $prospek->touch();
         }
 
         return redirect()->back()->with('success', 'Follow-up berhasil disimpan!');

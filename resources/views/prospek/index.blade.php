@@ -23,12 +23,13 @@
         <x-error-state />
     </div>
 
-    <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         searchQuery: '',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedTakeover: 'all',
+        currentPage: 1,
+        perPage: 25,
         prospectsList: {{ json_encode($prospects) }},
         
         get filteredProspects() {
@@ -45,8 +46,15 @@
                 
                 return matchSearch && matchStatus && matchType && matchTakeover;
             });
+        },
+        get paginatedProspects() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filteredProspects.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filteredProspects.length / this.perPage) || 1;
         }
-    }">
+    }" x-effect="searchQuery; selectedStatus; selectedType; selectedTakeover; currentPage = 1">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -231,6 +239,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Prospek</th>
                             <th class="py-3.5 px-3">Tipe</th>
                             <th class="py-3.5 px-3">WhatsApp</th>
@@ -242,8 +251,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="prospect in filteredProspects" :key="prospect.id">
+                        <template x-for="(prospect, index) in paginatedProspects" :key="prospect.id">
                             <tr class="hover:bg-slate-50/80 transition">
+                                <td class="py-4 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-4 px-4 font-semibold text-slate-900">
                                     <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
                                     <span class="text-[11px] text-slate-400 font-normal truncate max-w-xs block" x-text="prospect.potential"></span>
@@ -297,7 +307,7 @@
 
             <!-- MOBILE RESPONSIVE CARDS VIEW -->
             <div class="md:hidden divide-y divide-slate-100">
-                <template x-for="prospect in filteredProspects" :key="prospect.id">
+                <template x-for="prospect in paginatedProspects" :key="prospect.id">
                     <div class="p-4 space-y-3">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center gap-2.5">
@@ -347,7 +357,7 @@
                     </div>
                 </template>
             </div>
-
+            <x-table-pagination total="filteredProspects.length" page="currentPage" perPage="perPage" totalPages="totalPages" color="blue" />
         </div>
 
     </div>

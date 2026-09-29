@@ -2,7 +2,17 @@
 <div x-data="{ 
     modalTambah: false, 
     modalEdit: false,
-    selectedItem: null
+    selectedItem: null,
+    currentPage: 1,
+    perPage: 25,
+    eventTypesList: {{ json_encode($eventTypes) }},
+    get paginatedEventTypes() {
+        const start = (this.currentPage - 1) * this.perPage;
+        return this.eventTypesList.slice(start, start + this.perPage);
+    },
+    get totalPages() {
+        return Math.ceil(this.eventTypesList.length / this.perPage) || 1;
+    }
 }">
 
     <!-- Page Header -->
@@ -32,21 +42,22 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 text-sm">
-                    @forelse($eventTypes as $index => $type)
-                        <tr class="hover:bg-slate-50/50 transition">
-                            <td class="px-5 py-4 text-center font-medium text-slate-500">{{ $index + 1 }}</td>
-                            <td class="px-5 py-4 font-bold text-slate-900">{{ $type->nama }}</td>
+                    <template x-for="(type, index) in paginatedEventTypes" :key="type.id + '-' + currentPage">
+                        <tr class="hover:bg-slate-50/50 transition crm-table-slide">
+                            <td class="px-5 py-4 text-center font-medium text-slate-500" x-text="(currentPage - 1) * perPage + index + 1"></td>
+                            <td class="px-5 py-4 font-bold text-slate-900" x-text="type.nama"></td>
                             <td class="px-5 py-4">
-                                <span class="px-2.5 py-1 text-[11px] font-bold rounded-full {{ $type->status == 'Aktif' ? 'bg-purple-100 text-purple-800' : 'bg-rose-100 text-rose-800' }}">
-                                    {{ $type->status }}
+                                <span class="px-2.5 py-1 text-[11px] font-bold rounded-full"
+                                    :class="type.status === 'Aktif' ? 'bg-purple-100 text-purple-800' : 'bg-rose-100 text-rose-800'"
+                                    x-text="type.status">
                                 </span>
                             </td>
                             <td class="px-5 py-4 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button type="button" @click="selectedItem = {{ json_encode($type) }}; modalEdit = true" class="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition" title="Edit">
+                                    <button type="button" @click="selectedItem = type; modalEdit = true" class="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition" title="Edit">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                     </button>
-                                    <form action="{{ route('admin.event-types.destroy', $type->id) }}" method="POST" class="inline" data-confirm="Yakin ingin menghapus jenis event ini?">
+                                    <form :action="'{{ url('admin/event-types') }}/' + type.id" method="POST" class="inline" data-confirm="Yakin ingin menghapus jenis event ini?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition" title="Hapus">
@@ -56,17 +67,25 @@
                                 </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="px-5 py-12 text-center text-slate-500">
-                                <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                                <p>Belum ada jenis event.</p>
-                            </td>
-                        </tr>
-                    @endforelse
+                    </template>
+                    <tr x-show="eventTypesList.length === 0">
+                        <td colspan="4" class="px-5 py-12 text-center text-slate-500">
+                            <svg class="w-12 h-12 mx-auto text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            <p>Belum ada jenis event.</p>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination Control -->
+        <x-table-pagination
+            total="eventTypesList.length"
+            page="currentPage"
+            perPage="perPage"
+            totalPages="totalPages"
+            color="purple"
+        />
     </div>
 
     <!-- Modal Tambah -->
