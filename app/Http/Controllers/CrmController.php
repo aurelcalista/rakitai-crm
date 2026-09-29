@@ -1796,47 +1796,74 @@ class CrmController extends Controller
         $this->authorize('transaction', $prospek);
 
         $request->validate([
-            'jenis' => 'required|in:Beli Formulir,Pembayaran Termin 1',
-            'nominal' => 'required|numeric|min:0',
-            'tanggal' => 'required|date',
-            'notes' => 'nullable|string',
+            'jenis'             => 'required|in:Beli Formulir,Pembayaran Termin 1',
+            'nominal'           => 'required|numeric|min:0',
+            'tanggal'           => 'required|date',
+            'notes'             => 'nullable|string',
+            'metode_pembayaran' => 'required_if:jenis,Pembayaran Termin 1|nullable|in:virtual_account,gopay,dana,bank_transfer',
         ]);
 
+        // Pembayaran Termin 1 dengan metode → PENDING (menunggu verifikasi CS)
+        // Beli Formulir atau tanpa metode → langsung VERIFIED (backward compatible)
+        $isPembayaranTermin1 = $request->jenis === 'Pembayaran Termin 1';
+        $hasMetode = !empty($request->metode_pembayaran);
+        $paymentStatus = ($isPembayaranTermin1 && $hasMetode)
+            ? \App\Models\Transaksi::STATUS_PENDING
+            : \App\Models\Transaksi::STATUS_VERIFIED;
+
         \App\Models\Transaksi::create([
-            'prospek_id' => $prospek->id,
-            'user_id' => auth()->id(),
-            'jenis' => $request->jenis,
-            'nominal' => $request->nominal,
-            'tanggal' => $request->tanggal,
-            'notes' => $request->notes,
+            'prospek_id'        => $prospek->id,
+            'user_id'           => auth()->id(),
+            'jenis'             => $request->jenis,
+            'nominal'           => $request->nominal,
+            'tanggal'           => $request->tanggal,
+            'notes'             => $request->notes,
+            'metode_pembayaran' => $request->metode_pembayaran,
+            'payment_status'    => $paymentStatus,
         ]);
 
         $oldStatus = $prospek->status;
-        
-        if (\App\Services\ProspekService::isClosingValid($prospek)) {
+
+        if ($isPembayaranTermin1 && $paymentStatus === \App\Models\Transaksi::STATUS_PENDING) {
+            // Tunggu verifikasi CS — tidak langsung LUNAS, masuk BERKAS dulu
+            if ($prospek->stage_number < 6) {
+                $prospek->status = 'BERKAS';
+                $prospek->stage_number = 6;
+            }
+        } elseif (\App\Services\ProspekService::isClosingValid($prospek->fresh())) {
             $prospek->status = 'LUNAS';
             $prospek->stage_number = 7;
-        } else if ($request->jenis === 'Pembayaran Termin 1') {
+        } elseif ($isPembayaranTermin1 && $prospek->stage_number < 6) {
             $prospek->status = 'BERKAS';
             $prospek->stage_number = 6;
-        } else if ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
+        } elseif ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
             $prospek->status = 'FORMULIR';
             $prospek->stage_number = 5;
         }
-        
+
         $prospek->save();
 
+        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? '';
+        $timelineNotes = 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.')
+            . ($metodeLabel ? ' | Metode: ' . $metodeLabel : '')
+            . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : '')
+            . ($request->notes ? ' | Catatan: ' . $request->notes : '');
+
         ProspekTimeline::create([
-            'prospek_id' => $prospek->id,
-            'user_id' => auth()->id(),
-            'title' => 'Input Transaksi Manual: ' . $request->jenis,
-            'notes' => 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.') . ($request->notes ? ' | Catatan: ' . $request->notes : ''),
+            'prospek_id'    => $prospek->id,
+            'user_id'       => auth()->id(),
+            'title'         => 'Input Transaksi: ' . $request->jenis,
+            'notes'         => $timelineNotes,
             'status_before' => $oldStatus,
-            'status_after' => $prospek->status,
-            'time' => now(),
+            'status_after'  => $prospek->status,
+            'time'          => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Transaksi ' . $request->jenis . ' berhasil disimpan!');
+        $successMsg = $paymentStatus === \App\Models\Transaksi::STATUS_PENDING
+            ? 'Transaksi ' . $request->jenis . ' berhasil disimpan! Menunggu verifikasi CS.'
+            : 'Transaksi ' . $request->jenis . ' berhasil disimpan!';
+
+        return redirect()->back()->with('success', $successMsg);
     }
 
     /**

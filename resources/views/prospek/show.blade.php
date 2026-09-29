@@ -8,7 +8,11 @@
     <div class="space-y-6" x-data="{
         prospect: {{ json_encode($prospect) }},
         currentStatus: '{{ $prospect['status'] }}',
-        modalRealokasi: false
+        modalRealokasi: false,
+        modalTransaksi: false,
+        selectedJenis: '',
+        metodePembayaran: '',
+        bankAccounts: {{ json_encode(\App\Models\BankAccount::where('bank_name', 'Mandiri')->where('is_active', true)->get(['account_number','account_name'])) }}
     }">
 
         <!-- Back Button & Breadcrumbs -->
@@ -328,25 +332,75 @@
 
                 <form :action="'{{ url('prospek') }}/' + selectedProspect.id + '/transaksi'" method="POST" class="mt-4 space-y-4">
                     @csrf
+
+                    {{-- Jenis Transaksi --}}
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Transaksi *</label>
-                        <select name="jenis" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                        <select name="jenis" x-model="selectedJenis" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                             <option value="">-- Pilih Jenis --</option>
                             <option value="Beli Formulir">Beli Formulir</option>
                             <option value="Pembayaran Termin 1">Pembayaran Termin 1 (Closing)</option>
                         </select>
                     </div>
 
+                    {{-- Tanggal --}}
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Transaksi *</label>
                         <input type="date" name="tanggal" required value="{{ date('Y-m-d') }}" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                     </div>
 
+                    {{-- Nominal --}}
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Nominal (Rp) *</label>
                         <input type="number" name="nominal" required min="0" placeholder="Contoh: 1500000" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                     </div>
 
+                    {{-- Metode Pembayaran (hanya muncul jika Pembayaran Termin 1) --}}
+                    <div x-show="selectedJenis === 'Pembayaran Termin 1'" x-transition>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Metode Pembayaran *</label>
+                        <select name="metode_pembayaran" x-model="metodePembayaran"
+                            :required="selectedJenis === 'Pembayaran Termin 1'"
+                            class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition bg-white">
+                            <option value="">-- Pilih Metode Pembayaran --</option>
+                            <option value="virtual_account">🏦 Virtual Account</option>
+                            <option value="gopay">💚 GoPay</option>
+                            <option value="dana">🔵 DANA</option>
+                            <option value="bank_transfer">🏛️ Transfer Bank Mandiri</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">⏳ Pembayaran Termin 1 perlu diverifikasi oleh CS sebelum dinyatakan Closing.</p>
+                    </div>
+
+                    {{-- Info Rekening Mandiri (otomatis muncul) --}}
+                    <div x-show="selectedJenis === 'Pembayaran Termin 1' && metodePembayaran === 'bank_transfer'" x-transition>
+                        <template x-if="bankAccounts.length > 0">
+                            <div class="p-3 rounded-xl border border-amber-200 bg-amber-50 space-y-1.5">
+                                <p class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">🏛️ Info Rekening Tujuan Transfer</p>
+                                <template x-for="rek in bankAccounts" :key="rek.account_number">
+                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                        <div>
+                                            <span class="text-amber-600 text-[10px] font-semibold block">Bank</span>
+                                            <span class="font-bold text-slate-800">Mandiri</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-amber-600 text-[10px] font-semibold block">No. Rekening</span>
+                                            <span class="font-bold text-slate-800 font-mono" x-text="rek.account_number"></span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-amber-600 text-[10px] font-semibold block">Atas Nama</span>
+                                            <span class="font-bold text-slate-800" x-text="rek.account_name"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="bankAccounts.length === 0">
+                            <div class="p-3 rounded-xl border border-rose-200 bg-rose-50">
+                                <p class="text-xs text-rose-700 font-semibold">⚠️ Rekening Mandiri belum dikonfigurasi. Hubungi Admin.</p>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Catatan --}}
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
                         <textarea name="notes" rows="2" placeholder="Catatan opsional..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>

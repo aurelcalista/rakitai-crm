@@ -222,6 +222,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('attendance-locations', \App\Http\Controllers\Admin\AttendanceLocationController::class)->except(['create', 'show', 'edit']);
         Route::post('attendance-locations/{location}/toggle-status', [\App\Http\Controllers\Admin\AttendanceLocationController::class, 'toggleStatus'])->name('attendance-locations.toggle-status');
 
+        // Master Rekening Bank (Pembayaran CRM)
+        Route::post('bank-accounts/{bankAccount}/toggle-status', [\App\Http\Controllers\Admin\AdminBankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
+        Route::resource('bank-accounts', \App\Http\Controllers\Admin\AdminBankAccountController::class)->except(['create', 'show', 'edit']);
+
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
@@ -276,6 +280,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/laporan',         [CrmController::class, 'laporanIndex'])->name('laporan.index');
         Route::get('/infografis',      [\App\Http\Controllers\InfografisController::class, 'index'])->name('infografis.index');
     });
+
+    // ──────────────────────────────────────────────────────────────
+    // CS Verifikasi Pembayaran (CS, Admin, HM)
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware(['role:CS,Admin,HM'])->prefix('cs')->name('cs.')->group(function () {
+        Route::get('/verifikasi',                           [\App\Http\Controllers\Cs\VerifikasiController::class, 'index'])->name('verifikasi.index');
+        Route::post('/verifikasi/{transaksi}/verify',       [\App\Http\Controllers\Cs\VerifikasiController::class, 'verify'])->name('verifikasi.verify');
+        Route::post('/verifikasi/{transaksi}/reject',       [\App\Http\Controllers\Cs\VerifikasiController::class, 'reject'])->name('verifikasi.reject');
+    });
+
+
 
     // Account & Profile (all roles)
     Route::get('/profil',           [CrmController::class, 'profilIndex'])->name('profil.index');

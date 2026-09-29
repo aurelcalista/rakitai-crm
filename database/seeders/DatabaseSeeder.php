@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             SekolahSeeder::class,
             PerusahaanSeeder::class,
             TargetSeeder::class,
+            BankAccountSeeder::class,
             EventSeeder::class,
             ProspekSeeder::class,
             FollowUpSeeder::class,

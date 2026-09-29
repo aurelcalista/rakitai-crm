@@ -4,9 +4,23 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 class Transaksi extends Model
 {
     use HasFactory;
+
+    // Metode pembayaran yang tersedia
+    const METODE_PEMBAYARAN = [
+        'virtual_account' => 'Virtual Account',
+        'gopay'           => 'GoPay',
+        'dana'            => 'DANA',
+        'bank_transfer'   => 'Transfer Bank Mandiri',
+    ];
+
+    // Status verifikasi pembayaran
+    const STATUS_PENDING  = 'pending';
+    const STATUS_VERIFIED = 'verified';
+    const STATUS_REJECTED = 'rejected';
 
     protected $fillable = [
         'prospek_id',
@@ -16,6 +30,13 @@ class Transaksi extends Model
         'tanggal',
         'notes',
         'academic_year_id',
+        'metode_pembayaran',
+        'payment_status',
+        'verified_by',
+        'verified_at',
+        'rejected_by',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected static function booted()
@@ -42,14 +63,20 @@ class Transaksi extends Model
                 $spv = $sales?->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
                 $cs = $prospek->cs ?? ($prospek->cs_id ? \App\Models\User::find($prospek->cs_id) : null);
 
-                // 1. Notifikasi ke Sales
+                $isPembayaranTermin1 = $transaksi->jenis === 'Pembayaran Termin 1';
+                $isNeedVerification  = $isPembayaranTermin1 && $transaksi->payment_status === self::STATUS_PENDING;
+
+                // 1. Notifikasi ke Sales (hanya jika yang input bukan Sales pemilik)
                 if ($sales && (!$auth || $auth->id !== $sales->id)) {
+                    $salesMsg = $isNeedVerification
+                        ? "Transaksi {$transaksi->jenis} sebesar {$nominalText} untuk '{$prospek->name}' sedang menunggu verifikasi CS."
+                        : "Pembayaran sebesar {$nominalText} ({$transaksi->jenis}) tercatat untuk prospek '{$prospek->name}' oleh {$actorName}.";
                     $sales->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "💳 Pembayaran Masuk",
-                        message: "Pembayaran sebesar {$nominalText} ({$transaksi->jenis}) tercatat untuk prospek '{$prospek->name}' oleh {$actorName}.",
-                        type: 'success',
+                        title: $isNeedVerification ? "⏳ Menunggu Verifikasi CS" : "💳 Pembayaran Masuk",
+                        message: $salesMsg,
+                        type: $isNeedVerification ? 'warning' : 'success',
                         link: '/prospek',
-                        icon: '💳',
+                        icon: $isNeedVerification ? '⏳' : '💳',
                         senderName: $auth?->name,
                         senderRole: $auth?->role,
                         action: 'transaksi_created_sales'
@@ -70,17 +97,21 @@ class Transaksi extends Model
                     ));
                 }
 
-                // 3. Notifikasi ke CS
+                // 3. Notifikasi ke CS — ubah pesan jika butuh verifikasi
                 if ($cs && (!$auth || $auth->id !== $cs->id)) {
+                    $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? 'Transfer Manual';
+                    $csMsg = $isNeedVerification
+                        ? "Ada pembayaran yang perlu diverifikasi dari Sales " . ($sales?->name ?? $actorName) . " untuk calon mahasiswa '{$prospek->name}', nominal {$nominalText} dengan metode {$metodeName}."
+                        : "Pembayaran {$nominalText} ({$transaksi->jenis}) tervalidasi untuk prospek '{$prospek->name}'.";
                     $cs->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "💳 Pembayaran Siswa CS",
-                        message: "Pembayaran {$nominalText} ({$transaksi->jenis}) tervalidasi untuk prospek '{$prospek->name}'.",
-                        type: 'success',
-                        link: '/prospek',
-                        icon: '💳',
+                        title: $isNeedVerification ? "🔔 Verifikasi Pembayaran Diperlukan" : "💳 Pembayaran Siswa CS",
+                        message: $csMsg,
+                        type: $isNeedVerification ? 'warning' : 'success',
+                        link: route('cs.verifikasi.index'),
+                        icon: $isNeedVerification ? '🔔' : '💳',
                         senderName: $auth?->name,
                         senderRole: $auth?->role,
-                        action: 'transaksi_created_cs'
+                        action: $isNeedVerification ? 'verifikasi_pembayaran_cs' : 'transaksi_created_cs'
                     ));
                 }
             } catch (\Throwable $e) {
@@ -90,8 +121,38 @@ class Transaksi extends Model
     }
 
     protected $casts = [
-        'tanggal' => 'datetime',
+        'tanggal'     => 'datetime',
+        'verified_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
+
+    /**
+     * Apakah transaksi ini perlu verifikasi CS sebelum bisa Closing?
+     */
+    public function needsVerification(): bool
+    {
+        return $this->jenis === 'Pembayaran Termin 1'
+            && $this->metode_pembayaran !== null
+            && $this->payment_status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Apakah transaksi ini sudah terverifikasi (atau lama tanpa metode)?
+     */
+    public function isVerified(): bool
+    {
+        return $this->payment_status === self::STATUS_VERIFIED;
+    }
+
+    /**
+     * Label metode pembayaran yang mudah dibaca.
+     */
+    public function getMetodeLabelAttribute(): string
+    {
+        return self::METODE_PEMBAYARAN[$this->metode_pembayaran] ?? 'Tidak diketahui';
+    }
+
+    // ─── Relationships ──────────────────────────────────────────────
 
     public function prospek()
     {
@@ -101,5 +162,15 @@ class Transaksi extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function verifier()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function rejecter()
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 }
