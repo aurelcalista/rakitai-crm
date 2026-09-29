@@ -40,14 +40,16 @@ class ProspectController extends Controller
             $query->where('name', 'like', '%' . $request->q . '%');
         }
 
-        $prospects = $query->orderBy('updated_at', 'desc')->get()
+        $prospectsPaginated = $query->orderBy('updated_at', 'desc')->paginate(10)->withQueryString();
+
+        $prospects = $prospectsPaginated->getCollection()
             ->map(fn ($p) => $this->formatProspek($p))
             ->toArray();
 
         $statuses = Prospek::ACTIVE_STAGES;
         $lostReasons = Prospek::LOST_REASONS;
 
-        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons'));
+        return view('prospek.index', compact('prospects', 'prospectsPaginated', 'statuses', 'lostReasons'));
     }
 
     /**
@@ -215,9 +217,9 @@ class ProspectController extends Controller
         $newStatus = $validated['status'];
 
         // Prevent downgrading to Lost via this endpoint — use markLost instead
-        if ($newStatus === 'DINGIN') {
+        if ($newStatus === 'NO RESPON' || $newStatus === 'DINGIN') {
             return redirect()->back()
-                ->withErrors(['status' => 'Gunakan tombol "Mark as Lost" untuk mengubah ke status Lost.']);
+                ->withErrors(['status' => 'Gunakan tombol "Mark as Lost" untuk mengubah ke status No Respon.']);
         }
 
         if ($newStatus === 'LUNAS') {
@@ -267,8 +269,8 @@ class ProspectController extends Controller
         $oldStatus = $prospek->status;
 
         $prospek->update([
-            'status'       => 'DINGIN',
-            'stage_number' => 8,
+            'status'       => 'NO RESPON',
+            'stage_number' => Prospek::STAGES['NO RESPON'] ?? 9,
             'lost_reason'  => $validated['lost_reason'],
             'lost_note'    => $validated['lost_note'],
         ]);
@@ -276,15 +278,15 @@ class ProspectController extends Controller
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
             'user_id'      => auth()->id(),
-            'title'        => 'Prospek Ditandai DINGIN',
+            'title'        => 'Prospek Ditandai NO RESPON',
             'notes'        => 'Alasan: ' . $validated['lost_reason'] . ($validated['lost_note'] ? '. Catatan: ' . $validated['lost_note'] : ''),
             'status_before' => $oldStatus,
-            'status_after'  => 'DINGIN',
+            'status_after'  => 'NO RESPON',
             'time'          => now(),
         ]);
 
         return redirect()->route('sales.prospek.index')
-            ->with('success', 'Prospek telah ditandai sebagai DINGIN.');
+            ->with('success', 'Prospek telah ditandai sebagai NO RESPON.');
     }
 
     /**

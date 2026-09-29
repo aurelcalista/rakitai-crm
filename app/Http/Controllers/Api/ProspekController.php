@@ -93,8 +93,17 @@ class ProspekController extends Controller
         $oldStatus = $prospek->status;
         $prospek->status = $validated['status'];
         $stages = [
-            'BARU' => 1, 'KONTAK' => 2, 'HANGAT' => 3, 'PANAS' => 4,
-            'FORMULIR' => 5, 'BERKAS' => 6, 'LUNAS' => 7, 'DINGIN' => 8
+            'BARU'        => 1,
+            'KONTAK'      => 2,
+            'PROSPEK'     => 3,
+            'HANGAT'      => 3,
+            'HOT PROSPEK' => 4,
+            'PANAS'       => 4,
+            'FORMULIR'    => 5,
+            'BERKAS'      => 6,
+            'LUNAS'       => 7,
+            'NO RESPON'   => 8,
+            'DINGIN'      => 8,
         ];
         if (isset($stages[$validated['status']])) {
             $prospek->stage_number = $stages[$validated['status']];

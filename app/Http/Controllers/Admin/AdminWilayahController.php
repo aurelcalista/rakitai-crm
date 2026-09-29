@@ -9,21 +9,38 @@ use Illuminate\View\View;
 
 class AdminWilayahController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $wilayah = Wilayah::whereNull('parent_id')
+        $query = Wilayah::whereNull('parent_id')
             ->with(['children'])
             ->withCount(['sekolahs', 'perusahaans'])
-            ->latest()
-            ->get()
-            ->map(function ($item) {
-                $item->jumlah_sekolah = $item->sekolahs_count;
-                $item->jumlah_perusahaan = $item->perusahaans_count;
-                $item->kecamatan = $item->children->pluck('nama')->toArray();
-                return $item;
+            ->latest();
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('nama', 'like', "%{$q}%")
+                   ->orWhere('kode', 'like', "%{$q}%")
+                   ->orWhereHas('children', function ($cq) use ($q) {
+                       $cq->where('nama', 'like', "%{$q}%");
+                   });
             });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $wilayahsPaginated = $query->paginate(10)->withQueryString();
+
+        $wilayah = $wilayahsPaginated->getCollection()->map(function ($item) {
+            $item->jumlah_sekolah = $item->sekolahs_count;
+            $item->jumlah_perusahaan = $item->perusahaans_count;
+            $item->kecamatan = $item->children->pluck('nama')->toArray();
+            return $item;
+        });
         
-        return view('admin.wilayah.index', compact('wilayah'));
+        return view('admin.wilayah.index', compact('wilayah', 'wilayahsPaginated'));
     }
 
     public function store(Request $request)

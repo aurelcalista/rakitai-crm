@@ -24,7 +24,8 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Audit Trail & Security Logs</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Transparansi dan riwayat keamanan seluruh interaksi data prospek, takeover, dan ekspor sistem.</p>
             </div>
-            <div>
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-semibold text-xs border border-purple-200">{{ $logsPaginated->total() }} Total Log</span>
                 <button 
                     type="button" 
                     @click="$store.crm.showToast('Audit log berhasil diunduh sebagai file CSV')"
@@ -83,6 +84,11 @@
                     </tbody>
                 </table>
             </div>
+            @if($logsPaginated->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {{ $logsPaginated->links() }}
+                </div>
+            @endif
         </div>
 
     </div>

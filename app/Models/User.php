@@ -108,11 +108,20 @@ class User extends Authenticatable
     }
 
     /**
-     * Get avatar public URL if set.
+     * Get avatar public URL if set and valid image.
      */
     public function getAvatarUrlAttribute(): ?string
     {
-        return $this->avatar ? asset('storage/' . $this->avatar) : null;
+        if (!$this->avatar) {
+            return null;
+        }
+
+        // Must have an image extension
+        if (!preg_match('/\.(jpg|jpeg|png|webp|gif|svg)$/i', $this->avatar)) {
+            return null;
+        }
+
+        return asset('storage/' . $this->avatar);
     }
 
     /**
@@ -359,6 +368,66 @@ class User extends Authenticatable
     }
 
     /**
+     * Get user IDs eligible to be monitored by this user for attendance.
+     * Hierarchy:
+     * - Admin: all SPV, Sales, and EO.
+     * - HM: all EO, all SPVs (in HM's wilayah or unassigned), and all Sales in HM's scope.
+     * - SPV: all Sales in SPV's team (by supervisor_id or wilayah) + SPV themselves.
+     */
+    public function getAttendanceMonitoredUserIds(): array
+    {
+        $role = strtolower($this->role);
+
+        if ($role === 'admin') {
+            return User::whereIn('role', ['SPV', 'Sales', 'EO'])->pluck('id')->toArray();
+        }
+
+        if ($role === 'hm') {
+            // 1. All EO users operate under HM
+            $eoIds = User::where('role', 'EO')->pluck('id')->toArray();
+
+            // 2. All SPV users
+            $activeWilayahIds = $this->activeWilayahIds();
+            if (!empty($activeWilayahIds)) {
+                $descendantWilayahIds = [];
+                foreach ($activeWilayahIds as $wid) {
+                    $wilayah = Wilayah::find($wid);
+                    if ($wilayah) {
+                        $descendantWilayahIds = array_merge($descendantWilayahIds, $wilayah->getDescendantIds());
+                    }
+                    $descendantWilayahIds[] = $wid;
+                }
+                $descendantWilayahIds = array_unique($descendantWilayahIds);
+
+                $staffIds = User::whereIn('role', ['SPV', 'Sales'])
+                    ->where(function($q) use ($descendantWilayahIds) {
+                        $q->whereIn('wilayah_id', $descendantWilayahIds)
+                          ->orWhereHas('activeWilayahes', function($wq) use ($descendantWilayahIds) {
+                              $wq->whereIn('wilayah_id', $descendantWilayahIds);
+                          })
+                          ->orWhereNull('wilayah_id'); // unassigned SPV/Sales
+                    })
+                    ->pluck('id')
+                    ->toArray();
+
+                return array_values(array_unique(array_merge($eoIds, $staffIds)));
+            }
+
+            // Global HM (unassigned to a single wilayah) monitors all SPV, Sales, and EO
+            return User::whereIn('role', ['SPV', 'Sales', 'EO'])->pluck('id')->toArray();
+        }
+
+        if ($role === 'spv') {
+            // SPV monitors their Sales team members + themselves
+            $salesIds = $this->teamMemberIds();
+            $directSalesIds = $this->subordinates()->where('role', 'Sales')->pluck('id')->toArray();
+            return array_values(array_unique(array_merge($salesIds, $directSalesIds, [$this->id])));
+        }
+
+        return [$this->id];
+    }
+
+    /**
      * Get Sales subordinates for SPV.
      */
     public function teamSales()
@@ -439,5 +508,22 @@ class User extends Authenticatable
             ->withPivot('assigned_by_spv_id')
             ->withTimestamps();
     }
+
+    /**
+     * User's attendance records.
+     */
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * User's customer invoices.
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
 }
+
 

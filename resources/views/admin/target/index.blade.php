@@ -106,10 +106,13 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kelola Target Sales & SPV</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Atur target harian/bulanan SPV dan Sales berbasis relasi Wilayah, pantau realisasi, dan akumulasi kekurangan.</p>
             </div>
-            <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                <span>+ Tambah Target</span>
-            </button>
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-semibold text-xs border border-purple-200">{{ $targetsPaginated->total() }} Total Target</span>
+                <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span>+ Tambah Target</span>
+                </button>
+            </div>
         </div>
 
         <!-- Info Box: Aturan Akumulasi & Relasi Wilayah -->
@@ -312,6 +315,12 @@
                 </div>
             </template>
         </div>
+
+        @if($targetsPaginated->hasPages())
+            <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                {{ $targetsPaginated->links() }}
+            </div>
+        @endif
 
         <!-- MODAL TAMBAH TARGET (CASCADING SELECTION: WILAYAH -> SPV -> AREA -> SALES) -->
         <div x-show="modalAdd" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">

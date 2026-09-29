@@ -263,22 +263,22 @@ class Prospek extends Model
                                 ));
                             }
                         }
-                    } elseif ($newStatus === 'DINGIN') {
-                        // Status DINGIN: SPV diberi tahu
+                    } elseif ($newStatus === 'NO RESPON' || $newStatus === 'DINGIN') {
+                        // Status NO RESPON / DINGIN: SPV diberi tahu
                         if ($spv && (!$auth || $auth->id !== $spv->id)) {
                             $spv->notify(new \App\Notifications\CrmActivityNotification(
-                                title: "❄️ Prospek Ditandai Dingin",
-                                message: "Prospek '{$prospek->name}' ditandai DINGIN oleh {$actorName}.",
+                                title: "❄️ Prospek Ditandai No Respon",
+                                message: "Prospek '{$prospek->name}' ditandai NO RESPON oleh {$actorName}.",
                                 type: 'warning',
                                 link: '/spv/prospek',
                                 icon: '❄️',
                                 senderName: $actorName,
                                 senderRole: $auth?->role ?? 'Staff',
-                                action: 'prospek_dingin'
+                                action: 'prospek_no_respon'
                             ));
                         }
                     } else {
-                        // Status tahap lainnya (KONTAK, HANGAT, PANAS, BERKAS)
+                        // Status tahap lainnya (KONTAK, PROSPEK, HOT PROSPEK, BERKAS)
                         // Jika Sales/CS mengubah, beri tahu SPV
                         if ($spv && (!$auth || $auth->id !== $spv->id)) {
                             $spv->notify(new \App\Notifications\CrmActivityNotification(
@@ -317,13 +317,13 @@ class Prospek extends Model
     public const ACTIVE_STAGES = [
         'BARU',
         'KONTAK',
-        'HANGAT',
-        'PANAS',
+        'PROSPEK',
+        'HOT PROSPEK',
         'FORMULIR',
         'BERKAS',
         'CLOSING',
         'LUNAS',
-        'DINGIN',
+        'NO RESPON',
         'CANCEL',
     ];
 
@@ -353,16 +353,19 @@ class Prospek extends Model
         // 8 Pipeline Wajib Resmi PMB TA 2027/2028 + CLOSING & CANCEL
         'BARU'                => 1,
         'KONTAK'              => 2,
-        'HANGAT'              => 3,
-        'PANAS'               => 4,
+        'PROSPEK'             => 3,
+        'HOT PROSPEK'         => 4,
         'FORMULIR'            => 5,
         'BERKAS'              => 6,
         'CLOSING'             => 7,
         'LUNAS'               => 8,
-        'DINGIN'              => 9,
+        'NO RESPON'           => 9,
         'CANCEL'              => 10,
 
         // Legacy / Backward Compatibility
+        'HANGAT'              => 3,
+        'PANAS'               => 4,
+        'DINGIN'              => 9,
         'Baru'                => 1,
         'Lead In'             => 1,
         'Cold Lead'           => 1,
@@ -560,6 +563,6 @@ class Prospek extends Model
      */
     public function scopeActive($query)
     {
-        return $query->whereNotIn('status', ['DINGIN', 'LUNAS', 'CANCEL']);
+        return $query->whereNotIn('status', ['NO RESPON', 'DINGIN', 'LUNAS', 'CANCEL']);
     }
 }

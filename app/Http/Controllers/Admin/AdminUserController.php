@@ -12,17 +12,41 @@ class AdminUserController extends Controller
 {
     public function index(Request $request): View
     {
-        $users = User::latest()->get()->map(function ($user) {
+        $query = User::latest();
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('name', 'like', "%{$q}%")
+                   ->orWhere('email', 'like', "%{$q}%")
+                   ->orWhere('phone', 'like', "%{$q}%")
+                   ->orWhere('kode', 'like', "%{$q}%");
+            });
+        }
+
+        if ($request->filled('role') && $request->role !== 'all') {
+            $query->where('role', $request->role);
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $users = $query->paginate(10)->withQueryString();
+
+        $users->getCollection()->transform(function ($user) {
             if (empty($user->kode)) {
                 $user->kode = User::generateUserCode($user->role);
                 $user->save();
             }
             $user->avatar_url = $user->avatar_url;
-            $user->avatar = $user->initials;
+            $user->initials = $user->initials;
             return $user;
         });
 
-        return view('admin.users.index', compact('users'));
+        $pendingCount = User::where('status', 'Pending')->count();
+
+        return view('admin.users.index', compact('users', 'pendingCount'));
     }
 
     public function store(Request $request)

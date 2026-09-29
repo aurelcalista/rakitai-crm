@@ -125,7 +125,7 @@ class ProspekSeeder extends Seeder
                 'pic' => 'Aulia Putri',
                 'pic_phone' => '081234567808',
                 'whatsapp' => '081234567808',
-                'status' => 'DINGIN',
+                'status' => 'NO RESPON',
                 'potential' => 'Rendah',
                 'source' => 'Kunjungan Sekolah',
                 'lost_reason' => 'Memilih kampus lain',

@@ -139,7 +139,7 @@ class ProspekValidationTest extends TestCase
     public function test_duplicate_check_includes_dingin_status()
     {
         $dinginProspek = Prospek::create(array_merge($this->getValidPayload(), [
-            'status' => 'DINGIN',
+            'status' => 'NO RESPON',
             'sales_id' => $this->sales->id,
             'owner_id' => $this->sales->id
         ]));
@@ -150,7 +150,7 @@ class ProspekValidationTest extends TestCase
         $response->assertSessionHasErrors('whatsapp');
 
         $errors = session('errors')->get('whatsapp');
-        $this->assertStringContainsString('Status saat ini: DINGIN', $errors[0]);
+        $this->assertStringContainsString('Status saat ini: NO RESPON', $errors[0]);
         $this->assertStringContainsString('Prospek ini dimiliki oleh: ' . $this->sales->name, $errors[0]);
     }
 }

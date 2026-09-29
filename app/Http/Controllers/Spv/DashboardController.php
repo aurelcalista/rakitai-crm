@@ -50,8 +50,8 @@ class DashboardController extends Controller
 
         $totalProspek = (clone $prospekQuery)->count();
         $closingCount = (clone $prospekQuery)->where('status', 'LUNAS')->count();
-        $hotLeads     = (clone $prospekQuery)->whereIn('status', ['PANAS', 'FORMULIR', 'BERKAS'])->count();
-        $lostCount    = (clone $prospekQuery)->where('status', 'DINGIN')->count();
+        $hotLeads     = (clone $prospekQuery)->whereIn('status', ['HOT PROSPEK', 'PANAS', 'FORMULIR', 'BERKAS'])->count();
+        $lostCount    = (clone $prospekQuery)->whereIn('status', ['NO RESPON', 'DINGIN'])->count();
         $totalFollowUp = FollowUp::whereIn('user_id', $teamMemberIds)->count();
 
         // Target Tim dari HM untuk TA Aktif (diubah ke academic_year_id di dalam service nantinya)

@@ -45,8 +45,26 @@ class NotificationController extends Controller
             return response()->json(['unreadCount' => 0, 'notifications' => []]);
         }
 
-        $rawNotifications = $user->notifications()->limit(20)->get();
-        $unreadCount = $user->unreadNotifications()->count();
+        $rawNotifications = $user->notifications()
+            ->where(function ($q) {
+                $q->whereNull('data->title')
+                  ->orWhere(function ($sub) {
+                      $sub->where('data->title', 'not like', '%Profil%')
+                          ->where('data->title', 'not like', '%Profile%');
+                  });
+            })
+            ->limit(20)
+            ->get();
+
+        $unreadCount = $user->unreadNotifications()
+            ->where(function ($q) {
+                $q->whereNull('data->title')
+                  ->orWhere(function ($sub) {
+                      $sub->where('data->title', 'not like', '%Profil%')
+                          ->where('data->title', 'not like', '%Profile%');
+                  });
+            })
+            ->count();
         $notifications = $rawNotifications->map(function ($notif) {
             return [
                 'id'      => $notif->id,

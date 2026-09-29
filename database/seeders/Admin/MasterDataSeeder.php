@@ -16,12 +16,12 @@ class MasterDataSeeder extends Seeder
             // Status Prospek (Pipeline 8 Status - PRD P0 8.3)
             ['type' => 'status_prospek', 'kode' => 'SP-01-BARU', 'nama' => 'BARU', 'deskripsi' => 'Kontak baru, belum dihubungi'],
             ['type' => 'status_prospek', 'kode' => 'SP-02-KONTAK', 'nama' => 'KONTAK', 'deskripsi' => 'Sudah dihubungi, belum respons'],
-            ['type' => 'status_prospek', 'kode' => 'SP-03-HANGAT', 'nama' => 'HANGAT', 'deskripsi' => 'Merespons, menanyakan biaya/jadwal'],
-            ['type' => 'status_prospek', 'kode' => 'SP-04-PANAS', 'nama' => 'PANAS', 'deskripsi' => 'Menyatakan berminat mendaftar'],
+            ['type' => 'status_prospek', 'kode' => 'SP-03-PROSPEK', 'nama' => 'PROSPEK', 'deskripsi' => 'Merespons, menanyakan biaya/jadwal'],
+            ['type' => 'status_prospek', 'kode' => 'SP-04-HOT-PROSPEK', 'nama' => 'HOT PROSPEK', 'deskripsi' => 'Menyatakan berminat mendaftar'],
             ['type' => 'status_prospek', 'kode' => 'SP-05-FORMULIR', 'nama' => 'FORMULIR', 'deskripsi' => 'Sudah bayar biaya pendaftaran'],
             ['type' => 'status_prospek', 'kode' => 'SP-06-BERKAS', 'nama' => 'BERKAS', 'deskripsi' => 'Formulir dibayar, berkas belum lengkap'],
             ['type' => 'status_prospek', 'kode' => 'SP-07-LUNAS', 'nama' => 'LUNAS', 'deskripsi' => 'Termin-1 lunas, resmi mahasiswa'],
-            ['type' => 'status_prospek', 'kode' => 'SP-08-DINGIN', 'nama' => 'DINGIN', 'deskripsi' => '14 hari tanpa respons setelah 5 sentuhan'],
+            ['type' => 'status_prospek', 'kode' => 'SP-08-NO-RESPON', 'nama' => 'NO RESPON', 'deskripsi' => '14 hari tanpa respons setelah 5 sentuhan'],
 
             // Status Follow Up
             ['type' => 'status_followup', 'kode' => 'FU-DIJAWAB', 'nama' => 'Dijawab', 'deskripsi' => 'Telepon/Pesan dijawab'],

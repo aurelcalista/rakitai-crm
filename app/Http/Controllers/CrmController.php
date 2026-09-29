@@ -586,10 +586,10 @@ class CrmController extends Controller
         // Use real DB queries for prospect data
         $prospectsData = \App\Models\Prospek::where('sales_id', $userId)->get();
         $totalProspek = $prospectsData->count();
-        $activeProspek = $prospectsData->whereNotIn('status', ['LUNAS', 'DINGIN'])->count();
-        $followUp = $prospectsData->where('status', 'HANGAT')->count();
+        $activeProspek = $prospectsData->whereNotIn('status', ['LUNAS', 'NO RESPON', 'DINGIN'])->count();
+        $followUp = $prospectsData->whereIn('status', ['PROSPEK', 'HANGAT'])->count();
         $closing = $prospectsData->where('status', 'LUNAS')->count();
-        $lost = $prospectsData->where('status', 'DINGIN')->count();
+        $lost = $prospectsData->whereIn('status', ['NO RESPON', 'DINGIN'])->count();
 
         // Target Bulan Ini dalam Tahun Akademik Aktif.
         // Both conditions required: active TA scope AND current calendar month.
@@ -608,6 +608,7 @@ class CrmController extends Controller
             'active_prospek' => $activeProspek,
             'follow_up' => $followUp,
             'LUNAS' => $closing,
+            'NO RESPON' => $lost,
             'DINGIN' => $lost,
             'target_bulan_ini' => $targetBulanIni,
             'realisasi_closing' => $closing,
@@ -699,13 +700,13 @@ class CrmController extends Controller
                 if (count($followUpsToday) < 4) {
                     $followUpsToday[] = $p;
                 }
-            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['LUNAS', 'DINGIN'])) {
+            } else if ($p['next_follow_up_date'] && $p['next_follow_up_date'] < $today && !in_array($p['status'], ['LUNAS', 'NO RESPON', 'DINGIN'])) {
                 $followUpPendingCount++;
             }
         }
 
         $lunasCount = count(array_filter($prospects, fn($p) => $p['status'] === 'LUNAS'));
-        $dinginCount = count(array_filter($prospects, fn($p) => $p['status'] === 'DINGIN'));
+        $dinginCount = count(array_filter($prospects, fn($p) => in_array($p['status'], ['NO RESPON', 'DINGIN'])));
 
         $stats = [
             'total_prospek' => count($prospects),
@@ -1029,11 +1030,40 @@ class CrmController extends Controller
     /**
      * Admin: Audit Logs.
      */
-    public function adminAuditLogs(): View
+    public function adminAuditLogs(Request $request): View
     {
-        $logs = $this->getAuditLogs();
+        $query = \App\Models\ProspekTimeline::with(['user', 'prospek'])->latest('time');
 
-        return view('admin.audit-logs.index', compact('logs'));
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('title', 'like', "%{$q}%")
+                   ->orWhere('notes', 'like', "%{$q}%")
+                   ->orWhereHas('user', function ($uq) use ($q) {
+                       $uq->where('name', 'like', "%{$q}%");
+                   })
+                   ->orWhereHas('prospek', function ($pq) use ($q) {
+                       $pq->where('name', 'like', "%{$q}%");
+                   });
+            });
+        }
+
+        $logsPaginated = $query->paginate(10)->withQueryString();
+
+        $logs = $logsPaginated->getCollection()->map(function ($t) {
+            return [
+                'id'     => $t->id,
+                'user'   => $t->user?->name ?? 'Sistem',
+                'role'   => $t->user?->role ?? 'System',
+                'action' => $t->title ?? 'Aktivitas Prospek',
+                'target' => $t->prospek?->name ?? ('Prospek #' . $t->prospek_id),
+                'detail' => $t->notes ?? ($t->status_before ? "Status: {$t->status_before} → {$t->status_after}" : 'Pencatatan aktivitas'),
+                'ip'     => '127.0.0.1',
+                'time'   => \Carbon\Carbon::parse($t->time ?? $t->created_at)->translatedFormat('d M Y, H:i:s'),
+            ];
+        })->toArray();
+
+        return view('admin.audit-logs.index', compact('logs', 'logsPaginated'));
     }
 
     /**
@@ -1110,54 +1140,64 @@ class CrmController extends Controller
             }
         }
 
+        if ($paginate) {
+            $prospectsPaginated = $query->orderBy('updated_at', 'desc')->paginate(10)->withQueryString();
+            $prospectsList = $prospectsPaginated->getCollection()->map(fn ($p) => $this->formatDbProspectRow($p))->toArray();
+
+            return [$prospectsPaginated, $prospectsList];
+        }
+
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
-        return $prospectsRaw->map(function ($p) {
-            return [
-                'id' => $p->id,
-                'name' => $p->name,
-                'type' => $p->type,
-                'sekolah_name' => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
-                'sales_name' => $p->sales ? $p->sales->name : '-',
-                'category' => $p->category ?? '-',
-                'pic' => $p->pic ?? '-',
-                'pic_phone' => $p->pic_phone ?? '-',
-                'whatsapp' => $p->whatsapp ?? '-',
-                'status' => $p->status,
-                'stage_number' => $p->stage_number,
-                'takeover_sales' => $p->sales ? $p->sales->name : null,
-                'takeover_cs' => $p->cs ? $p->cs->name : null,
-                'active_takeover' => $p->activeHandlerLabel(),
-                'owner' => $p->owner ? $p->owner->name : 'Sistem',
-                'last_activity' => $p->updated_at->diffForHumans(),
-                'potential' => $p->potential ?? '-',
-                'source' => $p->source ?? '-',
-                'ai_training' => $p->ai_training ?? '-',
-                'notes' => $p->notes ?? '',
-                'lost_reason' => $p->lost_reason ?? null,
-                'lost_note' => $p->lost_note ?? null,
-                'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
-                'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
-                'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
-                'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
-                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
-                'timeline' => $p->timelines->map(function ($t) {
-                    return [
-                        'time' => $t->time ? $t->time->format('d M, H:i') : '-',
-                        'title' => $t->title,
-                        'notes' => $t->notes,
-                        'status' => $t->status_after,
-                        'user' => $t->user ? $t->user->name : 'Sistem',
-                        'role' => $t->user ? $t->user->role : 'Admin',
-                    ];
-                })->toArray(),
-            ];
-        })->toArray();
+        return $prospectsRaw->map(fn ($p) => $this->formatDbProspectRow($p))->toArray();
+    }
+
+    private function formatDbProspectRow($p): array
+    {
+        return [
+            'id' => $p->id,
+            'name' => $p->name,
+            'type' => $p->type,
+            'sekolah_name' => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+            'sales_name' => $p->sales ? $p->sales->name : '-',
+            'category' => $p->category ?? '-',
+            'pic' => $p->pic ?? '-',
+            'pic_phone' => $p->pic_phone ?? '-',
+            'whatsapp' => $p->whatsapp ?? '-',
+            'status' => $p->status,
+            'stage_number' => $p->stage_number,
+            'takeover_sales' => $p->sales ? $p->sales->name : null,
+            'takeover_cs' => $p->cs ? $p->cs->name : null,
+            'active_takeover' => $p->activeHandlerLabel(),
+            'owner' => $p->owner ? $p->owner->name : 'Sistem',
+            'last_activity' => $p->updated_at->diffForHumans(),
+            'potential' => $p->potential ?? '-',
+            'source' => $p->source ?? '-',
+            'ai_training' => $p->ai_training ?? '-',
+            'notes' => $p->notes ?? '',
+            'lost_reason' => $p->lost_reason ?? null,
+            'lost_note' => $p->lost_note ?? null,
+            'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
+            'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
+            'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
+            'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
+            'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
+            'timeline' => $p->timelines->map(function ($t) {
+                return [
+                    'time' => $t->time ? $t->time->format('d M, H:i') : '-',
+                    'title' => $t->title,
+                    'notes' => $t->notes,
+                    'status' => $t->status_after,
+                    'user' => $t->user ? $t->user->name : 'Sistem',
+                    'role' => $t->user ? $t->user->role : 'Admin',
+                ];
+            })->toArray(),
+        ];
     }
 
     public function prospekIndex(Request $request): View
     {
-        $prospects = $this->getDbProspects($request);
+        [$prospectsPaginated, $prospects] = $this->getDbProspects($request, true);
         $sekolahs = \App\Models\Sekolah::where('status', 'Aktif')->get();
         $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
         $statuses = \App\Models\Prospek::ACTIVE_STAGES;
@@ -1185,7 +1225,7 @@ class CrmController extends Controller
             }
         }
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList'));
+        return view('prospek.index', compact('prospects', 'prospectsPaginated', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList'));
     }
 
     public function prospekStore(Request $request)

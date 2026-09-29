@@ -26,7 +26,7 @@ class FollowUpController extends Controller
             $q->orderBy('tanggal', 'desc')->limit(1);
         }])
             ->where('sales_id', $user->id)
-            ->whereNotIn('status', ['DINGIN', 'LUNAS']) // DINGIN and LUNAS prospects don't need follow-up
+            ->whereNotIn('status', ['NO RESPON', 'DINGIN', 'LUNAS']) // NO RESPON and LUNAS prospects don't need follow-up
             ->get();
 
         $prospects = [

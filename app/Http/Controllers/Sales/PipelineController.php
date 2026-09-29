@@ -61,7 +61,7 @@ class PipelineController extends Controller
         }
 
         // Cannot change status of Lost via this endpoint — use markLost
-        if ($prospek->status === 'DINGIN') {
+        if ($prospek->status === 'NO RESPON' || $prospek->status === 'DINGIN') {
             return response()->json([
                 'success' => false,
                 'message' => 'Prospek dengan status Lost tidak dapat diubah.',

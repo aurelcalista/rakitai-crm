@@ -293,18 +293,18 @@ class SalesTargetService
 
         $totalProspek  = (clone $prospekQuery)->count();
         $activeProspek = (clone $prospekQuery)
-            ->whereNotIn('status', ['LUNAS', 'DINGIN'])
+            ->whereNotIn('status', ['LUNAS', 'NO RESPON', 'DINGIN'])
             ->count();
         $closingStatuses = strtolower($user->role) === 'sales' ? ['CLOSING'] : ['LUNAS'];
         $closing = (clone $prospekQuery)
             ->whereIn('status', $closingStatuses)
             ->count();
         $lost = (clone $prospekQuery)
-            ->where('status', 'DINGIN')
+            ->whereIn('status', ['NO RESPON', 'DINGIN'])
             ->count();
 
         $followUpCount = (clone $prospekQuery)
-            ->where('status', 'HANGAT')
+            ->whereIn('status', ['PROSPEK', 'HANGAT'])
             ->count();
 
         if ($target) {
@@ -330,6 +330,7 @@ class SalesTargetService
             'active_prospek'   => $activeProspek,
             'follow_up'        => $followUpCount,
             'closing'          => $closing,
+            'NO RESPON'        => $lost,
             'DINGIN'           => $lost,
             'lost'             => $lost,
             'target_bulan_ini' => $targetBulanIni,
@@ -347,26 +348,35 @@ class SalesTargetService
     public function getPipelineStages(User $sales): array
     {
         $taId = AkademikService::getAktifId();
-        $stageNames = ['BARU', 'KONTAK', 'HANGAT', 'PANAS', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'DINGIN'];
+        $stageNames = ['BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'NO RESPON'];
         if (strtolower($sales->role) === 'sales') {
             $stageNames = array_filter($stageNames, fn($s) => strtoupper($s) !== 'LUNAS');
         }
 
         $colorMap = [
-            'BARU'     => 'badge-cold-lead',
-            'KONTAK'   => 'badge-interested',
-            'HANGAT'   => 'badge-follow-up',
-            'PANAS'    => 'badge-hot-lead',
-            'FORMULIR' => 'badge-beli-formulir',
-            'BERKAS'   => 'badge-pembayaran-termin-1',
-            'CLOSING'  => 'badge-closing',
-            'LUNAS'    => 'badge-closing',
-            'DINGIN'   => 'badge-lost',
+            'BARU'        => 'badge-cold-lead',
+            'KONTAK'      => 'badge-interested',
+            'PROSPEK'     => 'badge-follow-up',
+            'HANGAT'      => 'badge-follow-up',
+            'HOT PROSPEK' => 'badge-hot-lead',
+            'PANAS'       => 'badge-hot-lead',
+            'FORMULIR'    => 'badge-beli-formulir',
+            'BERKAS'      => 'badge-pembayaran-termin-1',
+            'CLOSING'     => 'badge-closing',
+            'LUNAS'       => 'badge-closing',
+            'NO RESPON'   => 'badge-lost',
+            'DINGIN'      => 'badge-lost',
         ];
 
         return array_map(function ($name) use ($sales, $colorMap, $taId) {
+            $statuses = match($name) {
+                'PROSPEK'     => ['PROSPEK', 'HANGAT'],
+                'HOT PROSPEK' => ['HOT PROSPEK', 'PANAS'],
+                'NO RESPON'   => ['NO RESPON', 'DINGIN'],
+                default       => [$name],
+            };
             $count = Prospek::where('sales_id', $sales->id)
-                ->where('status', $name)
+                ->whereIn('status', $statuses)
                 ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
                 ->count();
             return [

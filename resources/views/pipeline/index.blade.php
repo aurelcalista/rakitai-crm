@@ -69,7 +69,7 @@
         get lostProspects() {
             return this.filteredProspects.filter(p => {
                 const s = (p.status || '').toLowerCase();
-                return s === 'lost' || s === 'ditolak/batal' || s === 'ditolak / batal' || s === 'dingin';
+                return s === 'lost' || s === 'ditolak/batal' || s === 'ditolak / batal' || s === 'no respon' || s === 'dingin';
             });
         }
     }">

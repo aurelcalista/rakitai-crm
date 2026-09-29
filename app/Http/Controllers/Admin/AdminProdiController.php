@@ -9,23 +9,46 @@ use Illuminate\View\View;
 
 class AdminProdiController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         // Exclude Prodi MI (Manajemen Informatika) per requirement
-        $prodi = Prodi::where('kode', '!=', 'MI-D3')
+        $query = Prodi::where('kode', '!=', 'MI-D3')
             ->where('nama', 'NOT LIKE', '%Manajemen Informatika%')
-            ->latest()
-            ->get()
-            ->map(function ($item) {
-                $item->terdaftar = 0; // Mocked until we have a real relation
-                $item->ukt = $item->ukt ?: $item->spp;
-                return $item;
+            ->latest();
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('nama', 'like', "%{$q}%")
+                   ->orWhere('kode', 'like', "%{$q}%")
+                   ->orWhere('fakultas', 'like', "%{$q}%");
             });
+        }
+
+        if ($request->filled('fakultas') && $request->fakultas !== 'all') {
+            $query->where('fakultas', $request->fakultas);
+        }
+
+        if ($request->filled('jenjang') && $request->jenjang !== 'all') {
+            $query->where('jenjang', $request->jenjang);
+        }
+
+        $prodisPaginated = $query->paginate(10)->withQueryString();
+
+        $prodi = $prodisPaginated->getCollection()->map(function ($item) {
+            $item->terdaftar = 0; // Mocked until we have a real relation
+            $item->ukt = $item->ukt ?: $item->spp;
+            return $item;
+        });
+
+        $totalS1 = Prodi::where('kode', '!=', 'MI-D3')->where('nama', 'NOT LIKE', '%Manajemen Informatika%')->where('jenjang', 'S1')->count();
+        $totalD3 = Prodi::where('kode', '!=', 'MI-D3')->where('nama', 'NOT LIKE', '%Manajemen Informatika%')->where('jenjang', 'D3')->count();
+        $totalS2 = Prodi::where('kode', '!=', 'MI-D3')->where('nama', 'NOT LIKE', '%Manajemen Informatika%')->where('jenjang', 'S2')->count();
 
         $fakultasList = \App\Models\MasterData::where('type', 'fakultas')->pluck('nama');
         $jenjangList  = \App\Models\MasterData::where('type', 'jenjang')->pluck('nama');
         
-        return view('admin.prodi.index', compact('prodi', 'fakultasList', 'jenjangList'));
+        return view('admin.prodi.index', compact('prodi', 'prodisPaginated', 'fakultasList', 'jenjangList', 'totalS1', 'totalD3', 'totalS2'));
     }
 
     public function store(Request $request)

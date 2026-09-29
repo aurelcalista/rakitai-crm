@@ -71,9 +71,9 @@ class ReportController extends Controller
         
         $summary = [
             'total_prospek'   => $totalProspek,
-            'active'          => Prospek::where('sales_id', $user->id)->whereNotIn('status', ['LUNAS', 'DINGIN'])->count(),
+            'active'          => Prospek::where('sales_id', $user->id)->whereNotIn('status', ['LUNAS', 'NO RESPON', 'DINGIN'])->count(),
             'closing'         => $closing,
-            'lost'            => Prospek::where('sales_id', $user->id)->where('status', 'DINGIN')->count(),
+            'lost'            => Prospek::where('sales_id', $user->id)->whereIn('status', ['NO RESPON', 'DINGIN'])->count(),
             'conversion_rate' => $totalProspek > 0 ? round(($closing / $totalProspek) * 100, 1) : 0,
         ];
 

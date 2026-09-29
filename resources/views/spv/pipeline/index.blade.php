@@ -11,14 +11,17 @@
         selectedSales: 'all',
         prospectsList: {{ json_encode($prospects) }},
         stageConfigs: {
-            'BARU':     { color: 'bg-slate-500', text: 'text-slate-800', border: 'border-slate-300', bg: 'bg-slate-100/70', dot: 'bg-slate-400' },
-            'KONTAK':   { color: 'bg-sky-500',   text: 'text-sky-800',   border: 'border-sky-300',   bg: 'bg-sky-50/50',    dot: 'bg-sky-500' },
-            'HANGAT':   { color: 'bg-amber-500', text: 'text-amber-800', border: 'border-amber-300', bg: 'bg-amber-50/50',  dot: 'bg-amber-500' },
-            'PANAS':    { color: 'bg-orange-500',text: 'text-orange-800',border: 'border-orange-300',bg: 'bg-orange-50/50', dot: 'bg-orange-500' },
-            'FORMULIR': { color: 'bg-purple-500',text: 'text-purple-800',border: 'border-purple-300',bg: 'bg-purple-50/50', dot: 'bg-purple-500' },
-            'BERKAS':   { color: 'bg-indigo-500',text: 'text-indigo-800',border: 'border-indigo-300',bg: 'bg-indigo-50/50', dot: 'bg-indigo-500' },
-            'LUNAS':    { color: 'bg-emerald-500',text: 'text-emerald-800',border: 'border-emerald-300',bg: 'bg-emerald-50/50',dot: 'bg-emerald-500' },
-            'DINGIN':   { color: 'bg-rose-500',  text: 'text-rose-800',  border: 'border-rose-300',  bg: 'bg-rose-50/50',   dot: 'bg-rose-500' }
+            'BARU':        { color: 'bg-slate-500', text: 'text-slate-800', border: 'border-slate-300', bg: 'bg-slate-100/70', dot: 'bg-slate-400' },
+            'KONTAK':      { color: 'bg-sky-500',   text: 'text-sky-800',   border: 'border-sky-300',   bg: 'bg-sky-50/50',    dot: 'bg-sky-500' },
+            'PROSPEK':     { color: 'bg-amber-500', text: 'text-amber-800', border: 'border-amber-300', bg: 'bg-amber-50/50',  dot: 'bg-amber-500' },
+            'HANGAT':      { color: 'bg-amber-500', text: 'text-amber-800', border: 'border-amber-300', bg: 'bg-amber-50/50',  dot: 'bg-amber-500' },
+            'HOT PROSPEK': { color: 'bg-orange-500',text: 'text-orange-800',border: 'border-orange-300',bg: 'bg-orange-50/50', dot: 'bg-orange-500' },
+            'PANAS':       { color: 'bg-orange-500',text: 'text-orange-800',border: 'border-orange-300',bg: 'bg-orange-50/50', dot: 'bg-orange-500' },
+            'FORMULIR':    { color: 'bg-purple-500',text: 'text-purple-800',border: 'border-purple-300',bg: 'bg-purple-50/50', dot: 'bg-purple-500' },
+            'BERKAS':      { color: 'bg-indigo-500',text: 'text-indigo-800',border: 'border-indigo-300',bg: 'bg-indigo-50/50', dot: 'bg-indigo-500' },
+            'LUNAS':       { color: 'bg-emerald-500',text: 'text-emerald-800',border: 'border-emerald-300',bg: 'bg-emerald-50/50',dot: 'bg-emerald-500' },
+            'NO RESPON':   { color: 'bg-rose-500',  text: 'text-rose-800',  border: 'border-rose-300',  bg: 'bg-rose-50/50',   dot: 'bg-rose-500' },
+            'DINGIN':      { color: 'bg-rose-500',  text: 'text-rose-800',  border: 'border-rose-300',  bg: 'bg-rose-50/50',   dot: 'bg-rose-500' }
         },
         pipelineList: {{ json_encode($pipelineStages) }},
         

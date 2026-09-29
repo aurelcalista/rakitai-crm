@@ -139,7 +139,7 @@
                                 <td class="py-3.5 px-3 text-center text-slate-700 font-medium">{{ $member['prospects'] }}</td>
                                 <td class="py-3.5 px-3 text-center text-amber-700 font-semibold">{{ $member['follow_up'] ?? 0 }}</td>
                                 <td class="py-3.5 px-3 text-center text-emerald-700 font-bold text-sm">{{ $member['closing'] ?? $member['LUNAS'] ?? 0 }}</td>
-                                <td class="py-3.5 px-3 text-center text-rose-600 font-medium">{{ $member['lost'] ?? $member['DINGIN'] ?? 0 }}</td>
+                                <td class="py-3.5 px-3 text-center text-rose-600 font-medium">{{ $member['lost'] ?? $member['NO RESPON'] ?? $member['DINGIN'] ?? 0 }}</td>
                                 <td class="py-3.5 px-4 text-center">
                                     <span class="inline-block px-3 py-1 rounded-full text-xs font-bold {{ $member['achievement'] >= 70 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200' }}">
                                         {{ $member['achievement'] }}%
@@ -162,7 +162,7 @@
                         <div class="flex justify-between text-xs text-slate-600">
                             <span>Target: <strong>{{ $member['target'] }}</strong></span>
                             <span>Closing: <strong class="text-emerald-600">{{ $member['closing'] ?? $member['LUNAS'] ?? 0 }}</strong></span>
-                            <span>Lost: <strong class="text-rose-600">{{ $member['lost'] ?? $member['DINGIN'] ?? 0 }}</strong></span>
+                            <span>Lost: <strong class="text-rose-600">{{ $member['lost'] ?? $member['NO RESPON'] ?? $member['DINGIN'] ?? 0 }}</strong></span>
                         </div>
                     </div>
                 @endforeach

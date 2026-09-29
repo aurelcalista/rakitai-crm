@@ -40,7 +40,10 @@
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan evaluasi seluruh database prospek anggota tim Sales di bawah wilayah Anda.</p>
             </div>
-            <div class="shrink-0">
+            <div class="flex items-center gap-3 shrink-0">
+                @if(isset($prospectsPaginated))
+                    <span class="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-xs border border-indigo-200">{{ $prospectsPaginated->total() }} Total Prospek</span>
+                @endif
                 <a 
                     href="{{ route('spv.prospek.create') }}"
                     class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer"
@@ -235,12 +238,12 @@
                                         :class="{
                                             'bg-slate-100 text-slate-700 border border-slate-200': p.status === 'BARU' || p.status === 'Cold Lead',
                                             'bg-blue-50 text-blue-700 border border-blue-200': p.status === 'KONTAK' || p.status === 'Interested',
-                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'HANGAT' || p.status === 'Follow Up',
-                                            'bg-orange-50 text-orange-700 border border-orange-200': p.status === 'PANAS',
+                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'PROSPEK' || p.status === 'HANGAT' || p.status === 'Follow Up',
+                                            'bg-orange-50 text-orange-700 border border-orange-200': p.status === 'HOT PROSPEK' || p.status === 'PANAS',
                                             'bg-purple-50 text-purple-700 border border-purple-200': p.status === 'FORMULIR' || p.status === 'Beli Formulir',
                                             'bg-cyan-50 text-cyan-700 border border-cyan-200': p.status === 'BERKAS' || p.status === 'Pembayaran Termin 1',
                                             'bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold shadow-2xs': p.status === 'LUNAS' || p.status === 'Closing',
-                                            'bg-gray-100 text-gray-600 border border-gray-200': p.status === 'DINGIN' || p.status === 'Lost'
+                                            'bg-gray-100 text-gray-600 border border-gray-200': p.status === 'NO RESPON' || p.status === 'DINGIN' || p.status === 'Lost'
                                         }"
                                         x-text="p.status">
                                     </span>
@@ -278,6 +281,11 @@
                     </tbody>
                 </table>
             </div>
+            @if(isset($prospectsPaginated) && $prospectsPaginated->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {{ $prospectsPaginated->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- ── MODAL REALOKASI SALES ── -->

@@ -28,14 +28,6 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h3 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">{{ $title }}</h3>
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
-                        {{ $level === 'Sales' ? 'bg-blue-50 text-blue-700 border border-blue-200' : '' }}
-                        {{ $level === 'SPV' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : '' }}
-                        {{ $level === 'HM' ? 'bg-purple-50 text-purple-700 border border-purple-200' : '' }}
-                        {{ $level === 'Global' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : '' }}
-                    ">
-                        Level {{ $level }}
-                    </span>
                 </div>
                 <p class="text-xs text-slate-500 mt-1">{{ $subtitle }}</p>
             </div>
@@ -95,7 +87,7 @@
                              x-transition:leave="transition ease-in duration-75"
                              x-transition:leave-start="transform opacity-100 scale-100"
                              x-transition:leave-end="transform opacity-0 scale-95"
-                             class="absolute left-0 lg:right-0 lg:left-auto mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                             class="absolute left-0 lg:right-0 lg:left-auto mt-1.5 w-64 max-w-[calc(100vw-2.5rem)] bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
                              style="display: none;">
                             
                             <!-- Search Input Box Plugin -->

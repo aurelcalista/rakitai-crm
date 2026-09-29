@@ -111,8 +111,8 @@
                 color="indigo"
             />
             <x-stat-card 
-                title="Closing & Lost/Dingin" 
-                :value="$stats['closing_count'] . ' Lunas • ' . $stats['lost_count'] . ' Dingin'" 
+                title="Closing & Lost/No Respon" 
+                :value="$stats['closing_count'] . ' Lunas • ' . $stats['lost_count'] . ' No Respon'" 
                 subtitle="Maba Lunas vs Lost" 
                 color="emerald"
             />

@@ -62,7 +62,7 @@ class HandoverTest extends TestCase
             'cs_id' => null
         ]);
         
-        $prospek2->status = 'HANGAT';
+        $prospek2->status = 'PROSPEK';
         $prospek2->save();
         $prospek2->refresh();
         $this->assertNull($prospek2->cs_id);

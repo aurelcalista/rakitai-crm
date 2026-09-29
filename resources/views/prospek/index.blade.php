@@ -54,8 +54,11 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Prospek</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data calon mahasiswa, sekolah mitra, dan instansi inbound UCIC.</p>
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
-            <div>
+            <div class="flex items-center gap-3">
+                @if(isset($prospectsPaginated))
+                    <span class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200">{{ $prospectsPaginated->total() }} Total Prospek</span>
+                @endif
+                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
                 <button 
                     type="button" 
                     @click="modalTambahProspek = true"
@@ -66,8 +69,8 @@
                     </svg>
                     <span>Tambah Prospek</span>
                 </button>
+                @endif
             </div>
-            @endif
         </div>
 
         <!-- Search & Filter Controls -->
@@ -347,6 +350,12 @@
                     </div>
                 </template>
             </div>
+
+            @if(isset($prospectsPaginated) && $prospectsPaginated->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {{ $prospectsPaginated->links() }}
+                </div>
+            @endif
 
         </div>
 

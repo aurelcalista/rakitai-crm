@@ -11,10 +11,27 @@ use Illuminate\View\View;
 
 class AdminPerusahaanController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $perusahaan = Perusahaan::with(['kategori', 'wilayah'])->withCount('kunjungans')->latest()->get();
-        $perusahaan = $perusahaan->map(function ($p) {
+        $query = Perusahaan::with(['kategori', 'wilayah'])->withCount('kunjungans')->latest();
+
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('nama', 'like', "%{$q}%")
+                   ->orWhere('kode', 'like', "%{$q}%")
+                   ->orWhere('kecamatan', 'like', "%{$q}%")
+                   ->orWhere('pic_name', 'like', "%{$q}%");
+            });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $perusahaansPaginated = $query->paginate(10)->withQueryString();
+
+        $perusahaan = $perusahaansPaginated->getCollection()->map(function ($p) {
             $p->kategori_nama = $p->kategori ? $p->kategori->nama : '-';
             $p->wilayah_nama = $p->wilayah ? $p->wilayah->kode . ' ' . $p->wilayah->nama : '-';
             $p->jumlah_kunjungan = $p->kunjungans_count;
@@ -24,7 +41,7 @@ class AdminPerusahaanController extends Controller
         $wilayahList = Wilayah::whereNull('parent_id')->with('children')->get();
         $kategoriList = MasterData::where('type', 'kategori_perusahaan')->get();
 
-        return view('admin.perusahaan.index', compact('perusahaan', 'wilayahList', 'kategoriList'));
+        return view('admin.perusahaan.index', compact('perusahaan', 'perusahaansPaginated', 'wilayahList', 'kategoriList'));
     }
 
     public function store(Request $request)

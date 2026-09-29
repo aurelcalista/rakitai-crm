@@ -165,7 +165,7 @@
             />
             <x-stat-card 
                 title="Total Lost" 
-                :value="$summary['lost'] ?? $summary['DINGIN'] ?? 0" 
+                :value="$summary['lost'] ?? $summary['NO RESPON'] ?? $summary['DINGIN'] ?? 0" 
                 subtitle="Historis Arsip" 
                 color="rose"
             />

@@ -85,7 +85,9 @@ class ProspectController extends Controller
             });
         }
 
-        $prospects = $query->orderBy('updated_at', 'desc')->get()
+        $prospectsPaginated = $query->orderBy('updated_at', 'desc')->paginate(10)->withQueryString();
+
+        $prospects = $prospectsPaginated->getCollection()
             ->map(fn ($p) => $this->formatProspek($p))
             ->toArray();
 
@@ -101,6 +103,7 @@ class ProspectController extends Controller
 
         return view('spv.prospek.index', compact(
             'prospects',
+            'prospectsPaginated',
             'teamSales',
             'teamMembers',
             'sekolahs',
@@ -363,14 +366,14 @@ class ProspectController extends Controller
         $teamCs = $teamMembers->where('role', 'CS');
 
         $allStages = [
-            ['name' => 'BARU',     'number' => 1],
-            ['name' => 'KONTAK',   'number' => 2],
-            ['name' => 'HANGAT',   'number' => 3],
-            ['name' => 'PANAS',    'number' => 4],
-            ['name' => 'FORMULIR', 'number' => 5],
-            ['name' => 'BERKAS',   'number' => 6],
-            ['name' => 'LUNAS',    'number' => 7],
-            ['name' => 'DINGIN',   'number' => 8],
+            ['name' => 'BARU',        'number' => 1],
+            ['name' => 'KONTAK',      'number' => 2],
+            ['name' => 'PROSPEK',     'number' => 3],
+            ['name' => 'HOT PROSPEK', 'number' => 4],
+            ['name' => 'FORMULIR',    'number' => 5],
+            ['name' => 'BERKAS',      'number' => 6],
+            ['name' => 'LUNAS',       'number' => 7],
+            ['name' => 'NO RESPON',   'number' => 8],
         ];
 
         $prospect = $this->formatProspekDetail($prospek);

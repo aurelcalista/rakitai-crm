@@ -218,6 +218,10 @@ Route::middleware('auth')->group(function () {
         Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'activateTahunAkademik'])->name('tahun-akademik.activate');
         Route::delete('tahun-akademik/{tahunAkademik}',        [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'destroyTahunAkademik'])->name('tahun-akademik.destroy');
 
+        // Master Titik Lokasi Absensi
+        Route::resource('attendance-locations', \App\Http\Controllers\Admin\AttendanceLocationController::class)->except(['create', 'show', 'edit']);
+        Route::post('attendance-locations/{location}/toggle-status', [\App\Http\Controllers\Admin\AttendanceLocationController::class, 'toggleStatus'])->name('attendance-locations.toggle-status');
+
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
 
@@ -284,7 +288,40 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
     Route::post('/notifications/read-all',      [NotificationController::class, 'markAllRead'])->name('notifications.readAll');
     Route::post('/notifications/{id}/read',     [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
+
+    // ──────────────────────────────────────────────────────────────
+    // Geolocation Attendance (SPV, Sales, EO) & Hierarchy Monitoring
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware('role:SPV,Sales,EO')->group(function () {
+        Route::get('/attendance',           [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::post('/attendance/check-in', [\App\Http\Controllers\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::get('/attendance/history',   [\App\Http\Controllers\AttendanceController::class, 'history'])->name('attendance.history');
+    });
+
+    // Secure private photo access (SPV, Sales, EO, HM, Admin)
+    Route::get('/attendance/{attendance}/photo', [\App\Http\Controllers\AttendanceController::class, 'photo'])->name('attendance.photo');
+
+    // Attendance Monitoring (SPV, HM, Admin)
+    Route::middleware('role:Admin,HM,SPV')->group(function () {
+        Route::get('/attendance/monitoring',              [\App\Http\Controllers\AttendanceMonitoringController::class, 'index'])->name('attendance.monitoring');
+        Route::get('/attendance/monitoring/{attendance}', [\App\Http\Controllers\AttendanceMonitoringController::class, 'show'])->name('attendance.monitoring.show');
+    });
+
+    // ──────────────────────────────────────────────────────────────
+    // Tagihan & Payment Simulation (CS & Admin)
+    // ──────────────────────────────────────────────────────────────
+    Route::prefix('payments')->name('payments.')->group(function () {
+        Route::get('/',                            [\App\Http\Controllers\PaymentController::class, 'index'])->name('index');
+        Route::get('/history',                     [\App\Http\Controllers\PaymentController::class, 'history'])->name('history');
+        Route::get('/create',                      [\App\Http\Controllers\PaymentController::class, 'create'])->name('create');
+        Route::post('/',                           [\App\Http\Controllers\PaymentController::class, 'store'])->name('store');
+        Route::get('/{invoice}',                   [\App\Http\Controllers\PaymentController::class, 'show'])->name('show');
+        Route::post('/{invoice}/pay',              [\App\Http\Controllers\PaymentController::class, 'createPayment'])->name('create-payment');
+        Route::get('/simulation/{transactionId}',  [\App\Http\Controllers\PaymentController::class, 'simulate'])->name('simulate');
+        Route::post('/simulation/{transactionId}', [\App\Http\Controllers\PaymentController::class, 'processSimulation'])->name('simulate.action');
+    });
 });
+
 
 // ──────────────────────────────────────────────────────────────────
 // Mobile Platform Form Lapangan (Flutter WebView Integration)

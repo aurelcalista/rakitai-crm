@@ -41,23 +41,23 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kunjungan Sekolah & Corporate</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Dokumentasi hasil kunjungan lapangan, presentasi edu-fair, dan audiensi kemitraan.</p>
             </div>
-            @if(auth()->user()->role === 'Sales')
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                {{--
-                    ALUR 2: Kunjungan Mandiri (tidak terikat Event).
-                    event_id akan NULL — Sales pilih instansi sendiri.
-                --}}
-                <a
-                    href="{{ route('sales.kunjungan.create') }}"
-                    id="btn-tambah-kunjungan"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
-                >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                    + Tambah Kunjungan
-                </a>
-                <p class="text-[11px] text-slate-400">Kunjungan tanpa Jadwal Event</p>
+            <div class="flex items-center gap-3">
+                @if(isset($visitsPaginated))
+                    <span class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200">{{ $visitsPaginated->total() }} Total Kunjungan</span>
+                @endif
+                @if(auth()->user()->role === 'Sales')
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <a
+                        href="{{ route('sales.kunjungan.create') }}"
+                        id="btn-tambah-kunjungan"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
+                        + Tambah Kunjungan
+                    </a>
+                </div>
+                @endif
             </div>
-            @endif
         </div>
 
         <!-- Filter Bar -->
@@ -178,6 +178,12 @@
                 </div>
             </template>
         </div>
+
+        @if(isset($visitsPaginated) && $visitsPaginated->hasPages())
+            <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                {{ $visitsPaginated->links() }}
+            </div>
+        @endif
 
         <!-- MODAL: KONFIRMASI HAPUS KUNJUNGAN -->
         <div 

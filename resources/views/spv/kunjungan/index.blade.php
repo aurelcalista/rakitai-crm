@@ -44,6 +44,9 @@
             </div>
             
             <div class="flex items-center gap-2">
+                @if(isset($visitsPaginated))
+                    <span class="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 font-semibold text-xs border border-indigo-200">{{ $visitsPaginated->total() }} Total Kunjungan</span>
+                @endif
                 <template x-if="allVisits.filter(v => v.status_verifikasi === 'Perlu Verifikasi' || v.is_outside_radius).length > 0">
                     <button 
                         type="button" 
@@ -211,6 +214,12 @@
                 </div>
             </template>
         </div>
+
+        @if(isset($visitsPaginated) && $visitsPaginated->hasPages())
+            <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                {{ $visitsPaginated->links() }}
+            </div>
+        @endif
 
         <!-- Empty State -->
         <div x-show="currentList.length === 0" class="crm-card bg-white p-12 text-center text-slate-400 text-xs rounded-2xl border border-slate-200">

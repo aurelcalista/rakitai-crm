@@ -32,7 +32,7 @@
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan pengelolaan seluruh data kunjungan Sales ke sekolah & perusahaan.</p>
             </div>
             <div class="flex items-center gap-2 text-xs font-semibold">
-                <span class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200">{{ count($kunjungan) }} Total Kunjungan</span>
+                <span class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200">{{ $kunjunganPaginated->total() }} Total Kunjungan</span>
             </div>
         </div>
 
@@ -81,16 +81,26 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="k in filtered" :key="k.id">
+                        <template x-for="(k, idx) in filtered" :key="k.id">
                             <tr class="hover:bg-slate-50/80 transition">
-                                <td class="py-3.5 px-4 font-mono font-bold text-purple-700 text-[11px]" x-text="k.id"></td>
+                                <td class="py-3.5 px-4">
+                                    <div class="font-bold text-slate-800 text-xs" x-text="k.no_urut || (idx + 1)"></div>
+                                    <div class="text-[10px] font-mono text-purple-600 font-semibold" x-text="k.nomor" x-show="k.nomor"></div>
+                                </td>
                                 <td class="py-3.5 px-3">
                                     <div class="font-semibold text-slate-800" x-text="k.tanggal"></div>
                                     <div class="text-[11px] text-slate-400" x-text="k.waktu + ' WIB'"></div>
                                 </td>
                                 <td class="py-3.5 px-3">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0" x-text="k.sales.split(' ').map(w=>w[0]).join('').slice(0,2)"></div>
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                                            <template x-if="k.sales_avatar_url">
+                                                <img :src="k.sales_avatar_url" :alt="k.sales" class="w-full h-full object-cover" x-on:error="$el.style.display='none'">
+                                            </template>
+                                            <template x-if="!k.sales_avatar_url">
+                                                <span x-text="k.sales_initials || (k.sales ? k.sales.trim().split(/\s+/).filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2) : '-')"></span>
+                                            </template>
+                                        </div>
                                         <span class="font-semibold text-slate-800" x-text="k.sales"></span>
                                     </div>
                                 </td>
@@ -137,6 +147,11 @@
                     </tbody>
                 </table>
             </div>
+            @if($kunjunganPaginated->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {{ $kunjunganPaginated->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- MODAL DETAIL KUNJUNGAN -->

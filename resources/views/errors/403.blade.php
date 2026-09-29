@@ -151,7 +151,7 @@
 
         <div class="info-box">
             <strong>Mengapa ini terjadi?</strong><br>
-            • Sesuai aturan PRD & SOP CRM, prospek tahap awal (<strong>01 BARU s.d 04 PANAS</strong>) bersifat tertutup dan hanya dapat diakses oleh <strong>Sales pemilik lead</strong> serta <strong>Supervisor (SPV)</strong> terkait.<br>
+            • Sesuai aturan PRD & SOP CRM, prospek tahap awal (<strong>01 BARU s.d 04 HOT PROSPEK</strong>) bersifat tertutup dan hanya dapat diakses oleh <strong>Sales pemilik lead</strong> serta <strong>Supervisor (SPV)</strong> terkait.<br>
             • Staf <strong>Customer Service (CS)</strong> baru dapat mengakses prospek setelah masuk tahap <strong>05 FORMULIR (Serah Terima/Handover)</strong> atau jika ditugaskan langsung.
         </div>
 

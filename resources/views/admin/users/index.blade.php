@@ -10,7 +10,7 @@
         searchQuery: '',
         roleFilter: 'all',
         statusFilter: 'all',
-        users: {{ json_encode($users) }},
+        users: {{ json_encode($users->items()) }},
         get filtered() {
             return this.users.filter(u => {
                 const q = this.searchQuery.toLowerCase();
@@ -61,12 +61,12 @@
                     {{ $rf['label'] }}
                 </button>
                 @endforeach
-                <span class="ml-auto text-[11px] text-slate-400">Menampilkan <span class="font-bold text-slate-700" x-text="filtered.length"></span> user</span>
+                <span class="ml-auto text-[11px] text-slate-400">Menampilkan <span class="font-bold text-slate-700">{{ $users->count() }}</span> dari <span class="font-bold text-slate-700">{{ $users->total() }}</span> user</span>
             </div>
         </div>
 
         <!-- Pending Alert Banner -->
-        @php $pendingCount = $users->where('status', 'Pending')->count(); @endphp
+        @php $pendingCount = $pendingCount ?? $users->where('status', 'Pending')->count(); @endphp
         @if($pendingCount > 0)
         <div class="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5">
             <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -101,12 +101,12 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-3.5 px-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 overflow-hidden">
+                                        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 overflow-hidden shadow-xs">
                                             <template x-if="user.avatar_url">
-                                                <img :src="user.avatar_url" :alt="user.name" class="w-full h-full object-cover">
+                                                <img :src="user.avatar_url" :alt="user.name" class="w-full h-full object-cover" x-on:error="$el.style.display='none'">
                                             </template>
                                             <template x-if="!user.avatar_url">
-                                                <span x-text="user.avatar"></span>
+                                                <span x-text="user.initials || (user.name ? user.name.trim().split(/\s+/).filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'U')"></span>
                                             </template>
                                         </div>
                                         <div>
@@ -217,6 +217,11 @@
                     </tbody>
                 </table>
             </div>
+            @if($users->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-white">
+                    {{ $users->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- MODAL: TAMBAH USER -->

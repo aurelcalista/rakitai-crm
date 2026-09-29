@@ -37,14 +37,15 @@ class VisitController extends Controller
             $query->where('jenis', $request->jenis);
         }
 
-        $visits = $query->get()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
+        $visitsPaginated = $query->paginate(10)->withQueryString();
+        $visits = $visitsPaginated->getCollection()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
 
         $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $dosens      = User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
 
-        return view('kunjungan.index', compact('visits', 'sekolahs', 'perusahaans', 'prodis', 'dosens'));
+        return view('kunjungan.index', compact('visits', 'visitsPaginated', 'sekolahs', 'perusahaans', 'prodis', 'dosens'));
     }
 
     /**

@@ -23,20 +23,29 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Data Program Studi</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola daftar program studi UCIC yang digunakan dalam data prospek dan kunjungan.</p>
             </div>
-            <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                <span>+ Tambah Prodi</span>
-            </button>
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-semibold text-xs border border-purple-200">{{ $prodisPaginated->total() }} Total Prodi</span>
+                <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span>+ Tambah Prodi</span>
+                </button>
+            </div>
         </div>
 
         <!-- Summary Cards -->
         <div class="grid grid-cols-3 gap-3">
-            @foreach([['label'=>'S1','color'=>'blue'],['label'=>'D3','color'=>'teal'],['label'=>'S2','color'=>'purple']] as $j)
             <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs text-center">
-                <div class="text-2xl font-extrabold text-{{ $j['color'] }}-700">{{ $prodi->where('jenjang', $j['label'])->count() }}</div>
-                <p class="text-xs font-bold text-slate-500 mt-1">Prodi {{ $j['label'] }}</p>
+                <div class="text-2xl font-extrabold text-blue-700">{{ $totalS1 }}</div>
+                <p class="text-xs font-bold text-slate-500 mt-1">Prodi S1</p>
             </div>
-            @endforeach
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs text-center">
+                <div class="text-2xl font-extrabold text-teal-700">{{ $totalD3 }}</div>
+                <p class="text-xs font-bold text-slate-500 mt-1">Prodi D3</p>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs text-center">
+                <div class="text-2xl font-extrabold text-purple-700">{{ $totalS2 }}</div>
+                <p class="text-xs font-bold text-slate-500 mt-1">Prodi S2</p>
+            </div>
         </div>
 
         <!-- Filter -->
@@ -126,6 +135,11 @@
                     </tbody>
                 </table>
             </div>
+            @if($prodisPaginated->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {{ $prodisPaginated->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- MODAL DETAIL PRODI -->

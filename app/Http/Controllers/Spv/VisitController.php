@@ -34,7 +34,8 @@ class VisitController extends Controller
             $query->whereDate('tanggal', $request->tanggal);
         }
 
-        $allVisits = $query->get()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
+        $visitsPaginated = $query->paginate(10)->withQueryString();
+        $allVisits = $visitsPaginated->getCollection()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
         $schoolVisits  = array_values(array_filter($allVisits, fn ($v) => $v['type'] === 'Sekolah'));
         $companyVisits = array_values(array_filter($allVisits, fn ($v) => $v['type'] === 'Perusahaan'));
 
@@ -47,6 +48,7 @@ class VisitController extends Controller
 
         return view('spv.kunjungan.index', compact(
             'allVisits',
+            'visitsPaginated',
             'schoolVisits',
             'companyVisits',
             'perluVerifikasiCount',

@@ -37,7 +37,9 @@ class AdminTargetController extends Controller
             });
         }
 
-        $targets = $targetsQuery->get()->map(function ($t) {
+        $targetsPaginated = $targetsQuery->paginate(10)->withQueryString();
+
+        $targets = $targetsPaginated->getCollection()->map(function ($t) {
             $targetUser = $t->sales ?? $t->spv;
             $salesName = $targetUser ? $targetUser->name : ($t->spv ? $t->spv->name : '-');
             $userRole = $targetUser ? $targetUser->role : ($t->target_type === 'Wilayah' || $t->spv_id ? 'SPV' : '-');
@@ -265,7 +267,7 @@ class AdminTargetController extends Controller
 
         $salesList = User::whereIn('role', ['HM', 'SPV', 'Sales', 'CS'])->orderBy('role')->orderBy('name')->get();
 
-        return view('admin.target.index', compact('targets', 'wilayahTree', 'salesList'));
+        return view('admin.target.index', compact('targets', 'targetsPaginated', 'wilayahTree', 'salesList'));
     }
 
     public function store(Request $request)

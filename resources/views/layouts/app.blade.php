@@ -107,9 +107,13 @@
                 'role_label' => $roleLabels[$u->role] ?? $u->role,
             ];
         }
-        $rawRole = strtolower($currentUser['role'] ?? auth()->user()->role ?? 'sales');
+        $rawRole = strtolower(auth()->user()->role ?? $currentUser['role'] ?? 'sales');
         $userRole = in_array($rawRole, ['spv', 'supervisor', 'supervisor marketing']) ? 'spv' : (in_array($rawRole, ['hm', 'head marketing']) ? 'hm' : $rawRole);
         $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
+
+        $canCheckInAttendance = in_array($userRole, ['sales', 'spv', 'eo']);
+        $canMonitorAttendance = in_array($userRole, ['admin', 'hm', 'spv']);
+        $canManagePayments    = in_array($userRole, ['admin', 'cs']);
     @endphp
 </head>
 <body class="h-full bg-slate-50 font-sans text-slate-800" x-data="{ 
@@ -257,6 +261,35 @@ x-init="
                             </svg>
                             <span x-show="!sidebarCollapsed">Infografis</span>
                         </a>
+
+                        @if($canCheckInAttendance)
+                        <a 
+                            href="{{ route('attendance.index') }}" 
+                            title="Presensi Absensi"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.history') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.history') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Presensi Absensi</span>
+                        </a>
+                        @endif
+
+                        @if($canMonitorAttendance)
+                        <a 
+                            href="{{ route('attendance.monitoring') }}" 
+                            title="Monitoring Absensi"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.monitoring*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.monitoring*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Monitoring Absensi</span>
+                        </a>
+                        @endif
                     </div>
                 </div>
 
@@ -454,6 +487,29 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Tahun Akademik</span>
                             </a>
                             <a 
+                                href="{{ route('admin.attendance-locations.index') }}" 
+                                title="Lokasi Absensi"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.attendance-locations.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.attendance-locations.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Lokasi Absensi</span>
+                            </a>
+                            <a 
+                                href="{{ route('payments.index') }}" 
+                                title="Tagihan & Pembayaran"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('payments.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('payments.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Tagihan & Payment</span>
+                            </a>
+                            <a 
                                 href="{{ route('admin.audit-logs.index') }}" 
                                 title="Audit Logs"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -561,6 +617,20 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Pipeline Board</span>
                             </a>
+
+                            @if($canManagePayments)
+                            <a 
+                                href="{{ route('payments.index') }}" 
+                                title="Tagihan & Pembayaran"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('payments.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('payments.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Tagihan & Pembayaran</span>
+                            </a>
+                            @endif
                         </div>
                     </div>
 
@@ -901,14 +971,6 @@ x-init="
                                     </button>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button 
-                                        @click.stop="$store.crm.testSound()" 
-                                        type="button"
-                                        class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer flex items-center gap-1"
-                                        title="Uji coba suara lonceng notifikasi"
-                                    >
-                                        <span>🔔 Tes Suara</span>
-                                    </button>
                                     <template x-if="$store.crm.unreadCount > 0">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Baru'"></span>
                                     </template>
@@ -1060,21 +1122,22 @@ x-init="
             x-transition:leave="transition-opacity ease-in duration-200"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 md:hidden"
+            class="fixed inset-0 bg-slate-900/50 z-50 md:hidden"
             @click="mobileMenuOpen = false"
         ></div>
 
-        <!-- Offcanvas Drawer -->
+        <!-- Offcanvas Drawer (Smooth GPU Transform) -->
         <aside 
             x-show="mobileMenuOpen" 
             x-cloak 
-            x-transition:enter="transition ease-out duration-300 transform"
+            x-transition:enter="transition-transform ease-out duration-300"
             x-transition:enter-start="-translate-x-full"
             x-transition:enter-end="translate-x-0"
-            x-transition:leave="transition ease-in duration-200 transform"
+            x-transition:leave="transition-transform ease-in duration-200"
             x-transition:leave-start="translate-x-0"
             x-transition:leave-end="-translate-x-full"
-            class="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-50 md:hidden flex flex-col border-r border-slate-200"
+            style="will-change: transform; -webkit-overflow-scrolling: touch;"
+            class="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-50 md:hidden flex flex-col border-r border-slate-200 transform-gpu"
             @keydown.escape.window="mobileMenuOpen = false"
             x-data="{
                 searchQuery: '',
@@ -1193,6 +1256,37 @@ x-init="
                             </svg>
                             <span class="flex-1">Infografis</span>
                         </a>
+
+                        @if($canCheckInAttendance)
+                        <a 
+                            href="{{ route('attendance.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="absensi presensi kehadiran gps checkin selfie"
+                            x-show="matches('absensi presensi kehadiran gps checkin selfie')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.history') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.history') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span class="flex-1">Presensi Absensi</span>
+                        </a>
+                        @endif
+
+                        @if($canMonitorAttendance)
+                        <a 
+                            href="{{ route('attendance.monitoring') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="monitoring absensi rekap kehadiran spv hm admin"
+                            x-show="matches('monitoring absensi rekap kehadiran spv hm admin')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.monitoring*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.monitoring*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            <span class="flex-1">Monitoring Absensi</span>
+                        </a>
+                        @endif
                     </div>
                 </div>
 
@@ -1370,6 +1464,33 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Log Aktivitas</span>
                             </a>
+
+                            <a 
+                                href="{{ route('admin.attendance-locations.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="lokasi absensi titik gps koordinat presensi radius admin"
+                                x-show="matches('lokasi absensi titik gps koordinat presensi radius admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.attendance-locations.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.attendance-locations.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span class="flex-1">Lokasi Absensi</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('payments.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="tagihan pembayaran payment qris invoice transaksi admin finance"
+                                x-show="matches('tagihan pembayaran payment qris invoice transaksi admin finance')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('payments.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('payments.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span class="flex-1">Tagihan & Payment</span>
+                            </a>
                         </div>
                     </div>
                 @elseif($currentUser['role'] !== 'EO')
@@ -1467,6 +1588,21 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Pipeline Board</span>
                             </a>
+
+                            @if(in_array($currentUser['role'], ['CS', 'Admin']))
+                            <a 
+                                href="{{ route('payments.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="tagihan pembayaran payment qris invoice transaksi cs customer service finance"
+                                x-show="matches('tagihan pembayaran payment qris invoice transaksi cs customer service finance')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('payments.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('payments.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span class="flex-1">Tagihan & Pembayaran</span>
+                            </a>
+                            @endif
                         </div>
                     </div>
 
@@ -1499,6 +1635,21 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Laporan</span>
                             </a>
+
+                            @if($canManagePayments)
+                            <a 
+                                href="{{ route('payments.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="tagihan pembayaran invoice finance kasir qris"
+                                x-show="matches('tagihan pembayaran invoice finance kasir qris')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('payments.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('payments.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span class="flex-1">Tagihan & Pembayaran</span>
+                            </a>
+                            @endif
                         </div>
                     </div>
 

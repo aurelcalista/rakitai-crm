@@ -35,10 +35,13 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Data Perusahaan</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola database perusahaan/korporasi mitra — untuk kelas karyawan, magang, dan kemitraan industri.</p>
             </div>
-            <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                <span>+ Tambah Perusahaan</span>
-            </button>
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-semibold text-xs border border-purple-200">{{ $perusahaansPaginated->total() }} Total Perusahaan</span>
+                <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span>+ Tambah Perusahaan</span>
+                </button>
+            </div>
         </div>
 
         <!-- Filter -->
@@ -132,6 +135,11 @@
                     </tbody>
                 </table>
             </div>
+            @if($perusahaansPaginated->hasPages())
+                <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                    {{ $perusahaansPaginated->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- MODAL DETAIL PERUSAHAAN -->
