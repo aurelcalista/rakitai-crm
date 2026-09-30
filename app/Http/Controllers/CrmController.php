@@ -1292,6 +1292,8 @@ class CrmController extends Controller
             $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with('user');
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
+        }, 'transaksis' => function($q) {
+            $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with(['user', 'verifier', 'rejecter']);
         }])->findOrFail($id);
 
         \Illuminate\Support\Facades\Gate::authorize('view', $prospectRaw);
@@ -1301,6 +1303,8 @@ class CrmController extends Controller
         if ($prospectRaw->cs) $activeTakeover[] = 'CS';
 
         $latestFollowUp = $prospectRaw->latestFollowUp ?? ($prospectRaw->relationLoaded('followUps') ? $prospectRaw->followUps->first() : null);
+
+        $transaksis = $prospectRaw->transaksis;
 
         $prospect = [
             'id' => $prospectRaw->id,
@@ -1354,7 +1358,7 @@ class CrmController extends Controller
             $salesTeam = \App\Models\User::where('role', 'Sales')->where('status', 'aktif')->get();
         }
 
-        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw'));
+        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis'));
     }
 
     public function prospekUpdate(Request $request, int $id)
@@ -1799,11 +1803,31 @@ class CrmController extends Controller
 
         $request->validate([
             'jenis'             => 'required|in:Beli Formulir,Pembayaran Termin 1',
-            'nominal'           => 'required|numeric|min:0',
+            'nominal'           => 'required|numeric|min:0|max:9999999999',
             'tanggal'           => 'required|date',
-            'notes'             => 'nullable|string',
-            'metode_pembayaran' => 'required_if:jenis,Pembayaran Termin 1|nullable|in:virtual_account,gopay,dana,bank_transfer',
+            'notes'             => 'nullable|string|max:1000',
+            'metode_pembayaran' => 'nullable|string|in:virtual_account,gopay,dana,shopeepay,tunai,bank_transfer',
+            'bank_account_id'   => 'nullable|integer|exists:bank_accounts,id',
+            'bank_va'           => 'nullable|string|max:100',
+        ], [
+            'nominal.max' => 'Nominal transaksi tidak boleh melebihi batas wajar (maksimal Rp 9.999.999.999).',
+            'nominal.min' => 'Nominal transaksi tidak boleh bernilai negatif.',
+            'nominal.numeric' => 'Nominal transaksi harus berupa angka yang valid.',
         ]);
+
+        $bankAccount = null;
+        if ($request->bank_account_id) {
+            $bankAccount = \App\Models\BankAccount::find($request->bank_account_id);
+        }
+
+        $fullNotes = $request->notes ?? '';
+        if ($bankAccount) {
+            $bankInfo = "Transfer Bank: {$bankAccount->bank_name} - No. {$bankAccount->account_number} (A/N: {$bankAccount->account_name})";
+            $fullNotes = $fullNotes ? "{$bankInfo} | Ref: {$fullNotes}" : $bankInfo;
+        } elseif ($request->metode_pembayaran === 'virtual_account' && $request->bank_va) {
+            $vaInfo = "Virtual Account: {$request->bank_va}";
+            $fullNotes = $fullNotes ? "{$vaInfo} | Ref: {$fullNotes}" : $vaInfo;
+        }
 
         // Pembayaran Termin 1 dengan metode → PENDING (menunggu verifikasi CS)
         // Beli Formulir atau tanpa metode → langsung VERIFIED (backward compatible)
@@ -1819,7 +1843,7 @@ class CrmController extends Controller
             'jenis'             => $request->jenis,
             'nominal'           => $request->nominal,
             'tanggal'           => $request->tanggal,
-            'notes'             => $request->notes,
+            'notes'             => $fullNotes,
             'metode_pembayaran' => $request->metode_pembayaran,
             'payment_status'    => $paymentStatus,
         ]);
@@ -1845,11 +1869,11 @@ class CrmController extends Controller
 
         $prospek->save();
 
-        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? '';
+        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? $request->metode_pembayaran;
         $timelineNotes = 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.')
             . ($metodeLabel ? ' | Metode: ' . $metodeLabel : '')
             . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : '')
-            . ($request->notes ? ' | Catatan: ' . $request->notes : '');
+            . ($fullNotes ? ' | ' . $fullNotes : '');
 
         ProspekTimeline::create([
             'prospek_id'    => $prospek->id,

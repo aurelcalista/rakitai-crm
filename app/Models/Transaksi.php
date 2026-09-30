@@ -11,10 +11,12 @@ class Transaksi extends Model
 
     // Metode pembayaran yang tersedia
     const METODE_PEMBAYARAN = [
+        'bank_transfer'   => 'Transfer Bank',
         'virtual_account' => 'Virtual Account',
         'gopay'           => 'GoPay',
         'dana'            => 'DANA',
-        'bank_transfer'   => 'Transfer Bank Mandiri',
+        'shopeepay'       => 'ShopeePay',
+        'tunai'           => 'Kasir PMB / Tunai',
     ];
 
     // Status verifikasi pembayaran
@@ -97,22 +99,30 @@ class Transaksi extends Model
                     ));
                 }
 
-                // 3. Notifikasi ke CS — ubah pesan jika butuh verifikasi
-                if ($cs && (!$auth || $auth->id !== $cs->id)) {
-                    $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? 'Transfer Manual';
-                    $csMsg = $isNeedVerification
-                        ? "Ada pembayaran yang perlu diverifikasi dari Sales " . ($sales?->name ?? $actorName) . " untuk calon mahasiswa '{$prospek->name}', nominal {$nominalText} dengan metode {$metodeName}."
-                        : "Pembayaran {$nominalText} ({$transaksi->jenis}) tervalidasi untuk prospek '{$prospek->name}'.";
-                    $cs->notify(new \App\Notifications\CrmActivityNotification(
-                        title: $isNeedVerification ? "🔔 Verifikasi Pembayaran Diperlukan" : "💳 Pembayaran Siswa CS",
-                        message: $csMsg,
-                        type: $isNeedVerification ? 'warning' : 'success',
-                        link: route('cs.verifikasi.index'),
-                        icon: $isNeedVerification ? '🔔' : '💳',
-                        senderName: $auth?->name,
-                        senderRole: $auth?->role,
-                        action: $isNeedVerification ? 'verifikasi_pembayaran_cs' : 'transaksi_created_cs'
-                    ));
+                // 3. Notifikasi ke CS — kirim ke CS penanggung jawab atau seluruh CS
+                $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))->get();
+                if ($csList->isEmpty()) {
+                    $csList = \App\Models\User::where('role', 'CS')->get();
+                }
+
+                $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? ($transaksi->metode_pembayaran ?: 'Transfer Bank / Online');
+                $csMsg = $isNeedVerification
+                    ? "Ada pembayaran {$transaksi->jenis} yang perlu diverifikasi dari Sales " . ($sales?->name ?? $actorName) . " untuk calon mahasiswa '{$prospek->name}', nominal {$nominalText} via {$metodeName}."
+                    : "Pembayaran {$nominalText} ({$transaksi->jenis}) tervalidasi untuk prospek '{$prospek->name}'.";
+
+                foreach ($csList as $targetCs) {
+                    if (!$auth || $auth->id !== $targetCs->id) {
+                        $targetCs->notify(new \App\Notifications\CrmActivityNotification(
+                            title: $isNeedVerification ? "🔔 Verifikasi Pembayaran Diperlukan" : "💳 Pembayaran Siswa CS",
+                            message: $csMsg,
+                            type: $isNeedVerification ? 'warning' : 'success',
+                            link: route('cs.verifikasi.index'),
+                            icon: $isNeedVerification ? '🔔' : '💳',
+                            senderName: $auth?->name,
+                            senderRole: $auth?->role,
+                            action: $isNeedVerification ? 'verifikasi_pembayaran_cs' : 'transaksi_created_cs'
+                        ));
+                    }
                 }
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Error sending transaksi notification: ' . $e->getMessage());

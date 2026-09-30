@@ -464,42 +464,16 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Tahun Akademik</span>
-                            </a>
-                                href="{{ route('admin.attendance-locations.index') }}" 
-                                title="Lokasi Absensi"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.attendance-locations.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.attendance-locations.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Lokasi Absensi</span>
-                            </a>
-                            <a
-                                href="{{ route('admin.bank-accounts.index') }}"
+                            <a 
+                                href="{{ route('admin.bank-accounts.index') }}" 
                                 title="Rekening Bank"
-                                @click="mobileMenuOpen = false"
-                                data-menu-keywords="rekening bank mandiri pembayaran transfer"
-                                x-show="matches('rekening bank mandiri pembayaran transfer')"
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.bank-accounts.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.bank-accounts.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                                <span class="flex-1">Rekening Bank</span>
-                            </a>
-                            <a 
-                                href="{{ route('payments.index') }}" 
-                                title="Tagihan & Pembayaran"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('payments.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.bank-accounts.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                             >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('payments.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Tagihan & Payment</span>
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.bank-accounts.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                <span x-show="!sidebarCollapsed">Rekening Bank</span>
                             </a>
                             <a 
-
                                 href="{{ route('admin.audit-logs.index') }}" 
                                 title="Audit Logs"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -569,27 +543,7 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Follow Up</span>
                                 <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">{{ $globalFollowUpTodayCount ?? 0 }} Hari Ini</span>
                             </a>
-
-                             {{-- Verifikasi Pembayaran untuk CS/Admin/HM --}}
-                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                             @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
-                             <a
-                                 href="{{ route('cs.verifikasi.index') }}"
-                                 title="Verifikasi Pembayaran"
-                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('cs.verifikasi.*') ? 'bg-amber-50 text-amber-700 font-bold border border-amber-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                 :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                             >
-                                 <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('cs.verifikasi.*') ? 'text-amber-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                 </svg>
-                                 <span x-show="!sidebarCollapsed">Verifikasi Pembayaran</span>
-                                 @if($pendingVerifikasiCount > 0)
-                                     <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $pendingVerifikasiCount }}</span>
-                                 @endif
-                             </a>
-                             @endif
                             <a 
-
                                 href="{{ route('sales.event.index') }}" 
                                 title="Jadwal Event"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.event.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -599,6 +553,17 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Jadwal Event</span>
+                            </a>
+                            <a 
+                                href="{{ route('sales.pembayaran.index') }}" 
+                                title="Riwayat Pembayaran"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Riwayat Pembayaran</span>
                             </a>
                             @elseif($userRole !== 'spv')
                             <a 
@@ -613,6 +578,25 @@ x-init="
                                     </svg>
                                 </div>
                                 <span x-show="!sidebarCollapsed">Follow Up</span>
+                            </a>
+                            @endif
+
+                            {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
+                            @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            <a 
+                                href="{{ route('cs.verifikasi.index') }}" 
+                                title="Verifikasi Pembayaran ({{ $pendingVerifikasiCount }} Menunggu)"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('cs.verifikasi.*') ? 'bg-amber-50 text-amber-700 font-bold border border-amber-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('cs.verifikasi.*') ? 'text-amber-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Verifikasi Bayar</span>
+                                @if($pendingVerifikasiCount > 0)
+                                    <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $pendingVerifikasiCount }}</span>
+                                @endif
                             </a>
                             @endif
 
@@ -1502,6 +1486,19 @@ x-init="
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
                                     <span class="flex-1">Jadwal Event</span>
+                                </a>
+
+                                <a 
+                                    href="{{ route('sales.pembayaran.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="riwayat pembayaran transaksi transfer billing invoice closing sales bayar"
+                                    x-show="matches('riwayat pembayaran transaksi transfer billing invoice closing sales bayar')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                    <span class="flex-1">Riwayat Pembayaran</span>
                                 </a>
                             @elseif($userRole !== 'spv')
                                 <a 

@@ -425,4 +425,175 @@ class PaymentVerificationTest extends TestCase
         Transaksi::where('prospek_id', $this->prospek->id)->where('jenis', 'Pembayaran Termin 1')->update(['payment_status' => 'verified']);
         $this->assertTrue(ProspekService::isClosingValid($this->prospek->fresh('transaksis')));
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 23. Sales input bank transfer dinamis dari BankAccount Admin
+    // ═══════════════════════════════════════════════════════
+    public function test_sales_inputs_dynamic_bank_transfer_and_notifies_cs()
+    {
+        // 1. Admin membuat rekening Mandiri
+        $bank = BankAccount::create([
+            'bank_name'      => 'Bank Mandiri',
+            'account_number' => '1340019283746',
+            'account_name'   => 'Yayasan Pendidikan UCIC',
+            'notes'          => 'Rekening Resmi Penerimaan Mahasiswa Baru',
+            'is_active'      => true,
+        ]);
+
+        // 2. Formulir sudah dibeli
+        Transaksi::factory()->create([
+            'prospek_id'     => $this->prospek->id,
+            'user_id'        => $this->sales->id,
+            'jenis'          => 'Beli Formulir',
+            'payment_status' => 'verified',
+        ]);
+
+        // 3. Sales input Termin 1 via Transfer Bank Mandiri
+        $this->actingAs($this->sales);
+        $response = $this->post(route('prospek.transaksi', $this->prospek->id), [
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 1500000,
+            'tanggal'           => now()->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+            'bank_account_id'   => $bank->id,
+            'notes'             => 'Transfer a.n Ayah Kandung - Bukti terlampir',
+        ]);
+
+        $response->assertRedirect();
+
+        $trx = Transaksi::where('prospek_id', $this->prospek->id)->where('jenis', 'Pembayaran Termin 1')->first();
+        $this->assertNotNull($trx);
+        $this->assertEquals('bank_transfer', $trx->metode_pembayaran);
+        $this->assertEquals('pending', $trx->payment_status);
+        $this->assertStringContainsString('Bank Mandiri', $trx->notes);
+        $this->assertStringContainsString('1340019283746', $trx->notes);
+        $this->assertStringContainsString('Yayasan Pendidikan UCIC', $trx->notes);
+
+        // 4. CS verifikasi transaksi
+        $this->actingAs($this->cs);
+        $verifyRes = $this->post(route('cs.verifikasi.verify', $trx->id));
+        $verifyRes->assertRedirect();
+
+        $this->prospek->refresh();
+        $this->assertEquals('LUNAS', $this->prospek->status);
+        $this->assertEquals(7, $this->prospek->stage_number);
+        $this->assertEquals($this->sales->id, $this->prospek->sales_id);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 24. Sales can access Riwayat Pembayaran menu and see transactions
+    // ═══════════════════════════════════════════════════════
+    public function test_sales_can_access_riwayat_pembayaran_menu()
+    {
+        $trx = Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 2500000,
+            'payment_status'    => 'pending',
+            'metode_pembayaran' => 'dana',
+        ]);
+
+        $this->actingAs($this->sales);
+        $response = $this->get(route('sales.pembayaran.index'));
+        $response->assertOk();
+        $response->assertSee('Riwayat Pembayaran');
+        $response->assertSee($this->prospek->name);
+        $response->assertSee('2.500.000');
+        $response->assertSee('Menunggu CS');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 25. Once CS verifies, Riwayat Pembayaran shows CS verifier name & status
+    // ═══════════════════════════════════════════════════════
+    public function test_sales_riwayat_pembayaran_shows_cs_approval_details()
+    {
+        // 1. Buat transaksi Termin 1
+        $trx = Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 3500000,
+            'payment_status'    => 'pending',
+            'metode_pembayaran' => 'gopay',
+        ]);
+
+        // 2. CS verifikasi
+        $this->actingAs($this->cs);
+        $this->post(route('cs.verifikasi.verify', $trx->id));
+
+        // 3. Sales buka menu Riwayat Pembayaran
+        $this->actingAs($this->sales);
+        $response = $this->get(route('sales.pembayaran.index'));
+        $response->assertOk();
+        $response->assertSee('Diverifikasi CS');
+        $response->assertSee('Disetujui CS: ' . $this->cs->name);
+        $response->assertSee('3.500.000');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 26. Dynamic Filters (status, jenis, metode, search)
+    // ═══════════════════════════════════════════════════════
+    public function test_payment_history_dynamic_filters_work()
+    {
+        Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 1000000,
+            'payment_status'    => 'pending',
+            'metode_pembayaran' => 'gopay',
+            'notes'             => 'Ref Trx Khusus 999',
+        ]);
+
+        Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Beli Formulir',
+            'nominal'           => 300000,
+            'payment_status'    => 'verified',
+            'metode_pembayaran' => 'dana',
+            'notes'             => 'Formulir Pendaftaran',
+        ]);
+
+        $this->actingAs($this->sales);
+
+        // Filter status verified
+        $resVerified = $this->get(route('sales.pembayaran.index', ['status' => 'verified']));
+        $resVerified->assertOk();
+        $resVerified->assertSee('300.000');
+        $resVerified->assertDontSee('Ref Trx Khusus 999');
+
+        // Filter search notes
+        $resSearch = $this->get(route('sales.pembayaran.index', ['search' => 'Khusus 999']));
+        $resSearch->assertOk();
+        $resSearch->assertSee('1.000.000');
+        $resSearch->assertDontSee('Formulir Pendaftaran');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 27. SPV can access Team Payment History
+    // ═══════════════════════════════════════════════════════
+    public function test_spv_can_access_team_payment_history()
+    {
+        $spv = User::factory()->create(['role' => 'SPV']);
+        $this->sales->update(['supervisor_id' => $spv->id]);
+
+        Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 2000000,
+            'payment_status'    => 'verified',
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $this->actingAs($spv);
+        $response = $this->get(route('spv.pembayaran.index'));
+        $response->assertOk();
+        $response->assertSee('Riwayat Pembayaran');
+        $response->assertSee($this->prospek->name);
+        $response->assertSee('2.000.000');
+    }
 }
+

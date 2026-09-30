@@ -92,6 +92,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/pipeline',                [\App\Http\Controllers\Sales\PipelineController::class, 'index'])->name('pipeline.index');
             Route::post('/pipeline/update-status', [\App\Http\Controllers\Sales\PipelineController::class, 'updateStatus'])->name('pipeline.updateStatus');
 
+            // Riwayat Pembayaran
+            Route::get('/pembayaran', [\App\Http\Controllers\Sales\PaymentHistoryController::class, 'index'])->name('pembayaran.index');
+
             // Performance & Report
             Route::get('/target-performa', [\App\Http\Controllers\Sales\PerformanceController::class, 'index'])->name('performa.index');
             Route::get('/laporan',         [\App\Http\Controllers\Sales\ReportController::class, 'index'])->name('laporan.index');
@@ -130,7 +133,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/target-performa/alokasi', [\App\Http\Controllers\Spv\PerformanceController::class, 'alokasi'])->name('performa.alokasi');
             Route::post('/target-performa/kunci-defisit', [\App\Http\Controllers\Spv\PerformanceController::class, 'kunciDefisit'])->name('performa.kunciDefisit');
 
-            // Team Recap Reports
+            // Team Recap Reports & Payments
+            Route::get('/pembayaran', [\App\Http\Controllers\Sales\PaymentHistoryController::class, 'index'])->name('pembayaran.index');
             Route::get('/laporan', [\App\Http\Controllers\Spv\ReportController::class, 'index'])->name('laporan.index');
 
             // Team Structure & Directory
@@ -218,10 +222,6 @@ Route::middleware('auth')->group(function () {
         Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'activateTahunAkademik'])->name('tahun-akademik.activate');
         Route::delete('tahun-akademik/{tahunAkademik}',        [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'destroyTahunAkademik'])->name('tahun-akademik.destroy');
 
-        // Master Titik Lokasi Absensi
-        Route::resource('attendance-locations', \App\Http\Controllers\Admin\AttendanceLocationController::class)->except(['create', 'show', 'edit']);
-        Route::post('attendance-locations/{location}/toggle-status', [\App\Http\Controllers\Admin\AttendanceLocationController::class, 'toggleStatus'])->name('attendance-locations.toggle-status');
-
         // Master Rekening Bank (Pembayaran CRM)
         Route::post('bank-accounts/{bankAccount}/toggle-status', [\App\Http\Controllers\Admin\AdminBankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
         Route::resource('bank-accounts', \App\Http\Controllers\Admin\AdminBankAccountController::class)->except(['create', 'show', 'edit']);
@@ -257,8 +257,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
         Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
         Route::post('/prospek/{id}/takeover', [CrmController::class, 'prospekTakeover'])->name('prospek.takeover');
+        Route::get('/prospek/{id}/takeover', fn($id) => redirect()->route('prospek.show', $id));
         Route::post('/prospek/{id}/transaksi', [CrmController::class, 'transaksiStore'])->name('prospek.transaksi');
+        Route::get('/prospek/{id}/transaksi', fn($id) => redirect()->route('prospek.show', $id));
         Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
+        Route::get('/prospek/{id}/realokasi', fn($id) => redirect()->route('prospek.show', $id));
 
         Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
         Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');

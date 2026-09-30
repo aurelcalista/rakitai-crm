@@ -175,14 +175,16 @@ class ProspectController extends Controller
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
+        }, 'transaksis' => function ($q) {
+            $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with(['user', 'verifier', 'rejecter']);
         }]);
 
         $isHandler = $prospek->isHandledBySales(auth()->user());
+        $transaksis = $prospek->transaksis;
 
-        $activeStagesSales = array_filter(Prospek::ACTIVE_STAGES, fn($s) => strtoupper($s) !== 'LUNAS');
         $allStages = array_map(function ($stageName) {
             return ['name' => $stageName, 'number' => Prospek::STAGES[$stageName]];
-        }, array_values($activeStagesSales));
+        }, Prospek::ACTIVE_STAGES);
 
         $prospect   = $this->formatProspekDetail($prospek);
         $lostReasons = Prospek::LOST_REASONS;
@@ -199,6 +201,7 @@ class ProspectController extends Controller
 
         return view('prospek.show', compact(
             'prospect',
+            'transaksis',
             'isHandler',
             'allStages',
             'lostReasons',

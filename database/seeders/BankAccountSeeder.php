@@ -9,7 +9,7 @@ class BankAccountSeeder extends Seeder
 {
     /**
      * Seed master rekening bank institusi untuk pembayaran transfer.
-     * Kontak admin untuk mengubah nomor rekening ini.
+     * Admin dapat menambah/mengedit rekening di menu Admin -> Rekening Bank.
      */
     public function run(): void
     {
@@ -18,11 +18,29 @@ class BankAccountSeeder extends Seeder
 
         BankAccount::insert([
             [
-                'bank_name'      => 'Mandiri',
+                'bank_name'      => 'Bank Mandiri',
                 'account_number' => '1380010015599',
-                'account_name'   => 'Universitas CIC Cirebon',
+                'account_name'   => 'Universitas Catur Insan Cendekia',
                 'is_active'      => true,
-                'notes'          => 'Rekening utama pembayaran UCIC. Hubungi Admin untuk mengubah.',
+                'notes'          => 'Rekening utama penerimaan PMB UCIC via Bank Mandiri.',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ],
+            [
+                'bank_name'      => 'BCA',
+                'account_number' => '8210998877',
+                'account_name'   => 'Universitas Catur Insan Cendekia',
+                'is_active'      => true,
+                'notes'          => 'Rekening penerimaan PMB UCIC via BCA.',
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ],
+            [
+                'bank_name'      => 'BNI',
+                'account_number' => '0298877665',
+                'account_name'   => 'Universitas Catur Insan Cendekia',
+                'is_active'      => true,
+                'notes'          => 'Rekening penerimaan PMB UCIC via BNI.',
                 'created_at'     => now(),
                 'updated_at'     => now(),
             ],

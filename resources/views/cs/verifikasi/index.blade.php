@@ -11,7 +11,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    🔔 Verifikasi Pembayaran
+                    Verifikasi Pembayaran
                     @if($totalPending > 0)
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
                             {{ $totalPending }} Menunggu
@@ -25,17 +25,17 @@
         {{-- Flash Messages --}}
         @if(session('success'))
             <div class="px-5 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold flex items-center gap-2">
-                ✅ {{ session('success') }}
+                {{ session('success') }}
             </div>
         @endif
         @if(session('info'))
             <div class="px-5 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm font-semibold flex items-center gap-2">
-                ℹ️ {{ session('info') }}
+                {{ session('info') }}
             </div>
         @endif
         @if($errors->any())
             <div class="px-5 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold">
-                ❌ {{ $errors->first() }}
+                {{ $errors->first() }}
             </div>
         @endif
 
@@ -48,7 +48,6 @@
 
             @if($transaksis->isEmpty())
                 <div class="py-16 text-center">
-                    <div class="text-4xl mb-3">✅</div>
                     <p class="text-sm font-semibold text-slate-700">Tidak ada pembayaran yang perlu diverifikasi</p>
                     <p class="text-xs text-slate-400 mt-1">Semua transaksi sudah diproses.</p>
                 </div>
@@ -94,30 +93,23 @@
                                     <td class="px-4 py-4">
                                         @php
                                             $metodeIcons = [
-                                                'virtual_account' => ['icon' => '🏦', 'label' => 'Virtual Account', 'color' => 'bg-blue-50 text-blue-700 border-blue-100'],
-                                                'gopay'           => ['icon' => '💚', 'label' => 'GoPay', 'color' => 'bg-green-50 text-green-700 border-green-100'],
-                                                'dana'            => ['icon' => '🔵', 'label' => 'DANA', 'color' => 'bg-sky-50 text-sky-700 border-sky-100'],
-                                                'bank_transfer'   => ['icon' => '🏛️', 'label' => 'Transfer Bank Mandiri', 'color' => 'bg-amber-50 text-amber-700 border-amber-100'],
+                                                'bank_transfer'   => ['label' => 'Transfer Bank', 'color' => 'bg-amber-50 text-amber-800 border-amber-200'],
+                                                'virtual_account' => ['label' => 'Virtual Account', 'color' => 'bg-blue-50 text-blue-700 border-blue-200'],
+                                                'gopay'           => ['label' => 'GoPay', 'color' => 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+                                                'dana'            => ['label' => 'DANA', 'color' => 'bg-sky-50 text-sky-700 border-sky-200'],
+                                                'shopeepay'       => ['label' => 'ShopeePay', 'color' => 'bg-orange-50 text-orange-700 border-orange-200'],
+                                                'tunai'           => ['label' => 'Kasir / Tunai', 'color' => 'bg-slate-50 text-slate-700 border-slate-200'],
                                             ];
-                                            $m = $metodeIcons[$trx->metode_pembayaran] ?? ['icon' => '💳', 'label' => $trx->metode_pembayaran, 'color' => 'bg-slate-50 text-slate-600 border-slate-100'];
+                                            $m = $metodeIcons[$trx->metode_pembayaran] ?? ['label' => $trx->metode_pembayaran ?: 'Transfer Bank', 'color' => 'bg-slate-50 text-slate-600 border-slate-200'];
                                         @endphp
-                                        <span class="px-2 py-0.5 rounded-md border font-semibold text-[10px] {{ $m['color'] }}">
-                                            {{ $m['icon'] }} {{ $m['label'] }}
+                                        <span class="px-2 py-0.5 rounded-md border font-semibold text-[10px] inline-flex items-center gap-1 {{ $m['color'] }}">
+                                            {{ $m['label'] }}
                                         </span>
 
-                                        {{-- Info rekening Mandiri jika bank_transfer --}}
-                                        @if($trx->metode_pembayaran === 'bank_transfer')
-                                            @php
-                                                $rekening = \App\Models\BankAccount::where('bank_name', 'Mandiri')->where('is_active', true)->first();
-                                            @endphp
-                                            @if($rekening)
-                                                <div class="mt-1 text-[10px] text-slate-500 leading-tight">
-                                                    <span class="font-medium">No. Rek:</span> {{ $rekening->account_number }}<br>
-                                                    <span class="font-medium">A/N:</span> {{ $rekening->account_name }}
-                                                </div>
-                                            @else
-                                                <div class="mt-1 text-[10px] text-amber-600">Rekening belum dikonfigurasi</div>
-                                            @endif
+                                        @if($trx->notes)
+                                            <div class="mt-1 text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100 max-w-xs leading-tight font-medium">
+                                                {{ $trx->notes }}
+                                            </div>
                                         @endif
                                     </td>
                                     {{-- Tanggal --}}
@@ -129,11 +121,11 @@
                                         <div class="flex items-center justify-center gap-2">
                                             {{-- Tombol Verifikasi --}}
                                             <form action="{{ route('cs.verifikasi.verify', $trx->id) }}" method="POST"
-                                                  onsubmit="return confirm('Yakin memverifikasi pembayaran ini? Prospek akan dinyatakan LUNAS.')">
+                                                  onsubmit="event.preventDefault(); confirmVerifyPayment(this, '{{ addslashes($trx->prospek?->name ?? 'Calon Mahasiswa') }}', '{{ number_format($trx->nominal, 0, ',', '.') }}');">
                                                 @csrf
                                                 <button type="submit"
                                                     class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition flex items-center gap-1 cursor-pointer">
-                                                    ✅ Verifikasi
+                                                    Verifikasi
                                                 </button>
                                             </form>
 
@@ -141,7 +133,7 @@
                                             <button type="button"
                                                 @click="rejectModal = true; rejectId = {{ $trx->id }}"
                                                 class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
-                                                ❌ Tolak
+                                                Tolak
                                             </button>
                                         </div>
                                     </td>
@@ -151,7 +143,7 @@
                                 @if($trx->notes)
                                     <tr class="bg-slate-50/30">
                                         <td colspan="7" class="px-4 py-2 text-[10px] text-slate-500 italic">
-                                            💬 Catatan Sales: {{ $trx->notes }}
+                                            Catatan Sales: {{ $trx->notes }}
                                         </td>
                                     </tr>
                                 @endif
@@ -178,7 +170,7 @@
 
             <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                    <h3 class="text-base font-bold text-slate-900">❌ Tolak Pembayaran</h3>
+                    <h3 class="text-base font-bold text-slate-900">Tolak Pembayaran</h3>
                     <button @click="rejectModal = false" class="text-slate-400 hover:text-slate-600 cursor-pointer">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -200,8 +192,7 @@
                                 <button type="button" @click="rejectModal = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">
                                     Batal
                                 </button>
-                                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
-                                    onclick="return confirm('Yakin menolak pembayaran ini?')">
+                                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer">
                                     Tolak Pembayaran
                                 </button>
                             </div>
@@ -211,5 +202,43 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function confirmVerifyPayment(form, name, nominal) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Verifikasi Pembayaran',
+                    html: `<div class="text-xs text-slate-600">
+                            <p class="mb-3">Yakin ingin memverifikasi pembayaran ini? Calon mahasiswa akan dinyatakan <strong>LUNAS</strong> dan masuk ke target Closing Sales.</p>
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-left space-y-1.5 text-xs">
+                                <div class="flex justify-between"><span class="text-slate-500">Calon Mahasiswa:</span> <span class="font-bold text-slate-800">${name}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Nominal:</span> <span class="font-bold text-emerald-700">Rp ${nominal}</span></div>
+                            </div>
+                           </div>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#059669',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Ya, Verifikasi Sekarang',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    customClass: {
+                        popup: 'rounded-2xl shadow-2xl border border-slate-100 p-6',
+                        title: 'text-slate-900 font-bold text-base',
+                        confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5 shadow-xs',
+                        cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            } else {
+                if (confirm('Yakin memverifikasi pembayaran ini? Prospek akan dinyatakan LUNAS.')) {
+                    form.submit();
+                }
+            }
+        }
+    </script>
 
 </x-app-layout>

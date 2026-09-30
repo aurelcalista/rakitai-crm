@@ -7,11 +7,17 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('Aktif', 'Nonaktif', 'Pending') NOT NULL DEFAULT 'Aktif'");
     }
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
         // Pastikan tidak ada baris Pending sebelum rollback
         DB::table('users')->where('status', 'Pending')->update(['status' => 'Nonaktif']);
         DB::statement("ALTER TABLE users MODIFY COLUMN status ENUM('Aktif', 'Nonaktif') NOT NULL DEFAULT 'Aktif'");

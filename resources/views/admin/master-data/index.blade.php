@@ -119,14 +119,14 @@
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         @if($ta->status !== 'Aktif')
-                                            <form action="{{ route('admin.tahun-akademik.activate', $ta->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin mengaktifkan Tahun Akademik {{ $ta->nama }}? Tahun akademik yang aktif sebelumnya akan dinonaktifkan.');">
+                                            <form action="{{ route('admin.tahun-akademik.activate', $ta->id) }}" method="POST" data-confirm="Apakah Anda yakin ingin mengaktifkan Tahun Akademik {{ $ta->nama }}? Tahun akademik yang aktif sebelumnya akan dinonaktifkan.">
                                                 @csrf
                                                 <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs transition cursor-pointer">
                                                     Set Aktif
                                                 </button>
                                             </form>
 
-                                            <form action="{{ route('admin.tahun-akademik.destroy', $ta->id) }}" method="POST" onsubmit="return confirm('Hapus Tahun Akademik {{ $ta->nama }}?');">
+                                            <form action="{{ route('admin.tahun-akademik.destroy', $ta->id) }}" method="POST" data-confirm="Hapus Tahun Akademik {{ $ta->nama }}?">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-semibold transition cursor-pointer">

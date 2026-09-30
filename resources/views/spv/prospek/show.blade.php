@@ -181,12 +181,92 @@
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN: ACTIVITY TIMELINE -->
-            <div class="crm-card bg-white p-6 lg:col-span-2 space-y-5">
-                <div class="pb-3 border-b border-slate-100">
-                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Riwayat Aktivitas & Timeline Tim</h3>
-                    <p class="text-xs text-slate-500">Log perubahan status, catatan follow up, dan aktivitas Sales pada prospek ini</p>
+            <!-- RIGHT COLUMN: TRANSACTIONS & TIMELINE -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- KARTU STATUS PEMBAYARAN & TRANSAKSI -->
+                <div class="crm-card bg-white p-6 space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Status Pembayaran & Transaksi</h3>
+                            <p class="text-xs text-slate-500">Pencatatan pembayaran Formulir, Termin 1, dan verifikasi CS</p>
+                        </div>
+                    </div>
+
+                    @php 
+                        $pendingList = ($transaksis ?? collect())->where('payment_status', 'pending');
+                    @endphp
+                    @if($pendingList->isNotEmpty())
+                        @foreach($pendingList as $pTrx)
+                            <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1 text-xs">
+                                <div class="flex items-center justify-between font-bold">
+                                    <span>Menunggu Verifikasi CS</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 text-amber-900">PENDING</span>
+                                </div>
+                                <p class="text-amber-800">
+                                    Transaksi <strong>{{ $pTrx->jenis }}</strong> sebesar <strong>Rp {{ number_format($pTrx->nominal, 0, ',', '.') }}</strong> sedang diproses. Closing akan resmi aktif setelah diverifikasi CS.
+                                </p>
+                            </div>
+                        @endforeach
+                    @endif
+
+                    @if(($transaksis ?? collect())->isEmpty())
+                        <div class="py-6 text-center bg-slate-50 rounded-xl text-slate-400 text-xs">
+                            Belum ada transaksi tercatat untuk prospek ini.
+                        </div>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead class="bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">Tanggal</th>
+                                        <th class="px-3 py-2 text-left">Jenis</th>
+                                        <th class="px-3 py-2 text-right">Nominal</th>
+                                        <th class="px-3 py-2 text-left">Metode</th>
+                                        <th class="px-3 py-2 text-center">Status</th>
+                                        <th class="px-3 py-2 text-left">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    @foreach($transaksis as $trx)
+                                        <tr class="hover:bg-slate-50/60 transition">
+                                            <td class="px-3 py-2.5 font-medium text-slate-700 whitespace-nowrap">{{ $trx->tanggal ? $trx->tanggal->format('d/m/Y') : '-' }}</td>
+                                            <td class="px-3 py-2.5 font-bold text-slate-800 whitespace-nowrap">{{ $trx->jenis }}</td>
+                                            <td class="px-3 py-2.5 text-right font-extrabold text-slate-900 whitespace-nowrap">Rp {{ number_format($trx->nominal, 0, ',', '.') }}</td>
+                                            <td class="px-3 py-2.5 whitespace-nowrap">
+                                                <span class="px-2 py-0.5 rounded-md border font-semibold text-[10px] bg-slate-50 text-slate-700">
+                                                    {{ $trx->metode_label }}
+                                                </span>
+                                            </td>
+                                            <td class="px-3 py-2.5 text-center whitespace-nowrap">
+                                                @if($trx->payment_status === 'pending')
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">Pending</span>
+                                                @elseif($trx->payment_status === 'verified')
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">Terverifikasi</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">Ditolak</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2.5 text-slate-600 text-[11px]">
+                                                {{ $trx->notes ?? '-' }}
+                                                @if($trx->verifier)
+                                                    <div class="text-[10px] text-emerald-700">✓ CS: {{ $trx->verifier->name }}</div>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
+
+                <!-- RIWAYAT AKTIVITAS & TIMELINE TIM -->
+                <div class="crm-card bg-white p-6 space-y-5">
+                    <div class="pb-3 border-b border-slate-100">
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Riwayat Aktivitas & Timeline Tim</h3>
+                        <p class="text-xs text-slate-500">Log perubahan status, catatan follow up, dan aktivitas Sales pada prospek ini</p>
+                    </div>
 
                 <!-- Timeline Items -->
                 <div class="space-y-6 relative before:absolute before:inset-0 before:left-3 before:w-0.5 before:bg-slate-200">
@@ -336,6 +416,7 @@
                                 name="nominal_formulir" 
                                 value="250000" 
                                 min="0" 
+                                max="9999999999"
                                 step="1000"
                                 class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                 placeholder="250000"
@@ -352,6 +433,7 @@
                                 name="nominal_termin1" 
                                 value="1500000" 
                                 min="10000" 
+                                max="9999999999"
                                 step="1000" 
                                 required
                                 class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"

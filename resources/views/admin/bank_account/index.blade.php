@@ -9,7 +9,7 @@
         {{-- Header --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
-                <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">🏦 Master Rekening Bank</h2>
+                <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Master Rekening Bank</h2>
                 <p class="text-xs text-slate-500 mt-0.5">Kelola rekening bank institusi yang digunakan Sales untuk informasi transfer pembayaran.</p>
             </div>
             <button @click="modalAdd = true" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-2 cursor-pointer">
@@ -20,7 +20,7 @@
 
         {{-- Flash --}}
         @if(session('success'))
-            <div class="px-5 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold">✅ {{ session('success') }}</div>
+            <div class="px-5 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold">{{ session('success') }}</div>
         @endif
 
         {{-- Table --}}
@@ -31,7 +31,6 @@
 
             @if($bankAccounts->isEmpty())
                 <div class="py-16 text-center">
-                    <div class="text-4xl mb-3">🏦</div>
                     <p class="text-sm font-semibold text-slate-700">Belum ada rekening bank yang ditambahkan.</p>
                 </div>
             @else
@@ -67,22 +66,22 @@
                                             <button type="button"
                                                 @click="modalEdit = true; editData = {{ json_encode($rek) }}"
                                                 class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 text-[10px] font-bold transition cursor-pointer">
-                                                ✏️ Edit
+                                                Edit
                                             </button>
                                             {{-- Toggle --}}
                                             <form action="{{ route('admin.bank-accounts.toggle-status', $rek->id) }}" method="POST">
                                                 @csrf
                                                 <button type="submit" class="px-2.5 py-1.5 rounded-lg {{ $rek->is_active ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-100' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-100' }} border text-[10px] font-bold transition cursor-pointer">
-                                                    {{ $rek->is_active ? '⏸ Nonaktifkan' : '▶ Aktifkan' }}
+                                                    {{ $rek->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                                                 </button>
                                             </form>
                                             {{-- Delete --}}
                                             <form action="{{ route('admin.bank-accounts.destroy', $rek->id) }}" method="POST"
-                                                  onsubmit="return confirm('Yakin hapus rekening {{ $rek->bank_name }} - {{ $rek->account_number }}?')">
+                                                  data-confirm="Yakin hapus rekening {{ $rek->bank_name }} - {{ $rek->account_number }}?">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-100 text-[10px] font-bold transition cursor-pointer">
-                                                    🗑 Hapus
+                                                    Hapus
                                                 </button>
                                             </form>
                                         </div>
@@ -103,8 +102,10 @@
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalAdd = false"></div>
             <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                    <h3 class="text-base font-bold text-slate-900">🏦 Tambah Rekening Bank</h3>
-                    <button @click="modalAdd = false" class="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                    <h3 class="text-base font-bold text-slate-900">Tambah Rekening Bank</h3>
+                    <button @click="modalAdd = false" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
                 <form action="{{ route('admin.bank-accounts.store') }}" method="POST" class="space-y-4">
                     @csrf
@@ -139,8 +140,10 @@
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalEdit = false"></div>
             <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                    <h3 class="text-base font-bold text-slate-900">✏️ Edit Rekening Bank</h3>
-                    <button @click="modalEdit = false" class="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                    <h3 class="text-base font-bold text-slate-900">Edit Rekening Bank</h3>
+                    <button @click="modalEdit = false" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
                 <template x-if="editData.id">
                     <form :action="`/admin/bank-accounts/${editData.id}`" method="POST" class="space-y-4">

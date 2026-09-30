@@ -99,7 +99,7 @@
                                 <button type="button" @click='selectedEvent = @json($event); selectedEvent.spv_ids = @json($event->spvs->pluck("id")); modalEditEvent = true' class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="Edit Event">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
-                                <form action="{{ route('admin.events.destroy', $event->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan dan menghapus event ini? Semua assignment terkait akan ikut terhapus.')">
+                                <form action="{{ route('admin.events.destroy', $event->id) }}" method="POST" class="inline-block" data-confirm="Apakah Anda yakin ingin membatalkan dan menghapus event ini? Semua assignment terkait akan ikut terhapus.">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 transition" title="Hapus Event">

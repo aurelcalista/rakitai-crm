@@ -404,11 +404,13 @@ class ProspectController extends Controller
         ];
 
         $prospect = $this->formatProspekDetail($prospek);
+        $transaksis = $prospek->transaksis()->with(['user', 'verifier', 'rejecter'])->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get();
         $lostReasons = Prospek::LOST_REASONS;
         $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS ?? ['WhatsApp', 'Telepon', 'Kunjungan Langsung', 'Email', 'Zoom/GMeet'];
 
         return view('spv.prospek.show', compact(
             'prospect',
+            'transaksis',
             'allStages',
             'lostReasons',
             'metodeOptions',
@@ -596,10 +598,13 @@ class ProspectController extends Controller
         Gate::authorize('transaction', $prospek);
 
         $validated = $request->validate([
-            'nominal_formulir' => 'nullable|numeric|min:0',
-            'nominal_termin1'  => 'required|numeric|min:0',
+            'nominal_formulir' => 'nullable|numeric|min:0|max:9999999999',
+            'nominal_termin1'  => 'required|numeric|min:0|max:9999999999',
             'tanggal'          => 'required|date',
-            'notes'            => 'nullable|string|max:500',
+            'notes'            => 'nullable|string|max:1000',
+        ], [
+            'nominal_formulir.max' => 'Nominal formulir maksimal Rp 9.999.999.999.',
+            'nominal_termin1.max'  => 'Nominal termin 1 maksimal Rp 9.999.999.999.',
         ]);
 
         $user = auth()->user();
