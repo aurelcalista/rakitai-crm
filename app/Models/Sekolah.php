@@ -42,6 +42,11 @@ class Sekolah extends Model
         return $this->hasMany(Kunjungan::class, 'tujuan_id')->where('jenis', 'Sekolah');
     }
 
+    public function prospeks()
+    {
+        return $this->hasMany(Prospek::class, 'sekolah_id');
+    }
+
     public function sales()
     {
         return $this->belongsTo(User::class, 'sales_id');

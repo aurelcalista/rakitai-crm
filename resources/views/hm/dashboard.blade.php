@@ -336,6 +336,7 @@
                     <table class="w-full text-xs text-left text-slate-700">
                         <thead class="text-[11px] font-bold uppercase text-slate-500 bg-slate-50 border-b border-slate-200">
                             <tr>
+                                <th class="px-3 py-3 w-10 text-center">No</th>
                                 <th class="px-4 py-3">Wilayah</th>
                                 <th class="px-4 py-3">SPV</th>
                                 <th class="px-4 py-3">Sales Aktif</th>
@@ -348,6 +349,7 @@
                         <tbody class="divide-y divide-slate-100">
                             @foreach($targetAchievementData['territory_table'] as $row)
                                 <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="px-3 py-3.5 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                     <td class="px-4 py-3.5 font-bold text-slate-900">
                                         {{ $row['wilayah_nama'] ?? $row['label'] }}
                                     </td>

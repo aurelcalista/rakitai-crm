@@ -19,9 +19,7 @@ class ReportController extends Controller
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
 
-        $query = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }, 'timelines' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
@@ -53,6 +51,8 @@ class ReportController extends Controller
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
         $prospects = $prospectsRaw->map(function ($p) {
+            $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
+
             return [
                 'id'             => $p->id,
                 'name'           => $p->name,
@@ -72,9 +72,11 @@ class ReportController extends Controller
                 'last_activity'  => $p->updated_at->diffForHumans(),
                 'potential'      => $p->potential ?? '-',
                 'source'         => $p->source ?? '-',
-                'notes'          => $p->notes ?? '',
+                'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
                 'created_at'     => $p->created_at ? $p->created_at->format('d M Y') : '-',
-                'last_contact'   => $p->followUps->first() ? Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
+                'last_contact'   => $latestFollowUp && $latestFollowUp->tanggal ? Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
+                'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
                 'timeline'       => $p->timelines->map(function ($t) {
                     return [
                         'time'   => $t->time->format('d M, H:i'),

@@ -202,7 +202,34 @@
         </div>
 
         <!-- Report Data Table -->
-        <div class="crm-card bg-white overflow-hidden border border-slate-200/80 rounded-2xl">
+        <div class="crm-card bg-white overflow-hidden border border-slate-200/80 rounded-2xl" x-data="{
+            currentPage: 1,
+            perPage: 25,
+            prospectsList: {{ json_encode($prospects) }},
+            formatDate(dateStr) {
+                if (!dateStr) return '-';
+                if (typeof dateStr === 'string' && /^\d{2}-\d{2}-\d{4}/.test(dateStr)) {
+                    return dateStr;
+                }
+                try {
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return dateStr;
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const year = d.getFullYear();
+                    return `${day}-${month}-${year}`;
+                } catch (e) {
+                    return dateStr;
+                }
+            },
+            get paginatedProspects() {
+                const start = (this.currentPage - 1) * this.perPage;
+                return this.prospectsList.slice(start, start + this.perPage);
+            },
+            get totalPages() {
+                return Math.ceil(this.prospectsList.length / this.perPage) || 1;
+            }
+        }">
             <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h3 class="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">Tabel Rekapitulasi Data Prospek</h3>
                 <span class="text-[11px] text-slate-500 font-medium">Total: {{ count($prospects) }} Data</span>
@@ -222,32 +249,52 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 print:divide-slate-400">
-                        @forelse($prospects as $index => $prospect)
-                            <tr class="hover:bg-slate-50/80 transition print:hover:bg-transparent">
-                                <td class="py-3 px-3 text-center text-slate-500 font-medium print:border print:border-slate-400">{{ $index + 1 }}</td>
+                        <template x-for="(prospect, index) in paginatedProspects" :key="prospect.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide print:hover:bg-transparent">
+                                <td class="py-3 px-3 text-center text-slate-500 font-medium print:border print:border-slate-400" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3 px-4 font-semibold text-slate-900 print:border print:border-slate-400">
                                     <span class="no-print">
-                                        <a href="{{ route((strtolower(auth()->user()->role ?? '') === 'spv' ? 'spv.' : '') . 'prospek.show', $prospect['id']) }}" class="hover:text-blue-600 hover:underline font-bold">
-                                            {{ $prospect['pic'] ?: $prospect['name'] }}
-                                        </a>
+                                        <a :href="'/' + (('{{ strtolower(auth()->user()->role ?? '') }}' === 'spv') ? 'spv/' : '') + 'prospek/' + prospect.id" class="hover:text-blue-600 hover:underline font-bold" x-text="prospect.pic || prospect.name"></a>
                                     </span>
-                                    <span class="print-only font-bold text-slate-900">{{ $prospect['pic'] ?: $prospect['name'] }}</span>
+                                    <span class="print-only font-bold text-slate-900" x-text="prospect.pic || prospect.name"></span>
                                 </td>
-                                <td class="py-3 px-3 text-slate-600 print:border print:border-slate-400 font-medium">{{ $prospect['type'] }}</td>
+                                <td class="py-3 px-3 text-slate-600 print:border print:border-slate-400 font-medium" x-text="prospect.type"></td>
                                 <td class="py-3 px-3 print:border print:border-slate-400">
-                                    <x-status-badge :status="$prospect['status']" />
+                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block"
+                                        :class="{
+                                            'bg-slate-100 text-slate-700 border border-slate-200': prospect.status === 'BARU' || prospect.status === 'Cold Lead',
+                                            'bg-blue-50 text-blue-700 border border-blue-200': prospect.status === 'KONTAK' || prospect.status === 'Interested',
+                                            'bg-amber-50 text-amber-700 border border-amber-200': prospect.status === 'HANGAT' || prospect.status === 'Follow Up',
+                                            'bg-orange-50 text-orange-700 border border-orange-200': prospect.status === 'PANAS',
+                                            'bg-purple-50 text-purple-700 border border-purple-200': prospect.status === 'FORMULIR' || prospect.status === 'Beli Formulir',
+                                            'bg-cyan-50 text-cyan-700 border border-cyan-200': prospect.status === 'BERKAS' || prospect.status === 'Pembayaran Termin 1',
+                                            'bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold shadow-2xs': prospect.status === 'LUNAS' || prospect.status === 'Closing',
+                                            'bg-gray-100 text-gray-600 border border-gray-200': prospect.status === 'DINGIN' || prospect.status === 'Lost'
+                                        }"
+                                        x-text="prospect.status">
+                                    </span>
                                 </td>
-                                <td class="py-3 px-3 text-slate-700 font-medium print:border print:border-slate-400">{{ $prospect['takeover_sales'] }}</td>
-                                <td class="py-3 px-3 text-slate-700 font-medium print:border print:border-slate-400">{{ $prospect['takeover_cs'] }}</td>
-                                <td class="py-3 px-4 text-right text-slate-500 font-medium print:border print:border-slate-400">{{ $prospect['created_at'] }}</td>
+                                <td class="py-3 px-3 text-slate-700 font-medium print:border print:border-slate-400" x-text="prospect.takeover_sales || '-'"></td>
+                                <td class="py-3 px-3 text-slate-700 font-medium print:border print:border-slate-400" x-text="prospect.takeover_cs || '-'"></td>
+                                <td class="py-3 px-4 text-right text-slate-500 font-medium print:border print:border-slate-400" x-text="formatDate(prospect.created_at)"></td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="py-6 text-center text-slate-400 italic">Tidak ada data prospek yang ditemukan untuk kriteria filter ini.</td>
-                            </tr>
-                        @endforelse
+                        </template>
+                        <tr x-show="prospectsList.length === 0">
+                            <td colspan="7" class="py-6 text-center text-slate-400 italic">Tidak ada data prospek yang ditemukan untuk kriteria filter ini.</td>
+                        </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Control (Hidden on Print) -->
+            <div class="no-print">
+                <x-table-pagination
+                    total="prospectsList.length"
+                    page="currentPage"
+                    perPage="perPage"
+                    totalPages="totalPages"
+                    color="blue"
+                />
             </div>
         </div>
 

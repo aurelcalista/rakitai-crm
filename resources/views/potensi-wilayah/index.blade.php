@@ -18,6 +18,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4 w-1/3">Kota / Kabupaten</th>
                             <th class="py-3.5 px-4 w-1/3">Kecamatan</th>
                             <th class="py-3.5 px-4">Sales Ditugaskan</th>
@@ -33,6 +34,7 @@
                             @endphp
                             <!-- Parent Row (Kota/Kabupaten) -->
                             <tr class="bg-slate-50 font-bold border-b-2 border-slate-200">
+                                <td class="py-3 px-3 text-center font-bold text-slate-600">{{ $loop->iteration }}</td>
                                 <td class="py-3 px-4 text-slate-900">
                                     <span class="inline-flex items-center gap-2">
                                         <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,6 +57,7 @@
                                     $salesUsers = $child->assignedUsers->pluck('name')->toArray();
                                 @endphp
                                 <tr class="hover:bg-slate-50/50 transition">
+                                    <td class="py-3 px-3 text-center text-[10px] text-slate-400 font-medium">{{ $loop->parent->iteration }}.{{ $loop->iteration }}</td>
                                     <td class="py-3 px-4"></td>
                                     <td class="py-3 px-4 text-slate-700 flex items-center gap-2">
                                         <svg class="w-3 h-3 text-slate-300 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

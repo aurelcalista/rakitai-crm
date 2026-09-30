@@ -115,7 +115,7 @@
 <body class="h-full bg-slate-50 font-sans text-slate-800" x-data="{ 
     sidebarCollapsed: false, 
     mobileMenuOpen: false,
-    modalTambahProspek: {{ $errors->any() ? 'true' : 'false' }},
+    modalTambahProspek: {{ (isset($errors) && $errors->any() && (old('pic') || old('type') || old('whatsapp') || old('source') || old('sekolah_id') || old('perusahaan_id') || old('sekolah_manual') || old('perusahaan_manual'))) ? 'true' : 'false' }},
     modalFollowUp: false,
     modalUpdateStatus: false,
     modalTransaksi: false,
@@ -125,13 +125,25 @@
 }
 "
 x-init="
-    @if(session('success')) setTimeout(() => $store.crm.showToast({!! json_encode(session('success')) !!}, 'success'), 100); @endif
-    @if(session('error')) setTimeout(() => $store.crm.showToast({!! json_encode(session('error')) !!}, 'error'), 100); @endif
-    @if($errors->any())
-        @foreach($errors->all() as $error)
-            setTimeout(() => $store.crm.showToast({!! json_encode($error) !!}, 'error'), 100);
-        @endforeach
-    @endif
+    $nextTick(() => {
+        @if(session('success'))
+            if (window.Alpine && Alpine.store('crm')) {
+                Alpine.store('crm').showToast({!! json_encode(session('success')) !!}, 'success');
+            }
+        @endif
+        @if(session('error'))
+            if (window.Alpine && Alpine.store('crm')) {
+                Alpine.store('crm').showToast({!! json_encode(session('error')) !!}, 'error');
+            }
+        @endif
+        @if(isset($errors) && $errors->any())
+            @foreach($errors->all() as $error)
+                if (window.Alpine && Alpine.store('crm')) {
+                    Alpine.store('crm').showToast({!! json_encode($error) !!}, 'error');
+                }
+            @endforeach
+        @endif
+    });
 ">
 
     <!-- Toast Notifications Container -->
@@ -452,6 +464,14 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Tahun Akademik</span>
+                            <a 
+                                href="{{ route('admin.bank-accounts.index') }}" 
+                                title="Rekening Bank"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.bank-accounts.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.bank-accounts.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                <span x-show="!sidebarCollapsed">Rekening Bank</span>
                             </a>
                             <a 
                                 href="{{ route('admin.audit-logs.index') }}" 
@@ -534,6 +554,17 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Jadwal Event</span>
                             </a>
+                            <a 
+                                href="{{ route('sales.pembayaran.index') }}" 
+                                title="Riwayat Pembayaran"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Riwayat Pembayaran</span>
+                            </a>
                             @elseif($userRole !== 'spv')
                             <a 
                                 href="{{ route('follow-up.index') }}" 
@@ -547,6 +578,25 @@ x-init="
                                     </svg>
                                 </div>
                                 <span x-show="!sidebarCollapsed">Follow Up</span>
+                            </a>
+                            @endif
+
+                            {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
+                            @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            <a 
+                                href="{{ route('cs.verifikasi.index') }}" 
+                                title="Verifikasi Pembayaran ({{ $pendingVerifikasiCount }} Menunggu)"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('cs.verifikasi.*') ? 'bg-amber-50 text-amber-700 font-bold border border-amber-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('cs.verifikasi.*') ? 'text-amber-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Verifikasi Bayar</span>
+                                @if($pendingVerifikasiCount > 0)
+                                    <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $pendingVerifikasiCount }}</span>
+                                @endif
                             </a>
                             @endif
 
@@ -828,9 +878,6 @@ x-init="
 
                 <!-- Right: Quick Tools & User Profile -->
                 <div class="flex items-center gap-2.5 sm:gap-4">
-
-                    <!-- Search Trigger / Modal Button -->
-
 
                     <!-- Notifications Dropdown -->
                     <div class="relative flex items-center justify-center" x-data="{ 
@@ -1440,6 +1487,19 @@ x-init="
                                     </svg>
                                     <span class="flex-1">Jadwal Event</span>
                                 </a>
+
+                                <a 
+                                    href="{{ route('sales.pembayaran.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="riwayat pembayaran transaksi transfer billing invoice closing sales bayar"
+                                    x-show="matches('riwayat pembayaran transaksi transfer billing invoice closing sales bayar')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                    <span class="flex-1">Riwayat Pembayaran</span>
+                                </a>
                             @elseif($userRole !== 'spv')
                                 <a 
                                     href="{{ route('follow-up.index') }}" 
@@ -1703,7 +1763,7 @@ x-init="
                 <form action="{{ route((auth()->user()->role === 'Sales' ? 'sales.' : '') . 'prospek.store') }}" method="POST" class="mt-5 space-y-6" x-data="{ prospekType: 'Sekolah' }">
                     @csrf
 
-                    @if ($errors->any())
+                    @if (isset($errors) && $errors->any() && (old('pic') || old('type') || old('whatsapp') || old('source') || old('sekolah_id') || old('perusahaan_id') || old('sekolah_manual') || old('perusahaan_manual')))
                         <div class="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl text-xs space-y-1">
                             <div class="font-bold flex items-center gap-1.5 text-rose-900">
                                 <svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -1717,9 +1777,9 @@ x-init="
                         </div>
                     @endif
 
-                    <!-- Section: INFORMASI DASAR -->
+                    <!-- Section: INFORMASI PROSPEK -->
                     <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">Informasi Prospek</h4>
                         @php
                             $sekolahsList = \App\Models\Sekolah::getDynamicSchools();
                             $perusahaansList = \App\Models\Perusahaan::getDynamicPerusahaans();
@@ -1759,34 +1819,155 @@ x-init="
                             @endif
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe Prospek *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center">Tipe Prospek <span class="text-rose-500 ml-0.5">*</span></label>
                                 <select name="type" x-model="prospekType" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="Sekolah">Sekolah (SMA/SMK/MA)</option>
                                     <option value="Corporate">Corporate / Perusahaan</option>
                                     <option value="Individu">Individu / Siswa Langsung</option>
                                 </select>
                             </div>
-                            <div x-show="prospekType === 'Sekolah'">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Sekolah</label>
-                                <x-searchable-select 
-                                    name="sekolah_id" 
-                                    :options="$sekolahsList" 
-                                    placeholder="-- Ketik untuk mencari Sekolah... --" 
-                                />
+
+                            <!-- Input Sekolah (Search & Manual Mode) -->
+                            <div x-show="prospekType === 'Sekolah'" x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                                <div class="flex items-center justify-between mb-1.5 h-5">
+                                    <template x-if="!modeManualSekolah">
+                                        <div class="flex items-center justify-between w-full">
+                                            <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualSekolah = true; const sel = $el.closest('.space-y-1').querySelector('input[name=sekolah_id]'); if(sel) sel.value = '';" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition cursor-pointer group"
+                                            >
+                                                <svg class="w-3 h-3 text-blue-500 group-hover:text-blue-700 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                <span>Input Manual</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="modeManualSekolah">
+                                        <div class="flex items-center justify-between w-full">
+                                            <div class="flex items-center gap-1.5">
+                                                <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                                    Manual
+                                                </span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualSekolah = false;" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer"
+                                            >
+                                                <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                <span>Cari Database</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div x-show="!modeManualSekolah">
+                                    <x-searchable-select 
+                                        name="sekolah_id" 
+                                        :options="$sekolahsList" 
+                                        placeholder="-- Ketik untuk mencari Sekolah... --" 
+                                    />
+                                </div>
+
+                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-1.5">
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            name="sekolah_manual" 
+                                            placeholder="Ketik nama sekolah (misal: SMAN 1 Cirebon)..." 
+                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
+                                        >
+                                    </div>
+                                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
+                                        <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Sekolah baru akan otomatis tersimpan ke master data.</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div x-show="prospekType === 'Corporate'" style="display: none;">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan</label>
-                                <x-searchable-select 
-                                    name="perusahaan_id" 
-                                    :options="$perusahaansList" 
-                                    placeholder="-- Ketik untuk mencari Perusahaan... --" 
-                                />
+
+                            <!-- Input Corporate (Search & Manual Mode) -->
+                            <div x-show="prospekType === 'Corporate'" x-data="{ modeManualCorp: false }" x-on:switch-manual.stop="if ($event.detail.name === 'perusahaan_id') { modeManualCorp = true; $nextTick(function() { const inp = $el.querySelector('input[name=perusahaan_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" style="display: none;" class="space-y-1">
+                                <div class="flex items-center justify-between mb-1.5 h-5">
+                                    <template x-if="!modeManualCorp">
+                                        <div class="flex items-center justify-between w-full">
+                                            <label class="block text-xs font-semibold text-slate-700">Nama Perusahaan <span class="text-rose-500">*</span></label>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualCorp = true; const sel = $el.closest('.space-y-1').querySelector('input[name=perusahaan_id]'); if(sel) sel.value = '';" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition cursor-pointer group"
+                                            >
+                                                <svg class="w-3 h-3 text-blue-500 group-hover:text-blue-700 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                <span>Input Manual</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <template x-if="modeManualCorp">
+                                        <div class="flex items-center justify-between w-full">
+                                            <div class="flex items-center gap-1.5">
+                                                <label class="block text-xs font-semibold text-slate-700">Nama Perusahaan <span class="text-rose-500">*</span></label>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                                    Manual
+                                                </span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                @click="modeManualCorp = false;" 
+                                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer"
+                                            >
+                                                <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                <span>Cari Database</span>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div x-show="!modeManualCorp">
+                                    <x-searchable-select 
+                                        name="perusahaan_id" 
+                                        :options="$perusahaansList" 
+                                        placeholder="-- Ketik untuk mencari Perusahaan... --" 
+                                    />
+                                </div>
+
+                                <div x-show="modeManualCorp" style="display: none;" class="space-y-1.5">
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            name="perusahaan_manual" 
+                                            placeholder="Ketik nama perusahaan (misal: PT Telkom Cirebon)..." 
+                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
+                                        >
+                                    </div>
+                                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
+                                        <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Perusahaan baru akan otomatis tersimpan ke master data.</span>
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center justify-between">
+                                    <span>Program Studi Diminati</span>
+                                    <span class="text-[11px] text-slate-400 font-normal">Opsional</span>
+                                </label>
                                 <select name="prodi_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                    <option value="">-- Pilih Program Studi --</option>
+                                    <option value="">-- Pilih Program Studi (Boleh Dikosongkan) --</option>
                                     @foreach($prodisList as $prd)
                                         <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
                                     @endforeach
@@ -1802,7 +1983,7 @@ x-init="
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kontak / PIC *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
                                 <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
@@ -1829,17 +2010,6 @@ x-init="
                                         <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
                                     @endforeach
                                 </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section: DETAIL & POTENSI -->
-                    <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
-                                <textarea name="notes" rows="2" placeholder="Catatan awal hasil perbincangan atau sumber prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
                             </div>
                         </div>
                     </div>
@@ -1958,7 +2128,27 @@ x-init="
                     </button>
                 </div>
 
-                <form @submit.prevent="modalUpdateStatus = false; $store.crm.showToast('Status berhasil diperbarui!')" class="mt-4 space-y-4">
+                <form @submit.prevent="
+                    fetch('/pipeline/update-status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prospek_id: selectedProspect.id,
+                            status: $event.target.status.value
+                        })
+                    }).then(r => r.json()).then(data => {
+                        if(data.success) {
+                            $store.crm.showToast('Status berhasil diperbarui!');
+                            setTimeout(() => window.location.reload(), 800);
+                        } else {
+                            alert(data.message || 'Gagal mengubah status');
+                        }
+                    }).catch(err => alert('Terjadi kesalahan sistem'));
+                " class="mt-4 space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Status Baru *</label>
                         @php
@@ -1967,7 +2157,7 @@ x-init="
                                 $statusProspekList = $statusProspekList->filter(fn($item) => strtoupper($item->nama) !== 'LUNAS');
                             }
                         @endphp
-                        <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                        <select name="status" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                             @foreach($statusProspekList as $status)
                                 <option value="{{ $status->nama }}">{{ $status->nama }}</option>
                             @endforeach
@@ -1975,8 +2165,8 @@ x-init="
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Perubahan *</label>
-                        <textarea rows="3" required placeholder="Tuliskan alasan atau ringkasan mengapa status prospek diperbarui..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Perubahan (Opsional)</label>
+                        <textarea name="notes" rows="3" placeholder="Tuliskan alasan atau ringkasan mengapa status prospek diperbarui..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -2033,6 +2223,10 @@ x-init="
                     eventTempat: '',
                     kunjunganType: 'sekolah', 
                     photoPreview: null,
+                    modeManualSekolah: false,
+                    sekolah_manual: '',
+                    modeManualCorp: false,
+                    perusahaan_manual: '',
                     selectedSchoolSource: '',
                     selectedSekolahId: '',
                     selectedPerusahaanId: '',
@@ -2046,6 +2240,51 @@ x-init="
                     lng: '',
                     geoAddress: '',
                     geoStatus: '',
+                    handleSchoolSelect(sourceVal) {
+                        this.selectedSchoolSource = sourceVal;
+                        if (this.kunjunganType === 'sekolah' && !this.isEventMode) {
+                            if (sourceVal && sourceVal.startsWith('prospek_')) {
+                                const pid = sourceVal.replace('prospek_', '');
+                                const item = this.prospekPicMap[pid];
+                                if (item) {
+                                    this.prospek_id = item.id;
+                                    this.selectedSekolahId = item.sekolah_id || '';
+                                    this.namaInstitusi = item.name;
+                                    this.picName = item.pic || '';
+                                    this.picWhatsapp = item.whatsapp || '';
+                                }
+                            } else if (sourceVal && sourceVal.startsWith('sekolah_')) {
+                                const sid = sourceVal.replace('sekolah_', '');
+                                this.prospek_id = '';
+                                this.selectedSekolahId = sid;
+                                const item = this.sekolahPicMap[sid];
+                                if (item) {
+                                    this.namaInstitusi = item.nama;
+                                    this.picName = item.pic || '';
+                                    this.picWhatsapp = item.whatsapp || '';
+                                }
+                            } else {
+                                this.prospek_id = '';
+                                this.selectedSekolahId = '';
+                                this.namaInstitusi = '';
+                                this.picName = '';
+                                this.picWhatsapp = '';
+                            }
+                        }
+                    },
+                    handleCorpSelect(corpId) {
+                        this.selectedPerusahaanId = corpId;
+                        if (this.kunjunganType === 'corporate' && !this.isEventMode) {
+                            if (corpId && this.perusahaanPicMap[corpId]) {
+                                this.namaInstitusi = this.perusahaanPicMap[corpId].nama || '';
+                                this.picName = this.perusahaanPicMap[corpId].pic || '';
+                                this.picWhatsapp = this.perusahaanPicMap[corpId].whatsapp || '';
+                            } else {
+                                this.picName = '';
+                                this.picWhatsapp = '';
+                            }
+                        }
+                    },
                     getGeolocation() {
                         this.geoStatus = 'Mencari lokasi GPS...';
                         if (navigator.geolocation) {
@@ -2111,58 +2350,39 @@ x-init="
                         }
                         
                         $pPicMap = [];
-                        foreach(\App\Models\Perusahaan::where('status', 'Aktif')->whereNotNull('pic_name')->get() as $p) {
-                            $pPicMap[$p->id] = ['pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
+                        foreach(\App\Models\Perusahaan::where('status', 'Aktif')->get() as $p) {
+                            $pPicMap[$p->id] = ['nama' => $p->nama, 'pic' => $p->pic_name, 'whatsapp' => $p->pic_phone];
+                        }
+
+                        $modalSchoolOptions = [];
+                        foreach($availProspeks as $p) {
+                            $modalSchoolOptions[] = [
+                                'value' => 'prospek_' . $p->id,
+                                'label' => $p->name,
+                                'sub'   => '📋 Prospek • Status: ' . $p->status . ($p->pic ? ' • PIC: ' . $p->pic : ''),
+                            ];
+                        }
+                        foreach(\App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get() as $sek) {
+                            $modalSchoolOptions[] = [
+                                'value' => 'sekolah_' . $sek->id,
+                                'label' => $sek->nama,
+                                'sub'   => 'Master Database Sekolah' . ($sek->kota ? ' • ' . $sek->kota : ''),
+                            ];
+                        }
+
+                        $modalCorpOptions = [];
+                        foreach(\App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get() as $per) {
+                            $modalCorpOptions[] = [
+                                'value' => (string)$per->id,
+                                'label' => $per->nama,
+                                'sub'   => '🏢 Database Perusahaan' . ($per->kota ? ' • ' . $per->kota : ''),
+                            ];
                         }
                     @endphp
                     prospekPicMap = {{ json_encode($pMap) }};
                     sekolahPicMap = {{ json_encode($sPicMap) }};
                     perusahaanPicMap = {{ json_encode($pPicMap) }};
 
-                    $watch('selectedSchoolSource', value => {
-                        if (kunjunganType === 'sekolah' && !isEventMode) {
-                            if (value && value.startsWith('prospek_')) {
-                                const pid = value.replace('prospek_', '');
-                                const item = prospekPicMap[pid];
-                                if (item) {
-                                    prospek_id = item.id;
-                                    selectedSekolahId = item.sekolah_id || '';
-                                    namaInstitusi = item.name;
-                                    picName = item.pic || '';
-                                    picWhatsapp = item.whatsapp || '';
-                                }
-                            } else if (value && value.startsWith('sekolah_')) {
-                                const sid = value.replace('sekolah_', '');
-                                prospek_id = '';
-                                selectedSekolahId = sid;
-                                const item = sekolahPicMap[sid];
-                                if (item) {
-                                    namaInstitusi = item.nama;
-                                    picName = item.pic || '';
-                                    picWhatsapp = item.whatsapp || '';
-                                }
-                            } else {
-                                prospek_id = '';
-                                selectedSekolahId = '';
-                                namaInstitusi = '';
-                                picName = '';
-                                picWhatsapp = '';
-                            }
-                        }
-                    });
-                    
-                    $watch('selectedPerusahaanId', value => {
-                        if (kunjunganType === 'corporate' && !isEventMode) {
-                            if (value && perusahaanPicMap[value]) {
-                                picName = perusahaanPicMap[value].pic;
-                                picWhatsapp = perusahaanPicMap[value].whatsapp;
-                            } else {
-                                picName = '';
-                                picWhatsapp = '';
-                            }
-                        }
-                    });
-                    
                     $watch('modalTambahKunjungan', value => {
                         if (value && !lat) {
                             getGeolocation();
@@ -2221,8 +2441,8 @@ x-init="
                     <input type="hidden" name="event_id" :value="eventId" x-bind:disabled="!isEventMode">
                     <input type="hidden" name="lokasi_penugasan" :value="geoAddress">
                     <input type="hidden" name="jenis" :value="kunjunganType === 'sekolah' ? 'Sekolah' : 'Perusahaan'">
-                    <input type="hidden" name="tanggal" value="{{ date('Y-m-d') }}">
-                    <input type="hidden" name="waktu" value="{{ date('H:i') }}">
+                    <input type="hidden" name="tanggal" :value="new Date().toLocaleDateString('en-CA')" value="{{ date('Y-m-d') }}">
+                    <input type="hidden" name="waktu" :value="String(new Date().getHours()).padStart(2, '0') + ':' + String(new Date().getMinutes()).padStart(2, '0')" value="{{ date('H:i') }}">
                     <input type="hidden" name="lat" x-model="lat">
                     <input type="hidden" name="lng" x-model="lng">
                     
@@ -2274,47 +2494,97 @@ x-init="
 
                             <!-- Non-Event Mode: Informasi Sekolah -->
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3" x-show="!isEventMode">
-                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah</h4>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <div class="flex items-center justify-between mb-1">
-                                            <label class="block text-xs font-semibold text-slate-700">Nama Sekolah (Sumber: Prospek) *</label>
-                                            <span class="text-[11px] text-blue-600 font-medium">Terhubung dengan Data Prospek</span>
-                                        </div>
-                                        @php
-                                            $userVisit = auth()->user();
-                                            $prospekSekolahQuery = \App\Models\Prospek::query()->where('type', 'Sekolah');
-                                            if ($userVisit && $userVisit->role === 'Sales') {
-                                                $prospekSekolahQuery->where('sales_id', $userVisit->id);
-                                            } elseif ($userVisit && $userVisit->role === 'SPV') {
-                                                $subIds = \App\Models\User::where('supervisor_id', $userVisit->id)->pluck('id')->push($userVisit->id);
-                                                $prospekSekolahQuery->whereIn('sales_id', $subIds);
-                                            }
-                                            $modalAvailProspeks = $prospekSekolahQuery->orderBy('name')->get();
-                                            $modalSekolahsList = \App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
-                                        @endphp
-                                        <select x-model="selectedSchoolSource" class="w-full text-xs sm:text-sm px-3 py-2.5 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600" :required="kunjunganType === 'sekolah' && !isEventMode">
-                                            <option value="">-- Pilih Sekolah dari Daftar Prospek --</option>
-                                            @if($modalAvailProspeks->isNotEmpty())
-                                                <optgroup label="📋 Prospek Sekolah Tersedia (Data Anda / Tim)">
-                                                    @foreach($modalAvailProspeks as $p)
-                                                        <option value="prospek_{{ $p->id }}">{{ $p->name }} [Prospek: {{ $p->status }} - PIC: {{ $p->pic }}]</option>
-                                                    @endforeach
-                                                </optgroup>
-                                            @endif
-                                            @if($modalSekolahsList->isNotEmpty())
-                                                <optgroup label="🏫 Master Database Sekolah">
-                                                    @foreach($modalSekolahsList as $sek)
-                                                        <option value="sekolah_{{ $sek->id }}">{{ $sek->nama }}</option>
-                                                    @endforeach
-                                                </optgroup>
-                                            @endif
-                                        </select>
-                                        <input type="hidden" name="prospek_id" x-model="prospek_id">
-                                        <input type="hidden" name="sekolah_id" x-model="selectedSekolahId">
-                                        <input type="hidden" name="nama_institusi" x-model="namaInstitusi">
-                                        <p class="text-[11px] text-slate-500 mt-1">Memilih nama sekolah akan otomatis mengisi data PIC & nomor WhatsApp di bawah.</p>
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Sekolah</h4>
+                                    <span class="text-[11px] text-blue-600 font-medium">Terhubung Prospek / Master Sekolah</span>
+                                </div>
+
+                                <!-- Sekolah Selection (Search Plugin & Manual Mode) -->
+                                <div 
+                                    x-on:switch-manual.stop="if ($event.detail.name === 'school_source_select') { 
+                                        modeManualSekolah = true; 
+                                        sekolah_manual = $event.detail.search; 
+                                        namaInstitusi = $event.detail.search; 
+                                        selectedSchoolSource = ''; 
+                                        prospek_id = ''; 
+                                        selectedSekolahId = ''; 
+                                        $nextTick(function() { 
+                                            const inp = $el.querySelector('input[name=sekolah_manual]'); 
+                                            if(inp) { inp.value = $event.detail.search; inp.focus(); } 
+                                        }); 
+                                    }" 
+                                    class="space-y-1.5"
+                                >
+                                    <div class="flex items-center justify-between mb-1 h-5">
+                                        <template x-if="!modeManualSekolah">
+                                            <div class="flex items-center justify-between w-full">
+                                                <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                                <button 
+                                                    type="button" 
+                                                    @click="modeManualSekolah = true; selectedSchoolSource = ''; prospek_id = ''; selectedSekolahId = ''; const sel = $el.closest('.space-y-1.5').querySelector('input[name=school_source_select]'); if(sel) sel.value = '';" 
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 transition cursor-pointer group"
+                                                >
+                                                    <svg class="w-3 h-3 text-blue-500 group-hover:text-blue-700 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                    <span>Input Manual</span>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="modeManualSekolah">
+                                            <div class="flex items-center justify-between w-full">
+                                                <div class="flex items-center gap-1.5">
+                                                    <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                                        Manual
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    type="button" 
+                                                    @click="modeManualSekolah = false; sekolah_manual = '';" 
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer"
+                                                >
+                                                    <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                    <span>Cari Database / Prospek</span>
+                                                </button>
+                                            </div>
+                                        </template>
                                     </div>
+
+                                    <div x-show="!modeManualSekolah" x-on:change="if ($event.detail.name === 'school_source_select') handleSchoolSelect($event.detail.value)">
+                                        <x-searchable-select 
+                                            name="school_source_select" 
+                                            :options="$modalSchoolOptions" 
+                                            placeholder="-- Cari & Pilih Nama Sekolah dari Prospek / Database --" 
+                                        />
+                                    </div>
+
+                                    <div x-show="modeManualSekolah" style="display: none;" class="space-y-1.5">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_manual" 
+                                                x-model="sekolah_manual" 
+                                                @input="namaInstitusi = $event.target.value"
+                                                placeholder="Ketik nama sekolah manual (misal: SMAN 1 Cirebon)..." 
+                                                class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
+                                            >
+                                        </div>
+                                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
+                                            <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span>Sekolah baru akan otomatis tersimpan ke master data.</span>
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" name="prospek_id" :value="prospek_id">
+                                    <input type="hidden" name="sekolah_id" :value="modeManualSekolah ? '' : selectedSekolahId">
+                                    <input type="hidden" name="nama_institusi" :value="isEventMode ? (eventTempat || namaInstitusi) : (modeManualSekolah ? sekolah_manual : namaInstitusi)">
+                                    <p class="text-[11px] text-slate-500 mt-1" x-show="!modeManualSekolah">Memilih nama sekolah otomatis mengisi data PIC & nomor WhatsApp di bawah.</p>
                                 </div>
                             </div>
 
@@ -2377,94 +2647,93 @@ x-init="
 
                             <!-- Non-Event Mode: Informasi Perusahaan -->
                             <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3" x-show="!isEventMode">
-                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Perusahaan</h4>
-                                <div class="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Perusahaan *</label>
-                                        @php
-                                            $perusahaansList = \App\Models\Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
-                                            $modalPerusahaanOptions = [];
-                                            foreach($perusahaansList as $per) {
-                                                $modalPerusahaanOptions[] = [
-                                                    'val' => (string)$per->id,
-                                                    'label' => $per->nama,
-                                                    'sub' => 'Database Perusahaan' . ($per->kota ? ' • ' . $per->kota : ''),
-                                                ];
-                                            }
-                                        @endphp
-                                        <div class="relative" x-data="{
-                                            open: false,
-                                            search: '',
-                                            items: @json($modalPerusahaanOptions),
-                                            get filteredItems() {
-                                                if (!this.search.trim()) return this.items;
-                                                const q = this.search.toLowerCase();
-                                                return this.items.filter(i => i.label.toLowerCase().includes(q) || (i.sub && i.sub.toLowerCase().includes(q)));
-                                            },
-                                            get selectedLabel() {
-                                                const found = this.items.find(i => i.val === String(selectedPerusahaanId));
-                                                return found ? found.label : '';
-                                            },
-                                            selectPerusahaan(item) {
-                                                selectedPerusahaanId = item.val;
-                                                this.open = false;
-                                            }
-                                        }" @click.outside="open = false">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Informasi Perusahaan</h4>
+                                    <span class="text-[11px] text-purple-600 font-medium">Database Corporate</span>
+                                </div>
 
-                                            <input type="hidden" name="perusahaan_id" :value="selectedPerusahaanId">
-
-                                            <!-- Trigger Button -->
-                                            <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-purple-500/20 flex items-center justify-between cursor-pointer transition">
-                                                <div class="flex items-center gap-2 truncate">
-                                                    <svg class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 v5m-4 0h4" />
-                                                    </svg>
-                                                    <span class="truncate font-semibold" x-text="selectedPerusahaanId ? selectedLabel : '-- Cari & Pilih Perusahaan --'"></span>
-                                                </div>
-                                                <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                            </button>
-
-                                            <!-- Dropdown Menu -->
-                                            <div x-show="open" 
-                                                 x-transition:enter="transition ease-out duration-100"
-                                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                                 x-transition:enter-end="transform opacity-100 scale-100"
-                                                 x-transition:leave="transition ease-in duration-75"
-                                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                                 class="absolute left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
-                                                 style="display: none;">
-                                                
-                                                <div class="relative mb-2">
-                                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                    </svg>
-                                                    <input type="text" 
-                                                           x-model="search" 
-                                                           placeholder="Ketik nama perusahaan..." 
-                                                           class="w-full text-xs pl-7 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-slate-800 font-medium"
-                                                           @keydown.escape="open = false">
-                                                </div>
-
-                                                <div class="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
-                                                    <template x-for="item in filteredItems" :key="item.val">
-                                                        <div @click="selectPerusahaan(item)" 
-                                                             class="w-full px-2.5 py-1.5 text-xs rounded-lg transition cursor-pointer font-semibold border flex flex-col gap-0.5"
-                                                             :class="String(selectedPerusahaanId) === item.val ? 'bg-purple-50 text-purple-700 font-bold border-purple-200' : 'text-slate-700 hover:bg-slate-50 border-transparent'">
-                                                            <span x-text="item.label" class="font-bold"></span>
-                                                            <span x-text="item.sub" class="text-[10px] text-slate-400 font-normal"></span>
-                                                        </div>
-                                                    </template>
-                                                    
-                                                    <div x-show="filteredItems.length === 0" class="px-2 py-2 text-xs text-slate-400 italic text-center">
-                                                        Perusahaan tidak ditemukan
-                                                    </div>
-                                                </div>
+                                <!-- Corporate Selection (Search Plugin & Manual Mode) -->
+                                <div 
+                                    x-on:switch-manual.stop="if ($event.detail.name === 'corp_source_select') { 
+                                        modeManualCorp = true; 
+                                        perusahaan_manual = $event.detail.search; 
+                                        namaInstitusi = $event.detail.search; 
+                                        selectedPerusahaanId = ''; 
+                                        $nextTick(function() { 
+                                            const inp = $el.querySelector('input[name=perusahaan_manual]'); 
+                                            if(inp) { inp.value = $event.detail.search; inp.focus(); } 
+                                        }); 
+                                    }" 
+                                    class="space-y-1.5"
+                                >
+                                    <div class="flex items-center justify-between mb-1 h-5">
+                                        <template x-if="!modeManualCorp">
+                                            <div class="flex items-center justify-between w-full">
+                                                <label class="block text-xs font-semibold text-slate-700">Pilih Perusahaan <span class="text-rose-500">*</span></label>
+                                                <button 
+                                                    type="button" 
+                                                    @click="modeManualCorp = true; selectedPerusahaanId = ''; const sel = $el.closest('.space-y-1.5').querySelector('input[name=corp_source_select]'); if(sel) sel.value = '';" 
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/60 transition cursor-pointer group"
+                                                >
+                                                    <svg class="w-3 h-3 text-purple-500 group-hover:text-purple-700 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                    <span>Input Manual</span>
+                                                </button>
                                             </div>
+                                        </template>
+                                        <template x-if="modeManualCorp">
+                                            <div class="flex items-center justify-between w-full">
+                                                <div class="flex items-center gap-1.5">
+                                                    <label class="block text-xs font-semibold text-slate-700">Nama Perusahaan <span class="text-rose-500">*</span></label>
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                                        Manual
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    type="button" 
+                                                    @click="modeManualCorp = false; perusahaan_manual = '';" 
+                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer"
+                                                >
+                                                    <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                    <span>Cari Database Perusahaan</span>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div x-show="!modeManualCorp" x-on:change="if ($event.detail.name === 'corp_source_select') handleCorpSelect($event.detail.value)">
+                                        <x-searchable-select 
+                                            name="corp_source_select" 
+                                            :options="$modalCorpOptions" 
+                                            placeholder="-- Cari & Pilih Perusahaan dari Database --" 
+                                        />
+                                    </div>
+
+                                    <div x-show="modeManualCorp" style="display: none;" class="space-y-1.5">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-purple-500">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                name="perusahaan_manual" 
+                                                x-model="perusahaan_manual" 
+                                                @input="namaInstitusi = $event.target.value"
+                                                placeholder="Ketik nama perusahaan manual (misal: PT Telkom Indonesia)..." 
+                                                class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-purple-200 bg-purple-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition shadow-2xs"
+                                            >
+                                        </div>
+                                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
+                                            <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span>Perusahaan baru akan otomatis tersimpan ke master data.</span>
                                         </div>
                                     </div>
+
+                                    <input type="hidden" name="perusahaan_id" :value="modeManualCorp ? '' : selectedPerusahaanId">
+                                    <p class="text-[11px] text-slate-500 mt-1" x-show="!modeManualCorp">Memilih perusahaan otomatis mengisi data HRD / PIC di bawah.</p>
                                 </div>
                             </div>
 
@@ -2560,25 +2829,50 @@ x-init="
                     </div>
 
                     <!-- Section: PRODI & DOSEN PEMATERI -->
-                    <div class="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/70 space-y-3">
-                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Program Studi & Dosen Pemateri</h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-4">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Terkait / Diminati *</label>
-                                @php
-                                    $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
-                                @endphp
-                                <select name="prodi_id" required class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
-                                    <option value="">-- Pilih Program Studi --</option>
-                                    @foreach($prodisList as $prd)
-                                        <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
-                                    @endforeach
-                                </select>
+                                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                                    <span>Program Studi yang Dipromosikan</span>
+                                    <span class="text-[10px] text-blue-700 bg-blue-100 font-bold px-2 py-0.5 rounded-full">Bisa Pilih Beberapa</span>
+                                </h4>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Centang satu atau beberapa program studi yang dipromosikan / diminati.</p>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Dosen / Pemateri</label>
-                                <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg bg-white border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                            <div class="flex items-center gap-2 text-[11px]">
+                                <button type="button" @click="$el.closest('.space-y-4').querySelectorAll('input[name=\'prodi_ids[]\']').forEach(cb => cb.checked = true)" class="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer">Pilih Semua</button>
+                                <span class="text-slate-300">|</span>
+                                <button type="button" @click="$el.closest('.space-y-4').querySelectorAll('input[name=\'prodi_ids[]\']').forEach(cb => cb.checked = false)" class="text-slate-500 hover:text-slate-700 font-semibold cursor-pointer">Hapus Pilihan</button>
                             </div>
+                        </div>
+
+                        @php
+                            $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+                        @endphp
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-52 overflow-y-auto pr-1 p-1">
+                            @foreach($prodisList as $prd)
+                                <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50/40 hover:border-blue-300 transition cursor-pointer group select-none shadow-2xs">
+                                    <input 
+                                        type="checkbox" 
+                                        name="prodi_ids[]" 
+                                        value="{{ $prd->id }}" 
+                                        class="w-4 h-4 mt-0.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500 shrink-0"
+                                    >
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-slate-800 group-hover:text-blue-900 leading-tight">
+                                            {{ $prd->nama }}
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1.5">
+                                            <span class="inline-block px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold text-[9px]">{{ $prd->jenjang }}</span>
+                                            <span class="truncate">{{ $prd->fakultas }}</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-200/60">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Dosen / Pemateri <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                            <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                         </div>
                     </div>
 
@@ -2717,7 +3011,7 @@ x-init="
         });
 
         // Flash message handling on load with SweetAlert2 Toast / Modal
-        document.addEventListener('DOMContentLoaded', function() {
+        function triggerFlashAlerts() {
             @if(session('success'))
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
@@ -2752,14 +3046,22 @@ x-init="
                 }
             @endif
 
-            @if($errors->any())
+            @if(isset($errors) && $errors->any())
                 if (typeof Swal !== 'undefined') {
+                    var errorList = @json($errors->all());
+                    var errorHtml = '<ul class="text-left text-xs text-rose-700 space-y-1.5 list-disc pl-5 mt-2">';
+                    errorList.forEach(function(msg) {
+                        var safeMsg = String(msg).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        errorHtml += '<li>' + safeMsg + '</li>';
+                    });
+                    errorHtml += '</ul>';
+
                     Swal.fire({
                         icon: 'error',
                         title: 'Validasi Gagal',
-                        html: '<ul class="text-left text-xs text-rose-700 space-y-1 list-disc pl-5 mt-2">@foreach($errors->all() as $err)<li>{!! json_encode($err) !!}</li>@endforeach</ul>',
+                        html: errorHtml,
                         confirmButtonColor: '#e11d48',
-                        confirmButtonText: 'Tutup',
+                        confirmButtonText: 'Perbaiki',
                         customClass: {
                             popup: 'rounded-2xl shadow-xl border border-rose-100',
                             confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
@@ -2767,7 +3069,26 @@ x-init="
                     });
                 }
             @endif
-        });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                triggerFlashAlerts();
+                scrollToActiveMenu();
+            });
+        } else {
+            setTimeout(() => {
+                triggerFlashAlerts();
+                scrollToActiveMenu();
+            }, 100);
+        }
+
+        function scrollToActiveMenu() {
+            const activeLink = document.querySelector('aside a.bg-blue-50, aside a.bg-purple-50, aside a.bg-emerald-50, aside a.bg-indigo-50');
+            if (activeLink) {
+                activeLink.scrollIntoView({ block: 'center' });
+            }
+        }
     </script>
 </body>
 </html>

@@ -7,6 +7,8 @@
 
     <div class="space-y-6" x-data="{
         logSearch: '',
+        currentPage: 1,
+        perPage: 25,
         logsList: {{ json_encode($logs) }},
         get filteredLogs() {
             if (!this.logSearch) return this.logsList;
@@ -15,8 +17,15 @@
                 l.action.toLowerCase().includes(this.logSearch.toLowerCase()) || 
                 l.target.toLowerCase().includes(this.logSearch.toLowerCase())
             );
+        },
+        get paginatedLogs() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filteredLogs.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filteredLogs.length / this.perPage) || 1;
         }
-    }">
+    }" x-effect="logSearch; currentPage = 1">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -57,6 +66,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Pengguna</th>
                             <th class="py-3.5 px-3">Role</th>
                             <th class="py-3.5 px-3">Aktivitas / Event</th>
@@ -67,8 +77,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="log in filteredLogs" :key="log.id">
-                            <tr class="hover:bg-slate-50/80 transition">
+                        <template x-for="(log, index) in paginatedLogs" :key="log.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4 font-bold text-slate-900" x-text="log.user"></td>
                                 <td class="py-3.5 px-3">
                                     <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700" x-text="log.role"></span>
@@ -80,9 +91,23 @@
                                 <td class="py-3.5 px-4 text-right text-slate-500 text-[11px]" x-text="log.time"></td>
                             </tr>
                         </template>
+                        <tr x-show="filteredLogs.length === 0">
+                            <td colspan="8" class="py-12 text-center text-slate-400 text-xs">
+                                Tidak ada log aktivitas yang cocok.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filteredLogs.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="purple"
+            />
         </div>
 
     </div>

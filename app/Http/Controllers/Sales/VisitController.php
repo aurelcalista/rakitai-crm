@@ -105,6 +105,8 @@ class VisitController extends Controller
         $rules = [
             'jenis'          => 'required|in:Sekolah,Perusahaan',
             'prodi_id'       => 'nullable|exists:prodis,id',
+            'prodi_ids'      => 'nullable|array',
+            'prodi_ids.*'    => 'exists:prodis,id',
             'tanggal'        => 'required|date',
             'waktu'          => 'required|date_format:H:i',
             'catatan'        => 'nullable|string|max:2000',
@@ -146,19 +148,21 @@ class VisitController extends Controller
         // Conditional rules based on jenis
         if ($request->input('jenis') === 'Sekolah') {
             $rules['sekolah_id']            = 'nullable|exists:sekolahs,id';
+            $rules['sekolah_manual']        = 'nullable|string|max:255';
             $rules['nama_institusi']        = 'nullable|string|max:255';
             $rules['alamat']                = 'nullable|string|max:500';
             $rules['potensi_mahasiswa']      = 'nullable|string|max:255';
             $rules['detail_potensi_mahasiswa'] = 'nullable|string|max:500';
             $rules['kesediaan_training_ai'] = 'nullable|boolean';
         } else {
-            $rules['perusahaan_id']   = 'nullable|exists:perusahaans,id';
-            $rules['nama_institusi']  = 'nullable|string|max:255';
-            $rules['alamat']          = 'nullable|string|max:500';
-            $rules['bidang_usaha']    = 'nullable|string|max:255';
-            $rules['potensi_s1']      = 'nullable|string|max:255';
-            $rules['potensi_s2']      = 'nullable|string|max:255';
-            $rules['potensi_csr']     = 'nullable|string|max:255';
+            $rules['perusahaan_id']         = 'nullable|exists:perusahaans,id';
+            $rules['perusahaan_manual']     = 'nullable|string|max:255';
+            $rules['nama_institusi']        = 'nullable|string|max:255';
+            $rules['alamat']                = 'nullable|string|max:500';
+            $rules['bidang_usaha']          = 'nullable|string|max:255';
+            $rules['potensi_s1']            = 'nullable|string|max:255';
+            $rules['potensi_s2']            = 'nullable|string|max:255';
+            $rules['potensi_csr']           = 'nullable|string|max:255';
         }
 
         $validated = $request->validate($rules);
@@ -206,10 +210,48 @@ class VisitController extends Controller
         $tier          = null;
         $budget        = null;
 
-        if ($validated['jenis'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $tujuan = Sekolah::find($validated['sekolah_id']);
-        } elseif ($validated['jenis'] === 'Perusahaan' && !empty($validated['perusahaan_id'])) {
-            $tujuan = Perusahaan::find($validated['perusahaan_id']);
+        if ($validated['jenis'] === 'Sekolah') {
+            if (!empty($request->sekolah_manual)) {
+                $manualName = trim($request->sekolah_manual);
+                if ($manualName !== '') {
+                    $sekolah = Sekolah::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif',
+                            'pic_name' => $validated['pic_name'] ?? null,
+                            'pic_phone' => $validated['pic_whatsapp'] ?? null,
+                        ]
+                    );
+                    $validated['sekolah_id'] = $sekolah->id;
+                    $namaInstitusi = $sekolah->nama;
+                    $tujuan = $sekolah;
+                    $tujuanId = $sekolah->id;
+                }
+            } elseif (!empty($validated['sekolah_id'])) {
+                $tujuan = Sekolah::find($validated['sekolah_id']);
+            }
+        } elseif ($validated['jenis'] === 'Perusahaan') {
+            if (!empty($request->perusahaan_manual)) {
+                $manualName = trim($request->perusahaan_manual);
+                if ($manualName !== '') {
+                    $perusahaan = Perusahaan::firstOrCreate(
+                        ['nama' => $manualName],
+                        [
+                            'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'status' => 'Aktif',
+                            'pic_name' => $validated['pic_name'] ?? null,
+                            'pic_phone' => $validated['pic_whatsapp'] ?? null,
+                        ]
+                    );
+                    $validated['perusahaan_id'] = $perusahaan->id;
+                    $namaInstitusi = $perusahaan->nama;
+                    $tujuan = $perusahaan;
+                    $tujuanId = $perusahaan->id;
+                }
+            } elseif (!empty($validated['perusahaan_id'])) {
+                $tujuan = Perusahaan::find($validated['perusahaan_id']);
+            }
         }
 
         if ($tujuan) {
@@ -248,12 +290,23 @@ class VisitController extends Controller
             ]);
         }
 
+        $rawProdiIds = $request->input('prodi_ids', []);
+        if (!is_array($rawProdiIds)) {
+            $rawProdiIds = !empty($rawProdiIds) ? [$rawProdiIds] : [];
+        }
+        if (empty($rawProdiIds) && $request->filled('prodi_id')) {
+            $rawProdiIds = [$request->input('prodi_id')];
+        }
+        $prodiIds = array_values(array_unique(array_filter(array_map('intval', $rawProdiIds))));
+        $firstProdiId = $prodiIds[0] ?? $validated['prodi_id'] ?? ($event->prodi_id ?? null);
+
         $kunjungan = Kunjungan::create([
             'nomor'                    => $nomor,
             'tanggal'                  => $validated['tanggal'],
             'waktu'                    => $validated['waktu'] . ':00',
             'sales_id'                 => $user->id,
-            'prodi_id'                 => $validated['prodi_id'] ?? ($event->prodi_id ?? null),
+            'prodi_id'                 => $firstProdiId,
+            'prodi_ids'                => !empty($prodiIds) ? $prodiIds : ($firstProdiId ? [(int)$firstProdiId] : null),
             'jenis'                    => $validated['jenis'],
             'tujuan_id'                => $tujuanId > 0 ? $tujuanId : 0,
             'tujuan_kunjungan'         => $namaInstitusi,
@@ -329,7 +382,7 @@ class VisitController extends Controller
                 'category'     => null,
                 'sekolah_id'   => $validated['jenis'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'=> in_array($validated['jenis'], ['Perusahaan', 'Corporate']) ? ($validated['perusahaan_id'] ?? null) : null,
-                'prodi_id'     => $validated['prodi_id'] ?? ($event->prodi_id ?? null),
+                'prodi_id'     => $firstProdiId,
                 'pic'          => $validated['pic_name'] ?? '-',
                 'whatsapp'     => $validated['pic_whatsapp'] ?? '-',
                 'status'       => 'BARU',
@@ -451,8 +504,9 @@ class VisitController extends Controller
             'pic'                      => $k->pic_name ?? '-',
             'whatsapp'                 => $k->pic_whatsapp ?? '-',
             'sales'                    => $k->sales ? $k->sales->name : '-',
-            'prodi'                    => $k->prodi ? $k->prodi->nama : '-',
+            'prodi'                    => $k->prodi_names ?: ($k->prodi ? $k->prodi->nama : '-'),
             'prodi_id'                 => $k->prodi_id,
+            'prodi_ids'                => $k->prodi_ids ?? ($k->prodi_id ? [$k->prodi_id] : []),
             'dosen'                    => $k->dosen ? $k->dosen->name : ($k->dosen_pemateri ?? '-'),
             'dosen_id'                 => $k->dosen_id,
             'dosen_pemateri'           => $k->dosen_pemateri,

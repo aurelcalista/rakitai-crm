@@ -53,7 +53,7 @@
                     class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                    + Tambah Kunjungan
+                    Tambah Kunjungan
                 </a>
                 <p class="text-[11px] text-slate-400">Kunjungan tanpa Jadwal Event</p>
             </div>

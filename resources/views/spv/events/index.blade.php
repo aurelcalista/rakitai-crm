@@ -1,7 +1,8 @@
 <x-app-layout title="Assignment Event">
 <div x-data="{ 
     modalAssignSales: false, 
-    selectedEvent: null
+    selectedEvent: null,
+    selectedSalesIds: []
 }">
 
     <!-- Page Header -->
@@ -51,7 +52,7 @@
                                 </div>
                             </td>
                             <td class="px-5 py-4 text-center">
-                                <button type="button" @click="selectedEvent = {{ json_encode($event) }}; selectedEvent.sales_ids = {{ json_encode($event->sales->pluck('id')) }}; modalAssignSales = true" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-100 transition border border-blue-100" title="Atur Assignment">
+                                <button type="button" @click="selectedEvent = {{ json_encode($event) }}; selectedSalesIds = {{ json_encode($event->sales->pluck('id')->map(fn($id) => (string)$id)->toArray()) }}; modalAssignSales = true" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-lg hover:bg-blue-100 transition border border-blue-100" title="Atur Assignment">
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                     Atur Sales
                                 </button>
@@ -106,7 +107,7 @@
                     <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-60 overflow-y-auto">
                         @forelse($teamSales as $sales)
                             <label class="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer transition">
-                                <input type="checkbox" name="sales[]" value="{{ $sales->id }}" :checked="selectedEvent?.sales_ids?.includes({{ $sales->id }})" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 bg-white shadow-sm w-4 h-4">
+                                <input type="checkbox" name="sales[]" value="{{ $sales->id }}" x-model="selectedSalesIds" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 bg-white shadow-sm w-4 h-4">
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium text-slate-800">{{ $sales->name }}</span>
                                     <span class="text-[10px] text-slate-500">{{ $sales->wilayah ? $sales->wilayah->nama : '' }}</span>

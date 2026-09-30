@@ -10,6 +10,8 @@
         selectedStatus: 'all',
         selectedType: 'all',
         selectedSales: 'all',
+        currentPage: 1,
+        perPage: 25,
         prospectsList: {{ json_encode($prospects) }},
         modalReassign: false,
         reassignTarget: null,
@@ -28,8 +30,15 @@
 
                 return matchSearch && matchStatus && matchType && matchSales;
             });
+        },
+        get paginatedProspects() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filteredProspects.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filteredProspects.length / this.perPage) || 1;
         }
-    }" @keydown.escape.window="modalReassign = false">
+    }" x-effect="searchQuery; selectedStatus; selectedType; selectedSales; currentPage = 1" @keydown.escape.window="modalReassign = false">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -184,6 +193,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Prospek & Sekolah</th>
                             <th class="py-3.5 px-3">PIC & Kontak</th>
                             <th class="py-3.5 px-3">Pemilik Lead (Handler)</th>
@@ -193,14 +203,15 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="p in filteredProspects" :key="p.id">
-                            <tr class="hover:bg-slate-50/80 transition">
+                        <template x-for="(p, index) in paginatedProspects" :key="p.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4">
                                     <div class="font-bold text-slate-900" x-text="p.name"></div>
                                     <div class="flex flex-wrap items-center gap-1.5 mt-1">
                                         <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold" x-text="p.sekolah_nama || p.type"></span>
                                         <template x-if="p.prodi_nama && p.prodi_nama !== '-'">
-                                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" x-text="p.prodi_nama + ' (' + p.kelas + ')'"></span>
+                                             <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" x-text="p.prodi_nama + ' (' + p.kelas + ')'"></span>
                                         </template>
                                         <template x-if="p.wilayah_nama">
                                             <span class="text-slate-400 text-[10px]" x-text="'• ' + p.wilayah_nama"></span>
@@ -271,13 +282,22 @@
                             </tr>
                         </template>
                         <tr x-show="filteredProspects.length === 0">
-                            <td colspan="6" class="py-12 text-center text-slate-400 text-xs">
+                            <td colspan="7" class="py-12 text-center text-slate-400 text-xs">
                                 Tidak ada prospek yang cocok dengan kriteria pencarian / filter Anda.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filteredProspects.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="blue"
+            />
         </div>
 
         <!-- ── MODAL REALOKASI SALES ── -->

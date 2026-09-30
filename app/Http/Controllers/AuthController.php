@@ -9,16 +9,30 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email'    => 'required|email',
+        $request->validate([
+            'email'    => 'required|string',
             'password' => 'required|string',
+            'role'     => 'nullable|string',
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $user = Auth::user();
+        $email = strtolower(trim($request->input('email')));
+        $password = $request->input('password');
+        $selectedRole = $request->input('role');
 
+        $query = \App\Models\User::where(function($q) use ($email) {
+            $q->where('email', $email)
+              ->orWhere('username', $email);
+        });
+
+        if (!empty($selectedRole) && $selectedRole !== 'all') {
+            $query->whereRaw('LOWER(role) = ?', [strtolower($selectedRole)]);
+        }
+
+        $user = $query->first();
+
+        if ($user && \Illuminate\Support\Facades\Hash::check($password, $user->password)) {
             if ($user->status !== 'Aktif') {
-                Auth::logout();
+                \Illuminate\Support\Facades\Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
@@ -29,6 +43,7 @@ class AuthController extends Controller
                 return back()->withErrors(['email' => $msg])->onlyInput('email');
             }
 
+            \Illuminate\Support\Facades\Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
 
             $role = strtolower($user->role);
@@ -38,6 +53,7 @@ class AuthController extends Controller
                 'hm'    => redirect()->route('dashboard.hm'),
                 'spv'   => redirect()->route('dashboard.spv'),
                 'cs'    => redirect()->route('dashboard.cs'),
+                'eo'    => redirect()->route('dashboard.eo'),
                 default => redirect()->route('dashboard.sales'), // Sales
             };
         }

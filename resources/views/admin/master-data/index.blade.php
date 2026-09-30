@@ -37,7 +37,7 @@
                     class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                    <span>+ Tambah Tahun Akademik</span>
+                    <span>Tambah Tahun Akademik</span>
                 </button>
                 <button 
                     type="button" 
@@ -46,7 +46,7 @@
                     class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                    <span>+ Tambah Item</span>
+                    <span>Tambah Item</span>
                 </button>
             </div>
         </div>
@@ -83,6 +83,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[11px] bg-slate-50/50">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Tahun Akademik</th>
                             <th class="py-3.5 px-4">Status Sistem</th>
                             <th class="py-3.5 px-4">Basis Data Terhubung</th>
@@ -92,6 +93,7 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($tahunAkademiks as $ta)
                             <tr class="hover:bg-slate-50/80 transition {{ $ta->status === 'Aktif' ? 'bg-emerald-50/30' : '' }}">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                 <td class="py-3.5 px-4 font-bold text-sm text-slate-900">
                                     {{ $ta->nama }}
                                 </td>
@@ -117,14 +119,14 @@
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         @if($ta->status !== 'Aktif')
-                                            <form action="{{ route('admin.tahun-akademik.activate', $ta->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin mengaktifkan Tahun Akademik {{ $ta->nama }}? Tahun akademik yang aktif sebelumnya akan dinonaktifkan.');">
+                                            <form action="{{ route('admin.tahun-akademik.activate', $ta->id) }}" method="POST" data-confirm="Apakah Anda yakin ingin mengaktifkan Tahun Akademik {{ $ta->nama }}? Tahun akademik yang aktif sebelumnya akan dinonaktifkan.">
                                                 @csrf
                                                 <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs transition cursor-pointer">
                                                     Set Aktif
                                                 </button>
                                             </form>
 
-                                            <form action="{{ route('admin.tahun-akademik.destroy', $ta->id) }}" method="POST" onsubmit="return confirm('Hapus Tahun Akademik {{ $ta->nama }}?');">
+                                            <form action="{{ route('admin.tahun-akademik.destroy', $ta->id) }}" method="POST" data-confirm="Hapus Tahun Akademik {{ $ta->nama }}?">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-semibold transition cursor-pointer">

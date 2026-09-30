@@ -183,6 +183,7 @@
                                             <table class="w-full text-left border-collapse">
                                                 <thead>
                                                     <tr class="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                                                        <th class="py-3 px-3 w-10 text-center">No</th>
                                                         <th class="py-3 px-4">Kecamatan</th>
                                                         <th class="py-3 px-4">Kode Area</th>
                                                         <th class="py-3 px-4">Sales</th>
@@ -199,6 +200,7 @@
                                                         }
                                                     @endphp
                                                     <tr class="hover:bg-slate-50 transition">
+                                                        <td class="py-3 px-3 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                                         <td class="py-3 px-4 font-semibold text-slate-800">{{ $wilayahNama }}</td>
                                                         <td class="py-3 px-4">
                                                             <span class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-blue-100 text-blue-800 rounded-md">{{ $kodeArea }}</span>

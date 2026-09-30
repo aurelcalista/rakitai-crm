@@ -101,7 +101,7 @@
 
                 <div class="flex-shrink-0">
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-sm transition h-10 flex justify-center items-center gap-2 w-full lg:w-auto">
-                        <span>+ Tambah Wilayah</span>
+                        <span>Tambah Wilayah</span>
                     </button>
                 </div>
             </form>
@@ -111,14 +111,25 @@
             editModal: false, 
             deleteModal: false,
             isSubmitting: false,
+            currentPage: 1,
+            perPage: 25,
+            wilayahList: {{ json_encode($wilayahs) }},
             editData: { id: '', kode: '', nama: '', level: 'Kota/Kabupaten', parent_id: '' },
-            deleteData: { id: '', nama: '' }
+            deleteData: { id: '', nama: '' },
+            get paginatedWilayahs() {
+                const start = (this.currentPage - 1) * this.perPage;
+                return this.wilayahList.slice(start, start + this.perPage);
+            },
+            get totalPages() {
+                return Math.ceil(this.wilayahList.length / this.perPage) || 1;
+            }
         }">
             <div class="overflow-hidden rounded-2xl">
                 <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                            <th class="py-3 px-3 w-10 text-center">No</th>
                             <th class="py-3 px-4">Kode</th>
                             <th class="py-3 px-4">Nama Wilayah</th>
                             <th class="py-3 px-4">Jenis Wilayah</th>
@@ -127,54 +138,67 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-sm">
-                        @forelse($wilayahs as $w)
-                            <tr class="hover:bg-slate-50 transition">
-                                <td class="py-4 px-4 font-bold text-slate-700 align-top">{{ $w->kode }}</td>
-                                <td class="py-4 px-4 font-semibold text-slate-800 align-top">{{ $w->nama }}</td>
+                        <template x-for="(w, index) in paginatedWilayahs" :key="w.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50 transition crm-table-slide">
+                                <td class="py-4 px-3 text-center font-bold text-slate-400 align-top" x-text="(currentPage - 1) * perPage + index + 1"></td>
+                                <td class="py-4 px-4 font-bold text-slate-700 align-top" x-text="w.kode"></td>
+                                <td class="py-4 px-4 font-semibold text-slate-800 align-top" x-text="w.nama"></td>
                                 <td class="py-4 px-4 align-top">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold {{ $w->level === 'Kota/Kabupaten' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200' }}">
-                                        {{ $w->level }}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold"
+                                        :class="w.level === 'Kota/Kabupaten' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'"
+                                        x-text="w.level">
                                     </span>
                                 </td>
                                 <td class="py-4 px-4 text-center align-top">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold {{ $w->status === 'Aktif' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-slate-100 text-slate-600 border border-slate-200' }}">
-                                        {{ $w->status }}
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold"
+                                        :class="w.status === 'Aktif' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-slate-100 text-slate-600 border border-slate-200'"
+                                        x-text="w.status">
                                     </span>
                                 </td>
                                 <td class="py-4 px-4 align-top">
                                     <div class="flex items-center justify-center gap-2">
                                         <button 
-                                            @click="editData = { id: '{{ $w->id }}', kode: '{{ $w->kode }}', nama: '{{ $w->nama }}', level: '{{ $w->level }}', parent_id: '{{ $w->parent_id }}' }; editModal = true;"
-                                            class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition shadow-sm border border-transparent whitespace-nowrap min-w-[70px]"
+                                            type="button"
+                                            @click="editData = { id: w.id, kode: w.kode, nama: w.nama, level: w.level, parent_id: w.parent_id }; editModal = true;"
+                                            class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition shadow-sm border border-transparent whitespace-nowrap min-w-[70px] cursor-pointer"
                                         >
                                             Edit
                                         </button>
                                         
-                                        <form action="{{ route('wilayah.toggle', $w->id) }}" method="POST" class="inline-block">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button type="submit" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap min-w-[95px] {{ $w->status === 'Aktif' ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-green-50 text-green-700 hover:bg-green-100' }}">
-                                                {{ $w->status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan' }}
+                                        <form :action="'/wilayah/' + w.id + '/toggle'" method="POST" class="inline-block">
+                                             @csrf
+                                            <button type="submit" class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap min-w-[95px] cursor-pointer"
+                                                :class="w.status === 'Aktif' ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-green-50 text-green-700 hover:bg-green-100'"
+                                                x-text="w.status === 'Aktif' ? 'Nonaktifkan' : 'Aktifkan'">
                                             </button>
                                         </form>
                                         
                                         <button 
-                                            @click="deleteData = { id: '{{ $w->id }}', nama: '{{ $w->nama }}' }; deleteModal = true;"
-                                            class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 hover:bg-red-100 transition shadow-sm border border-transparent whitespace-nowrap min-w-[70px]"
+                                            type="button"
+                                            @click="deleteData = { id: w.id, nama: w.nama }; deleteModal = true;"
+                                            class="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 hover:bg-red-100 transition shadow-sm border border-transparent whitespace-nowrap min-w-[70px] cursor-pointer"
                                         >
                                             Hapus
                                         </button>
                                     </div>
                                 </td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="py-8 text-center text-slate-400 font-medium">Belum ada data wilayah.</td>
-                            </tr>
-                        @endforelse
+                        </template>
+                        <tr x-show="wilayahList.length === 0">
+                            <td colspan="6" class="py-8 text-center text-slate-400 font-medium">Belum ada data wilayah.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="wilayahList.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="blue"
+            />
 
             <!-- MODAL EDIT -->
             <div x-show="editModal" style="display: none;" 

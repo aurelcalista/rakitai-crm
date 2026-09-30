@@ -98,6 +98,7 @@ class DashboardController extends Controller
         $recentFollowUps = FollowUp::whereIn('user_id', $teamMemberIds)
             ->with(['user', 'prospek'])
             ->orderBy('tanggal', 'desc')
+            ->orderBy('id', 'desc')
             ->limit(8)
             ->get();
 

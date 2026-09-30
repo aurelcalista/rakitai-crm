@@ -1050,9 +1050,7 @@ class CrmController extends Controller
     private function getDbProspects(?Request $request = null)
     {
         $user = auth()->user();
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'followUps' => function($q) {
-            $q->orderBy('tanggal', 'desc');
-        }, 'timelines' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
         }]);
 
@@ -1113,6 +1111,8 @@ class CrmController extends Controller
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
         return $prospectsRaw->map(function ($p) {
+            $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
+
             return [
                 'id' => $p->id,
                 'name' => $p->name,
@@ -1133,14 +1133,16 @@ class CrmController extends Controller
                 'potential' => $p->potential ?? '-',
                 'source' => $p->source ?? '-',
                 'ai_training' => $p->ai_training ?? '-',
-                'notes' => $p->notes ?? '',
+                'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
                 'lost_reason' => $p->lost_reason ?? null,
                 'lost_note' => $p->lost_note ?? null,
                 'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
                 'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
-                'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
-                'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
-                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
+                'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
+                'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
+                'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
+                'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
                 'timeline' => $p->timelines->map(function ($t) {
                     return [
                         'time' => $t->time ? $t->time->format('d M, H:i') : '-',
@@ -1286,10 +1288,12 @@ class CrmController extends Controller
      */
     public function prospekShow(int $id): View
     {
-        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
-            $q->orderBy('tanggal', 'desc');
+        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp', 'followUps' => function($q) {
+            $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with('user');
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
+        }, 'transaksis' => function($q) {
+            $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with(['user', 'verifier', 'rejecter']);
         }])->findOrFail($id);
 
         \Illuminate\Support\Facades\Gate::authorize('view', $prospectRaw);
@@ -1297,6 +1301,10 @@ class CrmController extends Controller
         $activeTakeover = [];
         if ($prospectRaw->sales) $activeTakeover[] = 'Sales';
         if ($prospectRaw->cs) $activeTakeover[] = 'CS';
+
+        $latestFollowUp = $prospectRaw->latestFollowUp ?? ($prospectRaw->relationLoaded('followUps') ? $prospectRaw->followUps->first() : null);
+
+        $transaksis = $prospectRaw->transaksis;
 
         $prospect = [
             'id' => $prospectRaw->id,
@@ -1316,14 +1324,16 @@ class CrmController extends Controller
             'source' => $prospectRaw->source ?? '-',
             'potential' => $prospectRaw->potential ?? '-',
             'ai_training' => $prospectRaw->ai_training ?? '-',
-            'notes' => $prospectRaw->notes ?? '',
+            'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($prospectRaw->notes ?? ''),
             'lost_reason' => $prospectRaw->lost_reason ?? null,
             'lost_note' => $prospectRaw->lost_note ?? null,
             'created_at' => $prospectRaw->created_at ? $prospectRaw->created_at->format('d M Y') : '-',
             'takeover_time' => $prospectRaw->updated_at ? $prospectRaw->updated_at->format('d M Y, H:i') : '-',
-            'last_contact' => $prospectRaw->followUps->first() ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
-            'next_follow_up' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
-            'next_follow_up_date' => $prospectRaw->followUps->first() && $prospectRaw->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($prospectRaw->followUps->first()->next_follow_up)->toDateString() : null,
+            'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
+            'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
+            'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
+            'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
+            'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
             'timeline' => $prospectRaw->timelines->map(function ($t) {
                 return [
                     'time' => $t->time ? $t->time->format('d M, H:i') : '-',
@@ -1348,7 +1358,7 @@ class CrmController extends Controller
             $salesTeam = \App\Models\User::where('role', 'Sales')->where('status', 'aktif')->get();
         }
 
-        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw'));
+        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis'));
     }
 
     public function prospekUpdate(Request $request, int $id)
@@ -1560,8 +1570,42 @@ class CrmController extends Controller
     {
         $user = auth()->user();
 
-        // Resolve nama_institusi from prospek or sekolah if not directly filled
-        if (!$request->filled('nama_institusi')) {
+        // Resolve nama_institusi from manual input, prospek, or sekolah
+        if ($request->filled('sekolah_manual')) {
+            $manualName = trim($request->sekolah_manual);
+            if ($manualName !== '') {
+                $sek = \App\Models\Sekolah::firstOrCreate(
+                    ['nama' => $manualName],
+                    [
+                        'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                        'status' => 'Aktif',
+                        'pic_name' => $request->input('pic_name'),
+                        'pic_phone' => $request->input('pic_whatsapp'),
+                    ]
+                );
+                $request->merge([
+                    'sekolah_id' => $sek->id,
+                    'nama_institusi' => $sek->nama,
+                ]);
+            }
+        } elseif ($request->filled('perusahaan_manual')) {
+            $manualName = trim($request->perusahaan_manual);
+            if ($manualName !== '') {
+                $per = \App\Models\Perusahaan::firstOrCreate(
+                    ['nama' => $manualName],
+                    [
+                        'kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                        'status' => 'Aktif',
+                        'pic_name' => $request->input('pic_name'),
+                        'pic_phone' => $request->input('pic_whatsapp'),
+                    ]
+                );
+                $request->merge([
+                    'perusahaan_id' => $per->id,
+                    'nama_institusi' => $per->nama,
+                ]);
+            }
+        } elseif (!$request->filled('nama_institusi')) {
             if ($request->filled('prospek_id')) {
                 $prospek = \App\Models\Prospek::find($request->prospek_id);
                 if ($prospek) {
@@ -1745,6 +1789,8 @@ class CrmController extends Controller
                 'status_after' => $prospek->status,
                 'time' => now(),
             ]);
+        } else {
+            $prospek->touch();
         }
 
         return redirect()->back()->with('success', 'Follow-up berhasil disimpan!');
@@ -1756,47 +1802,94 @@ class CrmController extends Controller
         $this->authorize('transaction', $prospek);
 
         $request->validate([
-            'jenis' => 'required|in:Beli Formulir,Pembayaran Termin 1',
-            'nominal' => 'required|numeric|min:0',
-            'tanggal' => 'required|date',
-            'notes' => 'nullable|string',
+            'jenis'             => 'required|in:Beli Formulir,Pembayaran Termin 1',
+            'nominal'           => 'required|numeric|min:0|max:9999999999',
+            'tanggal'           => 'required|date',
+            'notes'             => 'nullable|string|max:1000',
+            'metode_pembayaran' => 'nullable|string|in:virtual_account,gopay,dana,shopeepay,tunai,bank_transfer',
+            'bank_account_id'   => 'nullable|integer|exists:bank_accounts,id',
+            'bank_va'           => 'nullable|string|max:100',
+        ], [
+            'nominal.max' => 'Nominal transaksi tidak boleh melebihi batas wajar (maksimal Rp 9.999.999.999).',
+            'nominal.min' => 'Nominal transaksi tidak boleh bernilai negatif.',
+            'nominal.numeric' => 'Nominal transaksi harus berupa angka yang valid.',
         ]);
 
+        $bankAccount = null;
+        if ($request->bank_account_id) {
+            $bankAccount = \App\Models\BankAccount::find($request->bank_account_id);
+        }
+
+        $fullNotes = $request->notes ?? '';
+        if ($bankAccount) {
+            $bankInfo = "Transfer Bank: {$bankAccount->bank_name} - No. {$bankAccount->account_number} (A/N: {$bankAccount->account_name})";
+            $fullNotes = $fullNotes ? "{$bankInfo} | Ref: {$fullNotes}" : $bankInfo;
+        } elseif ($request->metode_pembayaran === 'virtual_account' && $request->bank_va) {
+            $vaInfo = "Virtual Account: {$request->bank_va}";
+            $fullNotes = $fullNotes ? "{$vaInfo} | Ref: {$fullNotes}" : $vaInfo;
+        }
+
+        // Pembayaran Termin 1 dengan metode → PENDING (menunggu verifikasi CS)
+        // Beli Formulir atau tanpa metode → langsung VERIFIED (backward compatible)
+        $isPembayaranTermin1 = $request->jenis === 'Pembayaran Termin 1';
+        $hasMetode = !empty($request->metode_pembayaran);
+        $paymentStatus = ($isPembayaranTermin1 && $hasMetode)
+            ? \App\Models\Transaksi::STATUS_PENDING
+            : \App\Models\Transaksi::STATUS_VERIFIED;
+
         \App\Models\Transaksi::create([
-            'prospek_id' => $prospek->id,
-            'user_id' => auth()->id(),
-            'jenis' => $request->jenis,
-            'nominal' => $request->nominal,
-            'tanggal' => $request->tanggal,
-            'notes' => $request->notes,
+            'prospek_id'        => $prospek->id,
+            'user_id'           => auth()->id(),
+            'jenis'             => $request->jenis,
+            'nominal'           => $request->nominal,
+            'tanggal'           => $request->tanggal,
+            'notes'             => $fullNotes,
+            'metode_pembayaran' => $request->metode_pembayaran,
+            'payment_status'    => $paymentStatus,
         ]);
 
         $oldStatus = $prospek->status;
-        
-        if (\App\Services\ProspekService::isClosingValid($prospek)) {
+
+        if ($isPembayaranTermin1 && $paymentStatus === \App\Models\Transaksi::STATUS_PENDING) {
+            // Tunggu verifikasi CS — tidak langsung LUNAS, masuk BERKAS dulu
+            if ($prospek->stage_number < 6) {
+                $prospek->status = 'BERKAS';
+                $prospek->stage_number = 6;
+            }
+        } elseif (\App\Services\ProspekService::isClosingValid($prospek->fresh())) {
             $prospek->status = 'LUNAS';
             $prospek->stage_number = 7;
-        } else if ($request->jenis === 'Pembayaran Termin 1') {
+        } elseif ($isPembayaranTermin1 && $prospek->stage_number < 6) {
             $prospek->status = 'BERKAS';
             $prospek->stage_number = 6;
-        } else if ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
+        } elseif ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
             $prospek->status = 'FORMULIR';
             $prospek->stage_number = 5;
         }
-        
+
         $prospek->save();
 
+        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? $request->metode_pembayaran;
+        $timelineNotes = 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.')
+            . ($metodeLabel ? ' | Metode: ' . $metodeLabel : '')
+            . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : '')
+            . ($fullNotes ? ' | ' . $fullNotes : '');
+
         ProspekTimeline::create([
-            'prospek_id' => $prospek->id,
-            'user_id' => auth()->id(),
-            'title' => 'Input Transaksi Manual: ' . $request->jenis,
-            'notes' => 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.') . ($request->notes ? ' | Catatan: ' . $request->notes : ''),
+            'prospek_id'    => $prospek->id,
+            'user_id'       => auth()->id(),
+            'title'         => 'Input Transaksi: ' . $request->jenis,
+            'notes'         => $timelineNotes,
             'status_before' => $oldStatus,
-            'status_after' => $prospek->status,
-            'time' => now(),
+            'status_after'  => $prospek->status,
+            'time'          => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Transaksi ' . $request->jenis . ' berhasil disimpan!');
+        $successMsg = $paymentStatus === \App\Models\Transaksi::STATUS_PENDING
+            ? 'Transaksi ' . $request->jenis . ' berhasil disimpan! Menunggu verifikasi CS.'
+            : 'Transaksi ' . $request->jenis . ' berhasil disimpan!';
+
+        return redirect()->back()->with('success', $successMsg);
     }
 
     /**

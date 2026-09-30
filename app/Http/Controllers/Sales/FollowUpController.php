@@ -22,11 +22,10 @@ class FollowUpController extends Controller
         $user  = auth()->user();
         $today = now()->toDateString();
 
-        $allProspects = Prospek::with(['cs', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }])
+        $allProspects = Prospek::with(['cs', 'sales', 'latestFollowUp'])
             ->where('sales_id', $user->id)
             ->whereNotIn('status', ['DINGIN', 'LUNAS']) // DINGIN and LUNAS prospects don't need follow-up
+            ->orderBy('updated_at', 'desc')
             ->get();
 
         $prospects = [
@@ -37,7 +36,7 @@ class FollowUpController extends Controller
         ];
 
         foreach ($allProspects as $p) {
-            $latestFU       = $p->followUps->first();
+            $latestFU       = $p->latestFollowUp ?? $p->followUps->first();
             $nextFollowUpDate = $latestFU && $latestFU->next_follow_up
                 ? Carbon::parse($latestFU->next_follow_up)->toDateString()
                 : null;
@@ -132,6 +131,8 @@ class FollowUpController extends Controller
             ]);
         }
 
+        $prospek->touch();
+
         return redirect()->back()
             ->with('success', 'Follow-up berhasil disimpan!');
     }
@@ -148,8 +149,8 @@ class FollowUpController extends Controller
             'whatsapp'       => $p->whatsapp ?? '-',
             'status'         => $p->status,
             'active_takeover' => $p->activeHandlerLabel(),
-            'last_activity'  => $p->updated_at->diffForHumans(),
-            'last_contact'   => $latestFU
+            'last_activity'  => $p->updated_at ? $p->updated_at->diffForHumans() : '-',
+            'last_contact'   => $latestFU && $latestFU->tanggal
                 ? Carbon::parse($latestFU->tanggal)->format('d M Y, H:i')
                 : '-',
             'next_follow_up' => $latestFU && $latestFU->next_follow_up
@@ -160,7 +161,7 @@ class FollowUpController extends Controller
                 : null,
             'metode_terakhir' => $latestFU ? ($latestFU->metode ?? '-') : '-',
             'hasil_terakhir'  => $latestFU ? ($latestFU->hasil ?? '-') : '-',
-            'notes'           => $latestFU ? ($latestFU->catatan ?? '-') : ($p->notes ?? '-'),
+            'notes'           => $latestFU && $latestFU->catatan ? $latestFU->catatan : ($p->notes ?? '-'),
         ];
     }
 }

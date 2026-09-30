@@ -9,6 +9,8 @@
         selectedWil: null,
         searchQuery: '',
         filterStatus: 'all',
+        currentPage: 1,
+        perPage: 25,
         newKecamatan: '',
         newKecamatanList: [],
         wilayah: {{ json_encode($wilayah) }},
@@ -20,6 +22,13 @@
                 return matchQ && matchS;
             });
         },
+        get paginated() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filtered.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filtered.length / this.perPage) || 1;
+        },
         addKecamatan() {
             if (this.newKecamatan.trim() && !this.newKecamatanList.includes(this.newKecamatan.trim())) {
                 this.newKecamatanList.push(this.newKecamatan.trim());
@@ -27,7 +36,7 @@
             }
         },
         removeKecamatan(k) { this.newKecamatanList = this.newKecamatanList.filter(x => x !== k); }
-    }">
+    }" x-effect="searchQuery; filterStatus; currentPage = 1">
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -37,7 +46,7 @@
             </div>
             <button type="button" @click="newKecamatanList = []; modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                <span>+ Tambah Wilayah</span>
+                <span>Tambah Wilayah</span>
             </button>
         </div>
 
@@ -60,6 +69,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Kode</th>
                             <th class="py-3.5 px-3">Nama Wilayah</th>
                             <th class="py-3.5 px-3">Kecamatan</th>
@@ -71,8 +81,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="w in filtered" :key="w.id">
-                            <tr class="hover:bg-slate-50/80 transition">
+                        <template x-for="(w, index) in paginated" :key="w.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4 font-mono font-bold text-purple-700 text-[11px]" x-text="w.kode"></td>
                                 <td class="py-3.5 px-3 font-bold text-slate-900" x-text="w.nama"></td>
                                 <td class="py-3.5 px-3 max-w-[200px]">
@@ -116,9 +127,23 @@
                                 </td>
                             </tr>
                         </template>
+                        <tr x-show="filtered.length === 0">
+                            <td colspan="9" class="py-12 text-center text-slate-400 text-xs">
+                                Tidak ada data wilayah yang cocok.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filtered.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="purple"
+            />
         </div>
 
         <!-- MODAL DETAIL -->

@@ -222,8 +222,22 @@
 
             <!-- Empty Search Result -->
             <template x-if="filteredOptions.length === 0">
-                <div class="px-3 py-4 text-center text-slate-400 text-xs italic">
-                    Tidak ada hasil yang sesuai "<span x-text="search"></span>"
+                <div class="p-4 text-center space-y-2.5">
+                    <div class="w-8 h-8 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Tidak ada hasil "<span x-text="search" class="text-slate-900 font-bold"></span>"</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Belum terdaftar di sistem? Anda bisa menginputkannya secara manual.</p>
+                    </div>
+                    <button 
+                        type="button" 
+                        @click="$dispatch('switch-manual', { search: search, name: '{{ $inputName }}' }); open = false;"
+                        class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Gunakan "<span x-text="search" class="max-w-[140px] truncate inline-block align-bottom"></span>" sebagai Manual</span>
+                    </button>
                 </div>
             </template>
         </div>

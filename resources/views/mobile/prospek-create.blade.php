@@ -254,9 +254,9 @@
 
             <!-- Prodi Minat -->
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">Program Studi Diminati *</label>
-                <select name="prodi_id" required class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-medium">
-                    <option value="">-- Pilih Program Studi --</option>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Program Studi Diminati <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                <select name="prodi_id" class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-medium">
+                    <option value="">-- Pilih Program Studi (Boleh Dikosongkan) --</option>
                     @foreach($prodis as $prd)
                         <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
                     @endforeach

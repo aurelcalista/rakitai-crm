@@ -3,14 +3,32 @@
 <x-app-layout :title="'Kelola Pengguna - CRM UCIC'">
 
     <div class="space-y-6" x-data="{
-        modalAdd: false,
+        modalAdd: {{ ($errors->hasAny(['name', 'email', 'phone', 'role', 'status', 'password', 'password_confirmation', 'wilayah_id', 'supervisor_id']) && !old('_method')) ? 'true' : 'false' }},
         modalEdit: false,
         modalDetail: false,
         selectedUser: null,
         searchQuery: '',
         roleFilter: 'all',
         statusFilter: 'all',
+        currentPage: 1,
+        perPage: 25,
         users: {{ json_encode($users) }},
+        formatDate(dateStr) {
+            if (!dateStr) return '-';
+            if (typeof dateStr === 'string' && /^\d{2}-\d{2}-\d{4}/.test(dateStr)) {
+                return dateStr;
+            }
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}-${month}-${year}`;
+            } catch (e) {
+                return dateStr;
+            }
+        },
         get filtered() {
             return this.users.filter(u => {
                 const q = this.searchQuery.toLowerCase();
@@ -19,8 +37,15 @@
                 const matchStatus = this.statusFilter === 'all' || u.status.toLowerCase() === this.statusFilter.toLowerCase();
                 return matchSearch && matchRole && matchStatus;
             });
+        },
+        get paginated() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filtered.slice(start, start + this.perPage);
+        },
+        get totalPages() {
+            return Math.ceil(this.filtered.length / this.perPage) || 1;
         }
-    }">
+    }" x-effect="searchQuery; roleFilter; statusFilter; currentPage = 1">
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -30,7 +55,7 @@
             </div>
             <button type="button" @click="modalAdd = true" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                <span>+ Tambah User</span>
+                <span>Tambah User</span>
             </button>
         </div>
 
@@ -88,6 +113,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Pengguna</th>
                             <th class="py-3.5 px-3">Role</th>
                             <th class="py-3.5 px-3">Nomor HP</th>
@@ -97,8 +123,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <template x-for="user in filtered" :key="user.id">
-                            <tr class="hover:bg-slate-50/80 transition">
+                        <template x-for="(user, index) in paginated" :key="user.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4">
                                     <div class="flex items-center gap-3">
                                         <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 overflow-hidden">
@@ -146,7 +173,7 @@
                                         <span x-text="user.status"></span>
                                     </span>
                                 </td>
-                                <td class="py-3.5 px-3 text-slate-400 text-[11px]" x-text="user.created_at"></td>
+                                <td class="py-3.5 px-3 text-slate-500 font-medium text-[11px]" x-text="formatDate(user.formatted_created_at || user.created_at)"></td>
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
 
@@ -214,13 +241,54 @@
                                 </td>
                             </tr>
                         </template>
+                        <tr x-show="filtered.length === 0">
+                            <td colspan="7" class="py-12 text-center text-slate-400 text-xs">
+                                Tidak ada data pengguna yang ditemukan.
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="filtered.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="purple"
+            />
         </div>
 
         <!-- MODAL: TAMBAH USER -->
-        <div x-show="modalAdd" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div x-show="modalAdd" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true"
+             x-data="{
+                 inputEmail: '{{ old('email') }}',
+                 get existingUser() {
+                     const email = (this.inputEmail || '').trim().toLowerCase();
+                     if (!email) return null;
+                     return users.find(u => u.email && u.email.toLowerCase() === email);
+                 },
+                 handleSubmit(e) {
+                     if (this.existingUser) {
+                         e.preventDefault();
+                         if (typeof Swal !== 'undefined') {
+                             Swal.fire({
+                                 icon: 'error',
+                                 title: 'Email Sudah Terdaftar!',
+                                 html: 'Alamat email <b>' + this.inputEmail + '</b> sudah terdaftar untuk pengguna <b>' + this.existingUser.name + '</b> (Role: ' + this.existingUser.role + ').<br><br><span class=\'text-xs text-slate-500\'>Silakan gunakan alamat email lain.</span>',
+                                 confirmButtonColor: '#e11d48',
+                                 confirmButtonText: 'Perbaiki Email',
+                                 customClass: {
+                                     popup: 'rounded-2xl shadow-xl border border-rose-100',
+                                     confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                                 }
+                             });
+                         }
+                         return false;
+                     }
+                 }
+             }">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalAdd = false"></div>
                 <div class="inline-block w-full max-w-lg p-6 my-8 overflow-hidden text-left align-middle bg-white shadow-2xl rounded-2xl relative z-10">
@@ -228,40 +296,110 @@
                         <h3 class="text-base font-bold text-slate-900">Tambah Pengguna Baru</h3>
                         <button @click="modalAdd = false" class="text-slate-400 hover:text-slate-600 cursor-pointer"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                     </div>
-                    <form action="{{ route('admin.users.store') }}" method="POST" class="mt-4 space-y-3 text-xs">
+                    <form action="{{ route('admin.users.store') }}" method="POST" @submit="handleSubmit($event)" class="mt-4 space-y-3 text-xs">
                         @csrf
+                        @if ($errors->any() && !old('_method'))
+                            <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-1">
+                                <div class="font-bold flex items-center gap-1.5 text-rose-800">
+                                    <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span>Gagal Menyimpan Pengguna:</span>
+                                </div>
+                                <ul class="list-disc list-inside space-y-0.5 ml-1 text-rose-600">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap *</label>
-                            <input type="text" name="name" required placeholder="Masukkan Nama Lengkap ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                            <input type="text" name="name" value="{{ old('name') }}" required placeholder="Masukkan Nama Lengkap ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border {{ $errors->has('name') && !old('_method') ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200' }} focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                            @if(!old('_method'))
+                                @error('name')
+                                    <p class="text-[11px] text-rose-600 mt-1 font-medium">{{ $message }}</p>
+                                @enderror
+                            @endif
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
-                                <input type="email" name="email" required placeholder="Masukkan Email ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                                <div class="relative">
+                                    <input type="email" 
+                                           name="email" 
+                                           x-model="inputEmail"
+                                           required 
+                                           placeholder="Masukkan Email ..." 
+                                           class="w-full text-xs px-3.5 py-2.5 rounded-xl border outline-none transition"
+                                           :class="existingUser ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:ring-2 focus:ring-rose-200' : '{{ $errors->has('email') && !old('_method') ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200' }} focus:ring-2 focus:ring-purple-200 focus:border-purple-400'">
+                                    
+                                    <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" x-show="inputEmail && inputEmail.trim().length > 0">
+                                        <template x-if="existingUser">
+                                            <span class="flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 text-rose-600" title="Email sudah terdaftar">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </span>
+                                        </template>
+                                        <template x-if="!existingUser && inputEmail && inputEmail.includes('@')">
+                                            <span class="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600" title="Email tersedia">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Live alert when duplicate email is detected -->
+                                <div x-show="existingUser" x-cloak class="mt-1.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-1.5">
+                                    <svg class="w-4 h-4 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <div>
+                                        <p class="font-bold text-rose-800">Email sudah terdaftar!</p>
+                                        <p class="text-[11px] text-rose-600">Digunakan oleh <strong x-text="existingUser?.name"></strong> (<span x-text="existingUser?.role"></span>).</p>
+                                    </div>
+                                </div>
+
+                                @if(!old('_method'))
+                                    @error('email')
+                                        <p class="text-[11px] text-rose-600 mt-1 font-medium">{{ $message }}</p>
+                                    @enderror
+                                @endif
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor HP *</label>
-                                <input type="tel" name="phone" required placeholder="Masukkan Nomor HP ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                                <input type="tel" name="phone" value="{{ old('phone') }}" required placeholder="Masukkan Nomor HP ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border {{ $errors->has('phone') && !old('_method') ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200' }} focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none">
+                                @if(!old('_method'))
+                                    @error('phone')
+                                        <p class="text-[11px] text-rose-600 mt-1 font-medium">{{ $message }}</p>
+                                    @enderror
+                                @endif
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Role *</label>
                                 <select name="role" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-purple-200 outline-none">
-                                    <option value="Sales">Sales</option><option value="CS">CS</option><option value="SPV">SPV</option><option value="HM">HM</option><option value="EO">EO</option><option value="Admin">Admin</option>
+                                    <option value="Sales" {{ old('role') === 'Sales' ? 'selected' : '' }}>Sales</option>
+                                    <option value="CS" {{ old('role') === 'CS' ? 'selected' : '' }}>CS</option>
+                                    <option value="SPV" {{ old('role') === 'SPV' ? 'selected' : '' }}>SPV</option>
+                                    <option value="HM" {{ old('role') === 'HM' ? 'selected' : '' }}>HM</option>
+                                    <option value="EO" {{ old('role') === 'EO' ? 'selected' : '' }}>EO</option>
+                                    <option value="Admin" {{ old('role') === 'Admin' ? 'selected' : '' }}>Admin</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Status Akun</label>
                                 <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-purple-200 outline-none">
-                                    <option value="Aktif">Aktif</option><option value="Nonaktif">Nonaktif</option>
+                                    <option value="Aktif" {{ old('status', 'Aktif') === 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                                    <option value="Nonaktif" {{ old('status') === 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
                                 </select>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Password *</label>
-                                <input type="password" name="password" required placeholder="Masukkan password" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
+                                <input type="password" name="password" required placeholder="Masukkan password" class="w-full text-xs px-3.5 py-2.5 rounded-xl border {{ $errors->has('password') && !old('_method') ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200' }} focus:ring-2 focus:ring-purple-200 outline-none">
+                                @if(!old('_method'))
+                                    @error('password')
+                                        <p class="text-[11px] text-rose-600 mt-1 font-medium">{{ $message }}</p>
+                                    @enderror
+                                @endif
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Konfirmasi Password *</label>
@@ -278,7 +416,39 @@
         </div>
 
         <!-- MODAL: EDIT USER -->
-        <div x-show="modalEdit" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div x-show="modalEdit" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true"
+             x-data="{
+                 editEmail: '',
+                 init() {
+                     this.$watch('selectedUser', u => {
+                         this.editEmail = u ? u.email : '';
+                     });
+                 },
+                 get existingEditUser() {
+                     if (!selectedUser || !this.editEmail) return null;
+                     const email = this.editEmail.trim().toLowerCase();
+                     return users.find(u => u.id !== selectedUser.id && u.email && u.email.toLowerCase() === email);
+                 },
+                 handleEditSubmit(e) {
+                     if (this.existingEditUser) {
+                         e.preventDefault();
+                         if (typeof Swal !== 'undefined') {
+                             Swal.fire({
+                                 icon: 'error',
+                                 title: 'Email Sudah Terdaftar!',
+                                 html: 'Alamat email <b>' + this.editEmail + '</b> sudah terdaftar untuk pengguna <b>' + this.existingEditUser.name + '</b> (Role: ' + this.existingEditUser.role + ').<br><br><span class=\'text-xs text-slate-500\'>Silakan gunakan alamat email lain.</span>',
+                                 confirmButtonColor: '#e11d48',
+                                 confirmButtonText: 'Perbaiki Email',
+                                 customClass: {
+                                     popup: 'rounded-2xl shadow-xl border border-rose-100',
+                                     confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                                 }
+                             });
+                         }
+                         return false;
+                     }
+                 }
+             }">
             <div class="flex items-center justify-center min-h-screen px-4">
                 <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalEdit = false"></div>
                 <div class="inline-block w-full max-w-lg p-6 my-8 bg-white shadow-2xl rounded-2xl relative z-10">
@@ -286,7 +456,7 @@
                         <h3 class="text-base font-bold text-slate-900">Edit Data Pengguna</h3>
                         <button @click="modalEdit = false" class="text-slate-400 hover:text-slate-600 cursor-pointer"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                     </div>
-                    <form :action="selectedUser ? '/admin/users/' + selectedUser.id : ''" method="POST" class="mt-4 space-y-3 text-xs">
+                    <form :action="selectedUser ? '/admin/users/' + selectedUser.id : ''" method="POST" @submit="handleEditSubmit($event)" class="mt-4 space-y-3 text-xs">
                         @csrf
                         @method('PUT')
                         <div>
@@ -296,7 +466,19 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-                                <input type="email" name="email" :value="selectedUser ? selectedUser.email : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-200 outline-none">
+                                <input type="email" 
+                                       name="email" 
+                                       x-model="editEmail"
+                                       class="w-full text-xs px-3.5 py-2.5 rounded-xl border outline-none transition"
+                                       :class="existingEditUser ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:ring-2 focus:ring-purple-200'">
+                                
+                                <div x-show="existingEditUser" x-cloak class="mt-1.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-1.5">
+                                    <svg class="w-4 h-4 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <div>
+                                        <p class="font-bold text-rose-800">Email sudah terdaftar!</p>
+                                        <p class="text-[11px] text-rose-600">Digunakan oleh <strong x-text="existingEditUser?.name"></strong> (<span x-text="existingEditUser?.role"></span>).</p>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor HP</label>
@@ -355,7 +537,7 @@
                                 <div class="flex justify-between"><span class="text-slate-500">Email</span><span class="font-semibold text-slate-800" x-text="selectedUser.email"></span></div>
                                 <div class="flex justify-between"><span class="text-slate-500">No. HP</span><span class="font-semibold text-slate-800" x-text="selectedUser.phone"></span></div>
                                 <div class="flex justify-between"><span class="text-slate-500">Status</span><span class="font-semibold" :class="selectedUser.status === 'Aktif' ? 'text-emerald-600' : 'text-red-600'" x-text="selectedUser.status"></span></div>
-                                <div class="flex justify-between"><span class="text-slate-500">Tgl Dibuat</span><span class="font-semibold text-slate-800" x-text="selectedUser.created_at"></span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Tgl Dibuat</span><span class="font-semibold text-slate-800" x-text="formatDate(selectedUser?.formatted_created_at || selectedUser?.created_at)"></span></div>
                             </div>
                             <div class="flex gap-2 pt-2">
                                 <button @click="modalDetail = false; modalEdit = true" class="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer">Edit User</button>

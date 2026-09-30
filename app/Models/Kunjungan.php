@@ -11,7 +11,7 @@ class Kunjungan extends Model
     use HasFactory;
 
     protected $fillable = [
-        'nomor', 'tanggal', 'tahun_akademik', 'waktu', 'sales_id', 'prodi_id', 'jenis',
+        'nomor', 'tanggal', 'tahun_akademik', 'waktu', 'sales_id', 'prodi_id', 'prodi_ids', 'jenis',
         'tujuan_id', 'tujuan_kunjungan', 'hasil', 'catatan', 'status', 'event_id', 'kehadiran',
         // Detail fields added for Sales visit reports
         'nama_institusi', 'tier', 'budget_maksimum', 'alamat', 'lokasi_penugasan', 'pic_name', 'pic_whatsapp', 'foto_path',
@@ -80,6 +80,7 @@ class Kunjungan extends Model
 
     protected $casts = [
         'tanggal' => 'date',
+        'prodi_ids' => 'array',
         'kesediaan_training_ai' => 'boolean',
         'is_verified' => 'boolean',
         'is_outside_radius' => 'boolean',
@@ -88,6 +89,32 @@ class Kunjungan extends Model
         'jarak_meter' => 'float',
         'budget_maksimum' => 'decimal:2',
     ];
+
+    /**
+     * Get array/collection of selected Prodis
+     */
+    public function getProdisListAttribute()
+    {
+        if (!empty($this->prodi_ids) && is_array($this->prodi_ids)) {
+            return Prodi::whereIn('id', $this->prodi_ids)->get();
+        }
+        if ($this->prodi_id && $this->prodi) {
+            return collect([$this->prodi]);
+        }
+        return collect([]);
+    }
+
+    /**
+     * Get comma separated names of selected Prodis
+     */
+    public function getProdiNamesAttribute(): string
+    {
+        $list = $this->prodis_list;
+        if ($list->isEmpty()) {
+            return $this->prodi?->nama ?? '-';
+        }
+        return $list->pluck('nama')->implode(', ');
+    }
 
     /**
      * Standard terminology: Potensi Mahasiswa (bukan Potensi Beasiswa)

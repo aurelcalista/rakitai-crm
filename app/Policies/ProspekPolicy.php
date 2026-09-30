@@ -184,7 +184,10 @@ class ProspekPolicy
             return $this->isSpvAuthorized($user, $prospek);
         }
 
-        return $prospek->isActiveHandler($user);
+        return $prospek->sales_id === $user->id 
+            || $prospek->owner_id === $user->id 
+            || $prospek->cs_id === $user->id
+            || $prospek->isActiveHandler($user);
     }
 
     /**

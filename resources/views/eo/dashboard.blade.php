@@ -3,7 +3,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs mb-6">
     <div>
         <div class="flex items-center gap-2 flex-wrap">
-            <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Event Organizer 🎪</h1>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Dashboard Event Organizer </h1>
             <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Event Organizer</span>
         </div>
         <p class="text-xs text-slate-500 mt-0.5">Ringkasan aktivitas dan jadwal event Universitas Catur Insan Cendekia.</p>

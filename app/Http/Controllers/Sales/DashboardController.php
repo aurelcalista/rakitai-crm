@@ -31,9 +31,7 @@ class DashboardController extends Controller
         $pipelineStages = $this->targetService->getPipelineStages($user);
 
         // Recent 5 prospects this Sales is handling (latest updated first)
-        $recentProspectsRaw = \App\Models\Prospek::with(['sales', 'cs', 'owner', 'followUps' => function ($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }])
+        $recentProspectsRaw = \App\Models\Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp'])
             ->where('sales_id', $user->id)
             ->orderBy('updated_at', 'desc')
             ->limit(5)
@@ -50,9 +48,10 @@ class DashboardController extends Controller
             ->limit(5)
             ->get()
             ->map(function ($t) {
+                $timeObj = $t->time ?? $t->created_at;
                 return [
-                    'time'         => $t->time ? $t->time->format('H:i') : '-',
-                    'time_full'    => $t->time ? $t->time->format('d M Y, H:i') : '-',
+                    'time'         => $timeObj ? $timeObj->format('H:i') : '-',
+                    'time_full'    => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
                     'title'        => $t->title,
                     'notes'        => $t->notes,
                     'prospek_name' => $t->prospek ? $t->prospek->name : '-',
@@ -89,7 +88,7 @@ class DashboardController extends Controller
      */
     private function formatProspek(\App\Models\Prospek $p): array
     {
-        $latestFollowUp = $p->followUps->first();
+        $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
 
         return [
             'id'             => $p->id,
@@ -108,10 +107,10 @@ class DashboardController extends Controller
             'last_activity'  => $p->updated_at->diffForHumans(),
             'potential'      => $p->potential ?? '-',
             'ai_training'    => $p->ai_training ?? '-',
-            'notes'          => $p->notes ?? '',
+            'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
             'created_at'     => $p->created_at ? $p->created_at->format('d M Y') : '-',
             'takeover_time'  => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
-            'last_contact'   => $latestFollowUp
+            'last_contact'   => $latestFollowUp && $latestFollowUp->tanggal
                 ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i')
                 : '-',
             'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up

@@ -126,7 +126,7 @@
                         </div>
                         <div class="flex items-center gap-1.5">
                             @if($w->assigned_hm)
-                                <form action="{{ route('admin.hm-wilayah.unassign', $w->assigned_hm->id) }}" method="POST" onsubmit="return confirm('Lepas penugasan HM {{ $w->assigned_hm->name }} dari wilayah {{ $w->nama }}?')">
+                                <form action="{{ route('admin.hm-wilayah.unassign', $w->assigned_hm->id) }}" method="POST" data-confirm="Lepas penugasan HM {{ $w->assigned_hm->name }} dari wilayah {{ $w->nama }}?">
                                     @csrf
                                     <input type="hidden" name="wilayah_id" value="{{ $w->id }}">
                                     <button type="submit" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-700 text-slate-500 text-xs font-semibold transition" title="Lepas penugasan HM">

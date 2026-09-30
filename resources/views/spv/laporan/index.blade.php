@@ -104,7 +104,34 @@
         </div>
 
         <!-- Table Laporan -->
-        <div class="crm-card bg-white p-6">
+        <div class="crm-card bg-white p-6" x-data="{
+            currentPage: 1,
+            perPage: 25,
+            prospectsList: {{ json_encode($prospects) }},
+            formatDate(dateStr) {
+                if (!dateStr) return '-';
+                if (typeof dateStr === 'string' && /^\d{2}-\d{2}-\d{4}/.test(dateStr)) {
+                    return dateStr;
+                }
+                try {
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return dateStr;
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const year = d.getFullYear();
+                    return `${day}-${month}-${year}`;
+                } catch (e) {
+                    return dateStr;
+                }
+            },
+            get paginatedProspects() {
+                const start = (this.currentPage - 1) * this.perPage;
+                return this.prospectsList.slice(start, start + this.perPage);
+            },
+            get totalPages() {
+                return Math.ceil(this.prospectsList.length / this.perPage) || 1;
+            }
+        }">
             <div class="pb-4 border-b border-slate-100 mb-5 flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-bold text-slate-900">Data Rekapitulasi Prospek Tim</h3>
@@ -116,6 +143,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                            <th class="py-3 px-3 w-10 text-center">No</th>
                             <th class="py-3 px-3">Tanggal</th>
                             <th class="py-3 px-4">Nama Calon Mahasiswa Baru (Camaba)</th>
                             <th class="py-3 px-3">Sumber Informasi</th>
@@ -125,34 +153,51 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        @forelse($prospects as $p)
-                            <tr class="hover:bg-slate-50/80 transition">
-                                <td class="py-3 px-3 text-slate-500 whitespace-nowrap">{{ $p['created_at'] }}</td>
+                        <template x-for="(p, index) in paginatedProspects" :key="p.id + '-' + currentPage">
+                            <tr class="hover:bg-slate-50/80 transition crm-table-slide">
+                                <td class="py-3 px-3 text-center text-slate-400 font-bold" x-text="(currentPage - 1) * perPage + index + 1"></td>
+                                <td class="py-3 px-3 text-slate-500 whitespace-nowrap" x-text="formatDate(p.created_at)"></td>
                                 <td class="py-3 px-4">
-                                    <div class="font-bold text-slate-900">{{ $p['pic'] ?: $p['name'] }}</div>
-                                    <div class="text-[11px] text-emerald-600 font-semibold">{{ $p['whatsapp'] }}</div>
+                                    <div class="font-bold text-slate-900" x-text="p.pic || p.name"></div>
+                                    <div class="text-[11px] text-emerald-600 font-semibold" x-text="p.whatsapp"></div>
                                 </td>
-                                <td class="py-3 px-3 text-slate-600 font-medium">
-                                    {{ $p['source'] ?? $p['type'] }}
-                                </td>
+                                <td class="py-3 px-3 text-slate-600 font-medium" x-text="p.source || p.type"></td>
                                 <td class="py-3 px-3">
-                                    <div class="font-semibold text-slate-700">{{ $p['sales_name'] }}</div>
+                                    <div class="font-semibold text-slate-700" x-text="p.sales_name"></div>
                                 </td>
                                 <td class="py-3 px-3 text-center">
-                                    <x-status-badge :status="$p['status']" />
+                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block"
+                                        :class="{
+                                            'bg-slate-100 text-slate-700 border border-slate-200': p.status === 'BARU' || p.status === 'Cold Lead',
+                                            'bg-blue-50 text-blue-700 border border-blue-200': p.status === 'KONTAK' || p.status === 'Interested',
+                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'HANGAT' || p.status === 'Follow Up',
+                                            'bg-orange-50 text-orange-700 border border-orange-200': p.status === 'PANAS',
+                                            'bg-purple-50 text-purple-700 border border-purple-200': p.status === 'FORMULIR' || p.status === 'Beli Formulir',
+                                            'bg-cyan-50 text-cyan-700 border border-cyan-200': p.status === 'BERKAS' || p.status === 'Pembayaran Termin 1',
+                                            'bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold shadow-2xs': p.status === 'LUNAS' || p.status === 'Closing',
+                                            'bg-gray-100 text-gray-600 border border-gray-200': p.status === 'DINGIN' || p.status === 'Lost'
+                                        }"
+                                        x-text="p.status">
+                                    </span>
                                 </td>
-                                <td class="py-3 px-3 text-slate-600">
-                                    {{ $p['last_contact'] }}
-                                </td>
+                                <td class="py-3 px-3 text-slate-600" x-text="p.last_contact"></td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="py-10 text-center text-slate-400 text-xs">Tidak ada data laporan untuk filter ini.</td>
-                            </tr>
-                        @endforelse
+                        </template>
+                        <tr x-show="prospectsList.length === 0">
+                            <td colspan="7" class="py-10 text-center text-slate-400 text-xs">Tidak ada data laporan untuk filter ini.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Control -->
+            <x-table-pagination
+                total="prospectsList.length"
+                page="currentPage"
+                perPage="perPage"
+                totalPages="totalPages"
+                color="blue"
+            />
         </div>
 
     </div>

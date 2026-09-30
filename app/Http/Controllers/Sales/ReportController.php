@@ -17,9 +17,7 @@ class ReportController extends Controller
         $user = auth()->user();
 
         // Hanya prospek yang dihandle oleh Sales ini
-        $prospectsRaw = clone Prospek::with(['sales', 'cs', 'owner', 'followUps' => function($q) {
-            $q->orderBy('tanggal', 'desc')->limit(1);
-        }, 'timelines' => function($q) {
+        $prospectsRaw = clone Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp', 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])
         ->where('sales_id', $user->id)
@@ -29,6 +27,8 @@ class ReportController extends Controller
             $activeTakeover = [];
             if ($p->sales) $activeTakeover[] = 'Sales';
             if ($p->cs) $activeTakeover[] = 'CS';
+
+            $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
 
             return [
                 'id' => $p->id,
@@ -47,12 +47,12 @@ class ReportController extends Controller
                 'last_activity' => $p->updated_at->diffForHumans(),
                 'potential' => $p->potential ?? '-',
                 'ai_training' => $p->ai_training ?? '-',
-                'notes' => $p->notes ?? '',
+                'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
                 'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
                 'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
-                'last_contact' => $p->followUps->first() ? \Carbon\Carbon::parse($p->followUps->first()->tanggal)->format('d M Y, H:i') : '-',
-                'next_follow_up' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->format('d M Y, H:i') : '-',
-                'next_follow_up_date' => $p->followUps->first() && $p->followUps->first()->next_follow_up ? \Carbon\Carbon::parse($p->followUps->first()->next_follow_up)->toDateString() : null,
+                'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
+                'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
+                'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
                 'timeline' => $p->timelines->map(function ($t) {
                     return [
                         'time' => $t->time->format('d M, H:i'),

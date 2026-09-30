@@ -496,12 +496,20 @@ class Prospek extends Model
 
     public function followUps()
     {
-        return $this->hasMany(FollowUp::class);
+        return $this->hasMany(FollowUp::class)->orderBy('tanggal', 'desc')->orderBy('id', 'desc');
+    }
+
+    public function latestFollowUp()
+    {
+        return $this->hasOne(FollowUp::class)->ofMany([
+            'tanggal' => 'max',
+            'id' => 'max',
+        ]);
     }
 
     public function timelines()
     {
-        return $this->hasMany(ProspekTimeline::class);
+        return $this->hasMany(ProspekTimeline::class)->orderBy('time', 'desc')->orderBy('id', 'desc');
     }
 
     public function transaksis()
