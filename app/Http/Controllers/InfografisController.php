@@ -154,7 +154,7 @@ class InfografisController extends Controller
 
                 foreach ($kecSekolahs as $s) {
                     $namaLower = strtolower($s->nama);
-                    $bentuk = str_contains($namaLower, 'smk') ? 'SMK' : (str_contains($namaLower, 'man') || str_contains($namaLower, 'ma ') || str_contains($namaLower, 'mas ') ? 'MA' : 'SMA');
+                    $bentuk = str_contains($namaLower, 'smk') ? 'SMK' : (str_contains($namaLower, 'sma') ? 'SMA' : (str_contains($namaLower, 'man') || str_contains($namaLower, 'ma ') || str_contains($namaLower, 'mas ') ? 'MA' : 'SMA'));
                     $isNegeri = str_contains($namaLower, 'negeri') || str_contains($namaLower, 'man ');
                     $statusSekolah = $isNegeri ? 'Negeri' : 'Swasta';
 

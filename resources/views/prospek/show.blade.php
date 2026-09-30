@@ -222,7 +222,7 @@
                         @click="selectedProspect = prospect; modalFollowUp = true"
                         class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition"
                     >
-                        + Tambah Catatan
+                        Tambah Catatan
                     </button>
                 </div>
 

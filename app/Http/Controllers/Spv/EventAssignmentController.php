@@ -35,9 +35,10 @@ class EventAssignmentController extends Controller
             'avatar' => strtoupper(substr($user->name, 0, 1)),
         ];
 
-        // Events assigned to this SPV
-        $events = Event::with(['type', 'sales' => function ($q) use ($user) {
-            $q->where('assigned_by_spv_id', $user->id);
+        // Events assigned to this SPV (Load all team Sales assigned to these events)
+        $teamMemberIds = $user->teamMemberIds();
+        $events = Event::with(['type', 'sales' => function ($q) use ($teamMemberIds) {
+            $q->whereIn('users.id', $teamMemberIds);
         }])
         ->whereHas('spvs', function($q) use ($user) {
             $q->where('users.id', $user->id);
@@ -82,10 +83,12 @@ class EventAssignmentController extends Controller
         try {
             DB::beginTransaction();
 
-            $oldSalesIds = $event->sales()->wherePivot('assigned_by_spv_id', $user->id)->pluck('users.id')->toArray();
+            $teamMemberIds = $user->teamMemberIds();
+            $oldSalesIds = $event->sales()->whereIn('users.id', $teamMemberIds)->pluck('users.id')->toArray();
             
             // Validate schedule for new additions
             $newSalesIds = array_diff($selectedSalesIds, $oldSalesIds);
+            
             foreach ($newSalesIds as $salesId) {
                 $this->assignmentService->validateSalesSchedule(
                     $salesId, 
@@ -104,7 +107,7 @@ class EventAssignmentController extends Controller
                         $this->calendarService->removeSalesEvent($event, $rSalesUser);
                     }
                 }
-                $event->sales()->wherePivot('assigned_by_spv_id', $user->id)->detach($removedSalesIds);
+                $event->sales()->detach($removedSalesIds);
 
                 $removedUsers = User::whereIn('id', $removedSalesIds)->get();
                 \Illuminate\Support\Facades\Notification::send($removedUsers, new \App\Notifications\EventNotification($event, 'assignment_removed'));
@@ -124,11 +127,15 @@ class EventAssignmentController extends Controller
             }
 
             DB::commit();
+            
             return back()->with('success', 'Assignment Sales berhasil diperbarui.');
 
         } catch (ValidationException $e) {
             DB::rollBack();
             return back()->withErrors($e->errors())->with('error', 'Gagal menugaskan Sales. Terdapat jadwal yang tidak memenuhi syarat.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan basis data.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());

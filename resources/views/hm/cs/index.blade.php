@@ -36,7 +36,7 @@
             <div class="flex items-center gap-2 flex-wrap">
                 <button onclick="document.getElementById('modalAddCs').classList.remove('hidden')" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    <span>+ Tambah CS Baru</span>
+                    <span>Tambah CS Baru</span>
                 </button>
                 <button onclick="openModalAssignCs()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer">
                     + Penugasan Area CS

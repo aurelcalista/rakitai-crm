@@ -2077,7 +2077,27 @@ x-init="
                     </button>
                 </div>
 
-                <form @submit.prevent="modalUpdateStatus = false; $store.crm.showToast('Status berhasil diperbarui!')" class="mt-4 space-y-4">
+                <form @submit.prevent="
+                    fetch('/pipeline/update-status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prospek_id: selectedProspect.id,
+                            status: $event.target.status.value
+                        })
+                    }).then(r => r.json()).then(data => {
+                        if(data.success) {
+                            $store.crm.showToast('Status berhasil diperbarui!');
+                            setTimeout(() => window.location.reload(), 800);
+                        } else {
+                            alert(data.message || 'Gagal mengubah status');
+                        }
+                    }).catch(err => alert('Terjadi kesalahan sistem'));
+                " class="mt-4 space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Status Baru *</label>
                         @php
@@ -2086,7 +2106,7 @@ x-init="
                                 $statusProspekList = $statusProspekList->filter(fn($item) => strtoupper($item->nama) !== 'LUNAS');
                             }
                         @endphp
-                        <select class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                        <select name="status" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                             @foreach($statusProspekList as $status)
                                 <option value="{{ $status->nama }}">{{ $status->nama }}</option>
                             @endforeach
@@ -2094,8 +2114,8 @@ x-init="
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Perubahan *</label>
-                        <textarea rows="3" required placeholder="Tuliskan alasan atau ringkasan mengapa status prospek diperbarui..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Perubahan (Opsional)</label>
+                        <textarea name="notes" rows="3" placeholder="Tuliskan alasan atau ringkasan mengapa status prospek diperbarui..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"></textarea>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -2295,7 +2315,7 @@ x-init="
                             $modalSchoolOptions[] = [
                                 'value' => 'sekolah_' . $sek->id,
                                 'label' => $sek->nama,
-                                'sub'   => '🏫 Master Database Sekolah' . ($sek->kota ? ' • ' . $sek->kota : ''),
+                                'sub'   => 'Master Database Sekolah' . ($sek->kota ? ' • ' . $sek->kota : ''),
                             ];
                         }
 
@@ -3001,9 +3021,22 @@ x-init="
         }
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', triggerFlashAlerts);
+            document.addEventListener('DOMContentLoaded', () => {
+                triggerFlashAlerts();
+                scrollToActiveMenu();
+            });
         } else {
-            setTimeout(triggerFlashAlerts, 100);
+            setTimeout(() => {
+                triggerFlashAlerts();
+                scrollToActiveMenu();
+            }, 100);
+        }
+
+        function scrollToActiveMenu() {
+            const activeLink = document.querySelector('aside a.bg-blue-50, aside a.bg-purple-50, aside a.bg-emerald-50, aside a.bg-indigo-50');
+            if (activeLink) {
+                activeLink.scrollIntoView({ block: 'center' });
+            }
         }
     </script>
 </body>

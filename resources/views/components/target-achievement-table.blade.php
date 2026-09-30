@@ -157,7 +157,7 @@
                 <span class="bg-slate-100 px-2.5 py-1 rounded-lg text-slate-800 font-bold">{{ $periode['label'] ?? '-' }}</span>
                 <span class="text-slate-300">•</span>
                 <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold">
-                    ⏳ Sisa Waktu: {{ $periode['sisa_hari'] ?? 1 }} Hari
+                    Sisa Waktu: {{ $periode['sisa_hari'] ?? 1 }} Hari
             </div>
         </div>
     </div>

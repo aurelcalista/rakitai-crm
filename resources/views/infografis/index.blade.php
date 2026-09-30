@@ -323,7 +323,9 @@
                 <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
                     <div class="flex items-center justify-between">
                         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Sekolah</span>
-                        <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">🏫</span>
+                        <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        </span>
                     </div>
                     <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2" x-text="currentStats.total_sekolah || 0"></div>
                     <div class="flex flex-wrap items-center gap-1.5 mt-2.5">
@@ -337,7 +339,9 @@
                 <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
                     <div class="flex items-center justify-between">
                         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status Sekolah</span>
-                        <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">⚖️</span>
+                        <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                        </span>
                     </div>
                     <div class="flex items-baseline gap-2 mt-2">
                         <span class="text-2xl sm:text-3xl font-extrabold text-indigo-900" x-text="currentStats.total_negeri || 0"></span>
@@ -356,7 +360,9 @@
                 <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
                     <div class="flex items-center justify-between">
                         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Prospek & Kunjungan</span>
-                        <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">🎯</span>
+                        <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </span>
                     </div>
                     <div class="text-2xl sm:text-3xl font-extrabold text-emerald-700 mt-2" x-text="currentStats.total_prospek || 0"></div>
                     <div class="flex items-center gap-2 mt-2.5 text-xs text-slate-500 font-medium">
@@ -373,7 +379,9 @@
                 <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden">
                     <div class="flex items-center justify-between">
                         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Closing (Lunas Pendaftaran)</span>
-                        <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">🎓</span>
+                        <span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                        </span>
                     </div>
                     <div class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2" x-text="currentStats.total_lunas || 0"></div>
                     <div class="flex items-center gap-2 mt-2.5 text-[11px] text-slate-500">

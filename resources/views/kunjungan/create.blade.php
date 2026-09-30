@@ -20,7 +20,7 @@
             $schoolOptions[] = [
                 'value' => 'sekolah_' . $s->id,
                 'label' => $s->nama,
-                'sub' => '🏫 Master Database Sekolah' . ($s->kota ? ' • ' . $s->kota : ''),
+                'sub' => 'Master Database Sekolah' . ($s->kota ? ' • ' . $s->kota : ''),
             ];
         }
     }

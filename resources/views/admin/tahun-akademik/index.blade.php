@@ -24,7 +24,7 @@
                 class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 shrink-0 cursor-pointer"
             >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                <span>+ Tambah Tahun Akademik</span>
+                <span>Tambah Tahun Akademik</span>
             </button>
         </div>
 

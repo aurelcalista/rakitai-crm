@@ -101,7 +101,7 @@
 
                 <div class="flex-shrink-0">
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-sm transition h-10 flex justify-center items-center gap-2 w-full lg:w-auto">
-                        <span>+ Tambah Wilayah</span>
+                        <span>Tambah Wilayah</span>
                     </button>
                 </div>
             </form>
