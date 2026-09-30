@@ -679,4 +679,140 @@
         </div>
     </div>
 
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    {{-- MODAL: INPUT TRANSAKSI                                      --}}
+    {{-- ═══════════════════════════════════════════════════════════ --}}
+    <div
+        x-show="modalTransaksi"
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+    >
+        <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div x-show="modalTransaksi" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs" @click="modalTransaksi = false; selectedJenis = ''; metodePembayaran = ''"></div>
+
+            <div x-show="modalTransaksi" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block w-full max-w-md p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10">
+
+                {{-- Header --}}
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </span>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Input Transaksi</h3>
+                            <p class="text-[11px] text-slate-400" x-text="prospect.name"></p>
+                        </div>
+                    </div>
+                    <button @click="modalTransaksi = false; selectedJenis = ''; metodePembayaran = ''" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <form :action="'{{ url('prospek') }}/' + prospect.id + '/transaksi'" method="POST" class="mt-4 space-y-4">
+                    @csrf
+
+                    {{-- Jenis Transaksi --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Transaksi <span class="text-rose-500">*</span></label>
+                        <select name="jenis" x-model="selectedJenis" required
+                            class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition bg-white">
+                            <option value="">-- Pilih Jenis --</option>
+                            <option value="Beli Formulir">Beli Formulir</option>
+                            <option value="Pembayaran Termin 1">Pembayaran Termin 1 (Closing)</option>
+                        </select>
+                    </div>
+
+                    {{-- Tanggal --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Transaksi <span class="text-rose-500">*</span></label>
+                        <input type="date" name="tanggal" required value="{{ date('Y-m-d') }}"
+                            class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition">
+                    </div>
+
+                    {{-- Nominal --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nominal (Rp) <span class="text-rose-500">*</span></label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-xs font-semibold">Rp</span>
+                            <input type="number" name="nominal" required min="0" step="1000" placeholder="0"
+                                class="w-full text-xs sm:text-sm pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition">
+                        </div>
+                    </div>
+
+                    {{-- Metode Pembayaran (muncul hanya jika Pembayaran Termin 1) --}}
+                    <div x-show="selectedJenis === 'Pembayaran Termin 1'" x-transition style="display:none;">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Metode Pembayaran <span class="text-rose-500">*</span></label>
+                        <select name="metode_pembayaran" x-model="metodePembayaran"
+                            :required="selectedJenis === 'Pembayaran Termin 1'"
+                            class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition bg-white">
+                            <option value="">-- Pilih Metode Pembayaran --</option>
+                            <option value="virtual_account">🏦 Virtual Account</option>
+                            <option value="gopay">💚 GoPay</option>
+                            <option value="dana">🔵 DANA</option>
+                            <option value="bank_transfer">🏛️ Transfer Bank Mandiri</option>
+                        </select>
+                        <p class="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
+                            <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Pembayaran Termin 1 perlu diverifikasi CS sebelum dinyatakan Closing.
+                        </p>
+                    </div>
+
+                    {{-- Info Rekening Mandiri (muncul jika pilih bank_transfer) --}}
+                    <div x-show="selectedJenis === 'Pembayaran Termin 1' && metodePembayaran === 'bank_transfer'" x-transition style="display:none;">
+                        <template x-if="bankAccounts.length > 0">
+                            <div class="p-3.5 rounded-xl border border-amber-200 bg-amber-50 space-y-2">
+                                <p class="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                                    🏛️ Info Rekening Tujuan Transfer
+                                </p>
+                                <template x-for="rek in bankAccounts" :key="rek.account_number">
+                                    <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                                        <div>
+                                            <span class="text-amber-600 text-[10px] font-semibold block uppercase">Bank</span>
+                                            <span class="font-bold text-slate-800">Mandiri</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-amber-600 text-[10px] font-semibold block uppercase">No. Rekening</span>
+                                            <span class="font-bold text-slate-800 font-mono tracking-wide" x-text="rek.account_number"></span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-amber-600 text-[10px] font-semibold block uppercase">Atas Nama</span>
+                                            <span class="font-bold text-slate-800" x-text="rek.account_name"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="bankAccounts.length === 0">
+                            <div class="p-3 rounded-xl border border-rose-200 bg-rose-50">
+                                <p class="text-xs text-rose-700 font-semibold">⚠️ Rekening Mandiri belum dikonfigurasi. Hubungi Admin.</p>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Catatan --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
+                        <textarea name="notes" rows="2" placeholder="Catatan opsional..."
+                            class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition resize-none"></textarea>
+                    </div>
+
+                    {{-- Actions --}}
+                    <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <button type="button" @click="modalTransaksi = false; selectedJenis = ''; metodePembayaran = ''"
+                            class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            Simpan Transaksi
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </x-app-layout>
