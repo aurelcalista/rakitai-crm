@@ -175,13 +175,14 @@
                                  style="display: none;">
                                 
                                 <div class="relative mb-2">
-                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                     <input type="text" 
                                            x-model="search" 
                                            placeholder="Cari Area / Kecamatan..." 
-                                           class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-800 font-medium"
+                                           class="w-full text-xs pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-800 font-medium"
+                                           style="padding-left: 2.25rem !important;"
                                            @keydown.escape="open = false">
                                 </div>
 
@@ -249,7 +250,32 @@
                     </div>
 
                     <!-- Single Column Sales Assignment -->
-                    <div class="bg-blue-50/40 border border-blue-100 rounded-xl p-4 space-y-4">
+                    <div class="bg-blue-50/40 border border-blue-100 rounded-xl p-4 space-y-4 transition-all duration-200" 
+                         :class="open ? 'pb-52' : ''" 
+                         x-data="{
+                            open: false,
+                            search: '',
+                            selectedId: '',
+                            selectedNama: '',
+                            get items() { return window.spvKecamatanList || []; },
+                            get filteredItems() {
+                                if (!this.search.trim()) return this.items;
+                                return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
+                            },
+                            selectArea(item) {
+                                this.selectedId = String(item.id);
+                                this.selectedNama = item.nama;
+                                this.open = false;
+                            },
+                            init() {
+                                window.addEventListener('sales-selected', (e) => {
+                                    const areaId = e.detail.areaId;
+                                    this.selectedId = areaId ? String(areaId) : '';
+                                    const found = this.items.find(i => String(i.id) === String(this.selectedId));
+                                    this.selectedNama = found ? found.nama : '';
+                                });
+                            }
+                        }" @click.outside="open = false">
                         <div class="flex items-center gap-2 border-b border-blue-100 pb-2">
                             <span class="w-2 h-2 rounded-full bg-blue-600"></span>
                             <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Penugasan Sales</h4>
@@ -268,30 +294,7 @@
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Area / Kecamatan Sales *</label>
                             
-                            <div class="relative" x-data="{
-                                open: false,
-                                search: '',
-                                selectedId: '',
-                                selectedNama: '',
-                                get items() { return window.spvKecamatanList || []; },
-                                get filteredItems() {
-                                    if (!this.search.trim()) return this.items;
-                                    return this.items.filter(item => item.nama.toLowerCase().includes(this.search.toLowerCase()));
-                                },
-                                selectArea(item) {
-                                    this.selectedId = String(item.id);
-                                    this.selectedNama = item.nama;
-                                    this.open = false;
-                                },
-                                init() {
-                                    window.addEventListener('sales-selected', (e) => {
-                                        const areaId = e.detail.areaId;
-                                        this.selectedId = areaId ? String(areaId) : '';
-                                        const found = this.items.find(i => String(i.id) === String(this.selectedId));
-                                        this.selectedNama = found ? found.nama : '';
-                                    });
-                                }
-                            }" @click.outside="open = false" id="salesAreaContainer">
+                            <div class="relative" id="salesAreaContainer">
 
                                 <input type="hidden" name="sales_area_id" id="salesAreaSelect" :value="selectedId" required>
 
@@ -321,17 +324,18 @@
                                      style="display: none;">
                                     
                                     <div class="relative mb-2">
-                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                         </svg>
                                         <input type="text" 
                                                x-model="search" 
                                                placeholder="Cari Area / Kecamatan..." 
-                                               class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 font-medium"
+                                               class="w-full text-xs pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 font-medium"
+                                               style="padding-left: 2.25rem !important;"
                                                @keydown.escape="open = false">
                                     </div>
 
-                                    <div class="max-h-52 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <div class="max-h-44 overflow-y-auto space-y-1 custom-scrollbar">
                                         <template x-for="item in filteredItems" :key="item.id">
                                             <div @click="selectArea(item)" 
                                                  class="w-full px-3 py-2 text-xs rounded-xl transition flex items-center justify-between font-semibold border cursor-pointer"
@@ -592,13 +596,14 @@
                                  style="display: none;">
                                 
                                 <div class="relative mb-2">
-                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
                                     <input type="text" 
                                            x-model="search" 
                                            placeholder="Cari Kecamatan..." 
-                                           class="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 font-medium"
+                                           class="w-full text-xs pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 font-medium"
+                                           style="padding-left: 2.25rem !important;"
                                            @keydown.escape="open = false">
                                 </div>
 

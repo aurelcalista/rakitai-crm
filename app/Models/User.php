@@ -253,6 +253,114 @@ class User extends Authenticatable
     }
 
     /**
+     * Get assigned Head of Marketing (HM) for this user (Sales, CS, or SPV).
+     */
+    public function getAssignedHm(): ?User
+    {
+        // 1. If this user's direct supervisor is already an HM
+        if ($this->supervisor && strtolower($this->supervisor->role) === 'hm') {
+            return $this->supervisor;
+        }
+
+        // 2. Identify SPV reference
+        $spv = $this->supervisor ?? (strtolower($this->role) === 'spv' ? $this : null);
+
+        // 3. Match HM by team name similarity (e.g. "Yuda Thomas", "Lorenz Adam")
+        $nameParts = array_values(array_filter(
+            explode(' ', trim($this->name)),
+            fn($p) => !in_array(strtolower($p), ['sales', 'spv', 'cs', 'hm', 'admin', 'dr.', 'ir.', 's.kom', 'm.m.', 's.t'])
+        ));
+        if (!empty($nameParts)) {
+            $keyword = implode(' ', $nameParts);
+            $matchedHm = User::where('role', 'HM')
+                ->where('status', 'Aktif')
+                ->where('name', 'like', "%{$keyword}%")
+                ->first();
+            if ($matchedHm) {
+                return $matchedHm;
+            }
+        }
+
+        // If SPV has a distinct name keyword
+        if ($spv && $spv->id !== $this->id) {
+            $spvParts = array_values(array_filter(
+                explode(' ', trim($spv->name)),
+                fn($p) => !in_array(strtolower($p), ['sales', 'spv', 'cs', 'hm', 'admin', 'dr.', 'ir.', 's.kom', 'm.m.', 's.t'])
+            ));
+            if (!empty($spvParts)) {
+                $spvKeyword = implode(' ', $spvParts);
+                $matchedHm = User::where('role', 'HM')
+                    ->where('status', 'Aktif')
+                    ->where('name', 'like', "%{$spvKeyword}%")
+                    ->first();
+                if ($matchedHm) {
+                    return $matchedHm;
+                }
+            }
+        }
+
+        // 4. Match HM by Parent Wilayah (Kota / Kabupaten)
+        $kotaId = null;
+        if ($spv && $spv->wilayah_id) {
+            $spvWil = Wilayah::find($spv->wilayah_id);
+            $kotaId = $spvWil ? ($spvWil->parent_id ?? $spvWil->id) : null;
+        } elseif ($this->wilayah_id) {
+            $myWil = Wilayah::find($this->wilayah_id);
+            $kotaId = $myWil ? ($myWil->parent_id ?? $myWil->id) : null;
+        }
+
+        if ($kotaId) {
+            $hmByKota = User::where('role', 'HM')
+                ->where('status', 'Aktif')
+                ->where(function($q) use ($kotaId) {
+                    $q->where('wilayah_id', $kotaId)
+                      ->orWhereHas('activeWilayahes', function($wq) use ($kotaId) {
+                          $wq->where('wilayah_id', $kotaId);
+                      });
+                })->first();
+            if ($hmByKota) {
+                return $hmByKota;
+            }
+        }
+
+        // 5. Fallback to first active HM or any HM in database
+        return User::where('role', 'HM')->where('status', 'Aktif')->first()
+            ?? User::where('role', 'HM')->first();
+    }
+
+    /**
+     * Get assigned SPV for this user (Sales, CS, etc.).
+     */
+    public function getAssignedSpv(): ?User
+    {
+        if (strtolower($this->role) === 'spv') {
+            return $this;
+        }
+
+        if ($this->supervisor && strtolower($this->supervisor->role) === 'spv') {
+            return $this->supervisor;
+        }
+
+        // Match SPV by team name keyword
+        $nameParts = array_values(array_filter(
+            explode(' ', trim($this->name)),
+            fn($p) => !in_array(strtolower($p), ['sales', 'spv', 'cs', 'hm', 'admin'])
+        ));
+        if (!empty($nameParts)) {
+            $keyword = implode(' ', $nameParts);
+            $matchedSpv = User::where('role', 'SPV')
+                ->where('status', 'Aktif')
+                ->where('name', 'like', "%{$keyword}%")
+                ->first();
+            if ($matchedSpv) {
+                return $matchedSpv;
+            }
+        }
+
+        return User::where('role', 'SPV')->where('status', 'Aktif')->first();
+    }
+
+    /**
      * Check if this user's assigned area/wilayah (or a given target Wilayah) is within a main Wilayah scope recursively.
      */
     public function isWithinWilayahScope(Wilayah|int|null $mainWilayah): bool

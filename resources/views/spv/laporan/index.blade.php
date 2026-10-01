@@ -22,7 +22,7 @@
                 </div>
             </div>
             
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 no-print">
                 <button 
                     type="button" 
                     onclick="window.print()"
@@ -64,8 +64,8 @@
             />
         </div>
 
-        <!-- Filter Form -->
-        <div class="crm-card bg-white p-4 sm:p-5">
+        <!-- Filter Form (Hidden on Print) -->
+        <div class="crm-card bg-white p-4 sm:p-5 no-print">
             <form action="{{ route('spv.laporan.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Sales Personil</label>
@@ -190,14 +190,55 @@
                 </table>
             </div>
 
-            <!-- Pagination Control -->
-            <x-table-pagination
-                total="prospectsList.length"
-                page="currentPage"
-                perPage="perPage"
-                totalPages="totalPages"
-                color="blue"
-            />
+            <!-- Pagination Control (Hidden on Print) -->
+            <div class="no-print">
+                <x-table-pagination
+                    total="prospectsList.length"
+                    page="currentPage"
+                    perPage="perPage"
+                    totalPages="totalPages"
+                    color="blue"
+                />
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- PRINT-ONLY: LEMBAR PENGESAHAN LAPORAN SPV                      -->
+        <!-- ============================================================== -->
+        @php
+            $currentAuth = auth()->user();
+            $assignedHm = $currentAuth ? $currentAuth->getAssignedHm() : null;
+        @endphp
+        <div class="print-only mt-10 pt-4 print-avoid-break">
+            <div class="grid grid-cols-2 gap-8 text-xs text-slate-800">
+                <!-- Kolom Kiri: Head of Marketing -->
+                <div class="text-center">
+                    <p class="font-medium text-slate-600">Mengetahui,</p>
+                    <p class="font-bold text-slate-900 uppercase mt-0.5">Head of Marketing & Admisi UCIC</p>
+                    <div class="h-20 flex items-center justify-center">
+                        <span class="text-slate-300 italic text-[11px]">[ Tanda Tangan & Cap ]</span>
+                    </div>
+                    <p class="font-bold text-slate-900 underline decoration-slate-900">{{ $assignedHm?->name ?? 'Head of Marketing' }}</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">{{ $assignedHm && $assignedHm->kode ? 'NIP/Kode: ' . $assignedHm->kode : 'NIP. Pegawai UCIC' }}</p>
+                </div>
+
+                <!-- Kolom Kanan: Supervisor Marketing & Sales -->
+                <div class="text-center">
+                    <p class="font-medium text-slate-600">Cirebon, {{ date('d F Y') }}</p>
+                    <p class="font-bold text-slate-900 uppercase mt-0.5">Supervisor Marketing & Sales</p>
+                    <div class="h-20 flex items-center justify-center">
+                        <span class="text-slate-300 italic text-[11px]">[ Tanda Tangan ]</span>
+                    </div>
+                    <p class="font-bold text-slate-900 underline decoration-slate-900">{{ $currentAuth?->name ?? 'Supervisor Marketing' }}</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">ID Pegawai: {{ $currentAuth?->kode ?? ('UCIC-SPV-00' . ($currentAuth?->id ?? '1')) }}</p>
+                </div>
+            </div>
+
+            <!-- Footer Catatan Sistem -->
+            <div class="mt-8 pt-2 border-t border-slate-300 text-[9px] text-slate-400 flex items-center justify-between">
+                <span>Dokumen Rekapitulasi Tim digenerate otomatis melalui Sistem CRM Universitas Catur Insan Cendekia (UCIC).</span>
+                <span>Halaman 1 dari 1</span>
+            </div>
         </div>
 
     </div>
