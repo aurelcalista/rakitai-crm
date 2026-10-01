@@ -264,12 +264,12 @@
                                         :class="{
                                             'bg-slate-100 text-slate-700 border border-slate-200': prospect.status === 'BARU' || prospect.status === 'Cold Lead',
                                             'bg-blue-50 text-blue-700 border border-blue-200': prospect.status === 'KONTAK' || prospect.status === 'Interested',
-                                            'bg-amber-50 text-amber-700 border border-amber-200': prospect.status === 'HANGAT' || prospect.status === 'Follow Up',
-                                            'bg-orange-50 text-orange-700 border border-orange-200': prospect.status === 'PANAS',
+                                            'bg-amber-50 text-amber-700 border border-amber-200': prospect.status === 'PROSPEK' || prospect.status === 'HANGAT' || prospect.status === 'Follow Up',
+                                            'bg-orange-50 text-orange-700 border border-orange-200': prospect.status === 'HOT PROSPEK' || prospect.status === 'PANAS',
                                             'bg-purple-50 text-purple-700 border border-purple-200': prospect.status === 'FORMULIR' || prospect.status === 'Beli Formulir',
                                             'bg-cyan-50 text-cyan-700 border border-cyan-200': prospect.status === 'BERKAS' || prospect.status === 'Pembayaran Termin 1',
                                             'bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold shadow-2xs': prospect.status === 'LUNAS' || prospect.status === 'Closing',
-                                            'bg-gray-100 text-gray-600 border border-gray-200': prospect.status === 'DINGIN' || prospect.status === 'Lost'
+                                            'bg-gray-100 text-gray-600 border border-gray-200': prospect.status === 'NO RESPON' || prospect.status === 'DINGIN' || prospect.status === 'Lost'
                                         }"
                                         x-text="prospect.status">
                                     </span>

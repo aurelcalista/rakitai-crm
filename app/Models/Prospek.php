@@ -317,17 +317,29 @@ class Prospek extends Model
     public const ACTIVE_STAGES = [
         'BARU',
         'KONTAK',
-        'HANGAT',
-        'PANAS',
+        'PROSPEK',
+        'HOT PROSPEK',
         'FORMULIR',
         'BERKAS',
         'CLOSING',
         'LUNAS',
+        'NO RESPON',
+        'HANGAT',
+        'PANAS',
         'DINGIN',
         'CANCEL',
     ];
 
-    public const PIPELINE_8_STAGES = self::ACTIVE_STAGES;
+    public const PIPELINE_8_STAGES = [
+        'BARU',
+        'KONTAK',
+        'PROSPEK',
+        'HOT PROSPEK',
+        'FORMULIR',
+        'BERKAS',
+        'LUNAS',
+        'NO RESPON',
+    ];
 
     /**
      * 10 Opsi Baku Dropdown Sumber Informasi Resmi PRD Bab 8.1.1
@@ -353,16 +365,22 @@ class Prospek extends Model
         // 8 Pipeline Wajib Resmi PMB TA 2027/2028 + CLOSING & CANCEL
         'BARU'                => 1,
         'KONTAK'              => 2,
-        'HANGAT'              => 3,
-        'PANAS'               => 4,
+        'PROSPEK'             => 3,
+        'HOT PROSPEK'         => 4,
         'FORMULIR'            => 5,
         'BERKAS'              => 6,
         'CLOSING'             => 7,
         'LUNAS'               => 8,
-        'DINGIN'              => 9,
+        'NO RESPON'           => 9,
         'CANCEL'              => 10,
 
         // Legacy / Backward Compatibility
+        'HANGAT'              => 3,
+        'PANAS'               => 4,
+        'DINGIN'              => 9,
+        'Hot Prospek'         => 4,
+        'Prospek'             => 3,
+        'No Respon'           => 9,
         'Baru'                => 1,
         'Lead In'             => 1,
         'Cold Lead'           => 1,
