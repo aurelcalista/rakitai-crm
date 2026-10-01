@@ -42,7 +42,7 @@ class ProspectController extends Controller
             ->map(fn ($p) => $this->formatProspek($p))
             ->toArray();
 
-        $statuses = Prospek::ACTIVE_STAGES;
+        $statuses = Prospek::getActiveStages();
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('prospek.index', compact('prospects', 'statuses', 'lostReasons'));
@@ -55,7 +55,7 @@ class ProspectController extends Controller
     {
         $sekolahs    = Sekolah::getDynamicSchools();
         $perusahaans = Perusahaan::getDynamicPerusahaans();
-        $statuses = Prospek::ACTIVE_STAGES;
+        $statuses = Prospek::getActiveStages();
         $lostReasons = Prospek::LOST_REASONS;
 
         return view('prospek.create', compact('sekolahs', 'perusahaans', 'statuses', 'lostReasons'));
@@ -182,9 +182,10 @@ class ProspectController extends Controller
         $isHandler = $prospek->isHandledBySales(auth()->user());
         $transaksis = $prospek->transaksis;
 
-        $allStages = array_map(function ($stageName) {
-            return ['name' => $stageName, 'number' => Prospek::STAGES[$stageName]];
-        }, Prospek::ACTIVE_STAGES);
+        $stagesMap = Prospek::getDynamicStagesMap();
+        $allStages = array_map(function ($stageName) use ($stagesMap) {
+            return ['name' => $stageName, 'number' => $stagesMap[$stageName] ?? 1];
+        }, Prospek::getActiveStages());
 
         $prospect   = $this->formatProspekDetail($prospek);
         $lostReasons = Prospek::LOST_REASONS;

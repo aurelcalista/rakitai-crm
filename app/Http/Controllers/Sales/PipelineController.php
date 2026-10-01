@@ -28,10 +28,7 @@ class PipelineController extends Controller
 
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
-        $pipelineStages = \App\Models\Prospek::ACTIVE_STAGES;
-        if (strtolower($user->role) === 'sales') {
-            $pipelineStages = array_values(array_filter($pipelineStages, fn($s) => strtoupper($s) !== 'LUNAS'));
-        }
+        $pipelineStages = Prospek::getPipelineStages($user->role);
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }
@@ -42,9 +39,11 @@ class PipelineController extends Controller
      */
     public function updateStatus(Request $request): JsonResponse
     {
+        $activeStages = Prospek::getActiveStages();
+
         $request->validate([
             'prospek_id' => 'required|exists:prospeks,id',
-            'status'     => 'required|string|in:' . implode(',', Prospek::ACTIVE_STAGES),
+            'status'     => 'required|string|in:' . implode(',', $activeStages),
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);
@@ -80,9 +79,10 @@ class PipelineController extends Controller
             ], 422);
         }
 
+        $stagesMap = Prospek::getDynamicStagesMap();
         $oldStatus = $prospek->status;
         $prospek->status       = $request->status;
-        $prospek->stage_number = Prospek::STAGES[$request->status] ?? $prospek->stage_number;
+        $prospek->stage_number = $stagesMap[$request->status] ?? $prospek->stage_number;
         $prospek->save();
 
         // Activity log

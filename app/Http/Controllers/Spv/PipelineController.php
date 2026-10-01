@@ -38,7 +38,7 @@ class PipelineController extends Controller
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
         $prospects = $prospectsRaw->map(fn ($p) => $this->formatProspek($p))->toArray();
 
-        $pipelineStages = Prospek::PIPELINE_8_STAGES;
+        $pipelineStages = Prospek::getPipelineStages('spv');
 
         $teamSales = User::whereIn('id', $teamMemberIds)->where('role', 'Sales')->get();
 
@@ -50,9 +50,11 @@ class PipelineController extends Controller
      */
     public function updateStatus(Request $request): JsonResponse
     {
+        $activeStages = Prospek::getActiveStages();
+
         $request->validate([
             'prospek_id' => 'required|exists:prospeks,id',
-            'status'     => 'required|string|in:' . implode(',', Prospek::ACTIVE_STAGES),
+            'status'     => 'required|string|in:' . implode(',', $activeStages),
         ]);
 
         $prospek = Prospek::findOrFail($request->prospek_id);
@@ -67,9 +69,10 @@ class PipelineController extends Controller
             ], 422);
         }
 
+        $stagesMap = Prospek::getDynamicStagesMap();
         $oldStatus = $prospek->status;
         $prospek->status = $request->status;
-        $prospek->stage_number = Prospek::STAGES[$request->status] ?? $prospek->stage_number;
+        $prospek->stage_number = $stagesMap[$request->status] ?? $prospek->stage_number;
         $prospek->save();
 
         ProspekTimeline::create([
@@ -105,6 +108,7 @@ class PipelineController extends Controller
     {
         $latestFU = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
         $normalizedStatus = strtoupper(trim($p->status));
+        $activeStages = Prospek::getActiveStages();
         $stageMap = [
             'BARU'                => 'BARU',
             'COLD LEAD'           => 'BARU',
@@ -127,7 +131,11 @@ class PipelineController extends Controller
             'DITOLAK/BATAL'       => 'DINGIN',
             'DITOLAK / BATAL'     => 'DINGIN',
         ];
-        $canonicalStatus = $stageMap[$normalizedStatus] ?? (in_array($normalizedStatus, Prospek::PIPELINE_8_STAGES) ? $normalizedStatus : 'BARU');
+        $canonicalStatus = in_array($normalizedStatus, $activeStages)
+            ? $normalizedStatus
+            : ($stageMap[$normalizedStatus] ?? (in_array($normalizedStatus, $activeStages) ? $normalizedStatus : ($activeStages[0] ?? 'BARU')));
+
+        $stagesMap = Prospek::getDynamicStagesMap();
 
         return [
             'id'             => $p->id,
@@ -137,7 +145,7 @@ class PipelineController extends Controller
             'whatsapp'       => $p->whatsapp ?? '-',
             'status'         => $canonicalStatus,
             'raw_status'     => $p->status,
-            'stage_number'   => Prospek::STAGES[$canonicalStatus] ?? (Prospek::STAGES[$p->status] ?? 1),
+            'stage_number'   => $stagesMap[$canonicalStatus] ?? ($stagesMap[$p->status] ?? 1),
             'notes'          => $latestFU && $latestFU->catatan ? $latestFU->catatan : ($p->notes ?? ''),
             'sales_id'       => $p->sales_id,
             'takeover_sales' => $p->sales ? $p->sales->name : null,

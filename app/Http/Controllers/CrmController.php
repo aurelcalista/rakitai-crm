@@ -629,7 +629,7 @@ class CrmController extends Controller
         ];
 
         // Pipeline Stages
-        $pipelineStages = collect(\App\Models\Prospek::ACTIVE_STAGES)->map(function($key) use ($prospectsData) {
+        $pipelineStages = collect(\App\Models\Prospek::getActiveStages())->map(function($key) use ($prospectsData) {
             $count = $prospectsData->where('status', $key)->count();
             return [
                 'name' => $key,
@@ -910,7 +910,8 @@ class CrmController extends Controller
             return $member;
         })->toArray();
 
-        $stagesCount = array_fill_keys(\App\Models\Prospek::ACTIVE_STAGES, 0);
+        $activeStagesList = \App\Models\Prospek::getActiveStages();
+        $stagesCount = array_fill_keys($activeStagesList, 0);
         $prospectsData = Prospek::select('status')
             ->when($activeAyId, fn($q) => $q->where('academic_year_id', $activeAyId))
             ->when($salesIdsScope !== null, fn($q) => $q->whereIn('sales_id', $salesIdsScope))
@@ -1162,7 +1163,7 @@ class CrmController extends Controller
         $prospects = $this->getDbProspects($request);
         $sekolahs = \App\Models\Sekolah::where('status', 'Aktif')->get();
         $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
-        $statuses = \App\Models\Prospek::ACTIVE_STAGES;
+        $statuses = \App\Models\Prospek::getActiveStages();
 
         $user = auth()->user();
         $isHm = $user && strtolower($user->role) === 'hm';
@@ -1346,9 +1347,10 @@ class CrmController extends Controller
             })->toArray(),
         ];
 
-        $allStages = array_map(function ($stageName) {
-            return ['name' => $stageName, 'number' => \App\Models\Prospek::STAGES[$stageName]];
-        }, \App\Models\Prospek::ACTIVE_STAGES);
+        $stagesMap = \App\Models\Prospek::getDynamicStagesMap();
+        $allStages = array_map(function ($stageName) use ($stagesMap) {
+            return ['name' => $stageName, 'number' => $stagesMap[$stageName] ?? 1];
+        }, \App\Models\Prospek::getActiveStages());
 
         // Retrieve available Sales team for re-allocation
         $user = auth()->user();
@@ -1519,10 +1521,8 @@ class CrmController extends Controller
         }
 
         $prospek->status = $newStatus;
-        
-        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
-            $prospek->stage_number = \App\Models\Prospek::STAGES[$newStatus];
-        }
+        $stagesMap = \App\Models\Prospek::getDynamicStagesMap();
+        $prospek->stage_number = $stagesMap[$newStatus] ?? $prospek->stage_number;
         
         $prospek->save();
 
@@ -1898,7 +1898,7 @@ class CrmController extends Controller
     public function pipelineIndex(): View
     {
         $prospects = $this->getDbProspects();
-        $pipelineStages = \App\Models\Prospek::ACTIVE_STAGES;
+        $pipelineStages = \App\Models\Prospek::getPipelineStages();
 
         return view('pipeline.index', compact('prospects', 'pipelineStages'));
     }

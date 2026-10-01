@@ -34,8 +34,8 @@ class DashboardController extends Controller
         $salesCount  = $teamMembers->where('role', 'Sales')->count();
         $csCount     = $teamMembers->where('role', 'CS')->count();
 
-        // 8 Pipeline Stages Standar
-        $stages = Prospek::PIPELINE_8_STAGES;
+        // Dynamic Pipeline Stages from Master Data
+        $stages = Prospek::getActiveStages();
 
         // Active Tahun Akademik via central mechanism
         $activeTaId  = \App\Services\AkademikService::getAktifId();

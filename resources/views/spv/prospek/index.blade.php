@@ -195,7 +195,7 @@
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
                             <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Prospek & Sekolah</th>
-                            <th class="py-3.5 px-3">PIC & Kontak</th>
+                            <th class="py-3.5 px-3">Nama</th>
                             <th class="py-3.5 px-3">Pemilik Lead (Handler)</th>
                             <th class="py-3.5 px-3 text-center">Status Pipeline</th>
                             <th class="py-3.5 px-3">Follow Up & Respon</th>

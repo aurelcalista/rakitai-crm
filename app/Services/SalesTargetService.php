@@ -347,21 +347,21 @@ class SalesTargetService
     public function getPipelineStages(User $sales): array
     {
         $taId = AkademikService::getAktifId();
-        $stageNames = ['BARU', 'KONTAK', 'HANGAT', 'PANAS', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'DINGIN'];
-        if (strtolower($sales->role) === 'sales') {
-            $stageNames = array_filter($stageNames, fn($s) => strtoupper($s) !== 'LUNAS');
-        }
+        $stageNames = Prospek::getPipelineStages($sales->role);
 
         $colorMap = [
-            'BARU'     => 'badge-cold-lead',
-            'KONTAK'   => 'badge-interested',
-            'HANGAT'   => 'badge-follow-up',
-            'PANAS'    => 'badge-hot-lead',
-            'FORMULIR' => 'badge-beli-formulir',
-            'BERKAS'   => 'badge-pembayaran-termin-1',
-            'CLOSING'  => 'badge-closing',
-            'LUNAS'    => 'badge-closing',
-            'DINGIN'   => 'badge-lost',
+            'BARU'        => 'badge-cold-lead',
+            'KONTAK'      => 'badge-interested',
+            'PROSPEK'     => 'badge-follow-up',
+            'HOT PROSPEK' => 'badge-hot-lead',
+            'HANGAT'      => 'badge-follow-up',
+            'PANAS'       => 'badge-hot-lead',
+            'FORMULIR'    => 'badge-beli-formulir',
+            'BERKAS'      => 'badge-pembayaran-termin-1',
+            'CLOSING'     => 'badge-closing',
+            'LUNAS'       => 'badge-closing',
+            'NO RESPON'   => 'badge-lost',
+            'DINGIN'      => 'badge-lost',
         ];
 
         return array_map(function ($name) use ($sales, $colorMap, $taId) {
@@ -372,7 +372,7 @@ class SalesTargetService
             return [
                 'name'  => $name,
                 'count' => $count,
-                'color' => $colorMap[$name] ?? '',
+                'color' => $colorMap[$name] ?? ('badge-' . strtolower(str_replace([' ', '/', '(', ')'], '-', $name))),
             ];
         }, $stageNames);
     }

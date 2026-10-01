@@ -28,10 +28,10 @@ class DailyTargetDeficitNotification extends Notification
         }
 
         return [
-            'title'       => '⚠️ Evaluasi Target Harian Tim (Akhir Jam Kerja)',
+            'title'       => 'Evaluasi Target Harian Tim (Akhir Jam Kerja)',
             'message'     => "Sebanyak {$count} personil Sales ({$names}) belum memenuhi target harian kontak pada {$this->tanggal}. Defisit dapat dikunci untuk penugasan besok.",
             'type'        => 'danger',
-            'icon'        => '📉',
+            'icon'        => '',
             'link'        => route('spv.performa.index'),
             'deficits'    => $this->deficits,
             'tanggal'     => $this->tanggal,

@@ -81,7 +81,7 @@
                     <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Status Prospek</label>
                     <select name="status" class="w-full text-xs px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold">
                         <option value="all">Semua Status</option>
-                        @foreach(\App\Models\Prospek::ACTIVE_STAGES as $st)
+                        @foreach(\App\Models\Prospek::getActiveStages() as $st)
                             <option value="{{ $st }}" {{ request('status') == $st ? 'selected' : '' }}>{{ $st }}</option>
                         @endforeach
                     </select>
