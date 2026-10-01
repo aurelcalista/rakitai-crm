@@ -83,16 +83,6 @@
             <div class="flex items-center gap-2">
                 <button 
                     type="button" 
-                    @click="$store.crm.showToast('File CSV laporan berhasil diunduh!')"
-                    class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5 cursor-pointer bg-white"
-                >
-                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    <span>Export CSV</span>
-                </button>
-                <button 
-                    type="button" 
                     @click="window.print()"
                     class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-black text-white text-xs font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
@@ -301,6 +291,11 @@
         <!-- ============================================================== -->
         <!-- PRINT-ONLY: LEMBAR PENGESAHAN & TANDA TANGAN                   -->
         <!-- ============================================================== -->
+        @php
+            $currentAuth = auth()->user();
+            $assignedHm = $currentAuth ? $currentAuth->getAssignedHm() : null;
+            $assignedSpv = $currentAuth ? $currentAuth->getAssignedSpv() : null;
+        @endphp
         <div class="print-only mt-10 pt-4 print-avoid-break">
             <div class="grid grid-cols-2 gap-8 text-xs text-slate-800">
                 <!-- Kolom Kiri: Head of Marketing -->
@@ -310,19 +305,19 @@
                     <div class="h-20 flex items-center justify-center">
                         <span class="text-slate-300 italic text-[11px]">[ Tanda Tangan & Cap ]</span>
                     </div>
-                    <p class="font-bold text-slate-900 underline decoration-slate-900">Dr. Ir. Hendra Gunawan, M.M.</p>
-                    <p class="text-[10px] text-slate-500 mt-0.5">NIP. 19820715 200812 1 003</p>
+                    <p class="font-bold text-slate-900 underline decoration-slate-900">{{ $assignedHm?->name ?? 'Head of Marketing' }}</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">{{ $assignedHm && $assignedHm->kode ? 'NIP/Kode: ' . $assignedHm->kode : 'NIP. Pegawai UCIC' }}</p>
                 </div>
 
                 <!-- Kolom Kanan: Supervisor Marketing / Pembuat Laporan -->
                 <div class="text-center">
                     <p class="font-medium text-slate-600">Cirebon, {{ date('d F Y') }}</p>
-                    <p class="font-bold text-slate-900 uppercase mt-0.5">Supervisor Marketing & Sales</p>
+                    <p class="font-bold text-slate-900 uppercase mt-0.5">{{ ($currentAuth?->role === 'Sales') ? 'Supervisor Pembina Sales' : 'Supervisor Marketing & Sales' }}</p>
                     <div class="h-20 flex items-center justify-center">
                         <span class="text-slate-300 italic text-[11px]">[ Tanda Tangan ]</span>
                     </div>
-                    <p class="font-bold text-slate-900 underline decoration-slate-900">{{ auth()->user()->name ?? 'Supervisor Inbound' }}</p>
-                    <p class="text-[10px] text-slate-500 mt-0.5">ID Pegawai: {{ auth()->user()->id ? 'UCIC-SPV-00' . auth()->user()->id : 'UCIC-SPV-001' }}</p>
+                    <p class="font-bold text-slate-900 underline decoration-slate-900">{{ $assignedSpv?->name ?? ($currentAuth?->name ?? 'Supervisor Inbound') }}</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">ID Pegawai: {{ ($assignedSpv ?? $currentAuth)?->kode ?? 'UCIC-SPV-001' }}</p>
                 </div>
             </div>
 

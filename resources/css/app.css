@@ -247,3 +247,10 @@
 .crm-table-slide {
     animation: crmSlideFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Dropdown search input padding guarantee against overlapping icons */
+.dropdown-search-input,
+input[placeholder^="Cari "] {
+    padding-left: 2.25rem !important;
+}
+
