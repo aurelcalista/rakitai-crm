@@ -77,12 +77,14 @@
                         <input type="hidden" name="wilayah_id" x-ref="wilayahFormInput" :value="selectedId">
 
                         <!-- Trigger Button Plugin -->
-                        <button type="button" @click="open = !open" class="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-blue-500/20 flex items-center gap-2 cursor-pointer transition">
-                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 12.414a5 5 0 10-1.414 1.414l4.243 4.243a1 1 0 001.414-1.414zM15 11a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                            <span x-text="selectedId ? selectedNama : 'Semua Wilayah Teritori'"></span>
-                            <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button type="button" @click="open = !open" class="text-xs font-semibold px-3.5 py-2.5 sm:py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 focus:ring-2 focus:ring-blue-500/20 flex items-center justify-between sm:justify-start gap-2 cursor-pointer transition w-full sm:w-auto shadow-xs">
+                            <span class="flex items-center gap-2 min-w-0">
+                                <svg class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 12.414a5 5 0 10-1.414 1.414l4.243 4.243a1 1 0 001.414-1.414zM15 11a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span class="truncate" x-text="selectedId ? selectedNama : 'Semua Wilayah Teritori'"></span>
+                            </span>
+                            <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
@@ -95,7 +97,7 @@
                              x-transition:leave="transition ease-in duration-75"
                              x-transition:leave-start="transform opacity-100 scale-100"
                              x-transition:leave-end="transform opacity-0 scale-95"
-                             class="absolute left-0 lg:right-0 lg:left-auto mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
+                             class="absolute left-0 lg:right-0 lg:left-auto mt-1.5 w-full min-w-[16rem] max-w-[calc(100vw-3rem)] sm:w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 p-2.5 overflow-hidden"
                              style="display: none;">
                             
                             <!-- Search Input Box Plugin -->
@@ -135,29 +137,35 @@
         </div>
 
         <!-- Filter Periode (Harian, Mingguan, Bulanan, Tahunan) -->
-        <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter Periode:</span>
-            @foreach($periodOptions as $opt)
-                @php
-                    $isActive = $currentKey === $opt['key'];
-                    $btnUrl = $actionUrl . '?periode=' . $opt['key'] . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '');
-                @endphp
-                <a href="{{ $btnUrl }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5
-                    {{ $isActive 
-                        ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/20' 
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80' }}
-                ">
-                    <span>{{ $opt['label'] }}</span>
-                </a>
-            @endforeach
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3.5 border-t border-slate-100">
+            <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Filter Periode:</span>
+                <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 w-full sm:w-auto">
+                    @foreach($periodOptions as $opt)
+                        @php
+                            $isActive = $currentKey === $opt['key'];
+                            $btnUrl = $actionUrl . '?periode=' . $opt['key'] . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '');
+                        @endphp
+                        <a href="{{ $btnUrl }}" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-center
+                            {{ $isActive 
+                                ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/20' 
+                                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80' }}
+                        ">
+                            <span>{{ $opt['label'] }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </div>
 
             <!-- Periode Active Badge -->
-            <div class="ml-auto hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-600">
-                <span class="text-slate-400">Rentang:</span>
-                <span class="bg-slate-100 px-2.5 py-1 rounded-lg text-slate-800 font-bold">{{ $periode['label'] ?? '-' }}</span>
-                <span class="text-slate-300">•</span>
-                <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold">
+            <div class="flex flex-wrap items-center justify-between lg:justify-end gap-2 text-xs font-semibold text-slate-600 bg-slate-50 lg:bg-transparent p-2.5 lg:p-0 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-slate-400 text-[11px] shrink-0">Rentang:</span>
+                    <span class="bg-white lg:bg-slate-100 px-2.5 py-1 rounded-lg text-slate-800 font-bold text-xs border border-slate-200/60 lg:border-0 whitespace-nowrap">{{ $periode['label'] ?? '-' }}</span>
+                </div>
+                <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold text-xs border border-indigo-100 lg:border-0 whitespace-nowrap shrink-0">
                     Sisa Waktu: {{ $periode['sisa_hari'] ?? 1 }} Hari
+                </span>
             </div>
         </div>
     </div>
@@ -167,12 +175,13 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10">
             <div>
                 <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300">Hierarki Target Berjenjang & Sistem Defisit</span>
-                <h4 class="text-sm font-bold text-white flex items-center gap-2 mt-0.5">
+                <h4 class="text-xs sm:text-sm font-bold text-white flex items-center gap-2 mt-0.5 leading-snug">
                     <span>Target Akumulasi Cascading (Tahunan &rarr; Bulanan &rarr; Mingguan &rarr; Harian)</span>
+                </h4>
             </div>
             
             <!-- Indikator Warna Dasar Legend -->
-            <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-bold">
                 <span class="text-slate-400 font-medium">Indikator Warna:</span>
                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> &ge;100% Tercapai
@@ -181,10 +190,10 @@
                     <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> 70-99% On Track
                 </span>
                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> 40-69% Perlu Perhatian
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> 40-69% Perhatian
                 </span>
                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                    <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> &lt;40% Defisit Target
+                    <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> &lt;40% Defisit
                 </span>
             </div>
         </div>
@@ -264,7 +273,7 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs">
+            <table class="w-full text-left border-collapse text-xs min-w-[720px]">
                 <thead>
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                         <th class="py-3 px-3 w-10 text-center">No</th>
@@ -365,7 +374,7 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs">
+            <table class="w-full text-left border-collapse text-xs min-w-[700px]">
                 <thead>
                     <tr class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                         <th class="py-3 px-3 w-10 text-center">No</th>
