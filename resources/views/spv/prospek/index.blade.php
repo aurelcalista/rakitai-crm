@@ -195,7 +195,7 @@
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
                             <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Prospek & Sekolah</th>
-                            <th class="py-3.5 px-3">PIC & Kontak</th>
+                            <th class="py-3.5 px-3">Nama</th>
                             <th class="py-3.5 px-3">Pemilik Lead (Handler)</th>
                             <th class="py-3.5 px-3 text-center">Status Pipeline</th>
                             <th class="py-3.5 px-3">Follow Up & Respon</th>
@@ -246,12 +246,12 @@
                                         :class="{
                                             'bg-slate-100 text-slate-700 border border-slate-200': p.status === 'BARU' || p.status === 'Cold Lead',
                                             'bg-blue-50 text-blue-700 border border-blue-200': p.status === 'KONTAK' || p.status === 'Interested',
-                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'HANGAT' || p.status === 'Follow Up',
-                                            'bg-orange-50 text-orange-700 border border-orange-200': p.status === 'PANAS',
+                                            'bg-amber-50 text-amber-700 border border-amber-200': p.status === 'PROSPEK' || p.status === 'HANGAT' || p.status === 'Follow Up',
+                                            'bg-orange-50 text-orange-700 border border-orange-200': p.status === 'HOT PROSPEK' || p.status === 'PANAS',
                                             'bg-purple-50 text-purple-700 border border-purple-200': p.status === 'FORMULIR' || p.status === 'Beli Formulir',
                                             'bg-cyan-50 text-cyan-700 border border-cyan-200': p.status === 'BERKAS' || p.status === 'Pembayaran Termin 1',
                                             'bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold shadow-2xs': p.status === 'LUNAS' || p.status === 'Closing',
-                                            'bg-gray-100 text-gray-600 border border-gray-200': p.status === 'DINGIN' || p.status === 'Lost'
+                                            'bg-gray-100 text-gray-600 border border-gray-200': p.status === 'NO RESPON' || p.status === 'DINGIN' || p.status === 'Lost'
                                         }"
                                         x-text="p.status">
                                     </span>

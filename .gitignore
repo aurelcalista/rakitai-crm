@@ -32,3 +32,13 @@ Thumbs.db
 CLAUDE.md
 AGENTS.md
 boost.json
+
+# Database dumps & scratch files
+*.sql
+!database/schema/*.sql
+*.diff
+/routes.txt
+/scratch_*.php
+/test_*.php
+/check.php
+/schema.php

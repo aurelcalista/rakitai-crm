@@ -51,11 +51,11 @@ class FollowUp extends Model
                     if ($handler) {
                         $actorName = $auth ? "{$auth->name} ({$auth->role})" : "Rekan Tim";
                         $handler->notify(new \App\Notifications\CrmActivityNotification(
-                            title: "💬 Aktivitas Follow-Up Baru",
+                            title: "Aktivitas Follow-Up Baru",
                             message: "{$actorName} mencatat follow-up ({$followUp->metode}) pada prospek '{$prospek->name}'.",
                             type: 'info',
                             link: '/prospek',
-                            icon: '💬',
+                            icon: '',
                             senderName: $auth?->name,
                             senderRole: $auth?->role,
                             action: 'follow_up_created'

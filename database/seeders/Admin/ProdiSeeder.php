@@ -22,7 +22,6 @@ class ProdiSeeder extends Seeder
             ['kode' => 'PKOR', 'nama' => 'PKOR (Baru)', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Ilmu Kesehatan & Olahraga', 'kuota' => 50, 'status' => 'Aktif'],
             ['kode' => 'PMAT', 'nama' => 'Pendidikan Matematika (Baru)', 'jenjang' => 'S1', 'fakultas' => 'Fakultas Keguruan & Ilmu Pendidikan', 'kuota' => 50, 'status' => 'Aktif'],
             ['kode' => 'MB-D3', 'nama' => 'Manajemen Bisnis (D3)', 'jenjang' => 'D3', 'fakultas' => 'Fakultas Ekonomi dan Bisnis', 'kuota' => 25, 'status' => 'Aktif'],
-            ['kode' => 'MI-D3', 'nama' => 'Manajemen Informatika (D3)', 'jenjang' => 'D3', 'fakultas' => 'Fakultas Teknologi Informasi', 'kuota' => 20, 'status' => 'Aktif'],
             ['kode' => 'S2-MNJ', 'nama' => 'S2 Manajemen (Tanpa Tesis)', 'jenjang' => 'S2', 'fakultas' => 'Pascasarjana', 'kuota' => 50, 'status' => 'Aktif'],
         ];
 

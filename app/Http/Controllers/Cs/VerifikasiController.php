@@ -96,11 +96,11 @@ class VerifikasiController extends Controller
                 if ($sales) {
                     $nominalText = 'Rp ' . number_format((float)$transaksi->nominal, 0, ',', '.');
                     $sales->notify(new \App\Notifications\CrmActivityNotification(
-                        title: '✅ Pembayaran Diverifikasi!',
+                        title: 'Pembayaran Diverifikasi!',
                         message: "Pembayaran {$nominalText} untuk '{$prospek->name}' telah diverifikasi oleh CS. Prospek dinyatakan LUNAS (Closing).",
                         type: 'success',
                         link: '/prospek',
-                        icon: '✅',
+                        icon: '',
                         senderName: auth()->user()->name,
                         senderRole: auth()->user()->role,
                         action: 'pembayaran_diverifikasi'
@@ -167,12 +167,12 @@ class VerifikasiController extends Controller
             if ($sales) {
                 $nominalText = 'Rp ' . number_format((float)$transaksi->nominal, 0, ',', '.');
                 $sales->notify(new \App\Notifications\CrmActivityNotification(
-                    title: '❌ Pembayaran Ditolak',
+                    title: 'Pembayaran Ditolak',
                     message: "Pembayaran {$nominalText} untuk '{$prospek->name}' ditolak oleh CS."
                         . ($request->rejection_reason ? " Alasan: " . $request->rejection_reason : ''),
                     type: 'error',
                     link: '/prospek',
-                    icon: '❌',
+                    icon: '',
                     senderName: auth()->user()->name,
                     senderRole: auth()->user()->role,
                     action: 'pembayaran_ditolak'

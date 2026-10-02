@@ -40,7 +40,7 @@ class EventNotification extends Notification
     public function toDatabase(object $notifiable): array
     {
         $message = '';
-        $icon = '📅';
+        $icon = '';
 
         switch ($this->action) {
             case 'assigned_spv':
@@ -51,15 +51,12 @@ class EventNotification extends Notification
                 break;
             case 'assignment_removed':
                 $message = "Penugasan Anda pada event '{$this->event->name}' telah dicabut.";
-                $icon = '❌';
                 break;
             case 'updated':
                 $message = "Detail event '{$this->event->name}' mengalami perubahan.";
-                $icon = '✏️';
                 break;
             case 'cancelled':
                 $message = "Event '{$this->event->name}' telah dibatalkan.";
-                $icon = '🚫';
                 break;
         }
 

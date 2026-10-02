@@ -96,13 +96,13 @@ class AppServiceProvider extends ServiceProvider
                 $notifications = $rawNotifications->map(function ($notif) {
                     return [
                         'id'      => $notif->id,
-                        'title'   => $notif->data['title'] ?? 'Notifikasi Baru',
-                        'message' => $notif->data['message'] ?? '',
+                        'title'   => \App\Http\Controllers\NotificationController::cleanNotificationText($notif->data['title'] ?? 'Notifikasi Baru'),
+                        'message' => \App\Http\Controllers\NotificationController::cleanNotificationText($notif->data['message'] ?? ''),
                         'time'    => $notif->created_at->diffForHumans(),
                         'type'    => $notif->data['type'] ?? 'info',
                         'read'    => $notif->read_at !== null,
                         'link'    => $notif->data['link'] ?? $notif->data['url'] ?? '#',
-                        'icon'    => $notif->data['icon'] ?? '🔔',
+                        'icon'    => '',
                     ];
                 });
 

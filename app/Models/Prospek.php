@@ -103,11 +103,11 @@ class Prospek extends Model
                 // 1. Jika prospek di-assign ke Sales oleh user lain (SPV, Admin, HM, EO)
                 if ($sales && (!$auth || $auth->id !== (int)$sales->id)) {
                     $sales->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "👤 Prospek Baru Ditugaskan",
+                        title: "Prospek Baru Ditugaskan",
                         message: "{$actorName} menugaskan prospek baru kepada Anda: {$prospek->name}{$infoText}.",
                         type: 'info',
                         link: '/prospek',
-                        icon: '👤',
+                        icon: '',
                         senderName: $auth?->name,
                         senderRole: $auth?->role,
                         action: 'prospek_assigned'
@@ -117,11 +117,11 @@ class Prospek extends Model
                 // 2. Jika Sales membuat prospek sendiri, SPV-nya mendapatkan notifikasi
                 if ($sales && $auth && $auth->id === (int)$sales->id && $spv) {
                     $spv->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "👤 Prospek Baru dari Sales",
+                        title: "Prospek Baru dari Sales",
                         message: "Sales {$sales->name} menambahkan prospek baru: {$prospek->name}{$infoText}.",
                         type: 'info',
                         link: '/spv/prospek',
-                        icon: '👤',
+                        icon: '',
                         senderName: $sales->name,
                         senderRole: 'Sales',
                         action: 'prospek_created_sales'
@@ -131,11 +131,11 @@ class Prospek extends Model
                 // 3. Jika Admin/HM membuat prospek, beri tahu SPV tim terkait juga
                 if ($spv && $auth && in_array(strtoupper((string)$auth->role), ['ADMIN', 'HM']) && $auth->id !== $spv->id) {
                     $spv->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "👤 Prospek Baru Ditambahkan ({$auth->role})",
+                        title: "Prospek Baru Ditambahkan ({$auth->role})",
                         message: "{$actorName} menambahkan prospek {$prospek->name}{$infoText} untuk tim Anda.",
                         type: 'info',
                         link: '/spv/prospek',
-                        icon: '👤',
+                        icon: '',
                         senderName: $auth->name,
                         senderRole: $auth->role,
                         action: 'prospek_created_admin'
@@ -147,11 +147,11 @@ class Prospek extends Model
                     $cs = \App\Models\User::find($prospek->cs_id);
                     if ($cs) {
                         $cs->notify(new \App\Notifications\CrmActivityNotification(
-                            title: "📋 Prospek Baru (CS)",
+                            title: "Prospek Baru (CS)",
                             message: "{$actorName} menugaskan prospek baru: {$prospek->name}.",
                             type: 'info',
                             link: '/prospek',
-                            icon: '📋',
+                            icon: '',
                             senderName: $auth?->name,
                             senderRole: $auth?->role,
                             action: 'prospek_assigned_cs'
@@ -182,11 +182,11 @@ class Prospek extends Model
                     // 1. Notifikasi ke CS penerima pelimpahan
                     if ($cs && (!$auth || $auth->id !== $cs->id)) {
                         $cs->notify(new \App\Notifications\CrmActivityNotification(
-                            title: "📋 Pelimpahan Prospek (Handover CS)",
+                            title: "Pelimpahan Prospek (Handover CS)",
                             message: "Prospek '{$prospek->name}' telah dilimpahkan ke Anda untuk tahapan formulir/pendaftaran.",
                             type: 'warning',
                             link: '/prospek',
-                            icon: '📋',
+                            icon: '',
                             senderName: $auth?->name,
                             senderRole: $auth?->role,
                             action: 'cs_handover'
@@ -198,11 +198,11 @@ class Prospek extends Model
                     $spv = $sales?->supervisor;
                     if ($spv && (!$auth || $auth->id !== $spv->id)) {
                         $spv->notify(new \App\Notifications\CrmActivityNotification(
-                            title: "✨ Handover Prospek ke CS",
+                            title: "Handover Prospek ke CS",
                             message: "Prospek '{$prospek->name}' (" . ($sales?->name ?? 'Sales') . ") masuk tahap Formulir dan dilimpahkan ke CS " . ($cs?->name ?? 'Staff CS') . ".",
                             type: 'info',
                             link: '/spv/prospek',
-                            icon: '✨',
+                            icon: '',
                             senderName: $sales?->name,
                             senderRole: 'Sales',
                             action: 'cs_handover_spv'
@@ -215,11 +215,11 @@ class Prospek extends Model
                     $newSales = \App\Models\User::find($prospek->sales_id);
                     if ($newSales && (!$auth || $auth->id !== $newSales->id)) {
                         $newSales->notify(new \App\Notifications\CrmActivityNotification(
-                            title: "👤 Pengalihan Prospek",
+                            title: "Pengalihan Prospek",
                             message: "Prospek '{$prospek->name}' telah dialihkan kepada Anda oleh {$actorName}.",
                             type: 'info',
                             link: '/prospek',
-                            icon: '👤',
+                            icon: '',
                             senderName: $auth?->name,
                             senderRole: $auth?->role,
                             action: 'prospek_reassigned'
@@ -237,11 +237,11 @@ class Prospek extends Model
                         // Closing LUNAS: SPV & HM
                         if ($spv && (!$auth || $auth->id !== $spv->id)) {
                             $spv->notify(new \App\Notifications\CrmActivityNotification(
-                                title: "🎉 Closing Berhasil!",
+                                title: "Closing Berhasil!",
                                 message: "Selamat! Prospek '{$prospek->name}' berhasil LUNAS melalui {$actorName}.",
                                 type: 'success',
                                 link: '/spv/pipeline',
-                                icon: '🎓',
+                                icon: '',
                                 senderName: $actorName,
                                 senderRole: $auth?->role ?? 'Sales',
                                 action: 'closing_lunas'
@@ -252,11 +252,11 @@ class Prospek extends Model
                         foreach ($hms as $hm) {
                             if (!$auth || $auth->id !== $hm->id) {
                                 $hm->notify(new \App\Notifications\CrmActivityNotification(
-                                    title: "🎉 Closing PMB Baru!",
+                                    title: "Closing PMB Baru!",
                                     message: "{$actorName} berhasil closing calon mahasiswa '{$prospek->name}' (LUNAS).",
                                     type: 'success',
                                     link: '/hm/pipeline',
-                                    icon: '🎓',
+                                    icon: '',
                                     senderName: $actorName,
                                     senderRole: $auth?->role ?? 'Sales',
                                     action: 'closing_lunas_hm'
@@ -267,11 +267,11 @@ class Prospek extends Model
                         // Status DINGIN: SPV diberi tahu
                         if ($spv && (!$auth || $auth->id !== $spv->id)) {
                             $spv->notify(new \App\Notifications\CrmActivityNotification(
-                                title: "❄️ Prospek Ditandai Dingin",
+                                title: "Prospek Ditandai Dingin",
                                 message: "Prospek '{$prospek->name}' ditandai DINGIN oleh {$actorName}.",
                                 type: 'warning',
                                 link: '/spv/prospek',
-                                icon: '❄️',
+                                icon: '',
                                 senderName: $actorName,
                                 senderRole: $auth?->role ?? 'Staff',
                                 action: 'prospek_dingin'
@@ -282,11 +282,11 @@ class Prospek extends Model
                         // Jika Sales/CS mengubah, beri tahu SPV
                         if ($spv && (!$auth || $auth->id !== $spv->id)) {
                             $spv->notify(new \App\Notifications\CrmActivityNotification(
-                                title: "📈 Prospek Masuk Tahap {$prospek->status}",
+                                title: "Prospek Masuk Tahap {$prospek->status}",
                                 message: "{$actorName} memperbarui status '{$prospek->name}' ke tahap {$prospek->status}.",
                                 type: 'info',
                                 link: '/spv/pipeline',
-                                icon: '📈',
+                                icon: '',
                                 senderName: $actorName,
                                 senderRole: $auth?->role ?? 'Staff',
                                 action: 'prospek_status_update'
@@ -296,11 +296,11 @@ class Prospek extends Model
                         // Jika SPV mengubah status, beri tahu Sales yang menangani
                         if ($sales && $auth && $auth->id === (int)$spv?->id) {
                             $sales->notify(new \App\Notifications\CrmActivityNotification(
-                                title: "📈 Status Prospek Diperbarui",
+                                title: "Status Prospek Diperbarui",
                                 message: "Supervisor {$actorName} memperbarui status '{$prospek->name}' ke {$prospek->status}.",
                                 type: 'info',
                                 link: '/pipeline',
-                                icon: '📈',
+                                icon: '',
                                 senderName: $actorName,
                                 senderRole: 'SPV',
                                 action: 'prospek_status_update_by_spv'
@@ -317,17 +317,93 @@ class Prospek extends Model
     public const ACTIVE_STAGES = [
         'BARU',
         'KONTAK',
-        'HANGAT',
-        'PANAS',
+        'PROSPEK',
+        'HOT PROSPEK',
         'FORMULIR',
         'BERKAS',
         'CLOSING',
         'LUNAS',
+        'NO RESPON',
+        'HANGAT',
+        'PANAS',
         'DINGIN',
         'CANCEL',
     ];
 
-    public const PIPELINE_8_STAGES = self::ACTIVE_STAGES;
+    public const PIPELINE_8_STAGES = [
+        'BARU',
+        'KONTAK',
+        'PROSPEK',
+        'HOT PROSPEK',
+        'FORMULIR',
+        'BERKAS',
+        'LUNAS',
+        'NO RESPON',
+    ];
+
+    /**
+     * Get active prospect statuses dynamically from Data Master (MasterData type = 'status_prospek').
+     * Fallbacks gracefully to ACTIVE_STAGES if MasterData is not available.
+     *
+     * @return string[]
+     */
+    public static function getActiveStages(): array
+    {
+        try {
+            $stages = \App\Models\MasterData::where('type', 'status_prospek')
+                ->where('status', 'Aktif')
+                ->orderBy('id', 'asc')
+                ->pluck('nama')
+                ->toArray();
+
+            if (!empty($stages)) {
+                return $stages;
+            }
+        } catch (\Throwable $e) {
+            // Fallback on database error or migration
+        }
+
+        return self::ACTIVE_STAGES;
+    }
+
+    /**
+     * Get pipeline stages dynamically from Data Master.
+     * If role is 'sales', optionally filters out LUNAS if handled exclusively by CS.
+     *
+     * @param string|null $role
+     * @return string[]
+     */
+    public static function getPipelineStages(?string $role = null): array
+    {
+        $stages = self::getActiveStages();
+
+        if ($role && strtolower($role) === 'sales') {
+            $stages = array_values(array_filter($stages, fn($s) => strtoupper($s) !== 'LUNAS'));
+        }
+
+        return $stages;
+    }
+
+    /**
+     * Get a dynamic mapping of stage names to numeric order (1-indexed).
+     *
+     * @return array<string, int>
+     */
+    public static function getDynamicStagesMap(): array
+    {
+        $stages = self::getActiveStages();
+        $map = [];
+        $index = 1;
+        foreach ($stages as $stage) {
+            $map[$stage] = $index;
+            $map[strtoupper($stage)] = $index;
+            $index++;
+        }
+
+        // Merge with legacy stages map for backward compatibility
+        return array_merge(self::STAGES, $map);
+    }
+
 
     /**
      * 10 Opsi Baku Dropdown Sumber Informasi Resmi PRD Bab 8.1.1
@@ -353,16 +429,22 @@ class Prospek extends Model
         // 8 Pipeline Wajib Resmi PMB TA 2027/2028 + CLOSING & CANCEL
         'BARU'                => 1,
         'KONTAK'              => 2,
-        'HANGAT'              => 3,
-        'PANAS'               => 4,
+        'PROSPEK'             => 3,
+        'HOT PROSPEK'         => 4,
         'FORMULIR'            => 5,
         'BERKAS'              => 6,
         'CLOSING'             => 7,
         'LUNAS'               => 8,
-        'DINGIN'              => 9,
+        'NO RESPON'           => 9,
         'CANCEL'              => 10,
 
         // Legacy / Backward Compatibility
+        'HANGAT'              => 3,
+        'PANAS'               => 4,
+        'DINGIN'              => 9,
+        'Hot Prospek'         => 4,
+        'Prospek'             => 3,
+        'No Respon'           => 9,
         'Baru'                => 1,
         'Lead In'             => 1,
         'Cold Lead'           => 1,

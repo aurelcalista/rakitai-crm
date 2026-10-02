@@ -93,7 +93,7 @@ class ProspectController extends Controller
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $wilayahs    = Wilayah::orderBy('nama')->get();
         $prodis      = Prodi::orderBy('nama')->get();
-        $statuses    = Prospek::PIPELINE_8_STAGES;
+        $statuses    = Prospek::getActiveStages();
         $lostReasons = Prospek::LOST_REASONS;
         $sources     = Prospek::SOURCES;
 
@@ -145,7 +145,7 @@ class ProspectController extends Controller
 
         $wilayahs = $wilayahsRaw;
 
-        $statuses    = Prospek::PIPELINE_8_STAGES;
+        $statuses    = Prospek::getActiveStages();
         $lostReasons = Prospek::LOST_REASONS;
 
         // 10 Opsi Baku Dropdown Sumber Informasi (PRD Bab 8.1.1)
@@ -392,16 +392,10 @@ class ProspectController extends Controller
         $teamSales = $teamMembers->where('role', 'Sales');
         $teamCs = $teamMembers->where('role', 'CS');
 
-        $allStages = [
-            ['name' => 'BARU',     'number' => 1],
-            ['name' => 'KONTAK',   'number' => 2],
-            ['name' => 'HANGAT',   'number' => 3],
-            ['name' => 'PANAS',    'number' => 4],
-            ['name' => 'FORMULIR', 'number' => 5],
-            ['name' => 'BERKAS',   'number' => 6],
-            ['name' => 'LUNAS',    'number' => 7],
-            ['name' => 'DINGIN',   'number' => 8],
-        ];
+        $stagesMap = Prospek::getDynamicStagesMap();
+        $allStages = array_map(function ($stageName) use ($stagesMap) {
+            return ['name' => $stageName, 'number' => $stagesMap[$stageName] ?? 1];
+        }, Prospek::getActiveStages());
 
         $prospect = $this->formatProspekDetail($prospek);
         $transaksis = $prospek->transaksis()->with(['user', 'verifier', 'rejecter'])->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get();
