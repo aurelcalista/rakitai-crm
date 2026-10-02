@@ -548,7 +548,7 @@ class TeamController extends Controller
                     "SPV {$spv->name} menambahkan Sales baru ({$sales->name}) dan menunggu persetujuan Anda.",
                     'info',
                     route('admin.users.index'),
-                    '👨‍💼',
+                    '',
                     $spv->name,
                     $spv->role,
                     'Menambahkan Sales'

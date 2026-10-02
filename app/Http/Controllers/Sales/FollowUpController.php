@@ -58,7 +58,7 @@ class FollowUpController extends Controller
         }
 
         $metodeOptions = FollowUp::METODE_OPTIONS;
-        $statuses      = Prospek::ACTIVE_STAGES;
+        $statuses      = Prospek::getActiveStages();
 
         return view('follow-up.index', compact('prospects', 'metodeOptions', 'statuses'));
     }
@@ -105,9 +105,10 @@ class FollowUpController extends Controller
 
         // Update prospect status if changed
         if ($oldStatus !== $newStatus) {
+            $stagesMap = Prospek::getDynamicStagesMap();
             $prospek->update([
                 'status'       => $newStatus,
-                'stage_number' => Prospek::STAGES[$newStatus] ?? $prospek->stage_number,
+                'stage_number' => $stagesMap[$newStatus] ?? $prospek->stage_number,
             ]);
 
             ProspekTimeline::create([

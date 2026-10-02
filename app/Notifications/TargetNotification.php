@@ -14,7 +14,7 @@ class TargetNotification extends Notification
         public string $message,
         public string $type = 'info',
         public string $link = '#',
-        public string $icon = '🎯',
+        public string $icon = '',
         public array $extraData = []
     ) {}
 

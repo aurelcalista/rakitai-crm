@@ -26,10 +26,10 @@ class CsHandoverOverdueNotification extends Notification
         $csName = $this->prospek->cs ? $this->prospek->cs->name : 'Belum ditentukan';
 
         return [
-            'title'       => '⚠️ Alarm SLA: Serah Terima CS > 2 Jam',
+            'title'       => 'Alarm SLA: Serah Terima CS > 2 Jam',
             'message'     => "Prospek '{$this->prospek->name}' (dari {$salesName}) telah mencapai status FORMULIR > {$this->hoursOverdue} jam lalu, namun belum direspons oleh CS ({$csName}).",
             'type'        => 'warning',
-            'icon'        => '⏰',
+            'icon'        => '',
             'link'        => route('spv.prospek.show', $this->prospek->id),
             'prospek_id'  => $this->prospek->id,
             'handover_at' => $this->prospek->handover_at?->toIso8601String(),

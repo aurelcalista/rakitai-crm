@@ -30,17 +30,20 @@
         prospectsList: {{ json_encode($prospects) }},
         stages: {{ json_encode(collect($pipelineStages)->map(function($stage, $index) {
             $colors = [
-                ['color' => 'badge-cold-lead', 'border' => 'border-slate-300'],
-                ['color' => 'badge-interested', 'border' => 'border-blue-400'],
-                ['color' => 'badge-follow-up', 'border' => 'border-amber-400'],
-                ['color' => 'badge-beli-formulir', 'border' => 'border-purple-400'],
-                ['color' => 'badge-pembayaran-termin-1', 'border' => 'border-indigo-400'],
-                ['color' => 'badge-closing', 'border' => 'border-emerald-400']
+                ['color' => 'badge-cold-lead', 'border' => 'border-slate-300', 'dot' => 'bg-slate-500'],
+                ['color' => 'badge-interested', 'border' => 'border-sky-400', 'dot' => 'bg-sky-500'],
+                ['color' => 'badge-follow-up', 'border' => 'border-amber-400', 'dot' => 'bg-amber-500'],
+                ['color' => 'badge-hot-lead', 'border' => 'border-orange-400', 'dot' => 'bg-orange-500'],
+                ['color' => 'badge-beli-formulir', 'border' => 'border-purple-400', 'dot' => 'bg-purple-500'],
+                ['color' => 'badge-pembayaran-termin-1', 'border' => 'border-indigo-400', 'dot' => 'bg-indigo-500'],
+                ['color' => 'badge-closing', 'border' => 'border-emerald-400', 'dot' => 'bg-emerald-500'],
+                ['color' => 'badge-lost', 'border' => 'border-rose-400', 'dot' => 'bg-rose-500']
             ];
             return [
                 'name' => $stage,
                 'color' => $colors[$index % count($colors)]['color'],
-                'border' => $colors[$index % count($colors)]['border']
+                'border' => $colors[$index % count($colors)]['border'],
+                'dot' => $colors[$index % count($colors)]['dot']
             ];
         })->values()->toArray()) }},
         
@@ -151,7 +154,7 @@
                         <!-- Column Header -->
                         <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-200">
                             <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full" :class="'bg-' + stage.border.replace('border-', '')"></span>
+                                <span class="w-2.5 h-2.5 rounded-full" :class="stage.dot"></span>
                                 <h3 class="text-xs font-bold text-slate-800" x-text="stage.name"></h3>
                             </div>
                             <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white text-slate-700 shadow-xs" x-text="getProspectsByStage(stage.name).length"></span>

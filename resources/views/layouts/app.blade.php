@@ -555,6 +555,17 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Jadwal Event</span>
                             </a>
                             <a 
+                                href="{{ route('potensi-wilayah.index') }}" 
+                                title="Potensi Wilayah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Potensi Wilayah</span>
+                            </a>
+                            <a 
                                 href="{{ route('sales.pembayaran.index') }}" 
                                 title="Riwayat Pembayaran"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -954,7 +965,7 @@ x-init="
                                         class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer flex items-center gap-1"
                                         title="Uji coba suara lonceng notifikasi"
                                     >
-                                        <span>🔔 Tes Suara</span>
+                                        <span>Tes Suara</span>
                                     </button>
                                     <template x-if="$store.crm.unreadCount > 0">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" x-text="$store.crm.unreadCount + ' Baru'"></span>
@@ -1008,9 +1019,6 @@ x-init="
                                             ></span>
                                             <div>
                                                 <div class="flex items-center gap-1.5 flex-wrap">
-                                                    <template x-if="item.icon">
-                                                        <span class="text-xs" x-text="item.icon"></span>
-                                                    </template>
                                                     <p class="text-xs font-bold text-slate-800 leading-snug group-hover:text-blue-600 transition" x-text="item.title"></p>
                                                 </div>
                                                 <p class="text-[11px] text-slate-500 mt-0.5 leading-normal" x-text="item.message"></p>
@@ -1486,6 +1494,19 @@ x-init="
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
                                     <span class="flex-1">Jadwal Event</span>
+                                </a>
+
+                                <a 
+                                    href="{{ route('potensi-wilayah.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="potensi wilayah prospek closing sekolah kecamatan target sales"
+                                    x-show="matches('potensi wilayah prospek closing sekolah kecamatan target sales')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="flex-1">Potensi Wilayah</span>
                                 </a>
 
                                 <a 
@@ -2084,7 +2105,7 @@ x-init="
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status Prospek</label>
                             @php
-                                $activeStagesFU = \App\Models\Prospek::ACTIVE_STAGES;
+                                $activeStagesFU = \App\Models\Prospek::getActiveStages();
                                 if (strtolower(auth()->user()->role ?? '') === 'sales') {
                                     $activeStagesFU = array_filter($activeStagesFU, fn($s) => strtoupper($s) !== 'LUNAS');
                                 }

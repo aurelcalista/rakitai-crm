@@ -155,11 +155,11 @@ class AdminEventController extends Controller
                     if ($salesUser) {
                         $this->calendarService->syncSalesEvent($event, $salesUser);
                         $salesUser->notify(new \App\Notifications\CrmActivityNotification(
-                            title: "📅 Penugasan Event Baru",
+                            title: "Penugasan Event Baru",
                             message: "Anda ditugaskan ke event '{$event->name}' oleh Event Organizer (" . Auth::user()->name . ").",
                             type: 'info',
                             link: '/calendar',
-                            icon: '📅',
+                            icon: '',
                             senderName: Auth::user()->name,
                             senderRole: 'EO',
                             action: 'event_assigned_sales'
@@ -177,11 +177,11 @@ class AdminEventController extends Controller
             foreach ($hms as $hm) {
                 if ($hm->id !== Auth::id()) {
                     $hm->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "📅 Event Baru Dijadwalkan",
+                        title: "Event Baru Dijadwalkan",
                         message: "EO " . Auth::user()->name . " telah menjadwalkan event baru: '{$event->name}'.",
                         type: 'info',
                         link: '/calendar',
-                        icon: '📅',
+                        icon: '',
                         senderName: Auth::user()->name,
                         senderRole: 'EO',
                         action: 'event_created_hm'

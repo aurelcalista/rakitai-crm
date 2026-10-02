@@ -14,7 +14,7 @@ class CrmActivityNotification extends Notification
         public string $message,
         public string $type = 'info',       // 'info' | 'success' | 'warning' | 'danger'
         public string $link = '#',
-        public string $icon = '🔔',
+        public string $icon = '',
         public ?string $senderName = null,
         public ?string $senderRole = null,
         public ?string $action = null,

@@ -74,11 +74,11 @@ class Transaksi extends Model
                         ? "Transaksi {$transaksi->jenis} sebesar {$nominalText} untuk '{$prospek->name}' sedang menunggu verifikasi CS."
                         : "Pembayaran sebesar {$nominalText} ({$transaksi->jenis}) tercatat untuk prospek '{$prospek->name}' oleh {$actorName}.";
                     $sales->notify(new \App\Notifications\CrmActivityNotification(
-                        title: $isNeedVerification ? "⏳ Menunggu Verifikasi CS" : "💳 Pembayaran Masuk",
+                        title: $isNeedVerification ? "Menunggu Verifikasi CS" : "Pembayaran Masuk",
                         message: $salesMsg,
                         type: $isNeedVerification ? 'warning' : 'success',
                         link: '/prospek',
-                        icon: $isNeedVerification ? '⏳' : '💳',
+                        icon: '',
                         senderName: $auth?->name,
                         senderRole: $auth?->role,
                         action: 'transaksi_created_sales'
@@ -88,11 +88,11 @@ class Transaksi extends Model
                 // 2. Notifikasi ke SPV
                 if ($spv && (!$auth || $auth->id !== $spv->id)) {
                     $spv->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "💳 Pembayaran Masuk Tim",
+                        title: "Pembayaran Masuk Tim",
                         message: "Pembayaran {$nominalText} ({$transaksi->jenis}) diterima untuk '{$prospek->name}' (Sales: " . ($sales?->name ?? '-') . ").",
                         type: 'success',
                         link: '/spv/pipeline',
-                        icon: '💳',
+                        icon: '',
                         senderName: $auth?->name,
                         senderRole: $auth?->role,
                         action: 'transaksi_created_spv'
@@ -113,11 +113,11 @@ class Transaksi extends Model
                 foreach ($csList as $targetCs) {
                     if (!$auth || $auth->id !== $targetCs->id) {
                         $targetCs->notify(new \App\Notifications\CrmActivityNotification(
-                            title: $isNeedVerification ? "🔔 Verifikasi Pembayaran Diperlukan" : "💳 Pembayaran Siswa CS",
+                            title: $isNeedVerification ? "Verifikasi Pembayaran Diperlukan" : "Pembayaran Siswa CS",
                             message: $csMsg,
                             type: $isNeedVerification ? 'warning' : 'success',
                             link: route('cs.verifikasi.index'),
-                            icon: $isNeedVerification ? '🔔' : '💳',
+                            icon: '',
                             senderName: $auth?->name,
                             senderRole: $auth?->role,
                             action: $isNeedVerification ? 'verifikasi_pembayaran_cs' : 'transaksi_created_cs'

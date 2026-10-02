@@ -52,11 +52,11 @@ class Kunjungan extends Model
 
                 if ($spv && (!auth()->check() || auth()->id() !== $spv->id)) {
                     $spv->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "📍 Laporan Kunjungan Baru",
+                        title: "Laporan Kunjungan Baru",
                         message: "Sales " . ($sales?->name ?? 'Sales') . " telah melaporkan kunjungan ke {$instName}.",
                         type: 'success',
                         link: '/spv/kunjungan',
-                        icon: '📍',
+                        icon: '',
                         senderName: $sales?->name,
                         senderRole: 'Sales',
                         action: 'kunjungan_created'
