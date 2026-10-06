@@ -276,6 +276,42 @@ x-init="
                     </div>
                 </div>
 
+                <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                <!-- Section: ABSENSI -->
+                <div>
+                    <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
+                    <div class="space-y-1">
+                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv']))
+                        <a 
+                            href="{{ route('attendance.create') }}" 
+                            title="Input Absensi"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.create') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.create') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Input Absensi</span>
+                        </a>
+                        @endif
+
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.index') }}" 
+                            title="Kelola Absensi"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Kelola Absensi</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+
                 @if($currentUser['role'] === 'EO')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 

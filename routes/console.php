@@ -13,3 +13,6 @@ Schedule::command('crm:check-cs-handover-sla')->everyFifteenMinutes();
 
 // P0 SPV: Notifikasi otomatis evaluasi target harian di akhir jam kerja (17:30 WIB)
 Schedule::command('crm:check-daily-target-spv')->dailyAt('17:30');
+
+// Attendance: Otomatis Tidak Hadir bagi yang belum absen hari ini
+Schedule::command('attendance:mark-absence')->dailyAt('23:59');
