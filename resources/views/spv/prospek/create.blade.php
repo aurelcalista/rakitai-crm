@@ -317,7 +317,7 @@
                     <!-- PIC & WhatsApp Contact -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="space-y-1">
-                            <label class="block text-xs font-semibold text-slate-700">Nama PIC / Kontak yang Dihubungi <span class="text-rose-500">*</span></label>
+                            <label class="block text-xs font-semibold text-slate-700">Nama<span class="text-rose-500">*</span></label>
                             <input type="text" name="pic" value="{{ old('pic') }}" placeholder="Contoh: Muhammad Rizky / Ibu Siti (Guru BK)" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:bg-white" required>
                         </div>
 

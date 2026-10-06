@@ -897,11 +897,11 @@ class TargetAchievementService
 
                         // Notifikasi ke staf / SPV penerima target
                         $u->notify(new \App\Notifications\TargetNotification(
-                            title: "🎉 Selamat! Target {$t->tipe_periode} Tuntas 100%",
+                            title: "Selamat! Target {$t->tipe_periode} Tuntas 100%",
                             message: "Luar biasa! Target {$t->tipe_periode} Anda ({$capaianText}) telah tuntas tercapai 100%. Pertahankan kinerja luar biasa ini!",
                             type: 'success',
                             link: route($u->role === 'SPV' ? 'spv.performa.index' : 'performa.index'),
-                            icon: '🎉',
+                            icon: '',
                             extraData: ['target_id' => $t->id, 'event_type' => 'target_tuntas']
                         ));
 
@@ -910,11 +910,11 @@ class TargetAchievementService
                             $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
                             foreach ($hms as $hm) {
                                 $hm->notify(new \App\Notifications\TargetNotification(
-                                    title: "🏆 Target Wilayah SPV {$u->name} Tuntas 100%!",
+                                    title: "Target Wilayah SPV {$u->name} Tuntas 100%!",
                                     message: "SPV {$u->name} dan tim telah menuntaskan 100% target {$t->tipe_periode} ({$capaianText}).",
                                     type: 'success',
                                     link: route('admin.target.index'),
-                                    icon: '🏆',
+                                    icon: '',
                                     extraData: ['target_id' => $t->id, 'event_type' => 'target_tuntas_spv']
                                 ));
                             }
@@ -922,11 +922,11 @@ class TargetAchievementService
                             $spv = $u->spv;
                             if ($spv) {
                                 $spv->notify(new \App\Notifications\TargetNotification(
-                                    title: "🏆 Anggota Tim {$u->name} Menuntaskan Target!",
+                                    title: "Anggota Tim {$u->name} Menuntaskan Target!",
                                     message: "{$u->name} ({$u->role}) telah menuntaskan target {$t->tipe_periode} 100% ({$capaianText}).",
                                     type: 'success',
                                     link: route('spv.performa.index'),
-                                    icon: '🏆',
+                                    icon: '',
                                     extraData: ['target_id' => $t->id, 'event_type' => 'target_tuntas_member']
                                 ));
                             }
@@ -959,11 +959,11 @@ class TargetAchievementService
                         if (!$alreadyNotifiedWarning) {
                             // Notifikasi ke staf / SPV yang belum tuntas
                             $u->notify(new \App\Notifications\TargetNotification(
-                                title: "⚠️ Evaluasi Target: Belum Tuntas (Defisit {$kekurangan} {$indikator})",
+                                title: "Evaluasi Target: Belum Tuntas (Defisit {$kekurangan} {$indikator})",
                                 message: "Perhatian: Target {$t->tipe_periode} Anda tersisa {$sisaHari} hari dengan defisit {$kekurangan} {$indikator}. Segera lakukan koordinasi dan tindak lanjut untuk mengejar target.",
                                 type: 'warning',
                                 link: route($u->role === 'SPV' ? 'spv.performa.index' : 'performa.index'),
-                                icon: '⚠️',
+                                icon: '',
                                 extraData: ['target_id' => $t->id, 'event_type' => 'target_warning']
                             ));
 
@@ -972,11 +972,11 @@ class TargetAchievementService
                                 $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
                                 foreach ($hms as $hm) {
                                     $hm->notify(new \App\Notifications\TargetNotification(
-                                        title: '⚠️ Evaluasi SPV: Target Belum Tuntas',
+                                        title: 'Evaluasi SPV: Target Belum Tuntas',
                                         message: "SPV {$u->name} memiliki defisit {$kekurangan} {$indikator} pada target {$t->tipe_periode} dengan sisa {$sisaHari} hari.",
                                         type: 'warning',
                                         link: route('admin.target.index'),
-                                        icon: '📉',
+                                        icon: '',
                                         extraData: ['target_id' => $t->id, 'event_type' => 'target_warning_spv']
                                     ));
                                 }
@@ -984,11 +984,11 @@ class TargetAchievementService
                                 $spv = $u->spv;
                                 if ($spv) {
                                     $spv->notify(new \App\Notifications\TargetNotification(
-                                        title: "⚠️ Evaluasi Tim: {$u->name} Belum Tuntas",
+                                        title: "Evaluasi Tim: {$u->name} Belum Tuntas",
                                         message: "Anggota tim {$u->name} ({$u->role}) memiliki defisit {$kekurangan} {$indikator} pada target {$t->tipe_periode} (Sisa {$sisaHari} hari).",
                                         type: 'warning',
                                         link: route('spv.performa.index'),
-                                        icon: '📉',
+                                        icon: '',
                                         extraData: ['target_id' => $t->id, 'event_type' => 'target_warning_member']
                                     ));
                                 }

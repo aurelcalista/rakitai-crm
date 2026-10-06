@@ -215,22 +215,22 @@ class PerformanceController extends Controller
         // 1. Notifikasi ke Sales / CS penerima alokasi
         if ($assignedUser) {
             $assignedUser->notify(new \App\Notifications\TargetNotification(
-                title: "🎯 Target Baru dari Supervisor ({$user->name})",
+                title: "Target Baru dari Supervisor ({$user->name})",
                 message: "Supervisor Anda telah mengalokasikan target {$validated['tipe_periode']}: {$validated['target_lunas']} Maba Lunas, {$validated['target_formulir']} Formulir, dan {$validated['target_kontak']} Kontak Baru.",
                 type: 'info',
                 link: route('performa.index'),
-                icon: '🎯',
+                icon: '',
                 extraData: ['event_type' => 'target_allocated_member']
             ));
         }
 
         // 2. Notifikasi konfirmasi ke SPV sendiri
         $user->notify(new \App\Notifications\TargetNotification(
-            title: '✓ Alokasi Target Tim Berhasil',
+            title: 'Alokasi Target Tim Berhasil',
             message: "Target {$validated['tipe_periode']} untuk {$roleLabel} {$assignedUser?->name} ({$validated['target_lunas']} Maba Lunas) telah berhasil dialokasikan.",
             type: 'success',
             link: route('spv.performa.index'),
-            icon: '📋',
+            icon: '',
             extraData: ['event_type' => 'target_allocated_spv']
         ));
 
@@ -238,11 +238,11 @@ class PerformanceController extends Controller
         $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
         foreach ($hms as $hm) {
             $hm->notify(new \App\Notifications\TargetNotification(
-                title: '📋 SPV Mengalokasikan Target Tim',
+                title: 'SPV Mengalokasikan Target Tim',
                 message: "SPV {$user->name} telah mengalokasikan target ke {$assignedUser?->name} ({$roleLabel}) sejumlah {$validated['target_lunas']} Maba Lunas.",
                 type: 'info',
                 link: route('admin.target.index'),
-                icon: '📋',
+                icon: '',
                 extraData: ['event_type' => 'target_allocated_hm']
             ));
         }
@@ -321,11 +321,11 @@ class PerformanceController extends Controller
             $defisitLunas = (int)($validated['defisit_lunas'] ?? 0);
             $defisitKontak = (int)($validated['defisit_kontak'] ?? 0);
             $sales->notify(new \App\Notifications\TargetNotification(
-                title: "⚠️ Otorisasi Kunci Defisit oleh SPV ({$user->name})",
+                title: "Otorisasi Kunci Defisit oleh SPV ({$user->name})",
                 message: "SPV {$user->name} telah mengunci defisit kemarin ({$defisitLunas} Lunas, {$defisitKontak} Kontak) untuk ditambahkan ke beban target harian Anda hari ini.",
                 type: 'warning',
                 link: route('performa.index'),
-                icon: '⚠️',
+                icon: '',
                 extraData: ['event_type' => 'deficit_locked']
             ));
         }

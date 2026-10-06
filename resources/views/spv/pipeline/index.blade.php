@@ -25,6 +25,26 @@
         },
         pipelineList: {{ json_encode($pipelineStages) }},
         
+        getStageConfig(stageName) {
+            const normalized = (stageName || '').toUpperCase();
+            if (this.stageConfigs[normalized]) {
+                return this.stageConfigs[normalized];
+            }
+            const fallbackPalettes = [
+                { color: 'bg-teal-500',   text: 'text-teal-800',   border: 'border-teal-300',   bg: 'bg-teal-50/50',   dot: 'bg-teal-500' },
+                { color: 'bg-cyan-500',   text: 'text-cyan-800',   border: 'border-cyan-300',   bg: 'bg-cyan-50/50',   dot: 'bg-cyan-500' },
+                { color: 'bg-violet-500', text: 'text-violet-800', border: 'border-violet-300', bg: 'bg-violet-50/50', dot: 'bg-violet-500' },
+                { color: 'bg-pink-500',   text: 'text-pink-800',   border: 'border-pink-300',   bg: 'bg-pink-50/50',   dot: 'bg-pink-500' },
+                { color: 'bg-yellow-500', text: 'text-yellow-800', border: 'border-yellow-300', bg: 'bg-yellow-50/50', dot: 'bg-yellow-500' },
+                { color: 'bg-blue-500',   text: 'text-blue-800',   border: 'border-blue-300',   bg: 'bg-blue-50/50',   dot: 'bg-blue-500' },
+            ];
+            let hash = 0;
+            for (let i = 0; i < normalized.length; i++) {
+                hash = (hash + normalized.charCodeAt(i)) % fallbackPalettes.length;
+            }
+            return fallbackPalettes[hash];
+        },
+        
         get filteredProspects() {
             let list = this.prospectsList;
             if (this.selectedSales !== 'all') {
@@ -56,7 +76,7 @@
                 <div>
                     <div class="flex items-center gap-2.5">
                         <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Board Pipeline Tim</h2>
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">8 Status PMB</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" x-text="pipelineList.length + ' Status PMB'"></span>
                     </div>
                     <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan evaluasi alur pergerakan prospek tim Sales.</p>
                 </div>
@@ -137,20 +157,20 @@
             </div>
         </div>
 
-        <!-- Visual Kanban Board (8 Columns) -->
+        <!-- Visual Kanban Board (Dynamic Columns) -->
         <div class="overflow-x-auto pb-6">
             <div class="flex gap-4 min-w-[1800px]">
                 
                 <template x-for="stageName in pipelineList" :key="stageName">
                     <div 
                         class="w-60 shrink-0 flex flex-col p-3 rounded-2xl border min-h-[520px] transition-all"
-                        :class="stageConfigs[stageName] ? (stageConfigs[stageName].bg + ' ' + stageConfigs[stageName].border) : 'bg-slate-100 border-slate-200'"
+                        :class="getStageConfig(stageName).bg + ' ' + getStageConfig(stageName).border"
                     >
                         
                         <!-- Column Header -->
                         <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-200/80">
                             <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full" :class="stageConfigs[stageName] ? stageConfigs[stageName].dot : 'bg-blue-600'"></span>
+                                <span class="w-2.5 h-2.5 rounded-full" :class="getStageConfig(stageName).dot"></span>
                                 <h3 class="text-xs font-extrabold text-slate-800 tracking-wide" x-text="stageName"></h3>
                             </div>
                             <span 

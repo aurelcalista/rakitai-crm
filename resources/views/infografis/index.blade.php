@@ -600,7 +600,7 @@
                                 <th class="py-3 px-3 text-center">Status</th>
                                 <th class="py-3 px-3 text-center">Tier</th>
                                 <th class="py-3 px-4">Alamat & Kontak</th>
-                                <th class="py-3 px-4">PIC / Hubin</th>
+                                <th class="py-3 px-4">Nama</th>
                                 <th class="py-3 px-3 text-center">Kunjungan</th>
                                 <th class="py-3 px-3 text-center">Prospek</th>
                                 <th class="py-3 px-3 text-center">Lunas</th>

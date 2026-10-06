@@ -18,9 +18,44 @@ class AdminMasterDataController extends Controller
         
         $masterData = [];
         foreach ($types as $type) {
-            $masterData[$type] = MasterData::where('type', $type)->get()->map(function ($item) {
-                // TODO: count related records for 'jumlah' based on type
-                $item->jumlah = 0; 
+            $masterData[$type] = MasterData::where('type', $type)->orderBy('id')->get()->map(function ($item) use ($type) {
+                $count = 0;
+                try {
+                    switch ($type) {
+                        case 'status_prospek':
+                            $count = \App\Models\Prospek::where('status', $item->nama)->count();
+                            break;
+                        case 'status_followup':
+                            $count = \App\Models\FollowUp::where('hasil', $item->nama)->count();
+                            break;
+                        case 'jenis_kunjungan':
+                            $count = \App\Models\Kunjungan::where('tujuan', $item->nama)->orWhere('tipe', $item->nama)->count();
+                            break;
+                        case 'kategori_prospek':
+                            $count = \App\Models\Prospek::where('category', $item->nama)->count();
+                            break;
+                        case 'sumber_prospek':
+                            $count = \App\Models\Prospek::where('source', $item->nama)->count();
+                            break;
+                        case 'kategori_sekolah':
+                            $count = \App\Models\Sekolah::where('kategori_id', $item->id)->orWhere('kategori', $item->nama)->count();
+                            break;
+                        case 'kategori_perusahaan':
+                            $count = \App\Models\Perusahaan::where('kategori_id', $item->id)->orWhere('kategori', $item->nama)->count();
+                            break;
+                        case 'program_studi':
+                            $count = \App\Models\Prospek::where('prodi_id', $item->id)->count();
+                            break;
+                        case 'jenjang':
+                            $count = \App\Models\Prodi::where('jenjang', $item->nama)->count();
+                            break;
+                        default:
+                            $count = 0;
+                    }
+                } catch (\Throwable $e) {
+                    $count = 0;
+                }
+                $item->jumlah = $count;
                 return $item;
             });
         }

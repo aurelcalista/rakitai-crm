@@ -431,24 +431,24 @@ class AdminTargetController extends Controller
         if ($targetUser) {
             $isSpv = $targetUser->role === 'SPV';
             $targetUser->notify(new \App\Notifications\TargetNotification(
-                title: $isSpv ? '🎯 Target Baru dari Head of Marketing' : '🎯 Target Baru Ditugaskan',
+                title: $isSpv ? 'Target Baru dari Head of Marketing' : 'Target Baru Ditugaskan',
                 message: $isSpv
                     ? "Head of Marketing telah menetapkan target {$tipe}: {$lunas} Maba Lunas, {$target->target_formulir} Formulir, dan {$kontak} Kontak Baru. Segera distribusikan ke tim Sales & CS Anda."
                     : "Target {$tipe} telah ditetapkan untuk Anda: {$lunas} Maba Lunas, {$target->target_formulir} Formulir, dan {$kontak} Kontak Baru.",
                 type: 'info',
                 link: route($isSpv ? 'spv.performa.index' : 'performa.index'),
-                icon: '🎯',
+                icon: '',
                 extraData: ['target_id' => $target->id, 'event_type' => 'target_assigned']
             ));
         }
 
         if ($allocator && $targetUser && $allocator->id !== $targetUser->id) {
             $allocator->notify(new \App\Notifications\TargetNotification(
-                title: '✓ Target Berhasil Diberikan',
+                title: 'Target Berhasil Diberikan',
                 message: "Target {$tipe} berhasil diberikan kepada {$targetUser->name} ({$targetUser->role}) sejumlah {$lunas} Maba Lunas.",
                 type: 'success',
                 link: route('admin.target.index'),
-                icon: '✓',
+                icon: '',
                 extraData: ['target_id' => $target->id, 'event_type' => 'target_given']
             ));
         }
@@ -503,11 +503,11 @@ class AdminTargetController extends Controller
         if ($targetUser) {
             $isSpv = $targetUser->role === 'SPV';
             $targetUser->notify(new \App\Notifications\TargetNotification(
-                title: '✏️ Pembaruan Target',
+                title: 'Pembaruan Target',
                 message: "Target {$target->tipe_periode} Anda telah diperbarui menjadi {$target->target_lunas} Maba Lunas dan {$target->target_kontak} Kontak Baru.",
                 type: 'info',
                 link: route($isSpv ? 'spv.performa.index' : 'performa.index'),
-                icon: '✏️',
+                icon: '',
                 extraData: ['target_id' => $target->id, 'event_type' => 'target_updated']
             ));
         }
