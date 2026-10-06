@@ -26,6 +26,16 @@
                 <h3 class="text-xl font-bold text-slate-900 mb-2">Anda Sudah Absen Hari Ini</h3>
                 <p class="text-slate-600">Terima kasih, data kehadiran Anda untuk tanggal {{ \Carbon\Carbon::parse($today)->translatedFormat('d F Y') }} telah tersimpan.</p>
             </div>
+        @elseif(isset($isHoliday) && $isHoliday)
+            <div class="text-center py-8 border border-slate-200 rounded-2xl bg-slate-50">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-100 text-rose-600 mb-4">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-rose-600 mb-2">HARI LIBUR</h3>
+                <p class="text-slate-600 font-medium">Hari ini merupakan hari libur. Absensi tidak dapat dilakukan.</p>
+            </div>
         @else
             <form action="{{ route('attendance.store') }}" method="POST" enctype="multipart/form-data" class="max-w-2xl mx-auto space-y-6">
                 @csrf

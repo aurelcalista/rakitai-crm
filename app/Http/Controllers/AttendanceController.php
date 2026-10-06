@@ -174,6 +174,7 @@ class AttendanceController extends Controller
         }
 
         $today = \Carbon\Carbon::now()->toDateString();
+        $isHoliday = \App\Models\WorkCalendar::isHoliday($today);
         
         $hasAttended = \App\Models\Attendance::where('user_id', $user->id)
             ->where('date', $today)
@@ -181,7 +182,7 @@ class AttendanceController extends Controller
 
         $wilayahs = collect();
 
-        return view('attendance.create', compact('hasAttended', 'today', 'wilayahs'));
+        return view('attendance.create', compact('hasAttended', 'today', 'wilayahs', 'isHoliday'));
     }
 
     public function store(Request $request)
@@ -194,6 +195,10 @@ class AttendanceController extends Controller
         $now = \Carbon\Carbon::now();
         $today = $now->toDateString();
         
+        if (\App\Models\WorkCalendar::isHoliday($today)) {
+            return back()->with('error', 'Hari ini merupakan hari libur. Absensi tidak dapat dilakukan.');
+        }
+
         if ($now->format('H:i:s') > '23:59:59') {
             return back()->with('error', 'Waktu absensi hari ini telah berakhir.');
         }

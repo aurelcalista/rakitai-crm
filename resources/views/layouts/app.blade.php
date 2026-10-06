@@ -365,6 +365,17 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
                             </a>
                             <a 
+                                href="{{ route('admin.work-calendar.index') }}" 
+                                title="Kelola Kalender Kerja"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.work-calendar.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.work-calendar.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kalender Kerja</span>
+                            </a>
+                            <a 
                                 href="{{ route('admin.hm-wilayah.index') }}" 
                                 title="Penugasan Wilayah HM"
                                 class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.hm-wilayah.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
@@ -1329,7 +1340,7 @@ x-init="
 
                 @if($currentUser['role'] === 'Admin')
                     <!-- SECTION: ADMIN PANEL -->
-                    <div x-show="matches('admin control kelola pengguna user kunjungan target event acara jenis')">
+                    <div x-show="matches('admin control kelola pengguna user kunjungan target event acara jenis kalender kerja')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-purple-700 uppercase tracking-wider">Admin Control</div>
                         <div class="space-y-1">
                             <a 
@@ -1343,6 +1354,18 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span class="flex-1">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.work-calendar.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola kalender kerja libur admin"
+                                x-show="matches('kelola kalender kerja libur admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.work-calendar.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.work-calendar.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span class="flex-1">Kalender Kerja</span>
                             </a>
 
                             <a 

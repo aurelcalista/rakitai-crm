@@ -17,6 +17,11 @@ class MarkAbsence extends Command
     {
         $today = \Carbon\Carbon::now()->toDateString();
         
+        if (\App\Models\WorkCalendar::isHoliday($today)) {
+            $this->info("Hari ini ($today) adalah hari libur. Tidak ada absensi otomatis yang ditandai.");
+            return;
+        }
+
         $users = \App\Models\User::whereIn('role', ['Sales', 'CS', 'EO', 'SPV'])
             ->where('status', 'Aktif')
             ->get();

@@ -226,6 +226,13 @@ Route::middleware('auth')->group(function () {
         Route::post('bank-accounts/{bankAccount}/toggle-status', [\App\Http\Controllers\Admin\AdminBankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
         Route::resource('bank-accounts', \App\Http\Controllers\Admin\AdminBankAccountController::class)->except(['create', 'show', 'edit']);
 
+        // Kelola Kalender Kerja
+        Route::get('work-calendar', [\App\Http\Controllers\WorkCalendarController::class, 'index'])->name('work-calendar.index');
+        Route::post('work-calendar/weekly', [\App\Http\Controllers\WorkCalendarController::class, 'updateWeekly'])->name('work-calendar.update-weekly');
+        Route::post('work-calendar', [\App\Http\Controllers\WorkCalendarController::class, 'store'])->name('work-calendar.store');
+        Route::put('work-calendar/{workCalendar}', [\App\Http\Controllers\WorkCalendarController::class, 'update'])->name('work-calendar.update');
+        Route::delete('work-calendar/{workCalendar}', [\App\Http\Controllers\WorkCalendarController::class, 'destroy'])->name('work-calendar.destroy');
+
 
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
