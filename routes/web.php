@@ -25,6 +25,13 @@ Route::middleware('guest')->group(function () {
 Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ──────────────────────────────────────────────────────────────────
+// Tambah Kontak Cepat (Public)
+// ──────────────────────────────────────────────────────────────────
+Route::get('/kontak-cepat', [\App\Http\Controllers\QuickContactController::class, 'create'])->name('kontak-cepat');
+Route::post('/kontak-cepat', [\App\Http\Controllers\QuickContactController::class, 'store'])->name('kontak-cepat.store');
+Route::get('/kontak-cepat/terima-kasih', [\App\Http\Controllers\QuickContactController::class, 'terimaKasih'])->name('kontak-cepat.terima-kasih');
+
+// ──────────────────────────────────────────────────────────────────
 // Authenticated Routes (all roles)
 // ──────────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {

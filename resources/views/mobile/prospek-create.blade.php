@@ -114,16 +114,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama Sekolah / Instansi *</label>
-                    <input 
-                        type="text" 
-                        name="name" 
-                        x-model="namaInstansi"
-                        placeholder="Contoh: SMA Negeri 1 Cirebon" 
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                    >
-                </div>
+
             </div>
 
             <div x-show="prospekType === 'Corporate'" class="space-y-3" style="display: none;">
@@ -203,33 +194,13 @@
                         </div>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama Perusahaan *</label>
-                    <input 
-                        type="text" 
-                        name="name" 
-                        x-model="namaInstansi"
-                        placeholder="Contoh: PT Surya Digital Nusantara" 
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                    >
-                </div>
             </div>
 
-            <div x-show="prospekType === 'Individu'" style="display: none;">
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama Calon Mahasiswa *</label>
-                <input 
-                    type="text" 
-                    name="name" 
-                    x-model="namaInstansi"
-                    placeholder="Nama lengkap calon pendaftar" 
-                    class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                >
-            </div>
 
             <!-- PIC & Contact -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama PIC / Kontak *</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Nama *</label>
                     <input 
                         type="text" 
                         name="pic" 

@@ -50,6 +50,9 @@
 
                 <!-- CTA & Mobile Toggle -->
                 <div class="flex items-center gap-4">
+                    <a href="{{ route('kontak-cepat') }}" class="hidden md:flex items-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200 px-5 py-2.5 rounded-full font-bold text-sm transition-all shadow-sm">
+                        Tambah Kontak Cepat
+                    </a>
                     <a href="{{ route('login') }}" class="hidden md:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/40">
                         Masuk ke Akun
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
@@ -70,8 +73,11 @@
                 <a href="#alur-kerja" @click="mobileMenuOpen = false" class="text-base font-semibold text-slate-700 hover:text-blue-600">Alur Kerja</a>
                 <a href="#analytics" @click="mobileMenuOpen = false" class="text-base font-semibold text-slate-700 hover:text-blue-600">Analytics</a>
                 <a href="#tentang" @click="mobileMenuOpen = false" class="text-base font-semibold text-slate-700 hover:text-blue-600">Tentang</a>
-                <div class="pt-4 mt-2 border-t border-slate-100">
-                    <a href="{{ route('login') }}" class="flex justify-center items-center gap-2 w-full bg-blue-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md">
+                <div class="pt-4 mt-2 border-t border-slate-100 flex flex-col gap-3">
+                    <a href="{{ route('kontak-cepat') }}" class="flex justify-center items-center gap-2 w-full bg-emerald-50 text-emerald-600 border border-emerald-200 px-5 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-emerald-100">
+                        Tambah Kontak Cepat
+                    </a>
+                    <a href="{{ route('login') }}" class="flex justify-center items-center gap-2 w-full bg-blue-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-blue-700">
                         Masuk ke Akun →
                     </a>
                 </div>
@@ -98,6 +104,9 @@
                         Kelola seluruh proses marketing dan penerimaan mahasiswa baru dalam satu platform yang terintegrasi — mulai dari prospek, follow-up, pipeline, hingga Closing.
                     </p>
                     <div class="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
+                        <a href="{{ route('kontak-cepat') }}" class="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
+                            Tambah Kontak Cepat
+                        </a>
                         <a href="{{ route('login') }}" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
                             Masuk ke CRM
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>

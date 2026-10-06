@@ -194,8 +194,7 @@
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
                             <th class="py-3.5 px-3 w-10 text-center">No</th>
-                            <th class="py-3.5 px-4">Nama Prospek & Sekolah</th>
-                            <th class="py-3.5 px-3">Nama</th>
+                            <th class="py-3.5 px-4">Nama & Kontak</th>
                             <th class="py-3.5 px-3">Pemilik Lead (Handler)</th>
                             <th class="py-3.5 px-3 text-center">Status Pipeline</th>
                             <th class="py-3.5 px-3">Follow Up & Respon</th>
@@ -207,7 +206,12 @@
                             <tr class="hover:bg-slate-50/80 transition crm-table-slide">
                                 <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4">
-                                    <div class="font-bold text-slate-900" x-text="p.name"></div>
+                                    <div class="font-bold text-slate-900" x-text="p.name === p.pic ? p.name : p.pic + ' - ' + p.name"></div>
+                                    <template x-if="p.whatsapp && p.whatsapp !== '-'">
+                                        <a :href="'https://wa.me/' + p.whatsapp.replace(/[^0-9]/g, '')" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-bold hover:underline mt-0.5 mb-1">
+                                            <span x-text="p.whatsapp"></span>
+                                        </a>
+                                    </template>
                                     <div class="flex flex-wrap items-center gap-1.5 mt-1">
                                         <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold" x-text="p.sekolah_nama || p.type"></span>
                                         <template x-if="p.prodi_nama && p.prodi_nama !== '-'">
@@ -217,14 +221,6 @@
                                             <span class="text-slate-400 text-[10px]" x-text="'• ' + p.wilayah_nama"></span>
                                         </template>
                                     </div>
-                                </td>
-                                <td class="py-3.5 px-3">
-                                    <div class="font-medium text-slate-800" x-text="p.pic"></div>
-                                    <template x-if="p.whatsapp && p.whatsapp !== '-'">
-                                        <a :href="'https://wa.me/' + p.whatsapp.replace(/[^0-9]/g, '')" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-bold hover:underline mt-0.5">
-                                            <span x-text="p.whatsapp"></span>
-                                        </a>
-                                    </template>
                                 </td>
                                 <td class="py-3.5 px-3">
                                     <div class="font-bold text-slate-800" x-text="p.takeover_sales || p.takeover_cs || 'Belum Ditugaskan'"></div>

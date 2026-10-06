@@ -209,6 +209,10 @@ class ProspekPolicy
             return $this->isSpvAuthorized($user, $prospek);
         }
 
+        if ($role === 'cs') {
+            return $prospek->cs_id === $user->id || is_null($prospek->sales_id);
+        }
+
         return false;
     }
 

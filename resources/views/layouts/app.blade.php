@@ -3174,6 +3174,15 @@ x-init="
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Memproses Logout...',
+                        text: 'Silakan tunggu sebentar',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
                     document.getElementById('logout-form').submit();
                 }
             });
@@ -3227,6 +3236,15 @@ x-init="
                 }
 
                 window.confirmAction(opts, function() {
+                    Swal.fire({
+                        title: 'Memproses...',
+                        text: 'Silakan tunggu sebentar',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
                     form.dataset.confirmed = 'true';
                     form.submit();
                 });
