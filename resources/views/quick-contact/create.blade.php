@@ -24,9 +24,8 @@
 
     <div class="min-h-screen flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8">
         <div class="w-full max-w-md mx-auto">
-            <div class="flex justify-center items-center gap-3 mb-6">
-                <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-12 w-auto object-contain">
-            
+            <div class="flex justify-center items-center gap-3 mb-6 mt-4">
+                <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-28 w-auto object-contain">
             </div>
             
             
@@ -47,42 +46,16 @@
                         </div>
                     @endif
 
-                    <!-- Jenis Instansi -->
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Pilih Asal Instansi <span class="text-rose-500">*</span></label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm sm:text-base font-bold text-center transition"
-                                :class="prospectType === 'Sekolah' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-2 ring-blue-600/20 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300'">
-                                <input type="radio" name="jenis_instansi" value="Sekolah" x-model="prospectType" class="hidden">
-                                <span>Sekolah (SMA/SMK)</span>
-                            </label>
-                            <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm sm:text-base font-bold text-center transition"
-                                :class="prospectType === 'PT' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-2 ring-blue-600/20 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300'">
-                                <input type="radio" name="jenis_instansi" value="PT" x-model="prospectType" class="hidden">
-                                <span>Perguruan Tinggi (PT)</span>
-                            </label>
-                        </div>
-                    </div>
+                    <input type="hidden" name="jenis_instansi" value="Sekolah">
 
-                    <!-- Sekolah Selector (jika Sekolah) -->
-                    <div x-show="prospectType === 'Sekolah'" x-cloak class="space-y-1">
+                    <!-- Sekolah Selector -->
+                    <div class="space-y-1">
                         <label class="block text-sm font-bold text-slate-700 mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
                         <x-searchable-select 
                             name="sekolah_id" 
                             :options="$sekolahs" 
                             placeholder="-- Ketik untuk mencari Sekolah... --" 
                             :value="old('sekolah_id')" 
-                        />
-                    </div>
-
-                    <!-- Perusahaan/PT Selector (jika PT) -->
-                    <div x-show="prospectType === 'PT'" x-cloak class="space-y-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Perguruan Tinggi <span class="text-rose-500">*</span></label>
-                        <x-searchable-select 
-                            name="perusahaan_id" 
-                            :options="$perusahaans" 
-                            placeholder="-- Ketik untuk mencari Perguruan Tinggi... --" 
-                            :value="old('perusahaan_id')" 
                         />
                     </div>
 
