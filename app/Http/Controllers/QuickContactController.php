@@ -35,8 +35,21 @@ class QuickContactController extends Controller
 
         $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
 
+        $name = $validated['nama'];
+        if ($validated['jenis_instansi'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
+            $sekolah = Sekolah::find($validated['sekolah_id']);
+            if ($sekolah) {
+                $name = $sekolah->nama;
+            }
+        } elseif ($validated['jenis_instansi'] === 'PT' && !empty($validated['perusahaan_id'])) {
+            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+            if ($perusahaan) {
+                $name = $perusahaan->nama;
+            }
+        }
+
         $prospek = Prospek::create([
-            'name'             => $validated['nama'],
+            'name'             => $name,
             'whatsapp'         => $validated['no_whatsapp'],
             'pic'              => $validated['nama'],
             'pic_phone'        => $validated['no_whatsapp'],

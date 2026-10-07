@@ -1225,6 +1225,21 @@ class CrmController extends Controller
                 }
             }
 
+            // Handle Manual Input (Sekolah / Perusahaan)
+            if ($request->type === 'Sekolah' && empty($request->sekolah_id) && $request->filled('sekolah_manual')) {
+                $sek = \App\Models\Sekolah::firstOrCreate(
+                    ['nama' => trim($request->sekolah_manual)],
+                    ['status' => 'Aktif']
+                );
+                $request->merge(['sekolah_id' => $sek->id]);
+            } elseif ($request->type === 'Corporate' && empty($request->perusahaan_id) && $request->filled('perusahaan_manual')) {
+                $per = \App\Models\Perusahaan::firstOrCreate(
+                    ['nama' => trim($request->perusahaan_manual)],
+                    ['status' => 'Aktif']
+                );
+                $request->merge(['perusahaan_id' => $per->id]);
+            }
+
             // Resolve name
             $name = trim($request->name ?: '');
             if ($request->type === 'Sekolah' && !empty($request->sekolah_id)) {

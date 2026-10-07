@@ -282,7 +282,7 @@ x-init="
                 <div>
                     <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
-                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv']))
+                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             title="Input Absensi"
@@ -1302,6 +1302,42 @@ x-init="
                             </svg>
                             <span class="flex-1">Infografis</span>
                         </a>
+                    </div>
+                </div>
+
+                <!-- SECTION: ABSENSI -->
+                <div x-show="matches('absensi kehadiran input absen kelola absen staf')">
+                    <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
+                    <div class="space-y-1">
+                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.create') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="input absensi kehadiran absen staf hari ini"
+                            x-show="matches('input absensi kehadiran absen staf hari ini')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.create') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.create') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="flex-1">Input Absensi</span>
+                        </a>
+                        @endif
+
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="kelola absensi kehadiran absen staf"
+                            x-show="matches('kelola absensi kehadiran absen staf')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            <span class="flex-1">Kelola Absensi</span>
+                        </a>
+                        @endif
                     </div>
                 </div>
 
