@@ -2237,6 +2237,16 @@ x-init="
                         </div>
                     </div>
 
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
+                                <textarea name="notes" rows="2" placeholder="Catatan opsional (Maks. 10 kata)..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">{{ old('notes') }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                         <button type="button" @click="modalTambahProspek = false" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer">Batal</button>
                         <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer">Simpan Prospek</button>

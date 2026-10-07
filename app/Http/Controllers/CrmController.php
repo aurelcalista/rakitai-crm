@@ -175,7 +175,7 @@ class CrmController extends Controller
     }
 
     /**
-     * Get mock prospect dataset.
+     * Get mock prospect dataset. 
      */
     private function getProspects(): array
     {
@@ -1311,6 +1311,10 @@ class CrmController extends Controller
             'id' => $prospectRaw->id,
             'name' => $prospectRaw->name,
             'type' => $prospectRaw->type,
+            'sekolah_id' => $prospectRaw->sekolah_id,
+            'perusahaan_id' => $prospectRaw->perusahaan_id,
+            'prodi_id' => $prospectRaw->prodi_id,
+            'sekolah_name' => $prospectRaw->type === 'Sekolah' ? ($prospectRaw->sekolah ? $prospectRaw->sekolah->nama : '-') : ($prospectRaw->type === 'Corporate' ? ($prospectRaw->perusahaan ? $prospectRaw->perusahaan->nama : '-') : '-'),
             'category' => $prospectRaw->category ?? '-',
             'pic' => $prospectRaw->pic ?? '-',
             'pic_phone' => $prospectRaw->pic_phone ?? '-',
@@ -1323,8 +1327,6 @@ class CrmController extends Controller
             'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
             'source' => $prospectRaw->source ?? '-',
-            'potential' => $prospectRaw->potential ?? '-',
-            'ai_training' => $prospectRaw->ai_training ?? '-',
             'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($prospectRaw->notes ?? ''),
             'lost_reason' => $prospectRaw->lost_reason ?? null,
             'lost_note' => $prospectRaw->lost_note ?? null,
@@ -1360,7 +1362,20 @@ class CrmController extends Controller
             $salesTeam = \App\Models\User::where('role', 'Sales')->where('status', 'aktif')->get();
         }
 
-        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis'));
+        $sekolahsList        = \App\Models\Sekolah::getDynamicSchools();
+        $perusahaansList     = \App\Models\Perusahaan::getDynamicPerusahaans();
+        $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+        $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+        $lostReasons         = \App\Models\Prospek::LOST_REASONS;
+        $metodeOptions       = \App\Models\FollowUp::METODE_OPTIONS;
+        $isHandler           = $prospectRaw->isHandledBySales(auth()->user()) || ($user && strtolower($user->role) === 'cs' && $prospectRaw->cs_id === $user->id);
+
+        return view('prospek.show', compact(
+            'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis',
+            'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
+            'lostReasons', 'metodeOptions', 'isHandler'
+        ));
     }
 
     public function prospekUpdate(Request $request, int $id)
@@ -1368,8 +1383,20 @@ class CrmController extends Controller
         $prospek = Prospek::findOrFail($id);
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
         
-        $request->validate([
+        $validated = $request->validate([
             'status' => 'required|string',
+            'type' => 'nullable|string',
+            'name' => 'nullable|string',
+            'pic' => 'nullable|string',
+            'whatsapp' => 'nullable|string',
+            'sekolah_id' => 'nullable|exists:sekolahs,id',
+            'sekolah_manual' => 'nullable|string',
+            'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string',
+            'category' => 'nullable|string',
+            'prodi_id' => 'nullable|exists:prodis,id',
+            'source' => 'nullable|string',
+            'notes' => 'nullable|string',
         ]);
 
         $user = auth()->user();
@@ -1389,13 +1416,56 @@ class CrmController extends Controller
             return redirect()->back()->withErrors(['status' => 'CS hanya dapat mengubah status menjadi Lunas.']);
         }
 
-        $prospek->status = $newStatus;
-
-        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
-            $prospek->stage_number = \App\Models\Prospek::STAGES[$newStatus];
+        if (!empty($validated['type'])) {
+            if ($validated['type'] === 'Sekolah') {
+                $validated['perusahaan_id'] = null;
+                if (!empty($request->sekolah_manual)) {
+                    $manualName = trim($request->sekolah_manual);
+                    if ($manualName !== '') {
+                        $sekolah = \App\Models\Sekolah::firstOrCreate(
+                            ['nama' => $manualName],
+                            ['kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)), 'status' => 'Aktif']
+                        );
+                        $validated['sekolah_id'] = $sekolah->id;
+                        $validated['name'] = $sekolah->nama;
+                    }
+                } elseif (!empty($validated['sekolah_id'])) {
+                    $sekolah = \App\Models\Sekolah::find($validated['sekolah_id']);
+                    if ($sekolah) $validated['name'] = $sekolah->nama;
+                }
+            } elseif ($validated['type'] === 'Corporate') {
+                $validated['sekolah_id'] = null;
+                if (!empty($request->perusahaan_manual)) {
+                    $manualName = trim($request->perusahaan_manual);
+                    if ($manualName !== '') {
+                        $perusahaan = \App\Models\Perusahaan::firstOrCreate(
+                            ['nama' => $manualName],
+                            ['kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)), 'status' => 'Aktif']
+                        );
+                        $validated['perusahaan_id'] = $perusahaan->id;
+                        $validated['name'] = $perusahaan->nama;
+                    }
+                } elseif (!empty($validated['perusahaan_id'])) {
+                    $perusahaan = \App\Models\Perusahaan::find($validated['perusahaan_id']);
+                    if ($perusahaan) $validated['name'] = $perusahaan->nama;
+                }
+            } else {
+                $validated['sekolah_id'] = null;
+                $validated['perusahaan_id'] = null;
+                if (empty($validated['name'])) {
+                    $validated['name'] = $validated['pic'] ?? $prospek->name;
+                }
+            }
         }
 
-        $prospek->save();
+        $validated['status'] = $newStatus;
+        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
+            $validated['stage_number'] = \App\Models\Prospek::STAGES[$newStatus];
+        }
+
+        unset($validated['sekolah_manual'], $validated['perusahaan_manual']);
+
+        $prospek->update($validated);
 
         if ($oldStatus !== $prospek->status) {
             ProspekTimeline::create([
@@ -1407,9 +1477,18 @@ class CrmController extends Controller
                 'status_after' => $prospek->status,
                 'time' => now(),
             ]);
+        } else {
+            ProspekTimeline::create([
+                'prospek_id'  => $prospek->id,
+                'user_id'     => auth()->id(),
+                'title'       => 'Data Prospek Diperbarui',
+                'notes'       => 'Informasi prospek diperbarui oleh ' . auth()->user()->name,
+                'status_after' => $prospek->status,
+                'time'         => now(),
+            ]);
         }
 
-        return redirect()->back()->with('success', 'Status prospek berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Data prospek berhasil diperbarui!');
     }
 
     public function prospekDestroy(int $id)

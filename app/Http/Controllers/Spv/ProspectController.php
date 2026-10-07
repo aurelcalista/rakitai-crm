@@ -64,7 +64,7 @@ class ProspectController extends Controller
                 $prodi = Prodi::find($request->prodi_id);
                 if ($prodi) {
                     $q->orWhere('category', 'like', '%' . $prodi->nama . '%')
-                      ->orWhere('potential', 'like', '%' . $prodi->nama . '%');
+                      ->orWhere('notes', 'like', '%' . $prodi->nama . '%');
                 }
             });
         }
@@ -339,7 +339,6 @@ class ProspectController extends Controller
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,
                 'kelas'              => $kelas,
-                'potential'          => $potential,
                 'sekolah_id'         => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'      => $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'                => $validated['pic'],
@@ -430,8 +429,6 @@ class ProspectController extends Controller
             'pic'         => 'required|string|max:255',
             'pic_phone'   => 'nullable|string|max:20',
             'whatsapp'    => 'required|string|max:20',
-            'potential'   => 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
             'notes'       => 'nullable|string',
             'category'    => 'nullable|string|max:100',
             'source'      => 'required|string|max:100',
@@ -496,7 +493,6 @@ class ProspectController extends Controller
             $prodi = Prodi::find($validated['prodi_id']);
             if ($prodi) {
                 $validated['category'] = $prodi->nama;
-                $validated['potential'] = ($validated['kelas'] ?? $prospek->kelas ?? 'Reguler') . ' — ' . $prodi->nama;
             }
         }
 

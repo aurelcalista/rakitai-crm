@@ -23,9 +23,9 @@
     <div class="fixed top-1/4 left-1/4 w-96 h-96 bg-blue-300/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
     <div class="fixed bottom-1/4 right-1/4 w-80 h-80 bg-emerald-300/20 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
-    <div class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div class="sm:mx-auto sm:w-full sm:max-w-md">
-            <div class="bg-white py-12 px-6 shadow-2xl shadow-blue-500/10 sm:rounded-[2.5rem] border border-slate-100 text-center relative overflow-hidden">
+    <div class="min-h-screen flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-md mx-auto">
+            <div class="bg-white py-10 px-6 sm:py-12 sm:px-8 shadow-2xl shadow-blue-500/10 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 text-center relative overflow-hidden">
                 <!-- Confetti/Celebration Element -->
                 <div class="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                     <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>

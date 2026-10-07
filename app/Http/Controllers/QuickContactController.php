@@ -47,7 +47,7 @@ class QuickContactController extends Controller
             'kelas'            => $validated['kelas'],
             'status'           => 'BARU',
             'stage_number'     => 1,
-            'source'           => 'Website CIC', // Change to 'Website CIC' for better tracking
+            'source'           => 'Lainnya',
             'notes'            => 'Diinput mandiri melalui form Tambah Kontak Cepat',
             'cs_id'            => $cs ? $cs->id : null,
         ]);

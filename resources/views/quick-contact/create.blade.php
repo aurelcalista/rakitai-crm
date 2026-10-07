@@ -22,8 +22,8 @@
     <div class="fixed -top-40 -left-40 w-96 h-96 bg-blue-300/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
     <div class="fixed top-1/4 right-0 w-80 h-80 bg-emerald-300/20 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
-    <div class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+    <div class="min-h-screen flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8">
+        <div class="w-full max-w-md mx-auto">
             <div class="flex justify-center items-center gap-3 mb-6">
                 <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-12 w-auto object-contain">
                 <div class="hidden sm:block">
@@ -40,8 +40,8 @@
             </div>
         </div>
 
-        <div class="sm:mx-auto sm:w-full sm:max-w-xl">
-            <div class="bg-white py-8 px-4 shadow-2xl shadow-blue-500/10 sm:rounded-[2rem] sm:px-10 border border-slate-100">
+        <div class="w-full max-w-xl mx-auto">
+            <div class="bg-white py-8 px-5 shadow-2xl shadow-blue-500/10 rounded-3xl sm:rounded-[2rem] sm:px-10 border border-slate-100">
                 <form action="{{ route('kontak-cepat.store') }}" method="POST" @submit="isLoading = true" class="space-y-6" x-data="{ prospectType: 'Sekolah' }">
                     @csrf
                     
@@ -58,13 +58,13 @@
                     <!-- Jenis Instansi -->
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Pilih Asal Instansi <span class="text-rose-500">*</span></label>
-                        <div class="grid grid-cols-2 gap-3">
-                            <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm font-bold text-center transition"
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm sm:text-base font-bold text-center transition"
                                 :class="prospectType === 'Sekolah' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-2 ring-blue-600/20 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300'">
                                 <input type="radio" name="jenis_instansi" value="Sekolah" x-model="prospectType" class="hidden">
                                 <span>Sekolah (SMA/SMK)</span>
                             </label>
-                            <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm font-bold text-center transition"
+                            <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm sm:text-base font-bold text-center transition"
                                 :class="prospectType === 'PT' ? 'bg-blue-50 border-blue-600 text-blue-800 ring-2 ring-blue-600/20 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300'">
                                 <input type="radio" name="jenis_instansi" value="PT" x-model="prospectType" class="hidden">
                                 <span>Perguruan Tinggi (PT)</span>
@@ -122,7 +122,7 @@
                     <!-- Kelas -->
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-2">Pilihan Kelas <span class="text-rose-500">*</span></label>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <label class="flex items-center justify-center p-3 rounded-xl border cursor-pointer text-sm font-bold text-center transition bg-slate-50 border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300">
                                 <input type="radio" name="kelas" value="Reguler" required class="mr-2 text-blue-600" {{ old('kelas') == 'Reguler' ? 'checked' : '' }}>
                                 <span>Reguler (Pagi)</span>

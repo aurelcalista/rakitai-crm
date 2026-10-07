@@ -288,16 +288,6 @@
                         </div>
 
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
-                            <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] ?? '-' }}</p>
-                        </div>
-
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Training AI & Robotics</span>
-                            <p class="font-semibold text-blue-600 mt-0.5">{{ $prospect['ai_training'] ?? '-' }}</p>
-                        </div>
-
-                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>
                             <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] ?? '-' }}</p>
                         </div>
@@ -768,10 +758,6 @@
                                 </div>
                             </div>
 
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
-                                <input type="text" name="name" value="{{ $prospect['name'] }}" placeholder="Nama prospek..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
 
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
@@ -789,8 +775,8 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
-                                <input type="text" name="pic" required value="{{ $prospect['pic'] }}" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Prospek <span class="text-rose-500">*</span></label>
+                                <input type="text" name="pic" required value="{{ $prospect['pic'] !== '-' ? $prospect['pic'] : ($prospect['name'] !== '-' ? $prospect['name'] : '') }}" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
 
                             <div>
