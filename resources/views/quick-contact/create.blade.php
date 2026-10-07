@@ -59,6 +59,12 @@
                         />
                     </div>
 
+                    <!-- Kelas / Tingkat -->
+                    <div x-show="prospectType === 'Sekolah'">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Kelas <span class="text-rose-500">*</span></label>
+                        <input type="text" name="asal_kelas" value="{{ old('asal_kelas') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Contoh: 12 RPL 1 / 12 MIPA 1">
+                    </div>
+
                     <!-- Nama Lengkap -->
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
@@ -71,17 +77,30 @@
                         <input type="tel" name="no_whatsapp" value="{{ old('no_whatsapp') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Contoh: 08123456789">
                     </div>
 
-                    <!-- Prodi -->
+                    <!-- No WhatsApp Orang Tua -->
                     <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Nomor WhatsApp Orang Tua/Wali <span class="text-sm font-normal text-slate-500">(Opsional)</span></label>
+                        <input type="tel" name="wa_ortu" value="{{ old('wa_ortu') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Contoh: 08123456789">
+                    </div>
+
+                    <!-- Prodi -->
+                    <div x-data="{ selectedProdi: '{{ old('prodi_id') }}' }">
                         <label class="block text-sm font-bold text-slate-700 mb-1">Pilihan Program Studi <span class="text-rose-500">*</span></label>
-                        <select name="prodi_id" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none">
+                        <select name="prodi_id" x-model="selectedProdi" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none mb-3">
                             <option value="">-- Pilih Program Studi --</option>
                             @foreach($prodis as $prodi)
                                 <option value="{{ $prodi->id }}" {{ old('prodi_id') == $prodi->id ? 'selected' : '' }}>
                                     {{ $prodi->jenjang }} {{ $prodi->nama }}
                                 </option>
                             @endforeach
+                            <option value="lainnya" {{ old('prodi_id') == 'lainnya' ? 'selected' : '' }}>Lainnya</option>
                         </select>
+
+                        <!-- Input Text Prodi Lainnya -->
+                        <div x-show="selectedProdi === 'lainnya'" x-transition style="display: none;">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Sebutkan Program Studi <span class="text-rose-500">*</span></label>
+                            <input type="text" name="prodi_lainnya" value="{{ old('prodi_lainnya') }}" :required="selectedProdi === 'lainnya'" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Ketik program studi pilihan Anda">
+                        </div>
                     </div>
 
                     <!-- Kelas -->

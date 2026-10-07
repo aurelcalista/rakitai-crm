@@ -261,6 +261,7 @@
                                 <td class="py-4 px-3">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
                                     <div class="text-[10px] text-slate-500 mt-1 font-semibold" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
+                                    <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
                                 </td>
                                 <td class="py-4 px-3">

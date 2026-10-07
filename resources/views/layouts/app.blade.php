@@ -2220,17 +2220,21 @@ x-init="
                                 </div>
                             </div>
 
-                            <div>
+                            <div x-data="{ selectedProdi: '' }">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center justify-between">
                                     <span>Program Studi Diminati</span>
                                     <span class="text-[11px] text-slate-400 font-normal">Opsional</span>
                                 </label>
-                                <select name="prodi_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <select name="prodi_id" x-model="selectedProdi" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white mb-2">
                                     <option value="">-- Pilih Program Studi (Boleh Dikosongkan) --</option>
                                     @foreach($prodisList as $prd)
                                         <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
                                     @endforeach
+                                    <option value="lainnya">Lainnya</option>
                                 </select>
+                                <div x-show="selectedProdi === 'lainnya'" style="display: none;">
+                                    <input type="text" name="prodi_lainnya" placeholder="Ketik program studi pilihan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                </div>
                             </div>
 
                             <div>
@@ -2241,6 +2245,10 @@ x-init="
                                     @endforeach
                                 </select>
                             </div>
+                            <div x-show="prospekType === 'Sekolah'">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kelas / Tingkat Sekolah</label>
+                                <input type="text" name="asal_kelas" placeholder="Contoh: 12 RPL 1" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
                                 <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
@@ -2248,6 +2256,10 @@ x-init="
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
                                 <input type="tel" name="whatsapp" required placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WA Orang Tua/Wali (Opsional)</label>
+                                <input type="tel" name="wa_ortu" placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>

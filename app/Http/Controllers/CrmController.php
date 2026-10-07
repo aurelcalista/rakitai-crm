@@ -1045,6 +1045,47 @@ class CrmController extends Controller
         return view('admin.settings.index');
     }
 
+    public function updateTerimaKasihSettings(Request $request)
+    {
+        if (strtolower(auth()->user()->role) !== 'admin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_TITLE'],
+            ['nama' => $request->title, 'status' => 'Aktif']
+        );
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_SUBTITLE'],
+            ['nama' => $request->subtitle ?? '', 'status' => 'Aktif']
+        );
+
+        if ($request->has('delete_image') && $request->delete_image == '1') {
+            $existingImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
+            if ($existingImage && $existingImage->nama) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($existingImage->nama)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($existingImage->nama);
+                }
+                $existingImage->delete();
+            }
+        } elseif ($request->hasFile('image')) {
+            $path = $request->file('image')->store('settings', 'public');
+            \App\Models\MasterData::updateOrCreate(
+                ['type' => 'setting', 'kode' => 'TK_IMAGE'],
+                ['nama' => $path, 'status' => 'Aktif']
+            );
+        }
+
+        return redirect()->back()->with('success', 'Pengaturan Halaman Terima Kasih berhasil diperbarui!');
+    }
+
     /**
      * Daftar Prospek (Scoped to authenticated user role / team hierarchy).
      */
@@ -1404,12 +1445,15 @@ class CrmController extends Controller
             'name' => 'nullable|string',
             'pic' => 'nullable|string',
             'whatsapp' => 'nullable|string',
+            'wa_ortu' => 'nullable|string',
+            'asal_kelas' => 'nullable|string',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'perusahaan_manual' => 'nullable|string',
             'category' => 'nullable|string',
-            'prodi_id' => 'nullable|exists:prodis,id',
+            'prodi_id' => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
             'source' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
@@ -1479,6 +1523,15 @@ class CrmController extends Controller
         }
 
         unset($validated['sekolah_manual'], $validated['perusahaan_manual']);
+
+        if (empty($validated['prodi_id'])) {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+        } else {
+            $validated['prodi_lainnya'] = null;
+        }
 
         $prospek->update($validated);
 
@@ -2186,6 +2239,10 @@ class CrmController extends Controller
      */
     public function pengaturanIndex(): View
     {
-        return view('profil.pengaturan');
+        $tkTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_TITLE')->first();
+        $tkSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_SUBTITLE')->first();
+        $tkImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
+
+        return view('profil.pengaturan', compact('tkTitle', 'tkSubtitle', 'tkImage'));
     }
 }

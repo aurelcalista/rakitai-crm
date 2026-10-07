@@ -299,8 +299,9 @@ class ProspectController extends Controller
             $handlerLabel = $user->name . ' (SPV Penanganan Mandiri)';
         }
 
-        $prodi = !empty($validated['prodi_id']) ? Prodi::find($validated['prodi_id']) : null;
-        $prodiNama = $prodi ? $prodi->nama : null;
+        $prodi = !empty($validated['prodi_id']) && $validated['prodi_id'] !== 'lainnya' ? Prodi::find($validated['prodi_id']) : null;
+        $prodiNama = $prodi ? $prodi->nama : ($validated['prodi_lainnya'] ?? null);
+        $prodiLainnya = $validated['prodi_id'] === 'lainnya' ? ($validated['prodi_lainnya'] ?? null) : null;
         $wilayahId = !empty($validated['wilayah_id']) ? $validated['wilayah_id'] : (!empty($validated['kota_id']) ? $validated['kota_id'] : $user->wilayah_id);
 
         // Auto-route active Sales & CS from active user_wilayah if not manually assigned
@@ -323,7 +324,7 @@ class ProspectController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas) {
+        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $prodiLainnya, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
 
             $createdAt = !empty($validated['tanggal_masuk'])
@@ -338,12 +339,15 @@ class ProspectController extends Controller
                 'type'               => $validated['type'],
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,
+                'prodi_lainnya'      => $prodiLainnya,
                 'kelas'              => $kelas,
+                'asal_kelas'         => $validated['asal_kelas'] ?? null,
                 'sekolah_id'         => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'      => $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'                => $validated['pic'],
                 'pic_phone'          => $validated['pic_phone'] ?? null,
                 'whatsapp'           => $validated['whatsapp'],
+                'wa_ortu'            => $validated['wa_ortu'] ?? null,
                 'status'             => $validated['status'],
                 'stage_number'       => $stageNumber,
                 'notes'              => $validated['notes'] ?? null,
@@ -432,7 +436,10 @@ class ProspectController extends Controller
             'notes'       => 'nullable|string',
             'category'    => 'nullable|string|max:100',
             'source'      => 'required|string|max:100',
-            'prodi_id'    => 'nullable|exists:prodis,id',
+            'prodi_id'    => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
+            'wa_ortu'     => 'nullable|string|max:20',
+            'asal_kelas'  => 'nullable|string|max:100',
             'kelas'       => 'nullable|in:Reguler,Karyawan',
         ]);
 
@@ -489,11 +496,18 @@ class ProspectController extends Controller
             return back()->withInput()->withErrors([$errorField => 'Data prospek sudah ada (Duplicate ' . $errorField . ').']);
         }
 
-        if (!empty($validated['prodi_id'])) {
+        if (!empty($validated['prodi_id']) && $validated['prodi_id'] !== 'lainnya') {
             $prodi = Prodi::find($validated['prodi_id']);
             if ($prodi) {
                 $validated['category'] = $prodi->nama;
+                $validated['prodi_lainnya'] = null;
             }
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+            $validated['category'] = $validated['prodi_lainnya'] ?? null;
+        } else {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
         }
 
         $prospek->update($validated);
