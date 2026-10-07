@@ -124,10 +124,11 @@
                     <div class="absolute inset-0 bg-gradient-to-tr from-blue-200/40 to-purple-200/40 rounded-[2.5rem] transform rotate-3 scale-105 -z-10"></div>
                     
                     <!-- Main Image -->
-                    <div class="relative rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white bg-white">
-                        <img src="{{ asset('images/crm-team-illustration.jpg') }}" alt="Tim CRM" class="w-full h-auto object-cover">
+                    <div class="relative rounded-[2rem] overflow-hidden shadow-2xl shadow-blue-500/20 border-4 border-white bg-white">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-purple-500/10 z-10 pointer-events-none"></div>
+                        <img src="{{ asset('images/foto-1.png') }}" alt="Tim CRM" class="w-full h-[350px] sm:h-[450px] lg:h-[500px] object-cover object-top relative z-0">
                         <!-- Gradient Overlay -->
-                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent z-10 pointer-events-none"></div>
                     </div>
 
                     <!-- Floating Card 1 -->
@@ -261,10 +262,18 @@
     <section id="fitur" class="py-16 lg:py-24 bg-slate-50 border-y border-slate-100 relative overflow-hidden">
         <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]"></div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div class="text-center max-w-2xl mx-auto mb-16">
-                <span class="inline-block text-blue-600 font-bold tracking-wider uppercase text-sm mb-2 bg-blue-100/50 px-3 py-1 rounded-full border border-blue-200">Fitur Unggulan</span>
-                <h2 class="text-3xl lg:text-4xl font-black text-slate-900 mb-4">Semua yang Dibutuhkan Tim Marketing & Sales</h2>
-                <p class="text-lg text-slate-600">Berbagai fitur canggih yang dirancang khusus untuk mempermudah alur kerja Anda.</p>
+            <div class="lg:grid lg:grid-cols-12 lg:gap-12 items-center mb-16">
+                <div class="lg:col-span-7 text-center lg:text-left mb-10 lg:mb-0">
+                    <span class="inline-block text-blue-600 font-bold tracking-wider uppercase text-sm mb-2 bg-blue-100/50 px-3 py-1 rounded-full border border-blue-200">Fitur Unggulan</span>
+                    <h2 class="text-3xl lg:text-4xl font-black text-slate-900 mb-4">Semua yang Dibutuhkan Tim Marketing & Sales</h2>
+                    <p class="text-lg text-slate-600">Berbagai fitur canggih yang dirancang khusus untuk mempermudah alur kerja Anda. Kelola prospek dengan lebih mudah dan terarah.</p>
+                </div>
+                <div class="lg:col-span-5 relative">
+                    <div class="absolute inset-0 bg-blue-200/50 rounded-3xl transform rotate-3 translate-x-2 translate-y-2 -z-10 shadow-sm"></div>
+                    <div class="relative rounded-3xl overflow-hidden shadow-xl border-[5px] border-white bg-white">
+                        <img src="{{ asset('images/foto-2.png') }}" alt="Fitur Unggulan" class="w-full h-56 lg:h-64 object-cover object-center">
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -323,8 +332,17 @@
     <!-- 6. ROLE SECTION -->
     <section class="py-16 lg:py-24">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl lg:text-4xl font-black text-slate-900">Satu Platform untuk Setiap Peran</h2>
+            <div class="lg:flex lg:items-center lg:justify-between mb-16 gap-12">
+                <div class="lg:w-1/2 text-center lg:text-left mb-10 lg:mb-0">
+                    <h2 class="text-3xl lg:text-4xl font-black text-slate-900 mb-4">Satu Platform untuk Setiap Peran</h2>
+                    <p class="text-lg text-slate-600">Kolaborasi antar peran menjadi lebih mulus dan transparan.</p>
+                </div>
+                <div class="lg:w-1/2 relative max-w-md mx-auto lg:mx-0">
+                    <div class="absolute -inset-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-[2.5rem] transform -rotate-2 -z-10 blur-sm opacity-80"></div>
+                    <div class="rounded-3xl overflow-hidden border-[5px] border-white shadow-lg relative bg-white">
+                        <img src="{{ asset('images/foto-3.png') }}" alt="Peran Tim" class="w-full h-48 lg:h-56 object-cover object-top">
+                    </div>
+                </div>
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -375,9 +393,17 @@
     <!-- 7. ANALYTICS / DASHBOARD PREVIEW -->
     <section id="analytics" class="py-16 lg:py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-3xl lg:text-4xl font-black text-slate-900 mb-4">Data Membantu Tim Mengambil Keputusan Lebih Cepat.</h2>
-                <p class="text-lg text-slate-600">Pantau target, realisasi, pipeline, dan performa tim dalam satu tampilan yang mudah dipahami.</p>
+            <div class="lg:grid lg:grid-cols-12 gap-8 items-center mb-16">
+                <div class="lg:col-span-7 text-center lg:text-left mb-10 lg:mb-0">
+                    <h2 class="text-3xl lg:text-4xl font-black text-slate-900 mb-4">Data Membantu Tim Mengambil Keputusan Lebih Cepat.</h2>
+                    <p class="text-lg text-slate-600">Pantau target, realisasi, pipeline, dan performa tim dalam satu tampilan yang mudah dipahami.</p>
+                </div>
+                <div class="lg:col-span-5 relative max-w-md mx-auto lg:mx-0 lg:ml-auto w-full">
+                    <div class="absolute inset-0 bg-emerald-100/60 rounded-[2rem] transform rotate-2 scale-105 -z-10 shadow-sm"></div>
+                    <div class="rounded-[2rem] overflow-hidden shadow-lg border-[5px] border-white bg-white">
+                        <img src="{{ asset('images/foto-4.png') }}" alt="Analisa Data" class="w-full h-48 lg:h-56 object-cover object-center">
+                    </div>
+                </div>
             </div>
 
             <!-- Dashboard Mockup -->
@@ -465,9 +491,9 @@
             <div class="lg:grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                 <!-- Image Collage -->
                 <div class="relative mb-12 lg:mb-0 order-2 lg:order-1">
-                    <div class="absolute inset-0 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-[3rem] transform -rotate-3 scale-105 -z-10"></div>
-                    <div class="relative rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl bg-white group">
-                        <img src="{{ asset('images/crm-team-illustration.jpg') }}" alt="Tim Kolaborasi" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-blue-100 to-purple-100 rounded-[3rem] transform -rotate-3 scale-105 -z-10 shadow-lg"></div>
+                    <div class="relative rounded-[2.5rem] overflow-hidden border-[6px] border-white shadow-2xl bg-white group h-80 sm:h-96 lg:h-[450px]">
+                        <img src="{{ asset('images/foto-5.png') }}" alt="Tim Kolaborasi" class="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105">
                     </div>
                     <!-- Decorative Badge -->
                     <div class="absolute -bottom-6 -right-6 bg-white p-5 rounded-2xl shadow-xl border border-slate-100 flex flex-col items-center justify-center animate-float">
