@@ -31,6 +31,61 @@
             animation: blobPulse 8s ease-in-out infinite;
         }
 
+        /* Smooth entrance animations when page opens */
+        @keyframes pageEntranceUp {
+            0% {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes pageEntranceScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.92) translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        .animate-entrance-up {
+            animation: pageEntranceUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .animate-entrance-image {
+            animation: pageEntranceScale 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+        }
+
+        /* Hero person floating up and down (naik turun) */
+        @keyframes floatHeroBob {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-13px); }
+        }
+        .animate-float-hero {
+            animation: floatHeroBob 4.8s ease-in-out infinite;
+        }
+
+        /* Section 3 person pulse scale (besar kecil) */
+        @keyframes pulseScalePerson {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+        .animate-pulse-scale {
+            animation: pulseScalePerson 3.8s ease-in-out infinite;
+        }
+
+        /* Section 5 Dark Card man floating (naik turun lembut) */
+        @keyframes floatManGentle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-9px); }
+        }
+        .animate-float-man {
+            animation: floatManGentle 5.5s ease-in-out infinite 0.4s;
+        }
+
         /* Gentle floating animation for FAQ side figures */
         @keyframes floatGentleLeft {
             0%, 100% { transform: translateY(0px); }
@@ -191,7 +246,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
                     
                     <!-- Left: Headline, Description & CTAs (7 cols) -->
-                    <div class="lg:col-span-7 text-left">
+                    <div class="lg:col-span-7 text-left animate-entrance-up">
                         
                         <!-- Eyebrow Badge (matches reference layout, wraps comfortably on mobile) -->
                         <div class="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-900 text-xs sm:text-sm font-semibold mb-6 shadow-2xs">
@@ -232,48 +287,67 @@
 
                     </div>
 
-                    <!-- Right: Visual Illustration / Photo Cutout with Laptop (5 cols) -->
-                    <div class="lg:col-span-5 relative flex justify-center lg:justify-end items-end pt-4 sm:pt-6 lg:pt-0">
+                    <!-- Right: Visual Illustration / Photo Cutout with Laptop (5 cols) matching Image 1 Reference -->
+                    <div class="lg:col-span-5 relative flex justify-center lg:justify-end items-end pt-4 sm:pt-6 lg:pt-0 animate-entrance-image">
                         
-                        <!-- Soft organic light-blue blob background behind the person (matches reference) -->
-                        <div class="absolute -inset-2 sm:-inset-4 lg:-inset-6 bg-gradient-to-tr from-sky-100/90 via-blue-50/80 to-indigo-50/60 rounded-[3rem] sm:rounded-[4rem] -rotate-2 -z-10 animate-blob-pulse"></div>
-
-                        <!-- Doodle Handwriting Note & Curved Arrow (Top-Right, matching reference) -->
-                        <div class="absolute top-1 sm:top-4 right-1 sm:right-2 z-20 pointer-events-none select-none text-right">
-                            <span class="font-handwriting text-base sm:text-lg lg:text-xl text-slate-700 -rotate-6 inline-block font-bold tracking-wide drop-shadow-2xs">
-                                Teknologi untuk hasil<br>yang lebih baik
-                            </span>
-                            <!-- Hand-drawn curved doodle arrow pointing down towards laptop -->
-                            <div class="flex justify-end pr-4 sm:pr-6 -mt-1">
-                                <svg class="w-10 sm:w-12 h-8 sm:h-10 text-slate-700 -rotate-12" viewBox="0 0 50 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M42 4 C35 15, 20 18, 12 30" />
-                                    <path d="M8 24 L12 30 L18 28" />
+                        <!-- Main Cutout Composition with gentle floating animation -->
+                        <div class="relative z-10 w-full max-w-[320px] sm:max-w-[400px] lg:max-w-[450px] animate-float-hero flex justify-center items-end select-none">
+                            
+                            <!-- Organic Dual-Tone Blob Background (Directly matching user reference Image 1) -->
+                            <div class="absolute inset-0 -z-10 pointer-events-none select-none flex items-center justify-center">
+                                <svg viewBox="0 0 500 500" class="w-[110%] h-[110%] -translate-y-2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <!-- Layer 1: Soft Sky Blue Organic Accent Blob (Bottom-left peek, #d1ddee) -->
+                                    <path d="M 110 240 C 40 290, 15 390, 65 440 C 115 485, 230 485, 305 445 C 365 405, 335 335, 285 285 C 235 235, 175 195, 110 240 Z" fill="#D1DDEE" />
+                                    <!-- Layer 2: Deep Dark Navy Organic Blob framing hijab and body (#1e2c44) -->
+                                    <path d="M 245 42 C 345 38, 428 100, 438 205 C 450 315, 418 420, 318 450 C 218 475, 110 435, 90 330 C 72 225, 145 46, 245 42 Z" fill="#1E2C44" />
                                 </svg>
                             </div>
-                        </div>
 
-                        <!-- Small Decorative Doodle Sparks -->
-                        <div class="absolute top-16 left-2 sm:left-4 z-20 text-slate-400 pointer-events-none hidden sm:block">
-                            <svg class="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                                <path d="M12 2v4m0 12v4M2 12h4m12 0h4m-3.5-6.5l-2.8 2.8m-7.4 7.4l-2.8 2.8m13 0l-2.8-2.8m-7.4-7.4l-2.8-2.8"/>
-                            </svg>
-                        </div>
+                            <!-- Doodle Accent: Top-Left Double Sparks (Matching Image 1 Reference) -->
+                            <div class="absolute top-8 sm:top-12 left-1 sm:left-4 z-20 pointer-events-none select-none">
+                                <svg class="w-8 sm:w-9 h-8 sm:h-9 text-[#1e2c44]" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                                    <line x1="6" y1="22" x2="20" y2="10" />
+                                    <line x1="12" y1="28" x2="26" y2="18" />
+                                </svg>
+                            </div>
 
-                        <!-- Main Cutout Photo: Woman with Laptop (images/foto-5.png) -->
-                        <div class="relative z-10 w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[440px]">
+                            <!-- Doodle Handwriting Note & Curved Arrow (Top-Right, Matching Image 1 Reference) -->
+                            <div class="absolute -top-3 sm:top-0 -right-2 sm:right-2 z-20 pointer-events-none select-none text-right">
+                                <span class="font-handwriting text-sm sm:text-base lg:text-lg text-[#1e2c44] -rotate-6 inline-block font-bold tracking-wide leading-tight drop-shadow-2xs">
+                                    Teknologi<br>untuk hasil<br>yang lebih baik
+                                </span>
+                                <!-- Hand-drawn curved doodle arrow pointing down towards hijab/cheek -->
+                                <div class="flex justify-end pr-2.5 pt-0.5">
+                                    <svg class="w-8 sm:w-10 h-7 sm:h-9 text-[#1e2c44]" viewBox="0 0 45 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M38 5 C30 16, 20 22, 10 32" />
+                                        <path d="M8 24 L10 32 L18 30" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Doodle Accent: Mid-Right Wave/Arc (Matching Image 1 Reference) -->
+                            <div class="absolute top-1/2 -right-2 sm:-right-1 z-20 pointer-events-none select-none">
+                                <svg class="w-6 sm:w-7 h-9 sm:h-10 text-[#1e2c44]" viewBox="0 0 24 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                                    <path d="M4 6 C16 4, 20 18, 14 26 C10 30, 16 34, 20 34" />
+                                </svg>
+                            </div>
+
+                            <!-- Main Cutout Photo: Woman with Laptop (images/foto-5.png) -->
                             <img 
                                 src="{{ asset('images/foto-5.png') }}" 
                                 alt="CRM UCIC Platform - Tim Pemasaran dengan Laptop" 
-                                class="w-full h-auto object-contain drop-shadow-xl select-none"
+                                class="w-full h-auto object-contain drop-shadow-md select-none relative z-10"
                                 loading="eager"
                             >
-                        </div>
 
-                        <!-- Floating subtle doodle line near bottom right -->
-                        <div class="absolute bottom-4 right-1 z-20 pointer-events-none text-slate-400 hidden sm:block">
-                            <svg class="w-10 h-6" viewBox="0 0 40 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                                <path d="M4 14 C12 6, 24 18, 36 8" />
-                            </svg>
+                            <!-- Doodle Accent: Bottom-Right Double Lines (Matching Image 1 Reference) -->
+                            <div class="absolute bottom-6 sm:bottom-8 -right-1 sm:right-1 z-20 pointer-events-none select-none">
+                                <svg class="w-8 sm:w-9 h-6 sm:h-7 text-[#1e2c44]" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                                    <line x1="4" y1="14" x2="22" y2="8" />
+                                    <line x1="8" y1="20" x2="26" y2="14" />
+                                </svg>
+                            </div>
+
                         </div>
 
                     </div>
@@ -405,8 +479,8 @@
                             </svg>
                         </div>
 
-                        <!-- Main Cutout Photo: Woman with hands forward (images/foto-2.png) -->
-                        <div class="relative z-10 w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[340px]">
+                        <!-- Main Cutout Photo: Woman with hands forward (images/foto-2.png) with gentle pulse-scale animation -->
+                        <div class="relative z-10 w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[340px] animate-pulse-scale">
                             <img 
                                 src="{{ asset('images/foto-2.png') }}" 
                                 alt="CRM UCIC Solusi Terpadu - Gestur Tangan Terbuka" 
@@ -572,21 +646,21 @@
                     </div>
                 </div>
 
-                <!-- Visual Composition: Flanked by Photo Cutouts with Floating Animation & Doodles -->
-                <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-end justify-center">
+                <!-- Visual Composition: Flanked by Photo Cutouts with Floating Animation & Doodles (Larger Presence) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-end justify-center">
                     
-                    <!-- Left: Woman Thinking (foto-1.png) — Floating animation & cute doodle -->
-                    <div class="hidden xl:flex xl:col-span-2 justify-end items-end pb-2">
-                        <div class="relative w-full max-w-[200px] select-none animate-float-left">
+                    <!-- Left: Woman Thinking (foto-1.png) — Enlarged to match height of right photo -->
+                    <div class="hidden lg:flex lg:col-span-3 justify-end items-end pb-2">
+                        <div class="relative select-none animate-float-left">
                             
-                            <!-- Cute Doodle Thought Note above Left Girl -->
-                            <div class="absolute -top-12 -right-4 z-20 pointer-events-none select-none text-left">
-                                <span class="font-handwriting text-base sm:text-lg text-slate-700 -rotate-12 inline-block font-bold drop-shadow-2xs">
+                            <!-- Cute Doodle Thought Note directly above Left Girl's Head (Lowered closer to talent) -->
+                            <div class="absolute top-2 sm:top-4 lg:top-8 right-2 sm:right-6 z-20 pointer-events-none select-none text-left">
+                                <span class="font-handwriting text-base sm:text-lg lg:text-xl text-slate-700 -rotate-6 inline-block font-bold drop-shadow-2xs whitespace-nowrap">
                                     Punya pertanyaan? 🤔
                                 </span>
                                 <!-- Doodle curved arrow pointing towards FAQ -->
-                                <div class="pl-2 -mt-1">
-                                    <svg class="w-8 h-6 text-slate-600 rotate-12" viewBox="0 0 45 35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <div class="pl-4 pt-0.5">
+                                    <svg class="w-8 sm:w-9 h-6 sm:h-7 text-slate-600 rotate-12" viewBox="0 0 45 35" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                         <path d="M5 10 C18 12, 28 20, 38 28" />
                                         <path d="M30 29 L38 28 L37 20" />
                                     </svg>
@@ -597,14 +671,14 @@
                             <img 
                                 src="{{ asset('images/foto-1.png') }}" 
                                 alt="Pertanyaan Fitur CRM UCIC" 
-                                class="w-full h-auto object-contain drop-shadow-md"
+                                class="h-[430px] lg:h-[480px] xl:h-[520px] w-auto max-w-none object-contain drop-shadow-md"
                                 loading="eager"
                             >
                         </div>
                     </div>
 
-                    <!-- Center: Interactive Accordion Container (12 cols on mobile/tablet/laptop, 8 cols on xl) -->
-                    <div class="xl:col-span-8 w-full max-w-3xl mx-auto">
+                    <!-- Center: Interactive Accordion Container -->
+                    <div class="lg:col-span-6 w-full max-w-2xl xl:max-w-3xl mx-auto">
                         <div class="space-y-3.5 sm:space-y-4">
                             @foreach($faqs as $faq)
                             <div 
@@ -666,18 +740,18 @@
                         </div>
                     </div>
 
-                    <!-- Right: Photo provided by user (foto-faq-kanan.png) — Floating animation & cute doodle -->
-                    <div class="hidden xl:flex xl:col-span-2 justify-start items-end pb-2">
-                        <div class="relative w-full max-w-[200px] select-none animate-float-right">
+                    <!-- Right: Photo provided by user (foto-faq-kanan.png) — Matching height with left photo -->
+                    <div class="hidden lg:flex lg:col-span-3 justify-start items-end pb-2">
+                        <div class="relative select-none animate-float-right">
                             
-                            <!-- Cute Doodle Answer Note above Right Girl -->
-                            <div class="absolute -top-12 -left-4 z-20 pointer-events-none select-none text-right">
-                                <span class="font-handwriting text-base sm:text-lg text-blue-600 rotate-6 inline-block font-bold drop-shadow-2xs">
-                                    Jawaban lengkapnya! 💡
+                            <!-- Cute Doodle Answer Note directly above Right Girl's pointing hand & head (Lowered closer to talent) -->
+                            <div class="absolute top-2 sm:top-4 lg:top-8 left-2 sm:left-4 z-20 pointer-events-none select-none text-right">
+                                <span class="font-handwriting text-base sm:text-lg lg:text-xl text-blue-600 rotate-3 inline-block font-bold drop-shadow-2xs whitespace-nowrap">
+                                    Jawaban selengkapnya! 💡
                                 </span>
                                 <!-- Doodle curved arrow pointing towards FAQ -->
-                                <div class="flex justify-end pr-2 -mt-1">
-                                    <svg class="w-8 h-6 text-blue-500 -rotate-12" viewBox="0 0 45 35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                <div class="flex justify-end pr-3 pt-0.5">
+                                    <svg class="w-8 sm:w-9 h-6 sm:h-7 text-blue-500 -rotate-12" viewBox="0 0 45 35" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                         <path d="M40 8 C28 14, 18 22, 8 28" />
                                         <path d="M8 20 L8 28 L16 27" />
                                     </svg>
@@ -688,7 +762,7 @@
                             <img 
                                 src="{{ asset('images/foto-faq-kanan.png') }}" 
                                 alt="Jawaban Solusi CRM UCIC" 
-                                class="w-full h-auto object-contain drop-shadow-md scale-x-[-1]"
+                                class="h-[430px] lg:h-[480px] xl:h-[520px] w-auto max-w-none object-contain drop-shadow-md"
                                 loading="eager"
                             >
                         </div>
@@ -709,21 +783,21 @@
         <section class="py-10 sm:py-16 lg:py-20 bg-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
-                <!-- Dark Navy Card Container -->
-                <div class="bg-[#0b162c] rounded-3xl sm:rounded-[2.5rem] px-5 sm:px-10 lg:px-14 pt-8 sm:pt-14 pb-0 relative overflow-hidden border border-slate-800 shadow-2xl">
+                <!-- Dark Navy Card Container (Compact Top Gap & Balanced Vertical Layout) -->
+                <div class="bg-[#0b162c] rounded-3xl sm:rounded-[2.5rem] px-5 sm:px-10 lg:px-14 pt-6 sm:pt-8 lg:pt-9 pb-0 relative overflow-hidden border border-slate-800 shadow-2xl">
                     
                     <!-- Ambient Subtle Radial Glow -->
                     <div class="absolute -top-32 -left-32 w-80 sm:w-96 h-80 sm:h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
                     <div class="absolute top-1/2 right-1/4 w-72 sm:w-80 h-72 sm:h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center lg:items-center">
                         
-                        <!-- Left: Headline & CTA (4 cols) -->
-                        <div class="lg:col-span-4 text-left pb-6 sm:pb-12 z-10">
+                        <!-- Left: Headline & CTA (4 cols) — Vertically Balanced -->
+                        <div class="lg:col-span-4 text-left py-4 lg:py-6 z-10 self-center">
                             <span class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2 block font-display">
                                 Dipercaya oleh Banyak Institusi
                             </span>
-                            <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight mb-3 sm:mb-4">
+                            <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-[40px] font-black text-white tracking-tight leading-tight mb-3 sm:mb-4">
                                 Bersama CRM UCIC,<br>
                                 Capai Lebih Banyak
                             </h2>
@@ -741,8 +815,8 @@
                             </a>
                         </div>
 
-                        <!-- Middle: 3 Statistics Columns (4 cols) -->
-                        <div class="lg:col-span-4 grid grid-cols-3 gap-2 sm:gap-4 pb-6 sm:pb-12 z-10 text-center">
+                        <!-- Middle: 3 Statistics Columns (4 cols) — Vertically Balanced -->
+                        <div class="lg:col-span-4 grid grid-cols-3 gap-2 sm:gap-4 py-4 lg:py-6 z-10 text-center self-center">
                             
                             <!-- Stat 1: 300+ Sekolah / Institusi -->
                             <div class="flex flex-col items-center">
@@ -780,9 +854,9 @@
 
                         </div>
 
-                        <!-- Right: Man in Suit sitting (foto-4.png) — 4 cols -->
-                        <div class="lg:col-span-4 flex justify-center lg:justify-end items-end z-10 pt-2 sm:pt-0">
-                            <div class="w-full max-w-[240px] sm:max-w-[290px] lg:max-w-[340px]">
+                        <!-- Right: Man in Suit sitting (foto-4.png) with gentle floating animation (Ground at bottom) -->
+                        <div class="lg:col-span-4 flex justify-center lg:justify-end items-end z-10 self-end pt-2 sm:pt-0">
+                            <div class="w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[340px] animate-float-man">
                                 <img 
                                     src="{{ asset('images/foto-4.png') }}" 
                                     alt="Eksekutif Pemasaran CRM UCIC - Bersama Rakit AI" 
