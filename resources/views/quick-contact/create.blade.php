@@ -26,18 +26,10 @@
         <div class="w-full max-w-md mx-auto">
             <div class="flex justify-center items-center gap-3 mb-6">
                 <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-12 w-auto object-contain">
-                <div class="hidden sm:block">
-                    <span class="block text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/70 border border-blue-200/90 px-2 py-0.5 rounded-full mb-0.5 w-max">
-                        UCIC CAMPUS
-                    </span>
-                    <h1 class="text-xl font-black text-slate-900 tracking-tight leading-none">CRM Inbound</h1>
-                </div>
+            
             </div>
             
-            <div class="text-center mb-8">
-                <h2 class="text-3xl font-black text-slate-900 mb-2">Tinggalkan Kontak Anda</h2>
-                <p class="text-slate-600">Tim kami akan segera menghubungi Anda melalui WhatsApp.</p>
-            </div>
+            
         </div>
 
         <div class="w-full max-w-xl mx-auto">

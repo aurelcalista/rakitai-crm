@@ -46,6 +46,14 @@ class AdminProdiController extends Controller
             $validated['ukt'] = $validated['spp'];
         }
 
+        $fakultas = trim($validated['fakultas']);
+        if (!empty($fakultas)) {
+            \App\Models\MasterData::firstOrCreate([
+                'type' => 'fakultas',
+                'nama' => $fakultas,
+            ]);
+        }
+
         Prodi::create($validated);
 
         return redirect()->back()->with('success', 'Program Studi berhasil ditambahkan!');
@@ -67,6 +75,14 @@ class AdminProdiController extends Controller
 
         if (empty($validated['ukt']) && !empty($validated['spp'])) {
             $validated['ukt'] = $validated['spp'];
+        }
+
+        $fakultas = trim($validated['fakultas']);
+        if (!empty($fakultas)) {
+            \App\Models\MasterData::firstOrCreate([
+                'type' => 'fakultas',
+                'nama' => $fakultas,
+            ]);
         }
 
         $prodi->update($validated);

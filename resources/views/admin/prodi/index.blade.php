@@ -248,12 +248,16 @@
                             <label class="block font-semibold text-slate-700 mb-1">Nama Program Studi *</label>
                             <input type="text" name="nama" required placeholder="Contoh: S1 Teknik Informatika" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
-                        <div>
-                            <label class="block font-semibold text-slate-700 mb-1">Fakultas *</label>
-                            <select name="fakultas" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                        <div x-data="{ modeManualFakultas: false }">
+                            <label class="flex justify-between items-end font-semibold text-slate-700 mb-1">
+                                <span>Fakultas *</span>
+                                <button type="button" @click="modeManualFakultas = !modeManualFakultas" class="text-[10px] text-purple-600 hover:underline" x-text="modeManualFakultas ? 'Pilih dari List' : 'Input Manual'"></button>
+                            </label>
+                            <select x-show="!modeManualFakultas" name="fakultas" :required="!modeManualFakultas" :disabled="modeManualFakultas" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
                                 <option value="">Pilih Fakultas</option>
                                 @foreach($fakultasList as $f)<option value="{{ $f }}">{{ $f }}</option>@endforeach
                             </select>
+                            <input x-show="modeManualFakultas" type="text" name="fakultas" :required="modeManualFakultas" :disabled="!modeManualFakultas" placeholder="Ketik nama fakultas baru..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
                         <div class="grid grid-cols-3 gap-3">
                             <div>
@@ -311,12 +315,16 @@
                             <label class="block font-semibold text-slate-700 mb-1">Nama Prodi</label>
                             <input type="text" name="nama" required :value="selectedProdi ? selectedProdi.nama : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
-                        <div>
-                            <label class="block font-semibold text-slate-700 mb-1">Fakultas</label>
-                            <select name="fakultas" required :value="selectedProdi ? selectedProdi.fakultas : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                        <div x-data="{ modeManualFakultasEdit: false }">
+                            <label class="flex justify-between items-end font-semibold text-slate-700 mb-1">
+                                <span>Fakultas *</span>
+                                <button type="button" @click="modeManualFakultasEdit = !modeManualFakultasEdit" class="text-[10px] text-purple-600 hover:underline" x-text="modeManualFakultasEdit ? 'Pilih dari List' : 'Input Manual'"></button>
+                            </label>
+                            <select x-show="!modeManualFakultasEdit" name="fakultas" :required="!modeManualFakultasEdit" :disabled="modeManualFakultasEdit" :value="selectedProdi ? selectedProdi.fakultas : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
                                 <option value="">Pilih Fakultas</option>
                                 @foreach($fakultasList as $f)<option value="{{ $f }}">{{ $f }}</option>@endforeach
                             </select>
+                            <input x-show="modeManualFakultasEdit" type="text" name="fakultas" :required="modeManualFakultasEdit" :disabled="!modeManualFakultasEdit" :value="selectedProdi ? selectedProdi.fakultas : ''" placeholder="Ketik nama fakultas baru..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
                         <div class="grid grid-cols-3 gap-3">
                             <div>
