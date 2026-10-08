@@ -46,6 +46,12 @@
                         </div>
                     @endif
 
+                    <!-- Nama Lengkap -->
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
+                        <input type="text" name="nama" value="{{ old('nama') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                    </div>
+
                     <!-- Corporate Selector -->
                     <div class="space-y-1">
                         <label class="block text-sm font-bold text-slate-700 mb-1">Nama Perusahaan / PT <span class="text-rose-500">*</span></label>
@@ -57,11 +63,7 @@
                         />
                     </div>
 
-                    <!-- Nama Lengkap -->
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
-                        <input type="text" name="nama" value="{{ old('nama') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
-                    </div>
+
 
                     <!-- Jabatan (asal_kelas) -->
                     <div>

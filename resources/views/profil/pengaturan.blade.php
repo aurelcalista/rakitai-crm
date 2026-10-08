@@ -86,26 +86,10 @@
                     <input type="text" name="title" value="{{ $tkTitle ? $tkTitle->nama : 'Terima Kasih!' }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">
                 </div>
                 
-                <div x-data="{
-                    content: '',
-                    wordCount: 0,
-                    init() {
-                        this.content = this.$refs.input.value;
-                        this.updateCount();
-                    },
-                    updateCount() {
-                        let words = this.content.trim().split(/\s+/).filter(w => w.length > 0);
-                        if (words.length > 300) {
-                            this.content = words.slice(0, 300).join(' ');
-                            this.$refs.input.value = this.content;
-                            words = this.content.trim().split(/\s+/).filter(w => w.length > 0);
-                        }
-                        this.wordCount = words.length;
-                    }
-                }">
+                <div x-data="{ charCount: 0 }" x-init="charCount = $refs.input.value.length">
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Sub Judul / Pesan (Opsional)</label>
-                    <textarea x-ref="input" @input="content = $event.target.value; updateCount()" name="subtitle" rows="3" placeholder="Data kamu berhasil dikirim. Tim kami akan menghubungi kamu melalui WhatsApp untuk informasi selanjutnya." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">{{ $tkSubtitle ? ($tkSubtitle->deskripsi ?? $tkSubtitle->nama) : '' }}</textarea>
-                    <div class="text-[10px] text-slate-500 mt-1 text-right"><span x-text="wordCount"></span> / 300 Kata</div>
+                    <textarea x-ref="input" @input="charCount = $refs.input.value.length" maxlength="200" name="subtitle" rows="3" placeholder="Data kamu berhasil dikirim. Tim kami akan menghubungi kamu melalui WhatsApp untuk informasi selanjutnya." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">{{ $tkSubtitle ? ($tkSubtitle->deskripsi ?? $tkSubtitle->nama) : '' }}</textarea>
+                    <div class="text-[10px] text-slate-500 mt-1 text-right"><span x-text="charCount"></span> / 200 Karakter</div>
                 </div>
 
                 <div>
@@ -142,26 +126,10 @@
                     <input type="text" name="title" value="{{ $tkCorpTitle ? $tkCorpTitle->nama : 'Terima Kasih' }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">
                 </div>
                 
-                <div x-data="{
-                    content: '',
-                    wordCount: 0,
-                    init() {
-                        this.content = this.$refs.input.value;
-                        this.updateCount();
-                    },
-                    updateCount() {
-                        let words = this.content.trim().split(/\s+/).filter(w => w.length > 0);
-                        if (words.length > 300) {
-                            this.content = words.slice(0, 300).join(' ');
-                            this.$refs.input.value = this.content;
-                            words = this.content.trim().split(/\s+/).filter(w => w.length > 0);
-                        }
-                        this.wordCount = words.length;
-                    }
-                }">
+                <div x-data="{ charCount: 0 }" x-init="charCount = $refs.input.value.length">
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Sub Judul / Pesan (Opsional)</label>
-                    <textarea x-ref="input" @input="content = $event.target.value; updateCount()" name="subtitle" rows="3" placeholder="" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">{{ $tkCorpSubtitle ? ($tkCorpSubtitle->deskripsi ?? ($tkCorpSubtitle->nama !== 'Subtitle' ? $tkCorpSubtitle->nama : '')) : '' }}</textarea>
-                    <div class="text-[10px] text-slate-500 mt-1 text-right"><span x-text="wordCount"></span> / 300 Kata</div>
+                    <textarea x-ref="input" @input="charCount = $refs.input.value.length" maxlength="200" name="subtitle" rows="3" placeholder="" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none">{{ $tkCorpSubtitle ? ($tkCorpSubtitle->deskripsi ?? ($tkCorpSubtitle->nama !== 'Subtitle' ? $tkCorpSubtitle->nama : '')) : '' }}</textarea>
+                    <div class="text-[10px] text-slate-500 mt-1 text-right"><span x-text="charCount"></span> / 200 Karakter</div>
                 </div>
 
                 <div>

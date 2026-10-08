@@ -48,6 +48,12 @@
 
                     <input type="hidden" name="jenis_instansi" value="Sekolah">
 
+                    <!-- Nama Lengkap -->
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
+                        <input type="text" name="nama" value="{{ old('nama') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                    </div>
+
                     <!-- Sekolah Selector -->
                     <div class="space-y-1">
                         <label class="block text-sm font-bold text-slate-700 mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
@@ -65,11 +71,7 @@
                         <input type="text" name="asal_kelas" value="{{ old('asal_kelas') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Contoh: 12 RPL 1 / 12 MIPA 1">
                     </div>
 
-                    <!-- Nama Lengkap -->
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-500">*</span></label>
-                        <input type="text" name="nama" value="{{ old('nama') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
-                    </div>
+
 
                     <!-- No WhatsApp -->
                     <div>
