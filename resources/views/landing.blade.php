@@ -150,16 +150,16 @@
         :class="scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200/90 py-0' : 'bg-white/80 backdrop-blur-md border-b border-slate-200/60 py-0'"
     >
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
+            <div class="flex justify-between items-center h-16 sm:h-20">
                 
                 <!-- Brand / Logo -->
-                <a href="#beranda" class="flex items-center gap-3 group select-none">
-                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-10 sm:h-11 w-auto object-contain transition-transform duration-200 group-hover:scale-105">
+                <a href="#beranda" class="flex items-center gap-2.5 sm:gap-3 group select-none">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-8 sm:h-11 w-auto object-contain transition-transform duration-200 group-hover:scale-105">
                     <div>
-                        <span class="block text-[10px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-100/70 border border-blue-200/90 px-2 py-0.5 rounded-full w-max leading-none mb-0.5">
+                        <span class="block text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-100/70 border border-blue-200/90 px-1.5 sm:px-2 py-0.5 rounded-full w-max leading-none mb-0.5">
                             UCIC CAMPUS
                         </span>
-                        <span class="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none block font-display">
+                        <span class="text-sm sm:text-lg font-black text-slate-900 tracking-tight leading-none block font-display">
                             CRM Inbound
                         </span>
                     </div>
@@ -175,7 +175,19 @@
                 </nav>
 
                 <!-- Desktop CTA & Mobile Toggle -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- Quick mobile login button -->
+                    <a 
+                        href="{{ route('login') }}" 
+                        class="md:hidden inline-flex items-center gap-1.5 bg-[#0f172a] active:bg-blue-900 text-white px-3.5 py-1.5 rounded-full font-bold text-xs transition-transform active:scale-95 font-display shadow-2xs"
+                    >
+                        <span>Masuk</span>
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                        </svg>
+                    </a>
+
+                    <!-- Desktop Login Button -->
                     <a 
                         href="{{ route('login') }}" 
                         class="hidden sm:inline-flex items-center gap-2 bg-[#0f172a] hover:bg-blue-900 text-white px-5 sm:px-6 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-slate-900/10 hover:shadow-md hover:shadow-blue-900/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 group font-display"
@@ -189,7 +201,7 @@
                     <!-- Hamburger button (Mobile) -->
                     <button 
                         @click="mobileMenuOpen = !mobileMenuOpen" 
-                        class="md:hidden p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                        class="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none" 
                         :aria-expanded="mobileMenuOpen" 
                         aria-label="Buka Menu Navigasi"
                     >
@@ -215,16 +227,19 @@
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100 translate-y-0"
             x-transition:leave-end="opacity-0 -translate-y-2"
-            class="md:hidden bg-white/98 backdrop-blur-lg border-t border-slate-100 shadow-xl px-5 py-6 space-y-3"
+            class="md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-xl px-4 py-4 space-y-1.5"
         >
-            <a href="#beranda" @click="mobileMenuOpen = false" class="block text-base font-semibold text-slate-700 hover:text-blue-600 py-1.5 transition-colors">Beranda</a>
-            <a href="#fitur" @click="mobileMenuOpen = false" class="block text-base font-semibold text-slate-700 hover:text-blue-600 py-1.5 transition-colors">Fitur</a>
-            <a href="#keunggulan" @click="mobileMenuOpen = false" class="block text-base font-semibold text-slate-700 hover:text-blue-600 py-1.5 transition-colors">Keunggulan</a>
-            <a href="#faq" @click="mobileMenuOpen = false" class="block text-base font-semibold text-slate-700 hover:text-blue-600 py-1.5 transition-colors">FAQ</a>
-            <a href="#kontak" @click="mobileMenuOpen = false" class="block text-base font-semibold text-slate-700 hover:text-blue-600 py-1.5 transition-colors">Kontak</a>
-            <div class="pt-4 border-t border-slate-100">
-                <a href="{{ route('login') }}" class="flex items-center justify-center gap-2 w-full bg-[#0f172a] hover:bg-blue-900 active:scale-95 text-white py-3.5 rounded-full font-bold text-sm shadow-md transition-all">
-                    Masuk ke Akun →
+            <a href="#beranda" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-colors">Beranda</a>
+            <a href="#fitur" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-colors">Fitur</a>
+            <a href="#keunggulan" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-colors">Keunggulan</a>
+            <a href="#faq" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-colors">FAQ</a>
+            <a href="#kontak" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm font-semibold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-xl transition-colors">Kontak</a>
+            <div class="pt-3 border-t border-slate-100">
+                <a href="{{ route('login') }}" class="flex items-center justify-center gap-2 w-full bg-[#0f172a] hover:bg-blue-900 active:scale-95 text-white py-3 rounded-full font-bold text-sm shadow-md transition-all font-display">
+                    Masuk ke Akun
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                    </svg>
                 </a>
             </div>
         </div>
@@ -233,44 +248,42 @@
     <main class="flex-grow">
         <!-- =================================================================== -->
         <!-- SECTION 1 — HERO                                                    -->
-        <!-- Matches Reference Composition:                                      -->
-        <!-- Pill Badge + Large Headline + Paragraph + 2 CTAs + Cutout with      -->
-        <!-- Laptop + Doodle Arrow & Note "Teknologi untuk hasil yang lebih baik"-->
+        <!-- Balanced Mobile & Desktop Layout with Refined Proportions           -->
         <!-- =================================================================== -->
-        <section id="beranda" class="pt-28 sm:pt-32 pb-16 lg:pt-36 lg:pb-24 relative overflow-hidden bg-white">
+        <section id="beranda" class="pt-24 sm:pt-32 pb-14 lg:pt-36 lg:pb-24 relative overflow-hidden bg-white">
             <!-- Ambient Background Glows -->
             <div class="absolute top-1/4 -left-32 w-80 sm:w-96 h-80 sm:h-96 bg-blue-100/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
             <div class="absolute top-1/3 right-1/4 w-72 sm:w-80 h-72 sm:h-80 bg-sky-100/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
                     
                     <!-- Left: Headline, Description & CTAs (7 cols) -->
-                    <div class="lg:col-span-7 text-left animate-entrance-up">
+                    <div class="lg:col-span-7 text-center lg:text-left animate-entrance-up flex flex-col items-center lg:items-start">
                         
-                        <!-- Eyebrow Badge (matches reference layout, wraps comfortably on mobile) -->
-                        <div class="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-900 text-xs sm:text-sm font-semibold mb-6 shadow-2xs">
-                            <span class="px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold tracking-wider uppercase">CRM UCIC</span>
-                            <span class="text-slate-600 font-medium">Sistem Pemasaran & PMB Terpadu Kampus</span>
+                        <!-- Eyebrow Badge (Centered on mobile, left on desktop) -->
+                        <div class="inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-blue-50/90 border border-blue-200/80 text-blue-900 text-xs sm:text-sm font-semibold mb-5 sm:mb-6 shadow-2xs max-w-full">
+                            <span class="px-2 sm:px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold tracking-wider uppercase shrink-0">CRM UCIC</span>
+                            <span class="text-slate-600 font-medium truncate sm:whitespace-normal">Sistem Pemasaran & PMB Terpadu Kampus</span>
                         </div>
 
-                        <!-- Large Display Headline (Core Value: Prospek, Follow-Up, Closing PMB) -->
-                        <h1 class="font-display text-3xl sm:text-4xl md:text-5xl lg:text-[52px] xl:text-[58px] font-black text-[#0f172a] tracking-tight leading-[1.1] mb-6">
-                            Kelola Prospek.<br>
-                            Atur Follow-Up.<br>
+                        <!-- Large Display Headline -->
+                        <h1 class="font-display text-[30px] sm:text-4xl md:text-5xl lg:text-[52px] xl:text-[58px] font-black text-[#0f172a] tracking-tight leading-[1.18] sm:leading-[1.1] mb-5 sm:mb-6 max-w-2xl">
+                            Kelola Prospek.<br class="hidden sm:inline">
+                            Atur Follow-Up.<br class="hidden sm:inline">
                             <span class="text-blue-600">Tingkatkan Closing PMB.</span>
                         </h1>
 
-                        <!-- Supporting Paragraph (authentic CRM UCIC context) -->
-                        <p class="text-sm sm:text-base lg:text-lg text-slate-600 mb-8 max-w-xl leading-relaxed">
+                        <!-- Supporting Paragraph -->
+                        <p class="text-xs sm:text-base lg:text-lg text-slate-600 mb-7 sm:mb-8 max-w-xl leading-relaxed text-center lg:text-left">
                             CRM UCIC menghubungkan alur kerja pemasaran kampus secara menyeluruh — mulai dari pencatatan prospek sekolah & korporasi, kunjungan ber-GPS, pembagian target berjenjang, hingga validasi pelunasan mahasiswa baru.
                         </p>
 
-                        <!-- CTAs (Navy Pill Primary + White Border Secondary) -->
-                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4">
+                        <!-- CTAs (Balanced Stack on mobile, inline row on desktop) -->
+                        <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 w-full sm:w-auto">
                             <a 
                                 href="{{ route('login') }}" 
-                                class="inline-flex items-center justify-center gap-2.5 bg-[#0f172a] hover:bg-blue-900 text-white font-bold text-sm sm:text-base px-8 py-3.5 rounded-full transition-all duration-200 shadow-md shadow-slate-900/15 hover:shadow-lg hover:shadow-blue-900/25 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 group font-display text-center"
+                                class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-[#0f172a] hover:bg-blue-900 text-white font-bold text-sm sm:text-base px-8 py-3.5 rounded-full transition-all duration-200 shadow-md shadow-slate-900/15 hover:shadow-lg hover:shadow-blue-900/25 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 group font-display text-center"
                             >
                                 <span>Mulai Sekarang</span>
                                 <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -279,7 +292,7 @@
                             </a>
                             <a 
                                 href="#fitur" 
-                                class="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-sm sm:text-base px-7 py-3.5 rounded-full transition-all duration-200 shadow-2xs hover:border-slate-400 hover:-translate-y-0.5 active:translate-y-0 font-display text-center"
+                                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-sm sm:text-base px-7 py-3.5 rounded-full transition-all duration-200 shadow-2xs hover:border-slate-400 hover:-translate-y-0.5 active:translate-y-0 font-display text-center"
                             >
                                 Pelajari Lebih Lanjut
                             </a>
@@ -287,52 +300,50 @@
 
                     </div>
 
-                    <!-- Right: Visual Illustration / Photo Cutout with Laptop (5 cols) matching Image 1 Reference -->
+                    <!-- Right: Visual Illustration / Photo Cutout with Laptop (5 cols) -->
                     <div class="lg:col-span-5 relative flex justify-center lg:justify-end items-end pt-4 sm:pt-6 lg:pt-0 animate-entrance-image">
                         
                         <!-- Main Cutout Composition with gentle floating animation -->
-                        <div class="relative z-10 w-full max-w-[320px] sm:max-w-[400px] lg:max-w-[450px] animate-float-hero flex justify-center items-end select-none">
+                        <div class="relative z-10 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[450px] animate-float-hero flex justify-center items-end select-none mx-auto">
                             
-                            <!-- Organic Dual-Tone Blob Background (Directly matching user reference Image 1) -->
+                            <!-- Organic Dual-Tone Blob Background -->
                             <div class="absolute inset-0 -z-10 pointer-events-none select-none flex items-center justify-center">
                                 <svg viewBox="0 0 500 500" class="w-[110%] h-[110%] -translate-y-2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <!-- Layer 1: Soft Sky Blue Organic Accent Blob (Bottom-left peek, #d1ddee) -->
                                     <path d="M 110 240 C 40 290, 15 390, 65 440 C 115 485, 230 485, 305 445 C 365 405, 335 335, 285 285 C 235 235, 175 195, 110 240 Z" fill="#D1DDEE" />
-                                    <!-- Layer 2: Deep Dark Navy Organic Blob framing hijab and body (#1e2c44) -->
                                     <path d="M 245 42 C 345 38, 428 100, 438 205 C 450 315, 418 420, 318 450 C 218 475, 110 435, 90 330 C 72 225, 145 46, 245 42 Z" fill="#1E2C44" />
                                 </svg>
                             </div>
 
-                            <!-- Doodle Accent: Top-Left Double Sparks (Matching Image 1 Reference) -->
-                            <div class="absolute top-8 sm:top-12 left-1 sm:left-4 z-20 pointer-events-none select-none">
-                                <svg class="w-8 sm:w-9 h-8 sm:h-9 text-[#1e2c44]" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <!-- Doodle Accent: Top-Left Double Sparks -->
+                            <div class="absolute top-8 sm:top-12 left-2 sm:left-4 z-20 pointer-events-none select-none">
+                                <svg class="w-7 sm:w-9 h-7 sm:h-9 text-[#1e2c44]" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                     <line x1="6" y1="22" x2="20" y2="10" />
                                     <line x1="12" y1="28" x2="26" y2="18" />
                                 </svg>
                             </div>
 
-                            <!-- Doodle Handwriting Note & Curved Arrow (Top-Right, Matching Image 1 Reference) -->
-                            <div class="absolute -top-3 sm:top-0 -right-2 sm:right-2 z-20 pointer-events-none select-none text-right">
-                                <span class="font-handwriting text-sm sm:text-base lg:text-lg text-[#1e2c44] -rotate-6 inline-block font-bold tracking-wide leading-tight drop-shadow-2xs">
+                            <!-- Doodle Handwriting Note & Curved Arrow -->
+                            <div class="absolute -top-3 sm:top-0 right-1 sm:right-2 z-20 pointer-events-none select-none text-right">
+                                <span class="font-handwriting text-xs sm:text-base lg:text-lg text-[#1e2c44] -rotate-6 inline-block font-bold tracking-wide leading-tight drop-shadow-2xs">
                                     Teknologi<br>untuk hasil<br>yang lebih baik
                                 </span>
-                                <!-- Hand-drawn curved doodle arrow pointing down towards hijab/cheek -->
-                                <div class="flex justify-end pr-2.5 pt-0.5">
-                                    <svg class="w-8 sm:w-10 h-7 sm:h-9 text-[#1e2c44]" viewBox="0 0 45 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <!-- Hand-drawn curved doodle arrow -->
+                                <div class="flex justify-end pr-2 pt-0.5">
+                                    <svg class="w-7 sm:w-10 h-6 sm:h-9 text-[#1e2c44]" viewBox="0 0 45 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M38 5 C30 16, 20 22, 10 32" />
                                         <path d="M8 24 L10 32 L18 30" />
                                     </svg>
                                 </div>
                             </div>
 
-                            <!-- Doodle Accent: Mid-Right Wave/Arc (Matching Image 1 Reference) -->
-                            <div class="absolute top-1/2 -right-2 sm:-right-1 z-20 pointer-events-none select-none">
-                                <svg class="w-6 sm:w-7 h-9 sm:h-10 text-[#1e2c44]" viewBox="0 0 24 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <!-- Doodle Accent: Mid-Right Wave/Arc -->
+                            <div class="absolute top-1/2 right-0 sm:-right-1 z-20 pointer-events-none select-none">
+                                <svg class="w-5 sm:w-7 h-8 sm:h-10 text-[#1e2c44]" viewBox="0 0 24 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                     <path d="M4 6 C16 4, 20 18, 14 26 C10 30, 16 34, 20 34" />
                                 </svg>
                             </div>
 
-                            <!-- Main Cutout Photo: Woman with Laptop (images/foto-5.png) -->
+                            <!-- Main Cutout Photo: Woman with Laptop -->
                             <img 
                                 src="{{ asset('images/foto-5.png') }}" 
                                 alt="CRM UCIC Platform - Tim Pemasaran dengan Laptop" 
@@ -340,9 +351,9 @@
                                 loading="eager"
                             >
 
-                            <!-- Doodle Accent: Bottom-Right Double Lines (Matching Image 1 Reference) -->
-                            <div class="absolute bottom-6 sm:bottom-8 -right-1 sm:right-1 z-20 pointer-events-none select-none">
-                                <svg class="w-8 sm:w-9 h-6 sm:h-7 text-[#1e2c44]" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <!-- Doodle Accent: Bottom-Right Double Lines -->
+                            <div class="absolute bottom-6 sm:bottom-8 right-1 sm:right-1 z-20 pointer-events-none select-none">
+                                <svg class="w-7 sm:w-9 h-5 sm:h-7 text-[#1e2c44]" viewBox="0 0 30 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                     <line x1="4" y1="14" x2="22" y2="8" />
                                     <line x1="8" y1="20" x2="26" y2="14" />
                                 </svg>
@@ -358,67 +369,88 @@
 
         <!-- =================================================================== -->
         <!-- SECTION 2 — FEATURE HIGHLIGHTS                                      -->
-        <!-- Matches Reference Composition: 4 compact feature cards in a row     -->
-        <!-- Icons: People, Trending Up, Calendar, Shield Check                  -->
+        <!-- Balanced Mobile Header + Refined Adaptive Card Layout               -->
         <!-- =================================================================== -->
         <section id="fitur" class="py-12 sm:py-16 bg-[#F8FAFC] border-y border-slate-200/70">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+                
+                <!-- Section Header (Balanced Context for Mobile & Desktop) -->
+                <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
+                    <span class="text-xs sm:text-sm font-bold text-blue-600 tracking-wider uppercase mb-2 inline-block font-display">
+                        Fitur Unggulan
+                    </span>
+                    <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-[#0f172a] tracking-tight">
+                        Solusi Lengkap Ekosistem Kampus
+                    </h2>
+                    <p class="text-xs sm:text-sm lg:text-base text-slate-600 mt-2 max-w-lg mx-auto leading-relaxed">
+                        Dirancang khusus untuk mendukung operasional pemasaran, visitasi sekolah, dan penutupan target PMB.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
                     
                     <!-- Card 1: Manajemen Tim -->
-                    <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+                    <div class="bg-white rounded-2xl p-4.5 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group flex sm:block items-start gap-4 sm:gap-0">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 sm:mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
                             <!-- Icon Users / People -->
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                         </div>
-                        <h3 class="font-display text-lg font-bold text-slate-900 mb-2">Manajemen Tim</h3>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Kelola tim pemasaran, supervisor, dan CS dengan alur kerja berjenjang yang terstruktur dan efisien.
-                        </p>
+                        <div>
+                            <h3 class="font-display text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Manajemen Tim</h3>
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Kelola tim pemasaran, supervisor, dan CS dengan alur kerja berjenjang yang terstruktur dan efisien.
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Card 2: Pantau Prospek -->
-                    <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+                    <div class="bg-white rounded-2xl p-4.5 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group flex sm:block items-start gap-4 sm:gap-0">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 sm:mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
                             <!-- Icon Trending Up / Chart -->
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                         </div>
-                        <h3 class="font-display text-lg font-bold text-slate-900 mb-2">Pantau Prospek</h3>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Pantau dan kelola prospek calon mahasiswa baru dari tahap awal hingga closing secara real-time.
-                        </p>
+                        <div>
+                            <h3 class="font-display text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Pantau Prospek</h3>
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Pantau dan kelola prospek calon mahasiswa baru dari tahap awal hingga closing secara real-time.
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Card 3: Akses Mudah -->
-                    <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+                    <div class="bg-white rounded-2xl p-4.5 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group flex sm:block items-start gap-4 sm:gap-0">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 sm:mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
                             <!-- Icon Calendar / Schedule -->
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                         </div>
-                        <h3 class="font-display text-lg font-bold text-slate-900 mb-2">Akses Mudah</h3>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Dapat diakses kapan saja dan di mana saja, terintegrasi form kunjungan lapangan otomatis ber-GPS.
-                        </p>
+                        <div>
+                            <h3 class="font-display text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Akses Mudah</h3>
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Dapat diakses kapan saja dan di mana saja, terintegrasi form kunjungan lapangan otomatis ber-GPS.
+                            </p>
+                        </div>
                     </div>
 
                     <!-- Card 4: Aman & Terpercaya -->
-                    <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+                    <div class="bg-white rounded-2xl p-4.5 sm:p-7 border border-slate-200/80 shadow-2xs hover:shadow-lg hover:shadow-blue-500/5 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group flex sm:block items-start gap-4 sm:gap-0">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 sm:mb-5 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
                             <!-- Icon Shield Check -->
-                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                             </svg>
                         </div>
-                        <h3 class="font-display text-lg font-bold text-slate-900 mb-2">Aman & Terpercaya</h3>
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            Data prospek dan keuangan terlindungi dengan sistem verifikasi transaksi resmi serta audit log lengkap.
-                        </p>
+                        <div>
+                            <h3 class="font-display text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Aman & Terpercaya</h3>
+                            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Data prospek dan keuangan terlindungi dengan sistem verifikasi transaksi resmi serta audit log lengkap.
+                            </p>
+                        </div>
                     </div>
 
                 </div>
@@ -427,29 +459,26 @@
 
         <!-- =================================================================== -->
         <!-- SECTION 3 — PRODUCT VALUE / EXPLANATION                             -->
-        <!-- Matches Reference Composition:                                      -->
-        <!-- Left: Subtitle "Mengapa CRM UCIC?" + Headline + Desc + CTA Button   -->
-        <!-- Center: Cutout with hands forward (foto-2.png) + action doodles     -->
-        <!-- Right: 4 Checklist items with blue checkmarks + underline squiggle  -->
+        <!-- Balanced Mobile Spacing + Visual Harmony                            -->
         <!-- =================================================================== -->
-        <section id="keunggulan" class="py-16 lg:py-24 bg-white relative overflow-hidden">
+        <section id="keunggulan" class="py-14 sm:py-20 lg:py-24 bg-white relative overflow-hidden">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
                     
                     <!-- Left: Text & CTA Button (4 cols) -->
-                    <div class="lg:col-span-4 text-left">
+                    <div class="lg:col-span-4 text-center lg:text-left flex flex-col items-center lg:items-start">
                         <span class="text-xs sm:text-sm font-bold text-blue-600 tracking-wider uppercase mb-2 block font-display">
                             Mengapa CRM UCIC?
                         </span>
-                        <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-[#0f172a] tracking-tight leading-tight mb-4">
+                        <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl font-black text-[#0f172a] tracking-tight leading-tight mb-3 sm:mb-4 max-w-md">
                             Didesain untuk Membantu Anda Tumbuh
                         </h2>
-                        <p class="text-slate-600 text-sm sm:text-base leading-relaxed mb-8">
+                        <p class="text-slate-600 text-xs sm:text-sm sm:text-base leading-relaxed mb-6 sm:mb-8 max-w-md">
                             Dengan fitur yang lengkap dan mudah digunakan, CRM UCIC siap menjadi partner terbaik untuk mendukung proses kerja tim Anda mencapai target penerimaan mahasiswa.
                         </p>
                         <a 
                             href="#faq" 
-                            class="inline-flex items-center gap-2 bg-[#0f172a] hover:bg-blue-900 text-white font-bold text-sm px-6 py-3 rounded-full transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group font-display"
+                            class="inline-flex items-center gap-2 bg-[#0f172a] hover:bg-blue-900 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-full transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group font-display"
                         >
                             <span>Pelajari FAQ</span>
                             <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -459,50 +488,50 @@
                     </div>
 
                     <!-- Center: Photo with hands forward (foto-2.png) + Doodles (4 cols) -->
-                    <div class="lg:col-span-4 relative flex justify-center items-center my-4 lg:my-0">
+                    <div class="lg:col-span-4 relative flex justify-center items-center my-6 lg:my-0">
                         
                         <!-- Soft decorative circular gradient behind cutout -->
-                        <div class="absolute w-56 sm:w-64 lg:w-72 h-56 sm:h-64 lg:h-72 bg-gradient-to-tr from-blue-100/70 to-indigo-50/50 rounded-full blur-xl -z-10 animate-blob-pulse"></div>
+                        <div class="absolute w-52 sm:w-64 lg:w-72 h-52 sm:h-64 lg:h-72 bg-gradient-to-tr from-blue-100/70 to-indigo-50/50 rounded-full blur-xl -z-10 animate-blob-pulse"></div>
 
-                        <!-- Doodle Speed / Action Lines (Left & Right of hands, like reference) -->
-                        <div class="absolute left-2 sm:left-4 top-1/2 -translate-y-12 z-20 pointer-events-none text-slate-700">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <!-- Doodle Speed / Action Lines -->
+                        <div class="absolute left-1 sm:left-4 top-1/2 -translate-y-12 z-20 pointer-events-none text-slate-700">
+                            <svg class="w-6 sm:w-8 h-6 sm:h-8" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <path d="M4 14 L14 18" />
                                 <path d="M6 22 L18 20" />
                             </svg>
                         </div>
-                        <div class="absolute right-2 sm:right-4 top-1/3 z-20 pointer-events-none text-slate-700">
-                            <svg class="w-7 h-7 sm:w-8 sm:h-8" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <div class="absolute right-1 sm:right-4 top-1/3 z-20 pointer-events-none text-slate-700">
+                            <svg class="w-6 sm:w-8 h-6 sm:h-8" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <path d="M22 6 L14 14" />
                                 <path d="M26 14 L16 18" />
                                 <path d="M24 22 L14 22" />
                             </svg>
                         </div>
 
-                        <!-- Main Cutout Photo: Woman with hands forward (images/foto-2.png) with gentle pulse-scale animation -->
-                        <div class="relative z-10 w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[340px] animate-pulse-scale">
+                        <!-- Main Cutout Photo: Woman with hands forward with gentle pulse-scale animation -->
+                        <div class="relative z-10 w-full max-w-[200px] sm:max-w-[260px] lg:max-w-[340px] animate-pulse-scale">
                             <img 
                                 src="{{ asset('images/foto-2.png') }}" 
                                 alt="CRM UCIC Solusi Terpadu - Gestur Tangan Terbuka" 
-                                class="w-full h-auto object-contain drop-shadow-lg select-none"
+                                class="w-full h-auto object-contain drop-shadow-lg select-none mx-auto block"
                                 loading="eager"
                             >
                         </div>
 
                         <!-- Doodle Squiggle Underneath Person -->
                         <div class="absolute -bottom-2 left-6 sm:left-10 z-20 pointer-events-none text-slate-700">
-                            <svg class="w-14 sm:w-16 h-6" viewBox="0 0 60 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <svg class="w-12 sm:w-16 h-5 sm:h-6" viewBox="0 0 60 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                                 <path d="M4 14 C15 4, 30 18, 56 6" />
                             </svg>
                         </div>
 
                     </div>
 
-                    <!-- Right: 4 Checklist items + doodle curve (4 cols) -->
-                    <div class="lg:col-span-4 space-y-4 sm:space-y-5">
+                    <!-- Right: 4 Checklist items in clean rounded cards (4 cols) -->
+                    <div class="lg:col-span-4 space-y-3 sm:space-y-4">
                         
                         <!-- Checklist Item 1 -->
-                        <div class="flex items-start gap-3.5 p-2 rounded-xl hover:bg-slate-50/80 transition-colors">
+                        <div class="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:bg-white hover:border-blue-200 hover:shadow-2xs transition-all">
                             <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -515,7 +544,7 @@
                         </div>
 
                         <!-- Checklist Item 2 -->
-                        <div class="flex items-start gap-3.5 p-2 rounded-xl hover:bg-slate-50/80 transition-colors">
+                        <div class="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:bg-white hover:border-blue-200 hover:shadow-2xs transition-all">
                             <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -528,7 +557,7 @@
                         </div>
 
                         <!-- Checklist Item 3 -->
-                        <div class="flex items-start gap-3.5 p-2 rounded-xl hover:bg-slate-50/80 transition-colors">
+                        <div class="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:bg-white hover:border-blue-200 hover:shadow-2xs transition-all">
                             <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -541,21 +570,21 @@
                         </div>
 
                         <!-- Checklist Item 4 -->
-                        <div class="flex items-start gap-3.5 p-2 rounded-xl hover:bg-slate-50/80 transition-colors">
+                        <div class="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:bg-white hover:border-blue-200 hover:shadow-2xs transition-all">
                             <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
                             <div>
-                                <h4 class="font-display text-sm sm:text-base font-bold text-slate-900 leading-tight">Dukungan Penuh untuk Pertumbuhan Anda</h4>
+                                <h4 class="font-display text-sm sm:text-base font-bold text-slate-900 leading-tight">Dukungan Penuh Pertumbuhan</h4>
                                 <p class="text-xs text-slate-500 mt-1 leading-relaxed">Alur transparan bagi 6 level peran dari Head of Marketing hingga eksekutor lapangan.</p>
                             </div>
                         </div>
 
-                        <!-- Doodle Squiggle Under Checklist (matches reference) -->
-                        <div class="pt-3 pl-2 pointer-events-none text-slate-700">
-                            <svg class="w-20 sm:w-24 h-6" viewBox="0 0 90 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <!-- Doodle Squiggle Under Checklist -->
+                        <div class="pt-2 pl-2 pointer-events-none text-slate-700">
+                            <svg class="w-16 sm:w-24 h-5 sm:h-6" viewBox="0 0 90 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                                 <path d="M4 14 C25 4, 50 18, 86 6" />
                             </svg>
                         </div>
@@ -568,8 +597,7 @@
 
         <!-- =================================================================== -->
         <!-- SECTION 4 — INTERACTIVE FAQ ACCORDION                               -->
-        <!-- Replaces Visual Showcase with single-open, accessible FAQ accordion -->
-        <!-- Content derived authentically from CRM UCIC features & roles        -->
+        <!-- Perfectly Aligned Header & Smooth Mobile Touch Sizing               -->
         <!-- =================================================================== -->
         @php
             $faqs = [
@@ -608,9 +636,9 @@
 
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
-                <!-- Section Header (Centered, Branded, with Cute Doodles) -->
-                <div class="text-center max-w-2xl mx-auto mb-10 sm:mb-14 relative">
-                    <span class="text-xs sm:text-sm font-bold text-blue-600 tracking-wider uppercase mb-2 inline-block font-display">
+                <!-- Section Header (Centered, Strictly Block-Aligned) -->
+                <div class="text-center max-w-2xl mx-auto mb-8 sm:mb-14 relative flex flex-col items-center">
+                    <span class="text-xs sm:text-sm font-bold text-blue-600 tracking-wider uppercase mb-2 block font-display">
                         FAQ
                     </span>
                     
@@ -634,26 +662,26 @@
                         </div>
                     </div>
 
-                    <p class="text-slate-600 text-xs sm:text-sm lg:text-base mt-2 max-w-lg mx-auto leading-relaxed">
+                    <p class="text-slate-600 text-xs sm:text-sm lg:text-base mt-2.5 max-w-lg mx-auto leading-relaxed">
                         Temukan jawaban lengkap seputar fitur, alur kerja prospek, dan manfaat platform CRM Inbound UCIC.
                     </p>
 
                     <!-- Cute Handwritten Note under subtitle -->
                     <div class="mt-2 text-center pointer-events-none select-none">
-                        <span class="font-handwriting text-sm sm:text-base text-blue-600/90 font-bold -rotate-2 inline-block">
+                        <span class="font-handwriting text-xs sm:text-base text-blue-600/90 font-bold -rotate-2 inline-block">
                             Klik salah satu pertanyaan di bawah ini ya! 👇
                         </span>
                     </div>
                 </div>
 
-                <!-- Visual Composition: Flanked by Photo Cutouts with Floating Animation & Doodles (Larger Presence) -->
+                <!-- Visual Composition: Flanked by Photo Cutouts with Floating Animation & Doodles -->
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-end justify-center">
                     
-                    <!-- Left: Woman Thinking (foto-1.png) — Enlarged to match height of right photo -->
+                    <!-- Left: Woman Thinking (foto-1.png) -->
                     <div class="hidden lg:flex lg:col-span-3 justify-end items-end pb-2">
                         <div class="relative select-none animate-float-left">
                             
-                            <!-- Cute Doodle Thought Note directly above Left Girl's Head (Lowered closer to talent) -->
+                            <!-- Cute Doodle Thought Note -->
                             <div class="absolute top-2 sm:top-4 lg:top-8 right-2 sm:right-6 z-20 pointer-events-none select-none text-left">
                                 <span class="font-handwriting text-base sm:text-lg lg:text-xl text-slate-700 -rotate-6 inline-block font-bold drop-shadow-2xs whitespace-nowrap">
                                     Punya pertanyaan? 🤔
@@ -679,7 +707,7 @@
 
                     <!-- Center: Interactive Accordion Container -->
                     <div class="lg:col-span-6 w-full max-w-2xl xl:max-w-3xl mx-auto">
-                        <div class="space-y-3.5 sm:space-y-4">
+                        <div class="space-y-3 sm:space-y-4">
                             @foreach($faqs as $faq)
                             <div 
                                 class="bg-white rounded-2xl sm:rounded-3xl border transition-all duration-300 group overflow-hidden"
@@ -692,7 +720,7 @@
                                     @click="activeFaq = (activeFaq === {{ $faq['id'] }} ? null : {{ $faq['id'] }})"
                                     :aria-expanded="activeFaq === {{ $faq['id'] }} ? 'true' : 'false'"
                                     aria-controls="faq-answer-{{ $faq['id'] }}"
-                                    class="w-full flex items-center justify-between text-left gap-3.5 sm:gap-5 px-5 sm:px-7 py-4.5 sm:py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset rounded-2xl sm:rounded-3xl cursor-pointer transition-colors"
+                                    class="w-full flex items-center justify-between text-left gap-3.5 sm:gap-5 px-4.5 sm:px-7 py-4 sm:py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset rounded-2xl sm:rounded-3xl cursor-pointer transition-colors"
                                 >
                                     <span 
                                         class="font-display text-sm sm:text-base lg:text-lg font-bold transition-colors duration-200 leading-snug"
@@ -703,16 +731,16 @@
 
                                     <!-- Interactive + / − Indicator Pill -->
                                     <span 
-                                        class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ease-out"
+                                        class="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ease-out"
                                         :class="activeFaq === {{ $faq['id'] }} ? 'bg-blue-600 text-white shadow-xs rotate-180' : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600'"
                                         aria-hidden="true"
                                     >
                                         <!-- Plus Icon (Closed) -->
-                                        <svg x-show="activeFaq !== {{ $faq['id'] }}" class="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <svg x-show="activeFaq !== {{ $faq['id'] }}" class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                                         </svg>
                                         <!-- Minus Icon (Open) -->
-                                        <svg x-show="activeFaq === {{ $faq['id'] }}" x-cloak class="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <svg x-show="activeFaq === {{ $faq['id'] }}" x-cloak class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
                                         </svg>
                                     </span>
@@ -728,7 +756,7 @@
                                 >
                                     <div class="overflow-hidden">
                                         <div 
-                                            class="px-5 sm:px-7 pb-5 sm:pb-6 pt-2 text-slate-600 text-xs sm:text-sm lg:text-base leading-relaxed border-t border-slate-100/90 transition-all duration-300 ease-out"
+                                            class="px-4.5 sm:px-7 pb-4.5 sm:pb-6 pt-2 text-slate-600 text-xs sm:text-sm lg:text-base leading-relaxed border-t border-slate-100/90 transition-all duration-300 ease-out"
                                             :class="activeFaq === {{ $faq['id'] }} ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'"
                                         >
                                             {{ $faq['answer'] }}
@@ -740,11 +768,11 @@
                         </div>
                     </div>
 
-                    <!-- Right: Photo provided by user (foto-faq-kanan.png) — Matching height with left photo -->
+                    <!-- Right: Photo provided by user (foto-faq-kanan.png) -->
                     <div class="hidden lg:flex lg:col-span-3 justify-start items-end pb-2">
                         <div class="relative select-none animate-float-right">
                             
-                            <!-- Cute Doodle Answer Note directly above Right Girl's pointing hand & head (Lowered closer to talent) -->
+                            <!-- Cute Doodle Answer Note -->
                             <div class="absolute top-2 sm:top-4 lg:top-8 left-2 sm:left-4 z-20 pointer-events-none select-none text-right">
                                 <span class="font-handwriting text-base sm:text-lg lg:text-xl text-blue-600 rotate-3 inline-block font-bold drop-shadow-2xs whitespace-nowrap">
                                     Jawaban selengkapnya! 💡
@@ -775,38 +803,35 @@
 
         <!-- =================================================================== -->
         <!-- SECTION 5 — DARK CTA / TRUST / VALUE SECTION                        -->
-        <!-- Matches Reference Composition: Deep Navy Section with               -->
-        <!-- Left: Eyebrow + Headline + Paragraph + Button                       -->
-        <!-- Center: 3 Statistics Columns (300+, 150+, 99%)                      -->
-        <!-- Right: Man in Suit sitting on stool (foto-4.png)                    -->
+        <!-- Balanced Mobile Proportions, Glass Stat Cards, Grounded Cutout      -->
         <!-- =================================================================== -->
         <section class="py-10 sm:py-16 lg:py-20 bg-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
-                <!-- Dark Navy Card Container (Compact Top Gap & Balanced Vertical Layout) -->
-                <div class="bg-[#0b162c] rounded-3xl sm:rounded-[2.5rem] px-5 sm:px-10 lg:px-14 pt-6 sm:pt-8 lg:pt-9 pb-0 relative overflow-hidden border border-slate-800 shadow-2xl">
+                <!-- Dark Navy Card Container -->
+                <div class="bg-[#0b162c] rounded-3xl sm:rounded-[2.5rem] px-5 sm:px-10 lg:px-14 pt-7 sm:pt-8 lg:pt-9 pb-0 relative overflow-hidden border border-slate-800 shadow-2xl">
                     
                     <!-- Ambient Subtle Radial Glow -->
                     <div class="absolute -top-32 -left-32 w-80 sm:w-96 h-80 sm:h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
                     <div class="absolute top-1/2 right-1/4 w-72 sm:w-80 h-72 sm:h-80 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center lg:items-center">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-center">
                         
-                        <!-- Left: Headline & CTA (4 cols) — Vertically Balanced -->
-                        <div class="lg:col-span-4 text-left py-4 lg:py-6 z-10 self-center">
+                        <!-- Left: Headline & CTA (4 cols) — Centered on mobile, left on desktop -->
+                        <div class="lg:col-span-4 text-center lg:text-left z-10 self-center flex flex-col items-center lg:items-start pt-2 lg:pt-0">
                             <span class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2 block font-display">
                                 Dipercaya oleh Banyak Institusi
                             </span>
-                            <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-[40px] font-black text-white tracking-tight leading-tight mb-3 sm:mb-4">
-                                Bersama CRM UCIC,<br>
+                            <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-[40px] font-black text-white tracking-tight leading-tight mb-3 sm:mb-4 max-w-md">
+                                Bersama CRM UCIC,<br class="hidden sm:inline">
                                 Capai Lebih Banyak
                             </h2>
-                            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed mb-6">
+                            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed mb-5 sm:mb-6 max-w-md">
                                 Ratusan sekolah binaan dan calon mahasiswa baru telah terkelola melalui sistem pemasaran, follow-up, dan validasi transaksi terpadu kami.
                             </p>
                             <a 
                                 href="{{ route('login') }}" 
-                                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-full transition-all duration-200 shadow-md shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 group font-display"
+                                class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-full transition-all duration-200 shadow-md shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 group font-display"
                             >
                                 <span>Mulai Sekarang</span>
                                 <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -815,52 +840,52 @@
                             </a>
                         </div>
 
-                        <!-- Middle: 3 Statistics Columns (4 cols) — Vertically Balanced -->
-                        <div class="lg:col-span-4 grid grid-cols-3 gap-2 sm:gap-4 py-4 lg:py-6 z-10 text-center self-center">
+                        <!-- Middle: 3 Statistics Columns (4 cols) — Glass Card Pills -->
+                        <div class="lg:col-span-4 grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 my-2 lg:my-0 z-10 text-center self-center">
                             
                             <!-- Stat 1: 300+ Sekolah / Institusi -->
-                            <div class="flex flex-col items-center">
-                                <span class="font-display text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight">300+</span>
-                                <div class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center my-1.5 sm:my-2">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm rounded-2xl p-2.5 sm:p-4 flex flex-col items-center justify-center shadow-xs">
+                                <span class="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white tracking-tight">300+</span>
+                                <div class="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center my-1 sm:my-1.5">
+                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                                     </svg>
                                 </div>
-                                <span class="text-[9px] sm:text-xs text-slate-300 leading-tight">Sekolah Mitra & Binaan</span>
+                                <span class="text-[10px] sm:text-xs text-slate-300 font-medium leading-tight">Sekolah Binaan</span>
                             </div>
 
                             <!-- Stat 2: 150+ Wilayah / Pengguna -->
-                            <div class="flex flex-col items-center">
-                                <span class="font-display text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight">150+</span>
-                                <div class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center my-1.5 sm:my-2">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm rounded-2xl p-2.5 sm:p-4 flex flex-col items-center justify-center shadow-xs">
+                                <span class="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white tracking-tight">150+</span>
+                                <div class="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center my-1 sm:my-1.5">
+                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                                     </svg>
                                 </div>
-                                <span class="text-[9px] sm:text-xs text-slate-300 leading-tight">Wilayah Binaan Tercover</span>
+                                <span class="text-[10px] sm:text-xs text-slate-300 font-medium leading-tight">Wilayah Binaan</span>
                             </div>
 
                             <!-- Stat 3: 99% / Real-time Uptime -->
-                            <div class="flex flex-col items-center">
-                                <span class="font-display text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight">99%</span>
-                                <div class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center my-1.5 sm:my-2">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm rounded-2xl p-2.5 sm:p-4 flex flex-col items-center justify-center shadow-xs">
+                                <span class="font-display text-lg sm:text-2xl lg:text-3xl font-black text-white tracking-tight">99%</span>
+                                <div class="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center my-1 sm:my-1.5">
+                                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                                     </svg>
                                 </div>
-                                <span class="text-[9px] sm:text-xs text-slate-300 leading-tight">Uptime & Real-time Sync</span>
+                                <span class="text-[10px] sm:text-xs text-slate-300 font-medium leading-tight">Uptime Sistem</span>
                             </div>
 
                         </div>
 
-                        <!-- Right: Man in Suit sitting (foto-4.png) with gentle floating animation (Ground at bottom) -->
-                        <div class="lg:col-span-4 flex justify-center lg:justify-end items-end z-10 self-end pt-2 sm:pt-0">
-                            <div class="w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[340px] animate-float-man">
+                        <!-- Right: Man in Suit sitting (foto-4.png) Grounded Naturally -->
+                        <div class="lg:col-span-4 flex justify-center lg:justify-end items-end z-10 self-end -mb-1 mt-1 sm:mt-2 lg:mt-0">
+                            <div class="w-full max-w-[200px] sm:max-w-[270px] lg:max-w-[340px] animate-float-man">
                                 <img 
                                     src="{{ asset('images/foto-4.png') }}" 
                                     alt="Eksekutif Pemasaran CRM UCIC - Bersama Rakit AI" 
-                                    class="w-full h-auto object-contain drop-shadow-2xl select-none"
+                                    class="w-full h-auto object-contain drop-shadow-2xl select-none mx-auto block"
                                     loading="eager"
                                 >
                             </div>
@@ -875,19 +900,17 @@
 
         <!-- =================================================================== -->
         <!-- SECTION 6 — PRE-FOOTER (Contact Banner)                             -->
-        <!-- Matches Reference Composition:                                      -->
-        <!-- Light Banner Card + Paper Airplane Icon + "Hubungi Kami Sekarang"   -->
-        <!-- + CTA Button + Decorative Curved Line                               -->
+        <!-- Balanced Mobile Padding, Centered Content & Elegant Action Button   -->
         <!-- =================================================================== -->
-        <section id="kontak" class="py-12 sm:py-16 bg-[#F8FAFC]">
+        <section id="kontak" class="py-10 sm:py-16 bg-[#F8FAFC]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
-                <div class="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 lg:p-12 shadow-2xs flex flex-col md:flex-row justify-between items-center gap-6 sm:gap-8 relative overflow-hidden hover:shadow-md transition-shadow">
+                <div class="bg-gradient-to-b from-white to-blue-50/25 rounded-3xl border border-slate-200/90 p-6 sm:p-10 lg:p-12 shadow-2xs flex flex-col md:flex-row justify-between items-center gap-6 sm:gap-8 relative overflow-hidden hover:shadow-md transition-shadow">
                     
                     <!-- Left: Paper Airplane Icon + Title + Description -->
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 z-10 text-left w-full md:w-auto">
+                    <div class="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6 z-10 text-center sm:text-left w-full md:w-auto">
                         <!-- Blue Paper Airplane / Send Icon -->
-                        <div class="w-12 sm:w-14 h-12 sm:h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs">
+                        <div class="w-12 sm:w-14 h-12 sm:h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 shadow-2xs mx-auto sm:mx-0">
                             <svg class="w-6 sm:w-7 h-6 sm:h-7 transform -rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                             </svg>
@@ -907,7 +930,7 @@
                     </div>
 
                     <!-- Right: Button & Decorative Wave Line -->
-                    <div class="flex items-center gap-4 shrink-0 z-10 w-full md:w-auto justify-start sm:justify-end">
+                    <div class="flex items-center gap-4 shrink-0 z-10 w-full md:w-auto justify-center sm:justify-end">
                         <a 
                             href="https://wa.me/6281234567890?text=Halo%20Admin%20CRM%20UCIC,%20saya%20ingin%20bertanya%20seputar%20sistem" 
                             target="_blank" 
@@ -921,7 +944,7 @@
                         </a>
                     </div>
 
-                    <!-- Decorative Subtle Curved Wave Line in Bottom Right Corner (matches reference) -->
+                    <!-- Decorative Subtle Curved Wave Line in Bottom Right Corner -->
                     <div class="absolute -bottom-6 -right-6 pointer-events-none text-blue-200/60 hidden sm:block">
                         <svg class="w-48 h-28" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                             <path d="M10 70 C50 10, 110 90, 150 20" />
@@ -938,14 +961,14 @@
     <!-- SECTION 7 — FOOTER                                                  -->
     <!-- Consistent with Application Design System & Branding                -->
     <!-- =================================================================== -->
-    <footer class="bg-white border-t border-slate-200/80 py-10 sm:py-12 mt-auto">
+    <footer class="bg-white border-t border-slate-200/80 py-8 sm:py-12 mt-auto">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 text-center sm:text-left">
                 
                 <!-- Logo & Brand Info -->
-                <div class="flex items-center gap-3">
-                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-9 sm:h-10 w-auto object-contain">
-                    <div>
+                <div class="flex items-center gap-3 justify-center sm:justify-start">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-8 sm:h-10 w-auto object-contain">
+                    <div class="text-left">
                         <h4 class="font-display font-black text-slate-900 text-sm sm:text-base leading-none">UCIC CAMPUS</h4>
                         <span class="text-[11px] sm:text-xs font-semibold text-slate-500 tracking-wider">CRM Inbound Marketing & PMB Platform</span>
                     </div>
@@ -953,9 +976,11 @@
 
                 <!-- Copyright & Version -->
                 <div class="text-center sm:text-right">
-                    <p class="text-xs text-slate-400 font-medium flex flex-wrap items-center justify-center sm:justify-end gap-2">
-                        <span>&copy; {{ date('Y') }} Universitas Catur Insan Cendekia. All rights reserved.</span>
+                    <p class="text-xs text-slate-400 font-medium flex flex-wrap items-center justify-center sm:justify-end gap-1.5 sm:gap-2">
+                        <span>&copy; {{ date('Y') }} Universitas Catur Insan Cendekia.</span>
                         <span class="text-slate-300 select-none">•</span>
+                        <span>All rights reserved.</span>
+                        <span class="text-slate-300 select-none hidden sm:inline">•</span>
                         <span class="font-mono text-[11px] text-slate-400 font-medium">v.1.1.0</span>
                     </p>
                 </div>

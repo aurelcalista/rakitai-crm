@@ -2,7 +2,7 @@
 <html lang="id" class="h-full bg-[#f0f5ff]">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Login - CRM Marketing & Sales Inbound UCIC</title>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('images/logo-ucic.png') }}">
@@ -10,8 +10,13 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .font-display { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-handwriting { font-family: 'Caveat', cursive; }
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
 <body class="h-full font-sans antialiased text-slate-800 bg-[#f0f5ff] selection:bg-blue-600 selection:text-white" 
       x-data="{ 
@@ -19,32 +24,321 @@
           isLoading: false 
       }">
 
-    <!-- Background Ambient Shapes & Soft Curved Glows -->
-    <div class="fixed -top-24 -left-24 w-[480px] h-[480px] bg-white/80 rounded-full blur-3xl pointer-events-none -z-10 animate-blob"></div>
-    <div class="fixed top-1/3 -left-12 w-28 h-28 bg-blue-200/50 rounded-full blur-2xl pointer-events-none -z-10"></div>
-    <div class="fixed -bottom-24 -left-20 w-[420px] h-[420px] bg-blue-100/70 rounded-full blur-3xl pointer-events-none -z-10 animate-blob animation-delay-4000"></div>
-    <div class="fixed -top-20 -right-20 w-[520px] h-[520px] bg-blue-100/60 rounded-full blur-3xl pointer-events-none -z-10 animate-blob animation-delay-2000"></div>
-    <div class="fixed -bottom-20 -right-20 w-[480px] h-[480px] bg-indigo-100/60 rounded-full blur-3xl pointer-events-none -z-10 animate-blob"></div>
-
-    <div class="min-h-screen lg:h-screen lg:overflow-hidden grid grid-cols-1 lg:grid-cols-2 relative">
+    <!-- =================================================================== -->
+    <!-- DEDICATED MOBILE LAYOUT (Viewports < lg)                              -->
+    <!-- Balanced, modern campus CRM mobile login experience                   -->
+    <!-- =================================================================== -->
+    <div class="block lg:hidden min-h-[100dvh] bg-gradient-to-b from-[#e8f2fd] via-[#f1f6fd] to-[#d9e8fb] relative overflow-x-hidden selection:bg-blue-600 selection:text-white flex flex-col justify-between">
         
-        <!-- ========================================== -->
-        <!-- BAGIAN KIRI: Form Login                    -->
-        <!-- ========================================== -->
-        <div class="flex flex-col justify-between p-5 sm:p-8 lg:p-8 xl:p-12 2xl:p-16 z-20 max-w-xl mx-auto w-full lg:max-w-none h-full overflow-y-auto">
+        <!-- Soft Background Ambient Glows -->
+        <div class="absolute -top-16 -left-16 w-64 h-64 bg-white/70 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute top-1/4 -right-16 w-72 h-72 bg-blue-200/40 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-1/3 -left-20 w-80 h-80 bg-sky-200/40 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Main Content Area -->
+        <div class="w-full max-w-md mx-auto px-4 min-[360px]:px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-2 relative z-10 flex-1 flex flex-col justify-start">
+            
+            <!-- 1. TOP BRANDING -->
+            <div class="flex items-center justify-between gap-2 mb-3 min-[360px]:mb-3.5 pt-0.5">
+                <!-- Brand & Logo -->
+                <div class="flex items-center gap-2 min-[360px]:gap-2.5">
+                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-8 min-[360px]:h-9 w-auto object-contain shrink-0">
+                    <div>
+                        <span class="inline-flex items-center gap-1 text-[8.5px] min-[360px]:text-[9px] font-extrabold uppercase tracking-wider text-blue-700 bg-blue-100/80 border border-blue-200/90 px-1.5 min-[360px]:px-2 py-0.5 rounded-full leading-none mb-0.5">
+                            <svg class="w-2.5 h-2.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                            </svg>
+                            UCIC CAMPUS
+                        </span>
+                        <h2 class="text-sm min-[360px]:text-base font-black text-slate-900 tracking-tight leading-none font-display">
+                            CRM Inbound
+                        </h2>
+                    </div>
+                </div>
+
+                <!-- Top-Right Handwriting Slogan -->
+                <div class="text-right pointer-events-none select-none pl-1">
+                    <span class="font-handwriting text-xs min-[360px]:text-sm sm:text-base text-blue-600 font-bold -rotate-6 inline-block leading-tight drop-shadow-2xs">
+                        Bersama<br>Raih Masa Depan
+                    </span>
+                </div>
+            </div>
+
+            <!-- 2. HERO SECTION WITH CAMPUS VISUAL -->
+            <div class="flex items-center justify-between gap-2.5 mb-3 min-[360px]:mb-3.5">
+                <!-- Headline & Subtitle -->
+                <div class="flex-1 min-w-0 pr-1">
+                    <h1 class="font-display text-[21px] min-[360px]:text-2xl sm:text-[27px] font-black text-slate-900 tracking-tight leading-[1.15]">
+                        Selamat Datang<br>
+                        <span class="text-blue-600">Kembali</span>
+                    </h1>
+                    <p class="text-[11px] min-[360px]:text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                        Kelola prospek, follow-up, dan performa marketing dalam satu platform.
+                    </p>
+                </div>
+
+                <!-- Campus Building Decorative Visual (Right Side, Non-overlapping) -->
+                <div class="relative shrink-0 w-24 h-20 min-[360px]:w-28 min-[360px]:h-22 min-[390px]:w-32 min-[390px]:h-24 rounded-2xl overflow-hidden shadow-xs border border-white/80 select-none bg-white/40">
+                    <img src="{{ asset('images/ucic-building.jpg') }}" alt="Gedung Kampus UCIC" class="w-full h-full object-cover object-center">
+                    <div class="absolute inset-0 bg-gradient-to-r from-[#e8f2fd]/60 via-transparent to-transparent pointer-events-none"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#e8f2fd]/50 via-transparent to-transparent pointer-events-none"></div>
+                </div>
+            </div>
+
+            <!-- Status / Error Alert Box (Mobile) -->
+            @if ($errors->any() || session('status'))
+            <div class="mb-3 p-3 rounded-2xl bg-rose-50/95 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 shadow-2xs animate-fade-in-up">
+                <svg class="w-4 h-4 shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium">{{ $errors->first() ?: session('status') }}</span>
+            </div>
+            @endif
+
+            <!-- 3. LOGIN CARD -->
+            <div class="bg-white rounded-[22px] min-[360px]:rounded-[26px] p-4.5 min-[360px]:p-5 sm:p-6 shadow-xl shadow-blue-900/5 border border-white/90 relative mb-3.5 min-[360px]:mb-4">
+                <form method="POST" action="{{ route('login') }}" class="space-y-3 min-[360px]:space-y-3.5" @submit="isLoading = true">
+                    @csrf
+                    
+                    <!-- Field 1: Email / Username -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <div class="w-5 h-5 min-[360px]:w-5.5 min-[360px]:h-5.5 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/80">
+                                <svg class="w-3 min-[360px]:w-3.5 h-3 min-[360px]:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <label for="mobile_email" class="text-xs font-bold text-slate-800">
+                                Email / Username
+                            </label>
+                        </div>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <input 
+                                id="mobile_email" 
+                                name="email"
+                                type="text" 
+                                value="{{ old('email') }}"
+                                required 
+                                autocomplete="username"
+                                class="w-full text-xs min-[360px]:text-sm pl-10 pr-4 py-2.5 min-[360px]:py-3 rounded-2xl bg-[#f5f9ff] border border-blue-100/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800 placeholder:text-slate-400 shadow-2xs"
+                                placeholder="spv@cic.ac.id"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Field 2: Password -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <div class="w-5 h-5 min-[360px]:w-5.5 min-[360px]:h-5.5 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/80">
+                                <svg class="w-3 min-[360px]:w-3.5 h-3 min-[360px]:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <label for="mobile_password" class="text-xs font-bold text-slate-800">
+                                Password
+                            </label>
+                        </div>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <input 
+                                id="mobile_password" 
+                                name="password"
+                                :type="showPassword ? 'text' : 'password'" 
+                                required 
+                                autocomplete="current-password"
+                                class="w-full text-xs min-[360px]:text-sm pl-10 pr-11 py-2.5 min-[360px]:py-3 rounded-2xl bg-[#f5f9ff] border border-blue-100/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800 placeholder:text-slate-400 shadow-2xs"
+                                placeholder="••••••••"
+                            >
+                            <button 
+                                type="button" 
+                                @click="showPassword = !showPassword" 
+                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-transform active:scale-90 cursor-pointer"
+                                title="Lihat password"
+                            >
+                                <svg x-show="!showPassword" class="w-4 h-4 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <svg x-show="showPassword" x-cloak class="w-4 h-4 transition-all text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Login options: Remember Me & Forgot Password -->
+                    <div class="flex items-center justify-between text-xs pt-0.5">
+                        <label class="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 transition select-none">
+                            <input type="checkbox" name="remember" checked class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition cursor-pointer">
+                            <span class="font-medium text-slate-700 text-xs min-[360px]:text-sm">Ingat saya</span>
+                        </label>
+                        <a href="#" class="font-bold text-blue-600 hover:text-blue-700 transition text-xs min-[360px]:text-sm">
+                            Lupa password?
+                        </a>
+                    </div>
+
+                    <!-- Primary CTA Button -->
+                    <div class="pt-1">
+                        <button 
+                            type="submit" 
+                            :disabled="isLoading"
+                            class="w-full py-3 min-[360px]:py-3.5 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-xs min-[360px]:text-sm shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:pointer-events-none font-display"
+                        >
+                            <svg x-show="isLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span x-text="isLoading ? 'Memproses Masuk...' : 'Masuk ke Akun'"></span>
+                            <span x-show="!isLoading" class="text-base font-bold leading-none">→</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 4. 4-COLUMN FEATURE HIGHLIGHTS -->
+            <div class="grid grid-cols-4 gap-1.5 min-[360px]:gap-2 sm:gap-2.5 mb-3 min-[360px]:mb-4 px-0.5 w-full">
+                
+                <!-- Feature 1: Kelola Prospek -->
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-11 h-11 min-[360px]:w-12 min-[360px]:h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center shadow-2xs border border-blue-200/60 transition-transform active:scale-95">
+                        <!-- Bullseye Target Icon (~28px) -->
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="9"/>
+                            <circle cx="12" cy="12" r="5"/>
+                            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <span class="text-[9.5px] min-[360px]:text-[10px] min-[390px]:text-[10.5px] font-bold text-slate-700 leading-tight mt-1.5 tracking-tight">
+                        Kelola<br>Prospek
+                    </span>
+                </div>
+
+                <!-- Feature 2: Follow Up Lebih Mudah -->
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-11 h-11 min-[360px]:w-12 min-[360px]:h-12 rounded-2xl bg-sky-100/80 text-sky-600 flex items-center justify-center shadow-2xs border border-sky-200/60 transition-transform active:scale-95">
+                        <!-- Refresh / Clockwise Sync Icon (~28px) -->
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </div>
+                    <span class="text-[9.5px] min-[360px]:text-[10px] min-[390px]:text-[10.5px] font-bold text-slate-700 leading-tight mt-1.5 tracking-tight">
+                        Follow Up<br>Lebih Mudah
+                    </span>
+                </div>
+
+                <!-- Feature 3: Pantau Performa -->
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-11 h-11 min-[360px]:w-12 min-[360px]:h-12 rounded-2xl bg-indigo-100/80 text-indigo-600 flex items-center justify-center shadow-2xs border border-indigo-200/60 transition-transform active:scale-95">
+                        <!-- Bar Chart / Analytics Icon (~28px) -->
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <span class="text-[9.5px] min-[360px]:text-[10px] min-[390px]:text-[10.5px] font-bold text-slate-700 leading-tight mt-1.5 tracking-tight">
+                        Pantau<br>Performa
+                    </span>
+                </div>
+
+                <!-- Feature 4: Dukung Pertumbuhan -->
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-11 h-11 min-[360px]:w-12 min-[360px]:h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center shadow-2xs border border-blue-200/60 transition-transform active:scale-95">
+                        <!-- Shield Check Icon (~28px) -->
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <span class="text-[9.5px] min-[360px]:text-[10px] min-[390px]:text-[10.5px] font-bold text-slate-700 leading-tight mt-1.5 tracking-tight">
+                        Dukung<br>Pertumbuhan
+                    </span>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- 5 & 6. TEAM ILLUSTRATION & CURVED BLUE GRADIENT FOOTER -->
+        <div class="relative w-full pt-2 overflow-hidden">
+            <!-- Curved Wave Backdrop SVG (renders directly behind illustration & footer) -->
+            <div class="absolute inset-x-0 bottom-0 h-48 pointer-events-none select-none z-0">
+                <svg class="w-full h-full" viewBox="0 0 400 160" fill="none" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="mobileFooterGrad1" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#bfdbfe" stop-opacity="0.8"/>
+                            <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.5"/>
+                        </linearGradient>
+                        <linearGradient id="mobileFooterGrad2" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#93c5fd" stop-opacity="0.6"/>
+                            <stop offset="60%" stop-color="#60a5fa" stop-opacity="0.5"/>
+                            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.6"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M0,45 C110,15 220,70 310,30 C360,10 385,25 400,18 L400,160 L0,160 Z" fill="url(#mobileFooterGrad1)"/>
+                    <path d="M0,75 C120,45 230,90 320,55 C365,35 385,60 400,45 L400,160 L0,160 Z" fill="url(#mobileFooterGrad2)"/>
+                </svg>
+            </div>
+
+            <!-- Team Collaboration Illustration -->
+            <div class="relative z-10 px-4 flex justify-center items-end">
+                <img 
+                    src="{{ asset('images/crm-team-illustration.jpg') }}" 
+                    alt="Kolaborasi Tim CRM UCIC" 
+                    class="w-full max-w-[260px] min-[360px]:max-w-[290px] min-[410px]:max-w-[320px] h-auto object-contain rounded-2xl shadow-xs border border-white/80 select-none bg-white/40"
+                >
+            </div>
+
+            <!-- Curved Blue Gradient Footer Content -->
+            <div class="pt-3.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center relative z-10 px-4">
+                <p class="text-[10px] min-[360px]:text-[11px] sm:text-xs text-slate-700 font-semibold tracking-tight">
+                    &copy; {{ date('Y') }} Universitas Catur Insan Cendekia. All rights reserved.
+                </p>
+                <div class="mt-1.5 flex justify-center">
+                    <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/90 text-blue-700 text-[9px] min-[360px]:text-[10px] font-mono font-bold border border-blue-200/90 shadow-2xs backdrop-blur-xs">
+                        v.1.1.0
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- =================================================================== -->
+    <!-- DESKTOP EXPERIENCE (Viewports >= lg)                                 -->
+    <!-- Preserves the existing high-end 2-column split layout & branding    -->
+    <!-- =================================================================== -->
+    <div class="hidden lg:grid min-h-screen lg:h-screen lg:overflow-hidden grid-cols-2 relative bg-[#f0f5ff]">
+        
+        <!-- Background Ambient Shapes & Soft Curved Glows (Desktop) -->
+        <div class="fixed -top-24 -left-24 w-[480px] h-[480px] bg-white/80 rounded-full blur-3xl pointer-events-none -z-10 animate-blob"></div>
+        <div class="fixed top-1/3 -left-12 w-28 h-28 bg-blue-200/50 rounded-full blur-2xl pointer-events-none -z-10"></div>
+        <div class="fixed -bottom-24 -left-20 w-[420px] h-[420px] bg-blue-100/70 rounded-full blur-3xl pointer-events-none -z-10 animate-blob animation-delay-4000"></div>
+        <div class="fixed -top-20 -right-20 w-[520px] h-[520px] bg-blue-100/60 rounded-full blur-3xl pointer-events-none -z-10 animate-blob animation-delay-2000"></div>
+        <div class="fixed -bottom-20 -right-20 w-[480px] h-[480px] bg-indigo-100/60 rounded-full blur-3xl pointer-events-none -z-10 animate-blob"></div>
+
+        <!-- BAGIAN KIRI DESKTOP: Form Login -->
+        <div class="flex flex-col justify-between p-8 xl:p-12 2xl:p-16 z-20 max-w-none h-full overflow-y-auto">
             
             <div class="max-w-md w-full mx-auto my-auto py-2">
                 
                 <!-- Brand Header -->
-                <div class="flex items-center gap-3.5 mb-5 sm:mb-6 animate-fade-in-up">
+                <div class="flex items-center gap-3.5 mb-6 animate-fade-in-up">
                     <div class="shrink-0 flex items-center">
-                        <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-11 sm:h-13 w-auto object-contain">
+                        <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="h-12 w-auto object-contain">
                     </div>
                     <div>
                         <span class="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100/70 border border-blue-200/90 px-2 py-0.5 rounded-full mb-0.5">
                             UCIC CAMPUS
                         </span>
-                        <h2 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-none">
+                        <h2 class="text-xl font-black text-slate-900 tracking-tight leading-none font-display">
                             CRM Inbound
                         </h2>
                     </div>
@@ -52,16 +346,15 @@
 
                 <!-- Headline & Greeting -->
                 <div class="mb-5 animate-fade-in-up animation-delay-100">
-                    <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                        <span>Selamat Datang Kembali</span>
-                        <span class="inline-block transform hover:rotate-12 transition-transform cursor-default"></span>
+                    <h1 class="text-2xl font-black text-slate-900 tracking-tight font-display">
+                        Selamat Datang Kembali
                     </h1>
                     <p class="text-xs sm:text-sm text-slate-500 mt-1 font-medium leading-relaxed">
                         Kelola prospek, follow-up, dan performa marketing dalam satu platform.
                     </p>
                 </div>
 
-                <!-- Status / Error Alert Box -->
+                <!-- Status / Error Alert Box (Desktop) -->
                 @if ($errors->any() || session('status'))
                 <div class="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 animate-fade-in-up">
                     <svg class="w-4 h-4 shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -71,13 +364,13 @@
                 </div>
                 @endif
 
-                <!-- Login Form -->
-                <form method="POST" action="{{ route('login') }}" class="space-y-3.5 sm:space-y-4" @submit="isLoading = true">
+                <!-- Login Form (Desktop) -->
+                <form method="POST" action="{{ route('login') }}" class="space-y-4" @submit="isLoading = true">
                     @csrf
                     
                     <!-- Field Email / Username -->
                     <div class="animate-fade-in-up animation-delay-200">
-                        <label for="email" class="block text-xs font-bold text-slate-700 mb-1">
+                        <label for="desktop_email" class="block text-xs font-bold text-slate-700 mb-1">
                             Email / Username
                         </label>
                         <div class="relative group">
@@ -87,13 +380,13 @@
                                 </svg>
                             </div>
                             <input 
-                                id="email" 
+                                id="desktop_email" 
                                 name="email"
-                                type="email" 
+                                type="text" 
                                 value="{{ old('email') }}"
                                 required 
-                                autocomplete="email"
-                                class="w-full text-xs sm:text-sm pl-10 pr-4 py-2.5 sm:py-3 rounded-xl bg-[#eef4fe] border border-slate-200/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all duration-200 text-slate-800 placeholder:text-slate-400 shadow-xs"
+                                autocomplete="username"
+                                class="w-full text-sm pl-10 pr-4 py-3 rounded-xl bg-[#eef4fe] border border-slate-200/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all duration-200 text-slate-800 placeholder:text-slate-400 shadow-xs"
                                 placeholder="nama@cic.ac.id"
                             >
                         </div>
@@ -101,7 +394,7 @@
 
                     <!-- Field Password -->
                     <div class="animate-fade-in-up animation-delay-300">
-                        <label for="password" class="block text-xs font-bold text-slate-700 mb-1">
+                        <label for="desktop_password" class="block text-xs font-bold text-slate-700 mb-1">
                             Password
                         </label>
                         <div class="relative group">
@@ -111,12 +404,12 @@
                                 </svg>
                             </div>
                             <input 
-                                id="password" 
+                                id="desktop_password" 
                                 name="password"
                                 :type="showPassword ? 'text' : 'password'" 
                                 required 
                                 autocomplete="current-password"
-                                class="w-full text-xs sm:text-sm pl-10 pr-11 py-2.5 sm:py-3 rounded-xl bg-[#eef4fe] border border-slate-200/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all duration-200 text-slate-800 placeholder:text-slate-400 shadow-xs"
+                                class="w-full text-sm pl-10 pr-11 py-3 rounded-xl bg-[#eef4fe] border border-slate-200/80 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all duration-200 text-slate-800 placeholder:text-slate-400 shadow-xs"
                                 placeholder="Masukkan password"
                             >
                             <button 
@@ -139,7 +432,7 @@
                     <!-- Remember Me & Forgot Password -->
                     <div class="flex items-center justify-between text-xs pt-0.5 animate-fade-in-up animation-delay-400">
                         <label class="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900 transition select-none">
-                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition cursor-pointer">
+                            <input type="checkbox" name="remember" checked class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition cursor-pointer">
                             <span class="font-medium">Ingat saya</span>
                         </label>
                         <a href="#" class="font-bold text-blue-600 hover:text-blue-700 hover:underline transition">
@@ -147,12 +440,12 @@
                         </a>
                     </div>
 
-                    <!-- Button Masuk -->
+                    <!-- Button Masuk (Desktop) -->
                     <div class="animate-fade-in-up animation-delay-500 pt-1.5">
                         <button 
                             type="submit" 
                             :disabled="isLoading"
-                            class="w-full py-3 sm:py-3.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
+                            class="w-full py-3.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-blue-500/30 hover:shadow-lg hover:shadow-blue-500/40 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:pointer-events-none font-display"
                         >
                             <svg x-show="isLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -166,23 +459,21 @@
 
             </div>
 
-            <!-- Footer Copyright (Left) -->
+            <!-- Footer Copyright (Desktop Left) -->
             <div class="pt-3 text-center text-xs text-slate-400 font-normal">
                 &copy; {{ date('Y') }} Universitas Catur Insan Cendekia. All rights reserved.
             </div>
 
         </div>
 
-        <!-- =================================================================== -->
-        <!-- BAGIAN KANAN: Seamless Canvas & Animated Illustration Showcase     -->
-        <!-- =================================================================== -->
-        <div class="hidden lg:flex flex-col justify-between p-5 sm:p-8 lg:p-8 xl:p-12 2xl:p-16 z-20 relative bg-gradient-to-br from-[#ddf9fd] via-[#def0fe] to-[#dee9fd] h-full overflow-y-auto">
+        <!-- BAGIAN KANAN DESKTOP: Seamless Canvas & Animated Illustration Showcase -->
+        <div class="flex flex-col justify-between p-8 xl:p-12 2xl:p-16 z-20 relative bg-gradient-to-br from-[#ddf9fd] via-[#def0fe] to-[#dee9fd] h-full overflow-y-auto">
             
             <div class="max-w-xl w-full mx-auto my-auto py-1">
                 
                 <!-- Pill Badge -->
                 <div class="mb-3 animate-fade-in-up">
-                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 backdrop-blur-md text-blue-700 text-xs font-bold border border-blue-400/30 shadow-xs">
+                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 backdrop-blur-md text-blue-700 text-xs font-bold border border-blue-400/30 shadow-xs font-display">
                         <svg class="w-3.5 h-3.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                         </svg>
@@ -192,7 +483,7 @@
 
                 <!-- Headline & Subtitle -->
                 <div class="mb-3.5 animate-fade-in-up animation-delay-100">
-                    <h2 class="text-xl sm:text-2xl xl:text-3xl font-black text-slate-900 tracking-tight leading-snug">
+                    <h2 class="text-xl sm:text-2xl xl:text-3xl font-black text-slate-900 tracking-tight leading-snug font-display">
                         Akselerasi Penerimaan Mahasiswa Baru & Kerjasama Kampus <span class="text-blue-600 font-black">UCIC.</span>
                     </h2>
                     <p class="text-xs sm:text-sm text-slate-600 mt-1.5 font-normal leading-relaxed">
@@ -200,7 +491,7 @@
                     </p>
                 </div>
 
-                <!-- 2 Feature Cards -->
+                <!-- 2 Feature Cards (Desktop) -->
                 <div class="grid grid-cols-2 gap-3 mb-4 animate-fade-in-up animation-delay-200">
                     <!-- Card 1 -->
                     <div class="p-3 rounded-2xl bg-white/95 backdrop-blur-sm border border-slate-200/70 shadow-xs hover:shadow-md hover:border-blue-300 transition-all duration-300 flex items-center gap-2.5">
@@ -210,7 +501,7 @@
                             </svg>
                         </div>
                         <div class="min-w-0">
-                            <div class="text-xs sm:text-sm font-extrabold text-slate-900 truncate">100% Inbound</div>
+                            <div class="text-xs sm:text-sm font-extrabold text-slate-900 truncate font-display">100% Inbound</div>
                             <div class="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate">Sales & CS Ready</div>
                         </div>
                     </div>
@@ -223,51 +514,51 @@
                             </svg>
                         </div>
                         <div class="min-w-0">
-                            <div class="text-xs sm:text-sm font-extrabold text-slate-900 truncate">Smart Stepper</div>
+                            <div class="text-xs sm:text-sm font-extrabold text-slate-900 truncate font-display">Smart Stepper</div>
                             <div class="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate">Lead ke Closing</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Team Illustration Section with Seamless Blend & Interactive Floating Animations -->
+                <!-- Team Illustration Section with Seamless Blend & Floating Badges -->
                 <div class="relative pt-2 pb-1 animate-fade-in-up animation-delay-300">
-                                    <!-- Handwriting Slogan Annotation with Floating Motion (Top Right) -->
+                    <!-- Handwriting Slogan Annotation -->
                     <div class="absolute -top-3.5 right-1 sm:right-3 z-30 pointer-events-none select-none text-right animate-float-slow">
-                        <span class="font-['Caveat',cursive] text-base sm:text-lg text-blue-600/90 -rotate-3 inline-block font-bold tracking-wide drop-shadow-xs">
+                        <span class="font-handwriting text-base sm:text-lg text-blue-600/90 -rotate-3 inline-block font-bold tracking-wide drop-shadow-xs">
                             Bersama Mewujudkan<br>Masa Depan Lebih Baik
                         </span>
                     </div>
 
-                    <!-- FLOATING UI BADGE 1: Analytics Bar Chart (Top Left) -->
+                    <!-- FLOATING UI BADGE 1: Analytics Bar Chart -->
                     <div class="absolute top-2 -left-3 xl:-left-5 z-30 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl sm:rounded-2xl shadow-lg shadow-blue-500/10 border border-white/80 flex items-center gap-2 animate-float">
                         <div class="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                         </div>
                         <div>
-                            <div class="text-[9px] sm:text-[10px] font-extrabold text-slate-800">Pipeline Analytics</div>
+                            <div class="text-[9px] sm:text-[10px] font-extrabold text-slate-800 font-display">Pipeline Analytics</div>
                             <div class="text-[8px] font-semibold text-emerald-600">+32% Konversi PMB</div>
                         </div>
                     </div>
 
-                    <!-- FLOATING UI BADGE 2: Chat Bubble Notification (Bottom Left) -->
+                    <!-- FLOATING UI BADGE 2: Chat Bubble Notification -->
                     <div class="absolute bottom-8 -left-3 xl:-left-5 z-30 bg-blue-600 text-white px-2.5 py-1.5 rounded-xl sm:rounded-2xl shadow-md shadow-blue-600/30 flex items-center gap-1.5 animate-float-reverse">
                         <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                        <span class="text-[9px] sm:text-[10px] font-bold">Follow-Up Terjadwal</span>
+                        <span class="text-[9px] sm:text-[10px] font-bold font-display">Follow-Up Terjadwal</span>
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                     </div>
 
-                    <!-- FLOATING UI BADGE 3: Active User Pill (Bottom Right) -->
+                    <!-- FLOATING UI BADGE 3: Active User Pill -->
                     <div class="absolute bottom-6 -right-2 xl:-right-4 z-30 bg-white/95 backdrop-blur-md p-1.5 sm:p-2 rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-500/10 border border-white/80 flex items-center gap-1.5 animate-float-slow">
                         <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 text-white flex items-center justify-center text-[10px] font-bold">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         </div>
                         <div class="pr-1">
-                            <div class="text-[9px] sm:text-[10px] font-bold text-slate-800">Sales & CS Active</div>
+                            <div class="text-[9px] sm:text-[10px] font-bold text-slate-800 font-display">Sales & CS Active</div>
                             <div class="text-[8px] text-slate-400">100% Inbound Ready</div>
                         </div>
                     </div>
 
-                    <!-- Seamless Illustration Container (Matches Background & Preserves Full Ratio without Cropping) -->
+                    <!-- Illustration Container -->
                     <div class="relative rounded-2xl sm:rounded-3xl overflow-hidden group transition-transform duration-500 hover:scale-[1.01] flex items-center justify-center">
                         <img 
                             src="{{ asset('images/crm-team-illustration.jpg') }}" 
@@ -281,7 +572,7 @@
             </div>
 
             <!-- Empty spacer for symmetry -->
-            <div class="hidden lg:block h-2"></div>
+            <div class="h-2"></div>
 
         </div>
 
