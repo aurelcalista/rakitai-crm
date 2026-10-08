@@ -10,10 +10,10 @@ class Prospek extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp',
+        'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
         'status', 'stage_number', 'potential', 'ai_training', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
-        'sekolah_id', 'perusahaan_id', 'prodi_id',
+        'sekolah_id', 'asal_kelas', 'perusahaan_id', 'prodi_id', 'prodi_lainnya',
         'lost_reason', 'lost_note',
         'follow_up_count', 'active_follow_up_count',
         'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',

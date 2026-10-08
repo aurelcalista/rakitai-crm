@@ -111,6 +111,15 @@ class ProspectController extends Controller
             }
         }
 
+        if (empty($validated['prodi_id'])) {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+        } else {
+            $validated['prodi_lainnya'] = null;
+        }
+
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
             $csId     = null;
@@ -268,6 +277,15 @@ class ProspectController extends Controller
             if (empty($validated['name'])) {
                 $validated['name'] = $validated['pic'] ?? $prospek->name;
             }
+        }
+
+        if (empty($validated['prodi_id'])) {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+        } else {
+            $validated['prodi_lainnya'] = null;
         }
 
         $prospek->update($validated);

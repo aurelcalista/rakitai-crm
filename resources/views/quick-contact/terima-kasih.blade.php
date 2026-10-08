@@ -31,11 +31,30 @@
                     <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                 </div>
                 
-                <h2 class="text-3xl font-black text-slate-900 mb-4 tracking-tight">Terima Kasih</h2>
-                <p class="text-lg text-slate-600 mb-8 leading-relaxed">
-                    Data kamu berhasil dikirim.<br>
-                    Tim kami akan menghubungi kamu melalui WhatsApp untuk informasi selanjutnya.
-                </p>
+                <h2 class="text-3xl font-black text-slate-900 mb-4 tracking-tight">{{ $tkTitle ? $tkTitle->nama : 'Terima Kasih' }}</h2>
+                
+                @php
+                    $showSubtitle = true;
+                    $subtitleText = "Data kamu berhasil dikirim.\nTim kami akan menghubungi kamu melalui WhatsApp untuk informasi selanjutnya.";
+                    
+                    if (isset($tkSubtitle)) {
+                        if ($tkSubtitle->nama === '' || $tkSubtitle->nama === null) {
+                            $showSubtitle = false;
+                        } else {
+                            $subtitleText = $tkSubtitle->nama;
+                        }
+                    }
+                @endphp
+
+                @if($showSubtitle)
+                    <p class="text-lg text-slate-600 mb-6 leading-relaxed whitespace-pre-line">{{ $subtitleText }}</p>
+                @endif
+
+                @if(isset($tkImage) && $tkImage->nama)
+                    <div class="mb-8 flex justify-center">
+                        <img src="{{ asset('storage/' . $tkImage->nama) }}" alt="Terima Kasih" class="w-full h-48 object-contain">
+                    </div>
+                @endif
 
                 <div class="flex flex-col gap-3 max-w-xs mx-auto">
                     <a href="{{ route('kontak-cepat') }}" class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/20 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all">

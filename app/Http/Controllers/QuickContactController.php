@@ -29,7 +29,10 @@ class QuickContactController extends Controller
             'perusahaan_id'  => 'nullable|required_if:jenis_instansi,PT|exists:perusahaans,id',
             'nama'           => 'required|string|max:255',
             'no_whatsapp'    => 'required|string|max:20',
-            'prodi_id'       => 'required|exists:prodis,id',
+            'wa_ortu'        => 'nullable|string|max:20',
+            'asal_kelas'     => 'nullable|required_if:jenis_instansi,Sekolah|string|max:255',
+            'prodi_id'       => 'required|string',
+            'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
             'kelas'          => 'required|in:Reguler,Karyawan',
         ]);
 
@@ -51,12 +54,15 @@ class QuickContactController extends Controller
         $prospek = Prospek::create([
             'name'             => $name,
             'whatsapp'         => $validated['no_whatsapp'],
+            'wa_ortu'          => $validated['wa_ortu'] ?? null,
             'pic'              => $validated['nama'],
             'pic_phone'        => $validated['no_whatsapp'],
             'type'             => $validated['jenis_instansi'] === 'PT' ? 'Corporate' : 'Sekolah',
             'sekolah_id'       => $validated['jenis_instansi'] === 'Sekolah' ? $validated['sekolah_id'] : null,
+            'asal_kelas'       => $validated['asal_kelas'] ?? null,
             'perusahaan_id'    => $validated['jenis_instansi'] === 'PT' ? $validated['perusahaan_id'] : null,
-            'prodi_id'         => $validated['prodi_id'],
+            'prodi_id'         => $validated['prodi_id'] === 'lainnya' ? null : $validated['prodi_id'],
+            'prodi_lainnya'    => $validated['prodi_id'] === 'lainnya' ? $validated['prodi_lainnya'] : null,
             'kelas'            => $validated['kelas'],
             'status'           => 'BARU',
             'stage_number'     => 1,
@@ -79,6 +85,10 @@ class QuickContactController extends Controller
 
     public function terimaKasih()
     {
-        return view('quick-contact.terima-kasih');
+        $tkTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_TITLE')->first();
+        $tkSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_SUBTITLE')->first();
+        $tkImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
+
+        return view('quick-contact.terima-kasih', compact('tkTitle', 'tkSubtitle', 'tkImage'));
     }
 }

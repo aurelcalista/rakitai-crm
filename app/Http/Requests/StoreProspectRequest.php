@@ -66,7 +66,10 @@ class StoreProspectRequest extends FormRequest
                     }
                 }
             ],
-            'prodi_id' => 'nullable|exists:prodis,id',
+            'prodi_id' => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
+            'wa_ortu' => 'nullable|string|max:20',
+            'asal_kelas' => 'nullable|string|max:100',
         ];
     }
 

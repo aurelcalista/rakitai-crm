@@ -320,6 +320,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/profil',          [CrmController::class, 'profilUpdate'])->name('profil.update');
     Route::post('/profil/password', [CrmController::class, 'profilPasswordUpdate'])->name('profil.password.update');
     Route::get('/pengaturan',       [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
+    Route::post('/pengaturan/terima-kasih', [CrmController::class, 'updateTerimaKasihSettings'])->name('pengaturan.update-terima-kasih');
 
     // Notifications (all roles)
     Route::get('/notifications/latest',         [NotificationController::class, 'getLatest'])->name('notifications.latest');
