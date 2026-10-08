@@ -36,8 +36,6 @@ class StoreProspectRequest extends FormRequest
             'pic_phone'=> 'nullable|string|max:20',
             'whatsapp' => 'required|string|max:20',
             'status'   => 'required|string|max:255',
-            'potential'=> 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
             'notes'    => [
                 'nullable',
                 'string',
@@ -68,7 +66,10 @@ class StoreProspectRequest extends FormRequest
                     }
                 }
             ],
-            'prodi_id' => 'nullable|exists:prodis,id',
+            'prodi_id' => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
+            'wa_ortu' => 'nullable|string|max:20',
+            'asal_kelas' => 'nullable|string|max:100',
         ];
     }
 

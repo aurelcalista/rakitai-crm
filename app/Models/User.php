@@ -141,6 +141,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaksi::class);
     }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');

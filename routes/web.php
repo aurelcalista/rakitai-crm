@@ -12,7 +12,7 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('dashboard');
     }
-    return redirect()->route('login');
+    return view('landing');
 });
 
 Route::middleware('guest')->group(function () {
@@ -23,6 +23,18 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
+
+// ──────────────────────────────────────────────────────────────────
+// Tambah Kontak Cepat (Public)
+// ──────────────────────────────────────────────────────────────────
+Route::get('/presensi', [\App\Http\Controllers\QuickContactController::class, 'create'])->name('kontak-cepat');
+Route::post('/presensi', [\App\Http\Controllers\QuickContactController::class, 'store'])->name('kontak-cepat.store');
+
+Route::get('/presensi-corporate', [\App\Http\Controllers\QuickContactController::class, 'createCorporate'])->name('kontak-cepat.corporate');
+Route::post('/presensi-corporate', [\App\Http\Controllers\QuickContactController::class, 'storeCorporate'])->name('kontak-cepat.store-corporate');
+Route::get('/presensi-corporate/terima-kasih', [\App\Http\Controllers\QuickContactController::class, 'terimaKasihCorporate'])->name('kontak-cepat.terima-kasih-corporate');
+
+Route::get('/presensi/terima-kasih', [\App\Http\Controllers\QuickContactController::class, 'terimaKasih'])->name('kontak-cepat.terima-kasih');
 
 // ──────────────────────────────────────────────────────────────────
 // Authenticated Routes (all roles)
@@ -226,6 +238,13 @@ Route::middleware('auth')->group(function () {
         Route::post('bank-accounts/{bankAccount}/toggle-status', [\App\Http\Controllers\Admin\AdminBankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
         Route::resource('bank-accounts', \App\Http\Controllers\Admin\AdminBankAccountController::class)->except(['create', 'show', 'edit']);
 
+        // Kelola Kalender Kerja
+        Route::get('work-calendar', [\App\Http\Controllers\WorkCalendarController::class, 'index'])->name('work-calendar.index');
+        Route::post('work-calendar/weekly', [\App\Http\Controllers\WorkCalendarController::class, 'updateWeekly'])->name('work-calendar.update-weekly');
+        Route::post('work-calendar', [\App\Http\Controllers\WorkCalendarController::class, 'store'])->name('work-calendar.store');
+        Route::put('work-calendar/{workCalendar}', [\App\Http\Controllers\WorkCalendarController::class, 'update'])->name('work-calendar.update');
+        Route::delete('work-calendar/{workCalendar}', [\App\Http\Controllers\WorkCalendarController::class, 'destroy'])->name('work-calendar.destroy');
+
 
         Route::get('/settings',   [CrmController::class, 'adminSettings'])->name('settings.index');
     });
@@ -248,9 +267,14 @@ Route::middleware('auth')->group(function () {
     });
 
     // ──────────────────────────────────────────────────────────────
-    // Shared CRM Modules (CS, SPV, HM, Admin, Fallback)
+    // Shared CRM Modules (CS, SPV, HM, Admin, Fallback, Sales, EO)
     // ──────────────────────────────────────────────────────────────
-    Route::middleware(['role:Admin,HM,SPV,CS,Sales'])->group(function () {
+    Route::middleware(['role:Admin,HM,SPV,CS,Sales,EO'])->group(function () {
+        // Attendance Routes
+        Route::get('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');
+        Route::post('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'store'])->name('attendance.store');
+        Route::get('/absensi/kelola', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('/absensi/kelola/{id}', [\App\Http\Controllers\AttendanceController::class, 'show'])->name('attendance.show');
         Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
         Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
         Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
@@ -301,6 +325,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/profil',          [CrmController::class, 'profilUpdate'])->name('profil.update');
     Route::post('/profil/password', [CrmController::class, 'profilPasswordUpdate'])->name('profil.password.update');
     Route::get('/pengaturan',       [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
+    Route::post('/pengaturan/terima-kasih', [CrmController::class, 'updateTerimaKasihSettings'])->name('pengaturan.update-terima-kasih');
+    Route::post('/pengaturan/terima-kasih-corporate', [CrmController::class, 'updateTerimaKasihCorporateSettings'])->name('pengaturan.update-terima-kasih-corporate');
 
     // Notifications (all roles)
     Route::get('/notifications/latest',         [NotificationController::class, 'getLatest'])->name('notifications.latest');

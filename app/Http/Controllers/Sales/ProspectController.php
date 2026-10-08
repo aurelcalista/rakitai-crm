@@ -111,6 +111,15 @@ class ProspectController extends Controller
             }
         }
 
+        if (empty($validated['prodi_id'])) {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+        } else {
+            $validated['prodi_lainnya'] = null;
+        }
+
         DB::transaction(function () use ($validated, $user, $name) {
             // Auto-assign CS from same wilayah if Sales has a wilayah
             $csId     = null;
@@ -136,8 +145,6 @@ class ProspectController extends Controller
                 'whatsapp'     => $validated['whatsapp'],
                 'status'       => $validated['status'],
                 'stage_number' => $stageNumber,
-                'potential'    => $validated['potential'] ?? null,
-                'ai_training'  => $validated['ai_training'] ?? null,
                 'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
                 'prodi_id'     => $validated['prodi_id'] ?? null,
@@ -270,6 +277,15 @@ class ProspectController extends Controller
             if (empty($validated['name'])) {
                 $validated['name'] = $validated['pic'] ?? $prospek->name;
             }
+        }
+
+        if (empty($validated['prodi_id'])) {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+        } else {
+            $validated['prodi_lainnya'] = null;
         }
 
         $prospek->update($validated);
@@ -438,6 +454,9 @@ class ProspectController extends Controller
             'pic'            => $p->pic ?? '-',
             'pic_phone'      => $p->pic_phone ?? '-',
             'whatsapp'       => $p->whatsapp ?? '-',
+            'wa_ortu'        => $p->wa_ortu ?? '',
+            'asal_kelas'     => $p->asal_kelas ?? '',
+            'prodi_lainnya'  => $p->prodi_lainnya ?? '',
             'status'         => $p->status,
             'stage_number'   => $p->stage_number,
             'takeover_sales' => $p->sales ? $p->sales->name : null,
@@ -445,8 +464,6 @@ class ProspectController extends Controller
             'active_takeover' => $p->activeHandlerLabel(),
             'owner'          => $p->owner ? $p->owner->name : 'Sistem',
             'last_activity'  => $p->updated_at ? $p->updated_at->diffForHumans() : '-',
-            'potential'      => $p->potential ?? '-',
-            'ai_training'    => $p->ai_training ?? '-',
             'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
             'source'         => $p->source ?? '-',
             'lost_reason'    => $p->lost_reason,

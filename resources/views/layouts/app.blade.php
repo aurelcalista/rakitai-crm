@@ -112,7 +112,7 @@
         $routePrefix = $userRole === 'sales' ? 'sales.' : ($userRole === 'spv' ? 'spv.' : '');
     @endphp
 </head>
-<body class="h-full bg-slate-50 font-sans text-slate-800" x-data="{ 
+<body class="h-full bg-slate-50 font-sans text-slate-800" :class="{ 'overflow-hidden': mobileMenuOpen }" x-data="{ 
     sidebarCollapsed: false, 
     mobileMenuOpen: false,
     modalTambahProspek: {{ (isset($errors) && $errors->any() && (old('pic') || old('type') || old('whatsapp') || old('source') || old('sekolah_id') || old('perusahaan_id') || old('sekolah_manual') || old('perusahaan_manual'))) ? 'true' : 'false' }},
@@ -125,6 +125,10 @@
 }
 "
 x-init="
+    $watch('mobileMenuOpen', value => {
+        document.documentElement.classList.toggle('overflow-hidden', value);
+        document.body.classList.toggle('overflow-hidden', value);
+    });
     $nextTick(() => {
         @if(session('success'))
             if (window.Alpine && Alpine.store('crm')) {
@@ -272,6 +276,42 @@ x-init="
                     </div>
                 </div>
 
+                <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                <!-- Section: ABSENSI -->
+                <div>
+                    <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
+                    <div class="space-y-1">
+                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.create') }}" 
+                            title="Input Absensi"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.create') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.create') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Input Absensi</span>
+                        </a>
+                        @endif
+
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.index') }}" 
+                            title="Kelola Absensi"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Kelola Absensi</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+
                 @if($currentUser['role'] === 'EO')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
@@ -323,6 +363,17 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.work-calendar.index') }}" 
+                                title="Kelola Kalender Kerja"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.work-calendar.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.work-calendar.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kalender Kerja</span>
                             </a>
                             <a 
                                 href="{{ route('admin.hm-wilayah.index') }}" 
@@ -933,7 +984,7 @@ x-init="
                             x-transition:leave="transition ease-in duration-100 transform"
                             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
                             x-transition:leave-end="opacity-0 scale-95 translate-y-1"
-                            class="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 overflow-hidden transform origin-top-right"
+                            class="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 overflow-hidden transform origin-top-right"
                         >
                             <!-- Dropdown Header -->
                             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -1071,7 +1122,7 @@ x-init="
             </header>
 
             <!-- MAIN PAGE SLOT -->
-            <main class="flex-1 px-4 sm:px-6 lg:px-8 py-7 sm:py-8 max-w-7xl w-full mx-auto">
+            <main class="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-8 max-w-7xl w-full mx-auto">
                 @if(auth()->check() && strtolower(auth()->user()->role) === 'sales')
                     @php
                         $pendingVisits = \App\Models\Prospek::where('sales_id', auth()->id())->where('needs_visit_report', true)->count();
@@ -1115,8 +1166,9 @@ x-init="
             x-transition:leave="transition-opacity ease-in duration-200"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 md:hidden"
+            class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 md:hidden overscroll-contain"
             @click="mobileMenuOpen = false"
+            @touchmove.prevent
         ></div>
 
         <!-- Offcanvas Drawer -->
@@ -1129,8 +1181,10 @@ x-init="
             x-transition:leave="transition ease-in duration-200 transform"
             x-transition:leave-start="translate-x-0"
             x-transition:leave-end="-translate-x-full"
-            class="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-50 md:hidden flex flex-col border-r border-slate-200"
+            class="fixed inset-y-0 left-0 w-[85%] max-w-sm bg-white shadow-2xl z-50 md:hidden flex flex-col border-r border-slate-200 overscroll-contain"
+            style="overscroll-behavior: contain;"
             @keydown.escape.window="mobileMenuOpen = false"
+            @resize.window="if (window.innerWidth >= 768) mobileMenuOpen = false"
             x-data="{
                 searchQuery: '',
                 matches(keywords) {
@@ -1203,7 +1257,7 @@ x-init="
             </div>
 
             <!-- Drawer Menu List (Scrollable) -->
-            <div class="flex-1 overflow-y-auto p-3 space-y-4">
+            <div class="flex-1 overflow-y-auto overscroll-contain overscroll-y-contain p-3 space-y-4 touch-pan-y" style="overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
 
                 <!-- SECTION: MENU UTAMA -->
                 <div x-show="matches('dashboard kalender internal utama agenda infografis statistik')">
@@ -1251,9 +1305,45 @@ x-init="
                     </div>
                 </div>
 
+                <!-- SECTION: ABSENSI -->
+                <div x-show="matches('absensi kehadiran input absen kelola absen staf')">
+                    <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
+                    <div class="space-y-1">
+                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.create') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="input absensi kehadiran absen staf hari ini"
+                            x-show="matches('input absensi kehadiran absen staf hari ini')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.create') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.create') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="flex-1">Input Absensi</span>
+                        </a>
+                        @endif
+
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        <a 
+                            href="{{ route('attendance.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            data-menu-keywords="kelola absensi kehadiran absen staf"
+                            x-show="matches('kelola absensi kehadiran absen staf')"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('attendance.index') || request()->routeIs('attendance.show') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            <span class="flex-1">Kelola Absensi</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+
                 @if($currentUser['role'] === 'EO')
                     <!-- SECTION: EVENT ORGANIZER -->
-                    <div x-show="matches('kelola event acara agenda eo management')">
+                    <div x-show="matches('kelola event acara agenda eo management jenis event kategori')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Event Management</div>
                         <div class="space-y-1">
                             <a 
@@ -1268,13 +1358,25 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Kelola Event</span>
                             </a>
+                            <a 
+                                href="{{ route('eo.event-types.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola jenis event tipe kategori acara eo agenda"
+                                x-show="matches('kelola jenis event tipe kategori acara eo agenda')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('eo.event-types.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('eo.event-types.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <span class="flex-1">Jenis Event</span>
+                            </a>
                         </div>
                     </div>
                 @endif
 
                 @if($currentUser['role'] === 'Admin')
                     <!-- SECTION: ADMIN PANEL -->
-                    <div x-show="matches('admin control kelola pengguna user kunjungan target')">
+                    <div x-show="matches('admin control kelola pengguna user kunjungan target event acara jenis kalender kerja')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-purple-700 uppercase tracking-wider">Admin Control</div>
                         <div class="space-y-1">
                             <a 
@@ -1288,6 +1390,18 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span class="flex-1">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('admin.work-calendar.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola kalender kerja libur admin"
+                                x-show="matches('kelola kalender kerja libur admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.work-calendar.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.work-calendar.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span class="flex-1">Kalender Kerja</span>
                             </a>
 
                             <a 
@@ -1328,11 +1442,37 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Kelola Target</span>
                             </a>
+
+                            <a 
+                                href="{{ route('admin.events.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola event acara kegiatan pameran expo admin"
+                                x-show="matches('kelola event acara kegiatan pameran expo admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.events.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.events.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <span class="flex-1">Kelola Event</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.event-types.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola jenis event tipe kategori acara admin"
+                                x-show="matches('kelola jenis event tipe kategori acara admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.event-types.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.event-types.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <span class="flex-1">Jenis Event</span>
+                            </a>
                         </div>
                     </div>
 
                     <!-- SECTION: DATA MASTER -->
-                    <div x-show="matches('data master wilayah sekolah prodi jurusan perusahaan audit log')">
+                    <div x-show="matches('data master wilayah potensi sekolah prodi jurusan perusahaan tahun akademik rekening bank audit log')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-purple-700 uppercase tracking-wider">Data Master</div>
                         <div class="space-y-1">
                             <a 
@@ -1414,6 +1554,32 @@ x-init="
                             </a>
 
                             <a 
+                                href="{{ route('admin.tahun-akademik.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="tahun akademik periode pmb kalender pendaftaran admin"
+                                x-show="matches('tahun akademik periode pmb kalender pendaftaran admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.tahun-akademik.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.tahun-akademik.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span class="flex-1">Tahun Akademik</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.bank-accounts.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="rekening bank nomor transfer pembayaran bca mandiri bni admin"
+                                x-show="matches('rekening bank nomor transfer pembayaran bca mandiri bni admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.bank-accounts.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.bank-accounts.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <span class="flex-1">Rekening Bank</span>
+                            </a>
+
+                            <a 
                                 href="{{ route('admin.audit-logs.index') }}" 
                                 @click="mobileMenuOpen = false"
                                 data-menu-keywords="audit log log aktivitas riwayat sistem keamanan"
@@ -1434,7 +1600,7 @@ x-init="
                         if ($userRole === 'sales') $prospekMobileTitle = 'Data Prospek';
                         if ($userRole === 'cs') $prospekMobileTitle = 'Data Kontak';
                     @endphp
-                    <div x-show="matches('crm inbound prospek kontak kunjungan follow up event pipeline')">
+                    <div x-show="matches('crm inbound prospek kontak kunjungan follow up event pipeline verifikasi bayar pembayaran')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
                         <div class="space-y-1">
                             <a 
@@ -1536,6 +1702,26 @@ x-init="
                                 </a>
                             @endif
 
+                            {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
+                            @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            <a 
+                                href="{{ route('cs.verifikasi.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="verifikasi pembayaran validasi bukti transfer bayar cs admin hm termin keuangan"
+                                x-show="matches('verifikasi pembayaran validasi bukti transfer bayar cs admin hm termin keuangan')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('cs.verifikasi.*') ? 'bg-amber-50 text-amber-700 font-bold border border-amber-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('cs.verifikasi.*') ? 'text-amber-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="flex-1">Verifikasi Bayar</span>
+                                @if($pendingVerifikasiCount > 0)
+                                    <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{{ $pendingVerifikasiCount }}</span>
+                                @endif
+                            </a>
+                            @endif
+
                             <a 
                                 href="{{ route($routePrefix . 'pipeline.index') }}" 
                                 @click="mobileMenuOpen = false"
@@ -1585,7 +1771,7 @@ x-init="
 
                     @if($userRole === 'spv')
                         <!-- SECTION: TIM SPV -->
-                        <div x-show="matches('manajemen tim spv assignment event penugasan supervisor')">
+                        <div x-show="matches('manajemen tim spv assignment event penugasan supervisor potensi wilayah')">
                             <div class="px-3 mb-1.5 text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Manajemen Tim</div>
                             <div class="space-y-1">
                                 <a 
@@ -1613,6 +1799,19 @@ x-init="
                                     </svg>
                                     <span class="flex-1">Assignment Event</span>
                                 </a>
+
+                                <a 
+                                    href="{{ route('potensi-wilayah.index') }}" 
+                                    @click="mobileMenuOpen = false"
+                                    data-menu-keywords="potensi wilayah prospek closing spv peta territory"
+                                    x-show="matches('potensi wilayah prospek closing spv peta territory')"
+                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                >
+                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-indigo-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="flex-1">Potensi Wilayah</span>
+                                </a>
                             </div>
                         </div>
                     @endif
@@ -1620,7 +1819,7 @@ x-init="
 
                 @if(in_array($currentUser['role'], ['HM', 'Head Marketing']))
                     <!-- SECTION: MANAGEMENT (Head Marketing) -->
-                    <div x-show="matches('management kelola wilayah tim target head marketing')">
+                    <div x-show="matches('management kelola wilayah spv cs tim target head marketing aktivitas log audit')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
                         <div class="space-y-1">
                             <a 
@@ -1650,6 +1849,32 @@ x-init="
                             </a>
 
                             <a 
+                                href="{{ route('hm.spv.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola spv supervisor tim marketing hm pimpinan"
+                                x-show="matches('kelola spv supervisor tim marketing hm pimpinan')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.spv.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.spv.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                                <span class="flex-1">Kelola SPV</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('hm.cs.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola cs customer service tim inbound hm pimpinan"
+                                x-show="matches('kelola cs customer service tim inbound hm pimpinan')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('hm.cs.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('hm.cs.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Kelola CS</span>
+                            </a>
+
+                            <a 
                                 href="{{ route('admin.target.index') }}" 
                                 @click="mobileMenuOpen = false"
                                 data-menu-keywords="kelola target sasaran kpi marketing"
@@ -1660,6 +1885,19 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                                 <span class="flex-1">Kelola Target</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('admin.audit-logs.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="log aktivitas audit logs histori audit trail sistem hm"
+                                x-show="matches('log aktivitas audit logs histori audit trail sistem hm')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('admin.audit-logs.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('admin.audit-logs.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span class="flex-1">Log Aktivitas</span>
                             </a>
                         </div>
                     </div>
@@ -1982,17 +2220,21 @@ x-init="
                                 </div>
                             </div>
 
-                            <div>
+                            <div x-data="{ selectedProdi: '' }">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center justify-between">
                                     <span>Program Studi Diminati</span>
                                     <span class="text-[11px] text-slate-400 font-normal">Opsional</span>
                                 </label>
-                                <select name="prodi_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                <select name="prodi_id" x-model="selectedProdi" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white mb-2">
                                     <option value="">-- Pilih Program Studi (Boleh Dikosongkan) --</option>
                                     @foreach($prodisList as $prd)
                                         <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
                                     @endforeach
+                                    <option value="lainnya">Lainnya</option>
                                 </select>
+                                <div x-show="selectedProdi === 'lainnya'" style="display: none;">
+                                    <input type="text" name="prodi_lainnya" placeholder="Ketik program studi pilihan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                </div>
                             </div>
 
                             <div>
@@ -2003,6 +2245,10 @@ x-init="
                                     @endforeach
                                 </select>
                             </div>
+                            <div x-show="prospekType === 'Sekolah'">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kelas / Tingkat Sekolah</label>
+                                <input type="text" name="asal_kelas" placeholder="Contoh: 12 RPL 1" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
                                 <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
@@ -2010,6 +2256,10 @@ x-init="
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
                                 <input type="tel" name="whatsapp" required placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WA Orang Tua/Wali (Opsional)</label>
+                                <input type="tel" name="wa_ortu" placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>
@@ -2031,6 +2281,16 @@ x-init="
                                         <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
                                     @endforeach
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md inline-block mb-3">2. Detail & Potensi</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Tambahan</label>
+                                <textarea name="notes" rows="2" placeholder="Catatan opsional (Maks. 10 kata)..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">{{ old('notes') }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -2972,6 +3232,15 @@ x-init="
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Memproses Logout...',
+                        text: 'Silakan tunggu sebentar',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
                     document.getElementById('logout-form').submit();
                 }
             });
@@ -3025,6 +3294,15 @@ x-init="
                 }
 
                 window.confirmAction(opts, function() {
+                    Swal.fire({
+                        title: 'Memproses...',
+                        text: 'Silakan tunggu sebentar',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
                     form.dataset.confirmed = 'true';
                     form.submit();
                 });

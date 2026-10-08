@@ -168,10 +168,6 @@
                             <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
                         </div>
 
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Potensi Calon Mahasiswa</span>
-                            <p class="font-medium text-slate-800 mt-0.5 leading-relaxed">{{ $prospect['potential'] ?? '-' }}</p>
-                        </div>
 
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>

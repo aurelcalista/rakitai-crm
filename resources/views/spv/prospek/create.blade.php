@@ -189,7 +189,7 @@
                             <template x-if="modeManualSekolah">
                                 <div class="flex items-center justify-between w-full">
                                     <div class="flex items-center gap-1.5">
-                                        <label class="block text-xs font-semibold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                        <label class="block text-xs font-semibold text-slate-700">Nama <span class="text-rose-500">*</span></label>
                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
                                             Manual
                                         </span>
@@ -258,7 +258,7 @@
                             <template x-if="modeManualCorp">
                                 <div class="flex items-center justify-between w-full">
                                     <div class="flex items-center gap-1.5">
-                                        <label class="block text-xs font-semibold text-slate-700">Nama Perusahaan <span class="text-rose-500">*</span></label>
+                                        <label class="block text-xs font-semibold text-slate-700">Nama <span class="text-rose-500">*</span></label>
                                         <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
                                             Manual
                                         </span>
@@ -308,11 +308,7 @@
                         </div>
                     </div>
 
-                    <!-- Nama Prospek -->
-                    <div class="space-y-1">
-                        <label class="block text-xs font-semibold text-slate-700">Nama Calon Mahasiswa / Nama Prospek</label>
-                        <input type="text" name="name" x-model="prospectName" value="{{ old('name') }}" placeholder="Contoh: Muhammad Rizky atau SMAN 1 Cirebon (Bisa dikosongkan jika memilih Sekolah/PIC)" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
-                    </div>
+
 
                     <!-- PIC & WhatsApp Contact -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

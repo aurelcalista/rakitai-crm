@@ -175,7 +175,7 @@ class CrmController extends Controller
     }
 
     /**
-     * Get mock prospect dataset.
+     * Get mock prospect dataset. 
      */
     private function getProspects(): array
     {
@@ -1045,6 +1045,88 @@ class CrmController extends Controller
         return view('admin.settings.index');
     }
 
+    public function updateTerimaKasihSettings(Request $request)
+    {
+        if (strtolower(auth()->user()->role) !== 'admin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_TITLE'],
+            ['nama' => $request->title, 'status' => 'Aktif']
+        );
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_SUBTITLE'],
+            ['nama' => 'Subtitle', 'deskripsi' => $request->subtitle ?? '', 'status' => 'Aktif']
+        );
+
+        if ($request->has('delete_image') && $request->delete_image == '1') {
+            $existingImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
+            if ($existingImage && $existingImage->nama) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($existingImage->nama)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($existingImage->nama);
+                }
+                $existingImage->delete();
+            }
+        } elseif ($request->hasFile('image')) {
+            $path = $request->file('image')->store('settings', 'public');
+            \App\Models\MasterData::updateOrCreate(
+                ['type' => 'setting', 'kode' => 'TK_IMAGE'],
+                ['nama' => $path, 'status' => 'Aktif']
+            );
+        }
+
+        return redirect()->back()->with('success', 'Pengaturan Halaman Terima Kasih berhasil diperbarui!');
+    }
+
+    public function updateTerimaKasihCorporateSettings(Request $request)
+    {
+        if (strtolower(auth()->user()->role) !== 'admin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_CORP_TITLE'],
+            ['nama' => $request->title, 'status' => 'Aktif']
+        );
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_CORP_SUBTITLE'],
+            ['nama' => 'Subtitle', 'deskripsi' => $request->subtitle ?? '', 'status' => 'Aktif']
+        );
+
+        if ($request->has('delete_image') && $request->delete_image == '1') {
+            $existingImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_IMAGE')->first();
+            if ($existingImage && $existingImage->nama) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($existingImage->nama)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($existingImage->nama);
+                }
+                $existingImage->delete();
+            }
+        } elseif ($request->hasFile('image')) {
+            $path = $request->file('image')->store('settings', 'public');
+            \App\Models\MasterData::updateOrCreate(
+                ['type' => 'setting', 'kode' => 'TK_CORP_IMAGE'],
+                ['nama' => $path, 'status' => 'Aktif']
+            );
+        }
+
+        return redirect()->back()->with('success', 'Pengaturan Halaman Terima Kasih Corporate berhasil diperbarui!');
+    }
+
     /**
      * Daftar Prospek (Scoped to authenticated user role / team hierarchy).
      */
@@ -1199,10 +1281,13 @@ class CrmController extends Controller
             'status'        => 'required|string',
             'pic'           => 'required|string',
             'whatsapp'      => 'required|string',
-            'prodi_id'      => 'nullable|exists:prodis,id',
+            'prodi_id'      => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'sales_id'      => 'nullable|exists:users,id',
+            'wa_ortu'       => 'nullable|string',
+            'asal_kelas'    => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -1223,6 +1308,21 @@ class CrmController extends Controller
                     $wilayahId = $sales->wilayah_id;
                     $csId = null;
                 }
+            }
+
+            // Handle Manual Input (Sekolah / Perusahaan)
+            if ($request->type === 'Sekolah' && empty($request->sekolah_id) && $request->filled('sekolah_manual')) {
+                $sek = \App\Models\Sekolah::firstOrCreate(
+                    ['nama' => trim($request->sekolah_manual)],
+                    ['status' => 'Aktif']
+                );
+                $request->merge(['sekolah_id' => $sek->id]);
+            } elseif ($request->type === 'Corporate' && empty($request->perusahaan_id) && $request->filled('perusahaan_manual')) {
+                $per = \App\Models\Perusahaan::firstOrCreate(
+                    ['nama' => trim($request->perusahaan_manual)],
+                    ['status' => 'Aktif']
+                );
+                $request->merge(['perusahaan_id' => $per->id]);
             }
 
             // Resolve name
@@ -1260,7 +1360,15 @@ class CrmController extends Controller
                 'owner_id'           => $ownerId,
                 'sekolah_id'         => $request->type === 'Sekolah' ? $request->sekolah_id : null,
                 'perusahaan_id'      => $request->type === 'Corporate' ? $request->perusahaan_id : null,
+                'wa_ortu'            => $request->wa_ortu,
+                'asal_kelas'         => $request->asal_kelas,
+                'prodi_lainnya'      => $request->prodi_id === 'lainnya' ? $request->prodi_lainnya : null,
             ]);
+
+            if ($request->prodi_id === 'lainnya') {
+                $prospek->prodi_id = null;
+                $prospek->save();
+            }
 
             $assignLabel = $salesId ? (\App\Models\User::find($salesId)?->name . ' (Sales)') : 'Mandiri/Sistem';
 
@@ -1311,10 +1419,17 @@ class CrmController extends Controller
             'id' => $prospectRaw->id,
             'name' => $prospectRaw->name,
             'type' => $prospectRaw->type,
+            'sekolah_id' => $prospectRaw->sekolah_id,
+            'perusahaan_id' => $prospectRaw->perusahaan_id,
+            'prodi_id' => $prospectRaw->prodi_id,
+            'sekolah_name' => $prospectRaw->type === 'Sekolah' ? ($prospectRaw->sekolah ? $prospectRaw->sekolah->nama : '-') : ($prospectRaw->type === 'Corporate' ? ($prospectRaw->perusahaan ? $prospectRaw->perusahaan->nama : '-') : '-'),
             'category' => $prospectRaw->category ?? '-',
             'pic' => $prospectRaw->pic ?? '-',
             'pic_phone' => $prospectRaw->pic_phone ?? '-',
             'whatsapp' => $prospectRaw->whatsapp ?? '-',
+            'wa_ortu' => $prospectRaw->wa_ortu ?? '',
+            'asal_kelas' => $prospectRaw->asal_kelas ?? '',
+            'prodi_lainnya' => $prospectRaw->prodi_lainnya ?? '',
             'status' => $prospectRaw->status,
             'stage_number' => $prospectRaw->stage_number,
             'takeover_sales' => $prospectRaw->sales ? $prospectRaw->sales->name : null,
@@ -1323,8 +1438,6 @@ class CrmController extends Controller
             'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
             'source' => $prospectRaw->source ?? '-',
-            'potential' => $prospectRaw->potential ?? '-',
-            'ai_training' => $prospectRaw->ai_training ?? '-',
             'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($prospectRaw->notes ?? ''),
             'lost_reason' => $prospectRaw->lost_reason ?? null,
             'lost_note' => $prospectRaw->lost_note ?? null,
@@ -1360,7 +1473,20 @@ class CrmController extends Controller
             $salesTeam = \App\Models\User::where('role', 'Sales')->where('status', 'aktif')->get();
         }
 
-        return view('prospek.show', compact('prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis'));
+        $sekolahsList        = \App\Models\Sekolah::getDynamicSchools();
+        $perusahaansList     = \App\Models\Perusahaan::getDynamicPerusahaans();
+        $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+        $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+        $lostReasons         = \App\Models\Prospek::LOST_REASONS;
+        $metodeOptions       = \App\Models\FollowUp::METODE_OPTIONS;
+        $isHandler           = $prospectRaw->isHandledBySales(auth()->user()) || ($user && strtolower($user->role) === 'cs' && $prospectRaw->cs_id === $user->id);
+
+        return view('prospek.show', compact(
+            'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis',
+            'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
+            'lostReasons', 'metodeOptions', 'isHandler'
+        ));
     }
 
     public function prospekUpdate(Request $request, int $id)
@@ -1368,8 +1494,23 @@ class CrmController extends Controller
         $prospek = Prospek::findOrFail($id);
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
         
-        $request->validate([
+        $validated = $request->validate([
             'status' => 'required|string',
+            'type' => 'nullable|string',
+            'name' => 'nullable|string',
+            'pic' => 'nullable|string',
+            'whatsapp' => 'nullable|string',
+            'wa_ortu' => 'nullable|string',
+            'asal_kelas' => 'nullable|string',
+            'sekolah_id' => 'nullable|exists:sekolahs,id',
+            'sekolah_manual' => 'nullable|string',
+            'perusahaan_id' => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string',
+            'category' => 'nullable|string',
+            'prodi_id' => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
+            'source' => 'nullable|string',
+            'notes' => 'nullable|string',
         ]);
 
         $user = auth()->user();
@@ -1389,13 +1530,65 @@ class CrmController extends Controller
             return redirect()->back()->withErrors(['status' => 'CS hanya dapat mengubah status menjadi Lunas.']);
         }
 
-        $prospek->status = $newStatus;
-
-        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
-            $prospek->stage_number = \App\Models\Prospek::STAGES[$newStatus];
+        if (!empty($validated['type'])) {
+            if ($validated['type'] === 'Sekolah') {
+                $validated['perusahaan_id'] = null;
+                if (!empty($request->sekolah_manual)) {
+                    $manualName = trim($request->sekolah_manual);
+                    if ($manualName !== '') {
+                        $sekolah = \App\Models\Sekolah::firstOrCreate(
+                            ['nama' => $manualName],
+                            ['kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)), 'status' => 'Aktif']
+                        );
+                        $validated['sekolah_id'] = $sekolah->id;
+                        $validated['name'] = $sekolah->nama;
+                    }
+                } elseif (!empty($validated['sekolah_id'])) {
+                    $sekolah = \App\Models\Sekolah::find($validated['sekolah_id']);
+                    if ($sekolah) $validated['name'] = $sekolah->nama;
+                }
+            } elseif ($validated['type'] === 'Corporate') {
+                $validated['sekolah_id'] = null;
+                if (!empty($request->perusahaan_manual)) {
+                    $manualName = trim($request->perusahaan_manual);
+                    if ($manualName !== '') {
+                        $perusahaan = \App\Models\Perusahaan::firstOrCreate(
+                            ['nama' => $manualName],
+                            ['kode' => 'CORP-' . strtoupper(\Illuminate\Support\Str::random(6)), 'status' => 'Aktif']
+                        );
+                        $validated['perusahaan_id'] = $perusahaan->id;
+                        $validated['name'] = $perusahaan->nama;
+                    }
+                } elseif (!empty($validated['perusahaan_id'])) {
+                    $perusahaan = \App\Models\Perusahaan::find($validated['perusahaan_id']);
+                    if ($perusahaan) $validated['name'] = $perusahaan->nama;
+                }
+            } else {
+                $validated['sekolah_id'] = null;
+                $validated['perusahaan_id'] = null;
+                if (empty($validated['name'])) {
+                    $validated['name'] = $validated['pic'] ?? $prospek->name;
+                }
+            }
         }
 
-        $prospek->save();
+        $validated['status'] = $newStatus;
+        if (isset(\App\Models\Prospek::STAGES[$newStatus])) {
+            $validated['stage_number'] = \App\Models\Prospek::STAGES[$newStatus];
+        }
+
+        unset($validated['sekolah_manual'], $validated['perusahaan_manual']);
+
+        if (empty($validated['prodi_id'])) {
+            $validated['prodi_id'] = null;
+            $validated['prodi_lainnya'] = null;
+        } elseif ($validated['prodi_id'] === 'lainnya') {
+            $validated['prodi_id'] = null;
+        } else {
+            $validated['prodi_lainnya'] = null;
+        }
+
+        $prospek->update($validated);
 
         if ($oldStatus !== $prospek->status) {
             ProspekTimeline::create([
@@ -1407,9 +1600,18 @@ class CrmController extends Controller
                 'status_after' => $prospek->status,
                 'time' => now(),
             ]);
+        } else {
+            ProspekTimeline::create([
+                'prospek_id'  => $prospek->id,
+                'user_id'     => auth()->id(),
+                'title'       => 'Data Prospek Diperbarui',
+                'notes'       => 'Informasi prospek diperbarui oleh ' . auth()->user()->name,
+                'status_after' => $prospek->status,
+                'time'         => now(),
+            ]);
         }
 
-        return redirect()->back()->with('success', 'Status prospek berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Data prospek berhasil diperbarui!');
     }
 
     public function prospekDestroy(int $id)
@@ -2092,6 +2294,14 @@ class CrmController extends Controller
      */
     public function pengaturanIndex(): View
     {
-        return view('profil.pengaturan');
+        $tkTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_TITLE')->first();
+        $tkSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_SUBTITLE')->first();
+        $tkImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
+
+        $tkCorpTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_TITLE')->first();
+        $tkCorpSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_SUBTITLE')->first();
+        $tkCorpImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_IMAGE')->first();
+
+        return view('profil.pengaturan', compact('tkTitle', 'tkSubtitle', 'tkImage', 'tkCorpTitle', 'tkCorpSubtitle', 'tkCorpImage'));
     }
 }
