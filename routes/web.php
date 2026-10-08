@@ -29,6 +29,11 @@ Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->nam
 // ──────────────────────────────────────────────────────────────────
 Route::get('/presensi', [\App\Http\Controllers\QuickContactController::class, 'create'])->name('kontak-cepat');
 Route::post('/presensi', [\App\Http\Controllers\QuickContactController::class, 'store'])->name('kontak-cepat.store');
+
+Route::get('/presensi-corporate', [\App\Http\Controllers\QuickContactController::class, 'createCorporate'])->name('kontak-cepat.corporate');
+Route::post('/presensi-corporate', [\App\Http\Controllers\QuickContactController::class, 'storeCorporate'])->name('kontak-cepat.store-corporate');
+Route::get('/presensi-corporate/terima-kasih', [\App\Http\Controllers\QuickContactController::class, 'terimaKasihCorporate'])->name('kontak-cepat.terima-kasih-corporate');
+
 Route::get('/presensi/terima-kasih', [\App\Http\Controllers\QuickContactController::class, 'terimaKasih'])->name('kontak-cepat.terima-kasih');
 
 // ──────────────────────────────────────────────────────────────────
@@ -321,6 +326,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/profil/password', [CrmController::class, 'profilPasswordUpdate'])->name('profil.password.update');
     Route::get('/pengaturan',       [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
     Route::post('/pengaturan/terima-kasih', [CrmController::class, 'updateTerimaKasihSettings'])->name('pengaturan.update-terima-kasih');
+    Route::post('/pengaturan/terima-kasih-corporate', [CrmController::class, 'updateTerimaKasihCorporateSettings'])->name('pengaturan.update-terima-kasih-corporate');
 
     // Notifications (all roles)
     Route::get('/notifications/latest',         [NotificationController::class, 'getLatest'])->name('notifications.latest');

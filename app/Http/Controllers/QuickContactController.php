@@ -21,6 +21,14 @@ class QuickContactController extends Controller
         return view('quick-contact.create', compact('sekolahs', 'perusahaans', 'prodis'));
     }
 
+    public function createCorporate()
+    {
+        $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
+        $prodis = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+
+        return view('quick-contact.create-corporate', compact('perusahaans', 'prodis'));
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -30,7 +38,7 @@ class QuickContactController extends Controller
             'nama'           => 'required|string|max:255',
             'no_whatsapp'    => 'required|string|max:20',
             'wa_ortu'        => 'nullable|string|max:20',
-            'asal_kelas'     => 'nullable|required_if:jenis_instansi,Sekolah|string|max:255',
+            'asal_kelas'     => 'nullable|string|max:255',
             'prodi_id'       => 'required|string',
             'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
             'kelas'          => 'required|in:Reguler,Karyawan',
@@ -83,6 +91,63 @@ class QuickContactController extends Controller
         return redirect()->route('kontak-cepat.terima-kasih');
     }
 
+    public function storeCorporate(Request $request)
+    {
+        $request->merge(['jenis_instansi' => 'PT']);
+        
+        $validated = $request->validate([
+            'perusahaan_id'  => 'nullable|exists:perusahaans,id',
+            'nama'           => 'required|string|max:255',
+            'no_whatsapp'    => 'required|string|max:20',
+            'wa_ortu'        => 'nullable|string|max:20',
+            'asal_kelas'     => 'nullable|string|max:255',
+            'prodi_id'       => 'required|string',
+            'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
+            'kelas'          => 'required|in:Reguler,Karyawan',
+        ]);
+
+        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
+
+        $name = $validated['nama'];
+        if (!empty($validated['perusahaan_id'])) {
+            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+            if ($perusahaan) {
+                $name = $perusahaan->nama;
+            }
+        }
+
+        $prospek = Prospek::create([
+            'name'             => $name,
+            'whatsapp'         => $validated['no_whatsapp'],
+            'wa_ortu'          => $validated['wa_ortu'] ?? null,
+            'pic'              => $validated['nama'],
+            'pic_phone'        => $validated['no_whatsapp'],
+            'type'             => 'Corporate',
+            'sekolah_id'       => null,
+            'asal_kelas'       => $validated['asal_kelas'] ?? null,
+            'perusahaan_id'    => $validated['perusahaan_id'] ?? null,
+            'prodi_id'         => $validated['prodi_id'] === 'lainnya' ? null : $validated['prodi_id'],
+            'prodi_lainnya'    => $validated['prodi_id'] === 'lainnya' ? $validated['prodi_lainnya'] : null,
+            'kelas'            => $validated['kelas'],
+            'status'           => 'BARU',
+            'stage_number'     => 1,
+            'source'           => 'Lainnya',
+            'notes'            => 'Diinput mandiri melalui form Presensi Corporate',
+            'cs_id'            => $cs ? $cs->id : null,
+        ]);
+
+        ProspekTimeline::create([
+            'prospek_id'   => $prospek->id,
+            'user_id'      => null,
+            'title'        => 'Prospek Masuk (Presensi Corporate)',
+            'notes'        => 'Prospek diinput mandiri oleh PIC Perusahaan melalui form Presensi Corporate.',
+            'status_after' => $prospek->status,
+            'time'         => now(),
+        ]);
+
+        return redirect()->route('kontak-cepat.terima-kasih-corporate');
+    }
+
     public function terimaKasih()
     {
         $tkTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_TITLE')->first();
@@ -90,5 +155,14 @@ class QuickContactController extends Controller
         $tkImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
 
         return view('quick-contact.terima-kasih', compact('tkTitle', 'tkSubtitle', 'tkImage'));
+    }
+
+    public function terimaKasihCorporate()
+    {
+        $tkTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_TITLE')->first();
+        $tkSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_SUBTITLE')->first();
+        $tkImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_IMAGE')->first();
+
+        return view('quick-contact.terima-kasih-corporate', compact('tkTitle', 'tkSubtitle', 'tkImage'));
     }
 }

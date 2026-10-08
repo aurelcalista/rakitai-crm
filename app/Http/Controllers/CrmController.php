@@ -1064,7 +1064,7 @@ class CrmController extends Controller
 
         \App\Models\MasterData::updateOrCreate(
             ['type' => 'setting', 'kode' => 'TK_SUBTITLE'],
-            ['nama' => $request->subtitle ?? '', 'status' => 'Aktif']
+            ['nama' => 'Subtitle', 'deskripsi' => $request->subtitle ?? '', 'status' => 'Aktif']
         );
 
         if ($request->has('delete_image') && $request->delete_image == '1') {
@@ -1084,6 +1084,47 @@ class CrmController extends Controller
         }
 
         return redirect()->back()->with('success', 'Pengaturan Halaman Terima Kasih berhasil diperbarui!');
+    }
+
+    public function updateTerimaKasihCorporateSettings(Request $request)
+    {
+        if (strtolower(auth()->user()->role) !== 'admin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_CORP_TITLE'],
+            ['nama' => $request->title, 'status' => 'Aktif']
+        );
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'setting', 'kode' => 'TK_CORP_SUBTITLE'],
+            ['nama' => 'Subtitle', 'deskripsi' => $request->subtitle ?? '', 'status' => 'Aktif']
+        );
+
+        if ($request->has('delete_image') && $request->delete_image == '1') {
+            $existingImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_IMAGE')->first();
+            if ($existingImage && $existingImage->nama) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($existingImage->nama)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($existingImage->nama);
+                }
+                $existingImage->delete();
+            }
+        } elseif ($request->hasFile('image')) {
+            $path = $request->file('image')->store('settings', 'public');
+            \App\Models\MasterData::updateOrCreate(
+                ['type' => 'setting', 'kode' => 'TK_CORP_IMAGE'],
+                ['nama' => $path, 'status' => 'Aktif']
+            );
+        }
+
+        return redirect()->back()->with('success', 'Pengaturan Halaman Terima Kasih Corporate berhasil diperbarui!');
     }
 
     /**
@@ -1240,10 +1281,13 @@ class CrmController extends Controller
             'status'        => 'required|string',
             'pic'           => 'required|string',
             'whatsapp'      => 'required|string',
-            'prodi_id'      => 'nullable|exists:prodis,id',
+            'prodi_id'      => 'nullable|string',
+            'prodi_lainnya' => 'nullable|string',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'sales_id'      => 'nullable|exists:users,id',
+            'wa_ortu'       => 'nullable|string',
+            'asal_kelas'    => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -1316,7 +1360,15 @@ class CrmController extends Controller
                 'owner_id'           => $ownerId,
                 'sekolah_id'         => $request->type === 'Sekolah' ? $request->sekolah_id : null,
                 'perusahaan_id'      => $request->type === 'Corporate' ? $request->perusahaan_id : null,
+                'wa_ortu'            => $request->wa_ortu,
+                'asal_kelas'         => $request->asal_kelas,
+                'prodi_lainnya'      => $request->prodi_id === 'lainnya' ? $request->prodi_lainnya : null,
             ]);
+
+            if ($request->prodi_id === 'lainnya') {
+                $prospek->prodi_id = null;
+                $prospek->save();
+            }
 
             $assignLabel = $salesId ? (\App\Models\User::find($salesId)?->name . ' (Sales)') : 'Mandiri/Sistem';
 
@@ -1375,6 +1427,9 @@ class CrmController extends Controller
             'pic' => $prospectRaw->pic ?? '-',
             'pic_phone' => $prospectRaw->pic_phone ?? '-',
             'whatsapp' => $prospectRaw->whatsapp ?? '-',
+            'wa_ortu' => $prospectRaw->wa_ortu ?? '',
+            'asal_kelas' => $prospectRaw->asal_kelas ?? '',
+            'prodi_lainnya' => $prospectRaw->prodi_lainnya ?? '',
             'status' => $prospectRaw->status,
             'stage_number' => $prospectRaw->stage_number,
             'takeover_sales' => $prospectRaw->sales ? $prospectRaw->sales->name : null,
@@ -2243,6 +2298,10 @@ class CrmController extends Controller
         $tkSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_SUBTITLE')->first();
         $tkImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_IMAGE')->first();
 
-        return view('profil.pengaturan', compact('tkTitle', 'tkSubtitle', 'tkImage'));
+        $tkCorpTitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_TITLE')->first();
+        $tkCorpSubtitle = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_SUBTITLE')->first();
+        $tkCorpImage = \App\Models\MasterData::where('type', 'setting')->where('kode', 'TK_CORP_IMAGE')->first();
+
+        return view('profil.pengaturan', compact('tkTitle', 'tkSubtitle', 'tkImage', 'tkCorpTitle', 'tkCorpSubtitle', 'tkCorpImage'));
     }
 }

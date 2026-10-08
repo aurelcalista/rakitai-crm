@@ -34,14 +34,13 @@
                 <h2 class="text-3xl font-black text-slate-900 mb-4 tracking-tight">{{ $tkTitle ? $tkTitle->nama : 'Terima Kasih' }}</h2>
                 
                 @php
-                    $showSubtitle = true;
-                    $subtitleText = "Data kamu berhasil dikirim.\nTim kami akan menghubungi kamu melalui WhatsApp untuk informasi selanjutnya.";
+                    $showSubtitle = false;
+                    $subtitleText = "";
                     
                     if (isset($tkSubtitle)) {
                         $dbValue = $tkSubtitle->deskripsi ?? $tkSubtitle->nama;
-                        if ($dbValue === '' || $dbValue === null || $dbValue === 'Subtitle') {
-                            $showSubtitle = false;
-                        } else {
+                        if ($dbValue !== '' && $dbValue !== null && $dbValue !== 'Subtitle') {
+                            $showSubtitle = true;
                             $subtitleText = $dbValue;
                         }
                     }
@@ -58,7 +57,7 @@
                 @endif
 
                 <div class="flex flex-col gap-3 max-w-xs mx-auto">
-                    <a href="{{ route('kontak-cepat') }}" class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/20 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all">
+                    <a href="{{ route('kontak-cepat.corporate') }}" class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/20 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all">
                         Isi Data Lagi
                     </a>
                     <a href="{{ url('/') }}" class="w-full flex justify-center items-center py-3.5 px-4 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all">
