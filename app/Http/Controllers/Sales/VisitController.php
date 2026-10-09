@@ -387,7 +387,6 @@ class VisitController extends Controller
                 'whatsapp'     => $validated['pic_whatsapp'] ?? '-',
                 'status'       => 'BARU',
                 'stage_number' => 1,
-                'potential'    => $validated['jenis'] === 'Sekolah' ? $request->input('potensi_mahasiswa') : ($request->input('potensi_s1') . ' ' . $request->input('potensi_csr')),
                 'notes'        => 'Kunjungan ' . $nomor,
                 'source'       => 'Kunjungan Langsung',
                 'sales_id'     => $user->id,

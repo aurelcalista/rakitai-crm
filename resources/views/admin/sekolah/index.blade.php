@@ -21,7 +21,7 @@
         get filtered() {
             return this.sekolah.filter(s => {
                 const q = this.searchQuery.toLowerCase();
-                const mQ = !q || s.kode.toLowerCase().includes(q) || s.nama.toLowerCase().includes(q) || s.kecamatan.toLowerCase().includes(q) || s.pic.toLowerCase().includes(q);
+                const mQ = !q || (s.kode || '').toLowerCase().includes(q) || (s.nama || '').toLowerCase().includes(q) || (s.wilayah_nama || '').toLowerCase().includes(q) || (s.kecamatan || '').toLowerCase().includes(q) || (s.pic || '').toLowerCase().includes(q);
                 const mW = this.filterWilayah === 'all' || s.wilayah_nama === this.filterWilayah;
                 const mS = this.filterStatus === 'all' || s.status.toLowerCase() === this.filterStatus.toLowerCase();
                 return mQ && mW && mS;
@@ -54,10 +54,125 @@
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 <input type="text" x-model="searchQuery" placeholder="Cari nama sekolah, kecamatan, PIC..." class="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200">
             </div>
-            <select x-model="filterWilayah" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-52">
-                <option value="all">Semua Wilayah</option>
-                @foreach($wilayahList as $w)<option value="{{ $w->nama }}">{{ $w->nama }}</option>@endforeach
-            </select>
+            <!-- Dropdown Searchable: Wilayah -->
+            <div 
+                x-data="{
+                    open: false,
+                    search: '',
+                    options: [
+                        { value: 'all', label: 'Semua Wilayah' },
+                        @foreach($wilayahList as $w)
+                            { value: '{{ addslashes($w->nama) }}', label: '{{ addslashes($w->nama) }}' },
+                        @endforeach
+                    ],
+                    get filteredOptions() {
+                        if (!this.search.trim()) return this.options;
+                        const q = this.search.toLowerCase();
+                        return this.options.filter(item => item.label.toLowerCase().includes(q));
+                    },
+                    get selectedLabel() {
+                        const found = this.options.find(o => o.value === filterWilayah);
+                        return found ? found.label : 'Semua Wilayah';
+                    },
+                    selectOption(opt) {
+                        filterWilayah = opt.value;
+                        this.open = false;
+                        this.search = '';
+                    }
+                }" 
+                class="relative sm:w-60 min-w-[200px] text-left"
+                @click.away="open = false"
+            >
+                <!-- Trigger Button -->
+                <button 
+                    type="button"
+                    @click="open = !open; if(open) { $nextTick(() => $refs.searchWilayahInput.focus()); }"
+                    class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition text-xs font-medium bg-slate-50 border-slate-200 text-slate-800 hover:bg-white focus:ring-2 focus:ring-purple-200 focus:border-purple-400 cursor-pointer"
+                    :class="open ? 'ring-2 ring-purple-200 border-purple-400 bg-white' : ''"
+                >
+                    <div class="flex items-center gap-2 truncate pr-2">
+                        <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="truncate block font-semibold text-slate-800" x-text="selectedLabel"></span>
+                    </div>
+                    
+                    <div class="flex items-center gap-1 shrink-0">
+                        <template x-if="filterWilayah !== 'all'">
+                            <span 
+                                @click.stop="filterWilayah = 'all'; search = '';"
+                                class="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                                title="Reset wilayah"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </span>
+                        </template>
+                        <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-purple-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </button>
+
+                <!-- Dropdown Menu with Search Box -->
+                <div 
+                    x-show="open" 
+                    x-cloak 
+                    x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="transform opacity-0 scale-95"
+                    x-transition:enter-end="transform opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-75"
+                    x-transition:leave-start="transform opacity-100 scale-100"
+                    x-transition:leave-end="transform opacity-0 scale-95"
+                    class="absolute z-50 mt-1.5 w-full rounded-xl bg-white shadow-xl border border-slate-200/80 overflow-hidden text-xs"
+                    style="max-height: 280px;"
+                >
+                    <!-- Search Input -->
+                    <div class="p-2 border-b border-slate-100 bg-slate-50/80">
+                        <div class="relative flex items-center">
+                            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input 
+                                x-ref="searchWilayahInput"
+                                type="text" 
+                                x-model="search" 
+                                placeholder="Ketik nama wilayah..." 
+                                style="padding-left: 2rem !important;"
+                                class="w-full pr-3 py-1.5 rounded-lg text-xs bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition shadow-2xs"
+                                @keydown.escape="open = false"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Options List -->
+                    <div class="max-h-52 overflow-y-auto divide-y divide-slate-50 p-1">
+                        <template x-for="opt in filteredOptions" :key="opt.value">
+                            <div 
+                                @click="selectOption(opt)"
+                                class="px-3 py-2 rounded-lg cursor-pointer flex items-center justify-between transition hover:bg-purple-50/80 group"
+                                :class="filterWilayah === opt.value ? 'bg-purple-50 font-bold text-purple-700' : 'text-slate-700'"
+                            >
+                                <div class="truncate font-medium text-slate-800 group-hover:text-purple-700" x-text="opt.label"></div>
+                                <template x-if="filterWilayah === opt.value">
+                                    <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- Empty Search Result -->
+                        <template x-if="filteredOptions.length === 0">
+                            <div class="p-3 text-center text-slate-400">
+                                <p class="text-xs">Tidak ada wilayah "<span x-text="search" class="font-semibold text-slate-700"></span>"</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
             <select x-model="filterStatus" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-36">
                 <option value="all">Semua Status</option>
                 <option value="aktif">Aktif</option>
@@ -93,7 +208,7 @@
                                 </td>
                                 <td class="py-3.5 px-3">
                                     <div class="font-semibold text-slate-700 text-[11px]" x-text="s.wilayah_nama"></div>
-                                    <div class="text-slate-400 text-[11px]" x-text="'Kec. ' + s.kecamatan"></div>
+                                    <div class="text-slate-400 text-[11px]" x-text="s.kecamatan && s.kecamatan !== '-' ? 'Kec. ' + s.kecamatan : 'Kec. -'"></div>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-600" x-text="s.telepon"></td>
                                 <td class="py-3.5 px-3 text-center">
@@ -109,7 +224,7 @@
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
                                         <button @click="selectedSkl = s; modalDetail = true" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer">Detail</button>
-                                        <button @click="selectedSkl = s; modalEdit = true" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold cursor-pointer">Edit</button>
+                                        <button @click="selectedSkl = s; onEditWilayahChange(s.wilayah_parent_id || s.wilayah_id); modalEdit = true" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold cursor-pointer">Edit</button>
                                         <form :action="'/admin/sekolah/' + s.id + '/toggle-status'" method="POST" class="inline" @submit="if(!confirm(s.status === 'Aktif' ? 'Nonaktifkan sekolah ini?' : 'Aktifkan sekolah ini?')) $event.preventDefault()">
                                             @csrf
                                             <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer"
@@ -309,12 +424,11 @@
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Wilayah *</label>
                                 <select name="wilayah_id" required
-                                    x-init="onEditWilayahChange(selectedSkl.wilayah_id)"
                                     @change="onEditWilayahChange($event.target.value)"
                                     class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
                                     <option value="">Pilih Wilayah</option>
                                     @foreach($wilayahList as $w)
-                                        <option value="{{ $w->id }}" :selected="selectedSkl.wilayah_id == {{ $w->id }}">{{ $w->nama }}</option>
+                                        <option value="{{ $w->id }}" :selected="(selectedSkl.wilayah_parent_id || selectedSkl.wilayah_id) == {{ $w->id }}">{{ $w->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
