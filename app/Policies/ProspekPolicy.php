@@ -61,7 +61,7 @@ class ProspekPolicy
 
             'hm'    => $this->isHmAuthorized($user, $prospek),
 
-            'admin' => true,
+            'admin', 'data analyst' => true,
 
             default => false,
         };

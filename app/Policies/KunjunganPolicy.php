@@ -23,7 +23,7 @@ class KunjunganPolicy
                     || in_array($kunjungan->sales_id, $user->hmMemberIds())
                     || ($kunjungan->sales && $kunjungan->sales->wilayah_id === $user->wilayah_id),
 
-            'admin' => true,
+            'admin', 'data analyst' => true,
 
             default => false,
         };

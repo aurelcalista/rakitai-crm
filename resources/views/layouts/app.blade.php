@@ -99,7 +99,7 @@
     @php
         if (!isset($currentUser) && auth()->check()) {
             $u = auth()->user();
-            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer'];
+            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer', 'Data Analyst' => 'Data Analyst'];
             $currentUser = [
                 'name' => $u->name,
                 'avatar' => substr($u->name, 0, 2),
@@ -534,6 +534,57 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Audit Logs</span>
+                            </a>
+                        </div>
+                @elseif(in_array(strtolower($currentUser['role']), ['data analyst', 'data-analyst']))
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: CRM INBOUND (Data Analyst) -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.prospek.index') }}" 
+                                title="Data Prospek ({{ $globalProspekCount ?? 0 }})"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.prospek.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prospek</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
+                            <a 
+                                href="{{ route('potensi-wilayah.index') }}" 
+                                title="Potensi Wilayah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Potensi Wilayah</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: PERFORMANCE (Data Analyst) -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Performance</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.laporan.index') }}" 
+                                title="Laporan"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Laporan</span>
                             </a>
                         </div>
                     </div>
@@ -1590,6 +1641,56 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 <span class="flex-1">Log Aktivitas</span>
+                            </a>
+                @elseif(in_array(strtolower($currentUser['role']), ['data analyst', 'data-analyst']))
+                    <!-- SECTION: CRM INBOUND (Data Analyst) -->
+                    <div x-show="matches('crm inbound prospek data prospek wilayah potensi wilayah')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="prospek data prospek leads database pmb"
+                                x-show="matches('prospek data prospek leads database pmb')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.prospek.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Data Prospek</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('potensi-wilayah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="potensi wilayah peta sebaran sekolah kota kabupaten"
+                                x-show="matches('potensi wilayah peta sebaran sekolah kota kabupaten')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="flex-1">Potensi Wilayah</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: PERFORMANCE (Data Analyst) -->
+                    <div x-show="matches('performance laporan report rekap konversi analisa')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Performance</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.laporan.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="laporan report rekap export unduh analisa"
+                                x-show="matches('laporan report rekap export unduh analisa')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span class="flex-1">Laporan</span>
                             </a>
                         </div>
                     </div>

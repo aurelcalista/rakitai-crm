@@ -121,6 +121,10 @@ class CalendarController extends Controller
     {
         $user = Auth::user();
 
+        if (in_array(strtolower($user->role), ['data analyst', 'data-analyst'])) {
+            abort(403, 'Data Analyst tidak memiliki hak akses untuk membuat agenda rapat operasional.');
+        }
+
         $request->validate([
             'name'          => 'required|string|max:255',
             'tanggal'       => 'required|date',

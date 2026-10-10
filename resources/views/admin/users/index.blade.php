@@ -381,6 +381,7 @@
                                     <option value="HM" {{ old('role') === 'HM' ? 'selected' : '' }}>HM</option>
                                     <option value="EO" {{ old('role') === 'EO' ? 'selected' : '' }}>EO</option>
                                     <option value="Admin" {{ old('role') === 'Admin' ? 'selected' : '' }}>Admin</option>
+                                    <option value="Data Analyst" {{ old('role') === 'Data Analyst' ? 'selected' : '' }}>Data Analyst</option>
                                 </select>
                             </div>
                             <div>
@@ -489,7 +490,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Role</label>
                                 <select name="role" :value="selectedUser ? selectedUser.role : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-purple-200 outline-none">
-                                    <option value="Sales">Sales</option><option value="CS">CS</option><option value="SPV">SPV</option><option value="HM">HM</option><option value="EO">EO</option><option value="Admin">Admin</option>
+                                    <option value="Sales">Sales</option><option value="CS">CS</option><option value="SPV">SPV</option><option value="HM">HM</option><option value="EO">EO</option><option value="Admin">Admin</option><option value="Data Analyst">Data Analyst</option>
                                 </select>
                             </div>
                             <div>

@@ -10,18 +10,25 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email'    => 'required|string',
+            'email' => 'required|string',
             'password' => 'required|string',
-            'role'     => 'nullable|string',
+            'role' => 'nullable|string',
         ]);
 
-        $email = strtolower(trim($request->input('email')));
+        $rawInput = trim($request->input('email'));
+        $email = strtolower($rawInput);
+        $emailUpper = strtoupper($rawInput);
         $password = $request->input('password');
         $selectedRole = $request->input('role');
+        $emailDomain = !str_contains($email, '@') ? $email . '@cic.ac.id' : $email;
 
-        $query = \App\Models\User::where(function($q) use ($email) {
+        $query = \App\Models\User::where(function ($q) use ($email, $emailUpper, $emailDomain) {
             $q->where('email', $email)
-              ->orWhere('username', $email);
+              ->orWhere('email', $emailDomain)
+              ->orWhere('username', $email)
+              ->orWhere('name', $email)
+              ->orWhere('kode', $emailUpper)
+              ->orWhere('kode', $email);
         });
 
         if (!empty($selectedRole) && $selectedRole !== 'all') {
@@ -36,8 +43,8 @@ class AuthController extends Controller
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
-                $msg = $user->status === 'Pending' 
-                    ? 'Akun Anda masih berstatus Pending dan sedang menunggu persetujuan Admin.' 
+                $msg = $user->status === 'Pending'
+                    ? 'Akun Anda masih berstatus Pending dan sedang menunggu persetujuan Admin.'
                     : 'Akun Anda telah dinonaktifkan atau ditolak oleh Admin.';
 
                 return back()->withErrors(['email' => $msg])->onlyInput('email');
@@ -48,13 +55,14 @@ class AuthController extends Controller
 
             $role = strtolower($user->role);
 
-            return match($role) {
-                'admin' => redirect()->route('dashboard.admin'),
-                'hm'    => redirect()->route('dashboard.hm'),
-                'spv'   => redirect()->route('dashboard.spv'),
-                'cs'    => redirect()->route('dashboard.cs'),
-                'eo'    => redirect()->route('dashboard.eo'),
-                default => redirect()->route('dashboard.sales'), // Sales
+            return match ($role) {
+                'admin'                        => redirect()->route('dashboard.admin'),
+                'hm'                           => redirect()->route('dashboard.hm'),
+                'spv'                          => redirect()->route('dashboard.spv'),
+                'cs'                           => redirect()->route('dashboard.cs'),
+                'eo'                           => redirect()->route('dashboard.eo'),
+                'data analyst', 'data-analyst' => redirect()->route('dashboard.data-analyst'),
+                default                        => redirect()->route('dashboard.sales'),  // Sales
             };
         }
 
@@ -93,8 +101,8 @@ class AuthController extends Controller
         }
 
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => [
+            'name' => 'required|string|max:255',
+            'email' => [
                 'required',
                 'string',
                 'email',
@@ -102,24 +110,23 @@ class AuthController extends Controller
                 'unique:users',
                 'regex:/^[a-zA-Z0-9._%+-]+@cic\.ac\.id$/i',
             ],
-            'phone'    => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:20',
             'password' => 'required|string|min:6|confirmed',
         ], [
             'email.regex' => 'Email wajib menggunakan domain @cic.ac.id.',
         ]);
 
         $user = \App\Models\User::create([
-            'name'     => $validated['name'],
-            'email'    => strtolower($validated['email']),
-            'phone'    => $validated['phone'] ?? '-',
+            'name' => $validated['name'],
+            'email' => strtolower($validated['email']),
+            'phone' => $validated['phone'] ?? '-',
             'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
-            'role'     => 'Sales',
-            'jabatan'  => 'Sales',
-            'status'   => 'Pending',
-            'kode'     => null, // Will be generated upon Admin approval
+            'role' => 'Sales',
+            'jabatan' => 'Sales',
+            'status' => 'Pending',
+            'kode' => null,  // Will be generated upon Admin approval
         ]);
 
         return redirect()->route('login')->with('success', "Pendaftaran Sales atas nama {$user->name} berhasil! Akun Anda berstatus 'Pending' dan sedang menunggu persetujuan (ACC) dari Admin. Kode Sales akan dibuat otomatis setelah disetujui.");
     }
 }
-

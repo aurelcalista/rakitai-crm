@@ -33,8 +33,12 @@ class RoleMiddleware
             }
 
             // Redirect to their own dashboard instead of raw 403
-            $redirectRoute = 'dashboard.' . $userRole;
-            if (app('router')->has($redirectRoute)) {
+            $sluggedRole = str_replace(' ', '-', $userRole);
+            $redirectRoute = app('router')->has('dashboard.' . $userRole)
+                ? 'dashboard.' . $userRole
+                : (app('router')->has('dashboard.' . $sluggedRole) ? 'dashboard.' . $sluggedRole : null);
+
+            if ($redirectRoute && app('router')->has($redirectRoute)) {
                 return redirect()->route($redirectRoute)
                     ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
             }

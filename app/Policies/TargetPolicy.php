@@ -42,8 +42,8 @@ class TargetPolicy
     {
         $role = strtolower($user->role);
 
-        if ($role === 'admin') {
-            return true; // Admin HAS GLOBAL ACCESS
+        if (in_array($role, ['admin', 'data analyst'])) {
+            return true; // Admin & Data Analyst HAVE GLOBAL READ ACCESS
         }
 
         return match ($role) {

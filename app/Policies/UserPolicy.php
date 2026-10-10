@@ -20,7 +20,7 @@ class UserPolicy
      */
     public function view(User $user, User $model): bool
     {
-        if (strtolower($user->role) === 'admin') {
+        if (in_array(strtolower($user->role), ['admin', 'data analyst'])) {
             return true;
         }
 
