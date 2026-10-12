@@ -733,67 +733,117 @@ class CrossRoleFollowUpTest extends TestCase
 
     /**
      * Requirement:
-     * Unauthorized sales user (different team and different territory) is rejected (403).
+     * Cross-territory and cross-team Sales can view, follow-up, and update status on other Sales' prospects.
+     * Skenario Pengujian Wajib:
+     * 1. Sales A dari wilayah Cirebon memiliki prospek Andi.
+     * 2. Sales B dari wilayah Kuningan membuka tab "Sales Lain".
+     * 3. Sales B dapat menemukan dan membuka prospek Andi.
+     * 4. Sales B dapat menyimpan follow-up tanpa ditolak karena perbedaan wilayah atau tim.
+     * 5. Nama Sales A tetap menjadi pemilik prospek.
+     * 6. Nama Sales B tercatat sebagai pelaksana follow-up.
+     * 7. Follow-up baru tidak menghapus riwayat sebelumnya.
+     * 8. Pengguna dengan role selain Sales tetap mengikuti hak akses role masing-masing.
+     * 9. Sales tidak dapat mengubah status menjadi LUNAS.
+     * 10. Fitur pencarian, filter, pagination, dan fitur CRM lainnya tetap berjalan normal.
      */
-    public function test_unauthorized_sales_user_is_denied_from_viewing_and_follow_up(): void
+    public function test_cross_territory_sales_can_view_follow_up_and_update_status(): void
     {
-        $salesUnauthorized = User::create([
-            'name' => 'Sales Outside',
-            'email' => 'sales.outside@cic.ac.id',
+        $salesKuningan = User::create([
+            'name' => 'Sales B Kuningan',
+            'email' => 'sales.kuningan@cic.ac.id',
             'password' => bcrypt('password'),
             'role' => 'Sales',
-            'supervisor_id' => null,
-            'wilayah_id' => $this->wilayah2->id,
+            'supervisor_id' => null, // Different SPV
+            'wilayah_id' => $this->wilayah2->id, // Kuningan (Wilayah 2)
             'status' => 'aktif',
         ]);
 
-        $prospekA = Prospek::create([
-            'name' => 'Prospek Wilayah 1',
+        // 1. Sales A dari Cirebon (Wilayah 1) memiliki prospek Andi
+        $prospekAndi = Prospek::create([
+            'name' => 'Andi Wijaya',
             'type' => 'Individu',
-            'pic' => 'PIC Wilayah 1',
-            'whatsapp' => '081233334444',
+            'pic' => 'Andi Wijaya',
+            'whatsapp' => '081255556666',
             'status' => 'BARU',
             'stage_number' => 1,
             'sales_id' => $this->salesA->id,
             'owner_id' => $this->salesA->id,
-            'wilayah_id' => $this->wilayah1->id,
+            'wilayah_id' => $this->wilayah1->id, // Cirebon (Wilayah 1)
         ]);
 
-        // Unauthorized sales cannot view prospect detail (403)
-        $this->actingAs($salesUnauthorized)->get(route('sales.prospek.show', $prospekA->id))
-            ->assertForbidden();
-
-        // Unauthorized sales cannot follow up (403)
-        $this->actingAs($salesUnauthorized)->post(route('sales.follow-up.store'), [
-            'prospek_id' => $prospekA->id,
+        // Catat riwayat awal oleh Sales A
+        FollowUp::create([
+            'prospek_id' => $prospekAndi->id,
+            'user_id' => $this->salesA->id,
             'metode' => 'WhatsApp',
-            'hasil' => 'Tertarik',
-            'catatan' => 'Mencoba follow-up tanpa izin',
-            'status' => 'BARU',
-        ])->assertForbidden();
+            'hasil' => 'Kontak awal',
+            'catatan' => 'Follow up pertama oleh Sales A',
+            'tanggal' => now()->subDay(),
+        ]);
+        $prospekAndi->increment('follow_up_count');
 
-        // Unauthorized sales cannot follow up via shared route either (403)
-        $this->actingAs($salesUnauthorized)->post(route('follow-up.store'), [
-            'prospek_id' => $prospekA->id,
-            'metode' => 'WhatsApp',
-            'hasil' => 'Tertarik',
-            'catatan' => 'Mencoba follow-up tanpa izin shared route',
-            'status' => 'BARU',
-        ])->assertForbidden();
+        // 2 & 3. Sales B membuka tab "Sales Lain" / Follow-up index dan dapat menemukan serta membuka prospek Andi
+        $resIndex = $this->actingAs($salesKuningan)->get(route('sales.follow-up.index'));
+        $resIndex->assertOk();
+        $queues = $resIndex->viewData('prospects');
+        $foundInOthers = collect($queues['others'])->firstWhere('id', $prospekAndi->id);
+        $this->assertNotNull($foundInOthers, 'Prospek Andi harus ditemukan di tab Sales Lain untuk Sales B Kuningan');
 
-        // Unauthorized sales cannot update status directly via updateStatus endpoint (403)
-        $this->actingAs($salesUnauthorized)->patch(route('sales.prospek.updateStatus', $prospekA->id), [
+        $resShow = $this->actingAs($salesKuningan)->get(route('sales.prospek.show', $prospekAndi->id));
+        $resShow->assertOk();
+        $resShow->assertSee('Andi Wijaya');
+
+        // 4. Sales B dapat menyimpan follow-up tanpa ditolak karena perbedaan wilayah atau tim
+        $resFollowUp = $this->actingAs($salesKuningan)->post(route('sales.follow-up.store'), [
+            'prospek_id' => $prospekAndi->id,
+            'metode' => 'Telepon',
+            'hasil' => 'Tertarik & Diskusi Lanjutan',
+            'catatan' => 'Follow up kedua oleh Sales B dari Kuningan lintas wilayah',
+            'status' => 'KONTAK',
+            'next_follow_up' => now()->addDays(2)->toDateString(),
+        ]);
+        $resFollowUp->assertRedirect();
+
+        // 5. Nama Sales A tetap menjadi pemilik prospek
+        $prospekAndi->refresh();
+        $this->assertEquals($this->salesA->id, $prospekAndi->sales_id, 'sales_id harus tetap milik Sales A');
+        $this->assertEquals($this->salesA->id, $prospekAndi->owner_id, 'owner_id harus tetap milik Sales A');
+        $this->assertEquals($this->wilayah1->id, $prospekAndi->wilayah_id, 'wilayah_id prospek tidak boleh berubah');
+        $this->assertEquals('KONTAK', $prospekAndi->status);
+
+        // 6. Nama Sales B tercatat sebagai pelaksana follow-up
+        $latestFu = FollowUp::where('prospek_id', $prospekAndi->id)->latest('id')->first();
+        $this->assertNotNull($latestFu);
+        $this->assertEquals($salesKuningan->id, $latestFu->user_id, 'Pelaksana follow-up harus tercatat sebagai Sales B Kuningan');
+        $this->assertEquals('Telepon', $latestFu->metode);
+
+        // 7. Follow-up baru tidak menghapus riwayat sebelumnya
+        $allFuCount = FollowUp::where('prospek_id', $prospekAndi->id)->count();
+        $this->assertEquals(2, $allFuCount, 'Riwayat follow-up sebelumnya tidak boleh terhapus (total harus 2)');
+
+        // 8. Pengguna dengan role selain Sales tetap mengikuti hak akses role masing-masing,
+        // dan Sales B tidak diizinkan mengubah master data prospek (PIC / nama)
+        $this->actingAs($salesKuningan)->put(route('sales.prospek.update', $prospekAndi->id), [
+            'type' => 'Individu',
+            'pic' => 'Andi Hijacked',
+            'whatsapp' => '081255556666',
             'status' => 'KONTAK',
         ])->assertForbidden();
 
-        // Unauthorized sales cannot update status via follow-up endpoint (403)
-        $this->actingAs($salesUnauthorized)->post(route('sales.follow-up.store'), [
-            'prospek_id' => $prospekA->id,
+        // 9. Sales tidak dapat mengubah status menjadi LUNAS
+        $resLunas = $this->actingAs($salesKuningan)->post(route('sales.follow-up.store'), [
+            'prospek_id' => $prospekAndi->id,
             'metode' => 'WhatsApp',
-            'hasil' => 'Tertarik',
-            'catatan' => 'Mencoba follow-up sekaligus ubah status',
-            'status' => 'KONTAK',
-        ])->assertForbidden();
+            'hasil' => 'Deal',
+            'catatan' => 'Mencoba ubah ke status LUNAS',
+            'status' => 'LUNAS',
+        ]);
+        $resLunas->assertSessionHasErrors('status');
+
+        // 10. Fitur pencarian dan filter di daftar prospek tetap berjalan normal
+        $resListSearch = $this->actingAs($salesKuningan)->get(route('sales.prospek.index', ['q' => 'Andi Wijaya']));
+        $resListSearch->assertOk();
+        $resListSearch->assertSee('Andi Wijaya');
     }
 }
 
