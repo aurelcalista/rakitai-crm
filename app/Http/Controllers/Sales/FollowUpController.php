@@ -22,38 +22,68 @@ class FollowUpController extends Controller
         $user  = auth()->user();
         $today = now()->toDateString();
 
-        $allProspects = Prospek::with(['cs', 'sales', 'latestFollowUp'])
-            ->where('sales_id', $user->id)
-            ->whereNotIn('status', ['DINGIN', 'LUNAS']) // DINGIN and LUNAS prospects don't need follow-up
+        $allProspects = Prospek::with(['cs', 'sales', 'owner', 'latestFollowUp'])
+            ->where(function ($q) use ($user) {
+                $q->where('sales_id', $user->id)
+                  ->orWhere('owner_id', $user->id)
+                  ->orWhere(function ($sub) {
+                      $sub->where(function ($s) {
+                          $s->whereHas('sales', function ($sq) {
+                              $sq->whereIn('role', ['Sales', 'sales']);
+                          })->orWhereHas('owner', function ($oq) {
+                              $oq->whereIn('role', ['Sales', 'sales']);
+                          });
+                      });
+                  });
+            })
+            ->withCount('followUps')
             ->orderBy('updated_at', 'desc')
             ->get();
 
         $prospects = [
-            'today'    => [],
-            'upcoming' => [],
-            'overdue'  => [],
-            'done'     => [],
+            'uncontacted' => [],
+            'today'       => [],
+            'overdue'     => [],
+            'unscheduled' => [],
+            'upcoming'    => [],
+            'others'      => [],
+            'done'        => [],
         ];
 
         foreach ($allProspects as $p) {
-            $latestFU       = $p->latestFollowUp ?? $p->followUps->first();
+            $latestFU         = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
             $nextFollowUpDate = $latestFU && $latestFU->next_follow_up
                 ? Carbon::parse($latestFU->next_follow_up)->toDateString()
                 : null;
+            $hasHistory       = ($p->follow_ups_count > 0) || ($latestFU !== null);
+            $isDone           = in_array(strtoupper($p->status), ['LUNAS', 'DINGIN']);
+            $authId           = $user ? $user->id : 0;
+            $isOwn            = (bool) ($authId && ($p->sales_id == $authId || $p->owner_id == $authId));
+            $salesRole        = strtolower(optional($p->sales)->role ?? '');
+            $ownerRole        = strtolower(optional($p->owner)->role ?? '');
+            $hasSalesOwner    = ($salesRole === 'sales') || ($ownerRole === 'sales');
+            $isOther          = (bool) ($authId && !$isOwn && $hasSalesOwner);
 
             $row = $this->formatProspekRow($p, $latestFU);
 
-            if ($p->status === 'LUNAS') {
+            if ($isDone) {
                 $prospects['done'][] = $row;
-            } elseif ($nextFollowUpDate === null) {
-                // No scheduled follow-up → treat as overdue
-                $prospects['overdue'][] = $row;
-            } elseif ($nextFollowUpDate === $today) {
-                $prospects['today'][] = $row;
-            } elseif ($nextFollowUpDate > $today) {
-                $prospects['upcoming'][] = $row;
             } else {
-                $prospects['overdue'][] = $row;
+                if (!$hasHistory) {
+                    $prospects['uncontacted'][] = $row;
+                } elseif ($nextFollowUpDate === null) {
+                    $prospects['unscheduled'][] = $row;
+                } elseif ($nextFollowUpDate === $today) {
+                    $prospects['today'][] = $row;
+                } elseif ($nextFollowUpDate < $today) {
+                    $prospects['overdue'][] = $row;
+                } else {
+                    $prospects['upcoming'][] = $row;
+                }
+
+                if ($isOther) {
+                    $prospects['others'][] = $row;
+                }
             }
         }
 
@@ -79,7 +109,7 @@ class FollowUpController extends Controller
             'hasil'         => 'required|string|max:255',
             'catatan'       => 'required|string|max:2000',
             'status'        => 'required|string|max:255',
-            'next_follow_up'=> 'nullable|date|after_or_equal:today',
+            'next_follow_up'=> 'nullable|date',
         ]);
 
         $prospek = Prospek::findOrFail($validated['prospek_id']);
@@ -90,21 +120,36 @@ class FollowUpController extends Controller
         $oldStatus = $prospek->status;
         $newStatus = $validated['status'];
 
-        // Save follow-up record
+        $actorId = auth()->id();
+        if (!$actorId) {
+            abort(401, 'Silakan login terlebih dahulu.');
+        }
+
+        // Save follow-up record - executor is authenticated user, sales_id and owner_id are untouched
         FollowUp::create([
             'prospek_id'    => $prospek->id,
-            'user_id'       => auth()->id(),
+            'user_id'       => $actorId,
             'metode'        => $validated['metode'],
             'tanggal'       => now(),
             'hasil'         => $validated['hasil'],
             'catatan'       => $validated['catatan'],
-            'next_follow_up'=> $validated['next_follow_up'],
+            'next_follow_up'=> $validated['next_follow_up'] ?? null,
         ]);
 
         $prospek->increment('active_follow_up_count');
+        $prospek->increment('follow_up_count');
 
         // Update prospect status if changed
-        if ($oldStatus !== $newStatus) {
+        if (strtoupper(trim((string)$oldStatus)) !== strtoupper(trim((string)$newStatus))) {
+            \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
+
+            // Prevent Sales from setting status directly to LUNAS (requires CS / closing payment)
+            if (strtoupper($newStatus) === 'LUNAS' && strtolower(auth()->user()->role ?? '') === 'sales') {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
+            }
+
             $stagesMap = Prospek::getDynamicStagesMap();
             $prospek->update([
                 'status'       => $newStatus,
@@ -113,9 +158,9 @@ class FollowUpController extends Controller
 
             ProspekTimeline::create([
                 'prospek_id'   => $prospek->id,
-                'user_id'      => auth()->id(),
+                'user_id'      => $actorId,
                 'title'        => 'Follow Up & Update Status',
-                'notes'        => 'Follow up via ' . $validated['metode'] . '. Status berubah dari ' . $oldStatus . ' menjadi ' . $newStatus . '. Hasil: ' . $validated['hasil'],
+                'notes'        => 'Follow up via ' . $validated['metode'] . '. Status berubah dari ' . $oldStatus . ' menjadi ' . $newStatus . '. Hasil: ' . $validated['hasil'] . '. Catatan: ' . $validated['catatan'],
                 'status_before' => $oldStatus,
                 'status_after'  => $newStatus,
                 'time'          => now(),
@@ -123,12 +168,13 @@ class FollowUpController extends Controller
         } else {
             // Log follow-up even without status change
             ProspekTimeline::create([
-                'prospek_id'  => $prospek->id,
-                'user_id'     => auth()->id(),
-                'title'       => 'Follow Up via ' . $validated['metode'],
-                'notes'       => $validated['hasil'] . '. ' . $validated['catatan'],
-                'status_after' => $prospek->status,
-                'time'         => now(),
+                'prospek_id'   => $prospek->id,
+                'user_id'      => $actorId,
+                'title'        => 'Follow Up via ' . $validated['metode'],
+                'notes'        => 'Hasil: ' . $validated['hasil'] . '. Catatan: ' . $validated['catatan'],
+                'status_before' => $oldStatus,
+                'status_after'  => $prospek->status,
+                'time'          => now(),
             ]);
         }
 
@@ -145,6 +191,9 @@ class FollowUpController extends Controller
         return [
             'id'             => $p->id,
             'name'           => $p->name,
+            'sales_id'       => $p->sales_id,
+            'owner_id'       => $p->owner_id,
+            'cs_id'          => $p->cs_id,
             'type'           => $p->type,
             'pic'            => $p->pic ?? '-',
             'whatsapp'       => $p->whatsapp ?? '-',
@@ -163,6 +212,13 @@ class FollowUpController extends Controller
             'metode_terakhir' => $latestFU ? ($latestFU->metode ?? '-') : '-',
             'hasil_terakhir'  => $latestFU ? ($latestFU->hasil ?? '-') : '-',
             'notes'           => $latestFU && $latestFU->catatan ? $latestFU->catatan : ($p->notes ?? '-'),
+            'sales_name'      => $p->sales ? $p->sales->name : ($p->owner ? $p->owner->name : '-'),
+            'owner'           => $p->owner ? $p->owner->name : 'Sistem',
+            'is_own'          => (bool) (auth()->id() && ($p->sales_id == auth()->id() || $p->owner_id == auth()->id())),
+            'is_other'        => (bool) (auth()->id() && !($p->sales_id == auth()->id() || $p->owner_id == auth()->id()) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales')),
+            'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
+            'has_follow_up_history' => ($p->follow_ups_count > 0) || ($latestFU !== null),
+            'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $p)),
         ];
     }
 }

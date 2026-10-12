@@ -1145,12 +1145,24 @@ class CrmController extends Controller
         $user = auth()->user();
         $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
-        }]);
+        }])->withCount('followUps');
 
         if ($user) {
             $role = strtolower($user->role);
             if ($role === 'sales') {
-                $query->where('sales_id', $user->id);
+                $query->where(function ($q) use ($user) {
+                    $q->where('sales_id', $user->id)
+                      ->orWhere('owner_id', $user->id)
+                      ->orWhere(function ($sub) {
+                          $sub->where(function ($s) {
+                              $s->whereHas('sales', function ($sq) {
+                                  $sq->whereIn('role', ['Sales', 'sales']);
+                              })->orWhereHas('owner', function ($oq) {
+                                  $oq->whereIn('role', ['Sales', 'sales']);
+                              });
+                          });
+                      });
+                });
             } elseif ($role === 'spv') {
                 $salesIds = $user->teamMemberIds();
                 $query->where(function ($q) use ($salesIds, $user) {
@@ -1203,14 +1215,19 @@ class CrmController extends Controller
 
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
-        return $prospectsRaw->map(function ($p) {
+        return $prospectsRaw->map(function ($p) use ($user) {
             $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
+            $authId = $user ? $user->id : 0;
+            $hasFollowUpHistory = ($p->follow_ups_count > 0) || ($latestFollowUp !== null);
 
             return [
                 'id' => $p->id,
                 'name' => $p->name,
                 'type' => $p->type,
                 'sekolah_name' => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+                'sales_id' => $p->sales_id,
+                'owner_id' => $p->owner_id,
+                'cs_id' => $p->cs_id,
                 'sales_name' => $p->sales ? $p->sales->name : '-',
                 'category' => $p->category ?? '-',
                 'pic' => $p->pic ?? '-',
@@ -1236,6 +1253,11 @@ class CrmController extends Controller
                 'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
                 'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
                 'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
+                'is_own' => (bool) ($authId && ($p->sales_id == $authId || $p->owner_id == $authId)),
+                'is_other' => (bool) ($authId && !($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales')),
+                'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
+                'has_follow_up_history' => $hasFollowUpHistory,
+                'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $p)),
                 'timeline' => $p->timelines->map(function ($t) {
                     return [
                         'time' => $t->time ? $t->time->format('d M, H:i') : '-',
@@ -1429,6 +1451,10 @@ class CrmController extends Controller
             'id' => $prospectRaw->id,
             'name' => $prospectRaw->name,
             'type' => $prospectRaw->type,
+            'sales_id' => $prospectRaw->sales_id,
+            'owner_id' => $prospectRaw->owner_id,
+            'cs_id' => $prospectRaw->cs_id,
+            'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $prospectRaw)),
             'sekolah_id' => $prospectRaw->sekolah_id,
             'perusahaan_id' => $prospectRaw->perusahaan_id,
             'prodi_id' => $prospectRaw->prodi_id,
@@ -1492,8 +1518,10 @@ class CrmController extends Controller
         $metodeOptions       = \App\Models\FollowUp::METODE_OPTIONS;
         $isHandler           = $prospectRaw->isHandledBySales(auth()->user()) || ($user && strtolower($user->role) === 'cs' && $prospectRaw->cs_id === $user->id);
 
+        $prospekModel = $prospectRaw;
+
         return view('prospek.show', compact(
-            'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'transaksis',
+            'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'prospekModel', 'transaksis',
             'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
             'lostReasons', 'metodeOptions', 'isHandler'
         ));
@@ -1928,31 +1956,49 @@ class CrmController extends Controller
     {
         $allProspects = collect($this->getDbProspects(request()));
         $today = now()->toDateString();
+        $user = auth()->user();
         
         $prospects = [
-            'today' => [],
-            'upcoming' => [],
-            'overdue' => [],
-            'done' => [],
+            'uncontacted' => [],
+            'today'       => [],
+            'overdue'     => [],
+            'unscheduled' => [],
+            'upcoming'    => [],
+            'others'      => [],
+            'done'        => [],
         ];
 
         foreach ($allProspects as $p) {
-            if (in_array($p['status'], ['LUNAS', 'DINGIN'])) {
+            $isDone     = in_array(strtoupper($p['status'] ?? ''), ['LUNAS', 'DINGIN']);
+            $nextDate   = $p['next_follow_up_date'] ?? null;
+            $hasHistory = !empty($p['has_follow_up_history']) || (!empty($p['follow_up_count']) && $p['follow_up_count'] > 0);
+            $isOther    = !empty($p['is_other']);
+
+            if ($isDone) {
                 $prospects['done'][] = $p;
-            } else if ($p['next_follow_up_date']) {
-                if ($p['next_follow_up_date'] === $today) {
-                    $prospects['today'][] = $p;
-                } else if ($p['next_follow_up_date'] > $today) {
-                    $prospects['upcoming'][] = $p;
-                } else {
-                    $prospects['overdue'][] = $p;
-                }
             } else {
-                $prospects['today'][] = $p;
+                if (!$hasHistory) {
+                    $prospects['uncontacted'][] = $p;
+                } elseif ($nextDate === null) {
+                    $prospects['unscheduled'][] = $p;
+                } elseif ($nextDate === $today) {
+                    $prospects['today'][] = $p;
+                } elseif ($nextDate < $today) {
+                    $prospects['overdue'][] = $p;
+                } else {
+                    $prospects['upcoming'][] = $p;
+                }
+
+                if ($isOther) {
+                    $prospects['others'][] = $p;
+                }
             }
         }
 
-        return view('follow-up.index', compact('prospects'));
+        $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
+        $statuses      = \App\Models\Prospek::getActiveStages();
+
+        return view('follow-up.index', compact('prospects', 'metodeOptions', 'statuses'));
     }
 
     public function followUpStore(Request $request)
@@ -1969,11 +2015,16 @@ class CrmController extends Controller
         $prospek = Prospek::findOrFail($request->prospek_id);
         \Illuminate\Support\Facades\Gate::authorize('followUp', $prospek);
         
-        // Save follow up log
-        $catatan = '[Status: ' . $request->hasil . '] ' . $request->catatan;
+        $actorId = auth()->id();
+        if (!$actorId) {
+            abort(401, 'Silakan login terlebih dahulu.');
+        }
+
+        // Save follow up log - executor is strictly authenticated user, prospect sales_id/owner_id remain untouched
+        $catatan = $request->catatan;
         \App\Models\FollowUp::create([
             'prospek_id' => $prospek->id,
-            'user_id' => auth()->id() ?? 1,
+            'user_id' => $actorId,
             'metode' => $request->metode ?? 'WhatsApp',
             'hasil' => $request->hasil,
             'tanggal' => now(),
@@ -1981,29 +2032,48 @@ class CrmController extends Controller
             'next_follow_up' => $request->next_follow_up,
         ]);
 
-        // Update status if changed
         $oldStatus = $prospek->status;
-        if ($oldStatus !== $request->status) {
-            $prospek->status = $request->status;
-            
-            if (isset(\App\Models\Prospek::STAGES[$request->status])) {
-                $prospek->stage_number = \App\Models\Prospek::STAGES[$request->status];
+        $newStatus = $request->status;
+        if (strtoupper(trim((string)$oldStatus)) !== strtoupper(trim((string)$newStatus))) {
+            \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
+
+            // Prevent Sales from setting status directly to LUNAS (requires CS / closing payment)
+            if (strtoupper($newStatus) === 'LUNAS' && strtolower(auth()->user()->role ?? '') === 'sales') {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
             }
-            
+
+            $stagesMap = \App\Models\Prospek::getDynamicStagesMap();
+            $prospek->status = $newStatus;
+            $prospek->stage_number = $stagesMap[$newStatus] ?? $prospek->stage_number;
             $prospek->save();
 
             ProspekTimeline::create([
                 'prospek_id' => $prospek->id,
-                'user_id' => auth()->id() ?? 1,
+                'user_id' => $actorId,
                 'title' => 'Follow Up & Update Status',
-                'notes' => 'Status diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
+                'notes' => 'Follow up via ' . ($request->metode ?? 'WhatsApp') . '. Status diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status . '. Hasil: ' . $request->hasil . '. Catatan: ' . $request->catatan,
                 'status_before' => $oldStatus,
                 'status_after' => $prospek->status,
                 'time' => now(),
             ]);
         } else {
+            // Log follow-up even without status change so it appears in history/timeline
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => $actorId,
+                'title' => 'Follow Up via ' . ($request->metode ?? 'WhatsApp'),
+                'notes' => 'Hasil: ' . $request->hasil . '. Catatan: ' . $request->catatan,
+                'status_before' => $oldStatus,
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
             $prospek->touch();
         }
+
+        $prospek->increment('active_follow_up_count');
+        $prospek->increment('follow_up_count');
 
         return redirect()->back()->with('success', 'Follow-up berhasil disimpan!');
     }

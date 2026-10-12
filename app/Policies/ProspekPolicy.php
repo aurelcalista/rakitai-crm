@@ -34,7 +34,64 @@ class ProspekPolicy
 
         return ($prospek->sales_id && in_array($prospek->sales_id, $teamIds))
             || ($prospek->owner_id && in_array($prospek->owner_id, $teamIds))
-            || ($prospek->cs_id && in_array($prospek->cs_id, $teamIds));
+            || ($prospek->cs_id && in_array($prospek->cs_id, $teamIds))
+            || $prospek->sales_id === $user->id
+            || $prospek->owner_id === $user->id;
+    }
+
+    /**
+     * Helper: check if a Sales is authorized (own prospect or same team under same supervisor/wilayah).
+     */
+    private function isSalesAuthorized(User $user, Prospek $prospek): bool
+    {
+        if ($prospek->sales_id === $user->id || $prospek->owner_id === $user->id) {
+            return true;
+        }
+
+        $salesOwner = $prospek->sales ?? ($prospek->sales_id ? User::find($prospek->sales_id) : null);
+        $leadOwner  = $prospek->owner ?? ($prospek->owner_id ? User::find($prospek->owner_id) : null);
+
+        // If user belongs to an SPV team, check if prospect belongs to the same team
+        if ($user->supervisor_id) {
+            if ($salesOwner && $salesOwner->supervisor_id && $salesOwner->supervisor_id === $user->supervisor_id) {
+                return true;
+            }
+            if ($leadOwner && $leadOwner->supervisor_id && $leadOwner->supervisor_id === $user->supervisor_id) {
+                return true;
+            }
+            if ($prospek->sales_id === $user->supervisor_id || $prospek->owner_id === $user->supervisor_id) {
+                return true;
+            }
+            if ($user->supervisor) {
+                $teamIds = $user->supervisor->teamMemberIds();
+                if (($prospek->sales_id && in_array($prospek->sales_id, $teamIds))
+                    || ($prospek->owner_id && in_array($prospek->owner_id, $teamIds))) {
+                    return true;
+                }
+            }
+            // If same wilayah, allow helper for sales-owned prospect
+            if ($user->wilayah_id && $prospek->wilayah_id && $user->wilayah_id === $prospek->wilayah_id) {
+                $salesRole = strtolower(optional($salesOwner)->role ?? '');
+                $ownerRole = strtolower(optional($leadOwner)->role ?? '');
+                if ($salesRole === 'sales' || $ownerRole === 'sales') {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // If neither user nor prospect sales has supervisor, check wilayah match
+        if (is_null($user->supervisor_id) && (!$salesOwner || is_null($salesOwner->supervisor_id))) {
+            if ($user->wilayah_id && $prospek->wilayah_id && $user->wilayah_id === $prospek->wilayah_id) {
+                $salesRole = strtolower(optional($salesOwner)->role ?? '');
+                $ownerRole = strtolower(optional($leadOwner)->role ?? '');
+                if ($salesRole === 'sales' || $ownerRole === 'sales') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -42,7 +99,7 @@ class ProspekPolicy
      * Admin: global
      * HM: scoped to HM's Wilayah
      * SPV: scoped to team members under SPV
-     * Sales: only handled, owned, or cs-assigned prospects
+     * Sales: handled, owned, team members under same supervisor, or cs-assigned prospects
      * CS: only assigned prospects or unassigned FORMULIR handover prospects in same Wilayah
      */
     public function view(User $user, Prospek $prospek): bool
@@ -50,8 +107,8 @@ class ProspekPolicy
         $role = strtolower($user->role);
 
         return match ($role) {
-            'sales' => $prospek->sales_id === $user->id
-                    || $prospek->owner_id === $user->id
+            'sales' => ($prospek->sales_id === $user->id || $prospek->owner_id === $user->id)
+                    || $this->isSalesAuthorized($user, $prospek)
                     || $prospek->cs_id === $user->id,
 
             'cs'    => $prospek->cs_id === $user->id
@@ -121,7 +178,11 @@ class ProspekPolicy
         }
 
         if ($role === 'sales') {
-            return $prospek->sales_id === $user->id || $prospek->owner_id === $user->id;
+            // Aturan bisnis: Sales boleh membantu follow-up prospek yang dimiliki/ditangani oleh Sales lain yang diizinkan
+            if ($prospek->sales_id === $user->id || $prospek->owner_id === $user->id) {
+                return true;
+            }
+            return $this->isSalesAuthorized($user, $prospek);
         }
 
         return false;
@@ -132,7 +193,36 @@ class ProspekPolicy
      */
     public function updateStatus(User $user, Prospek $prospek): bool
     {
-        return $this->followUp($user, $prospek);
+        $role = strtolower($user->role);
+
+        if ($role === 'admin') {
+            return true;
+        }
+
+        if ($role === 'hm') {
+            return $this->isHmAuthorized($user, $prospek);
+        }
+
+        if ($role === 'spv') {
+            return $this->isSpvAuthorized($user, $prospek);
+        }
+
+        if ($role === 'cs') {
+            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
+        }
+
+        if ($role === 'sales') {
+            // Sales cannot transition a prospect if status is already LUNAS
+            if (strtoupper($prospek->status) === 'LUNAS') {
+                return false;
+            }
+
+            // Can update if handled by this sales, owned by this sales, or authorized sales helper
+            return ($prospek->sales_id === $user->id || $prospek->owner_id === $user->id)
+                || $this->isSalesAuthorized($user, $prospek);
+        }
+
+        return false;
     }
 
     /**

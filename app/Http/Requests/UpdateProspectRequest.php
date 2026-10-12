@@ -14,6 +14,10 @@ class UpdateProspectRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        $prospek = $this->route('prospek');
+        if ($prospek instanceof Prospek) {
+            return $this->user() ? $this->user()->can('update', $prospek) : false;
+        }
         return true;
     }
 
@@ -66,7 +70,17 @@ class UpdateProspectRequest extends FormRequest
                     }
                 }
             ],
-            'prodi_id' => 'nullable|string',
+            'prodi_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'lainnya' || $value === null || $value === '') {
+                        return;
+                    }
+                    if (!\App\Models\Prodi::where('id', $value)->exists()) {
+                        $fail('The selected prodi id is invalid.');
+                    }
+                }
+            ],
             'prodi_lainnya' => 'nullable|string',
             'wa_ortu'  => 'nullable|string|max:20',
             'asal_kelas' => 'nullable|string|max:100',

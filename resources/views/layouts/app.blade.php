@@ -121,7 +121,24 @@
     modalTransaksi: false,
     modalTambahKunjungan: false,
     selectedProspect: { name: 'SMK Negeri 1 Cirebon', status: 'Interested', id: 1, owner: 'Aurel Calista' },
-    notificationOpen: false
+    notificationOpen: false,
+    canChangeProspectStatus(prospect) {
+        if (!prospect) return false;
+        if (typeof prospect.can_update_status !== 'undefined') {
+            return Boolean(prospect.can_update_status);
+        }
+        const role = '{{ strtolower(auth()->user()->role ?? 'sales') }}';
+        if (role === 'admin' || role === 'hm' || role === 'spv' || role === 'cs') {
+            return true;
+        }
+        if (role === 'sales') {
+            if (prospect.status && prospect.status.toUpperCase() === 'LUNAS') {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
 }
 "
 x-init="
@@ -2427,7 +2444,13 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route('follow-up.store') }}" method="POST" class="mt-4 space-y-4">
+                <form 
+                    action="{{ route('follow-up.store') }}" 
+                    method="POST" 
+                    class="mt-4 space-y-4"
+                    x-data="{ isSubmitting: false }"
+                    @submit="if (isSubmitting) { $event.preventDefault(); return false; } isSubmitting = true"
+                >
                     @csrf
                     <input type="hidden" name="prospek_id" :value="selectedProspect.id">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2465,23 +2488,51 @@ x-init="
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status Prospek</label>
-                            @php
-                                $activeStagesFU = \App\Models\Prospek::getActiveStages();
-                                if (strtolower(auth()->user()->role ?? '') === 'sales') {
-                                    $activeStagesFU = array_filter($activeStagesFU, fn($s) => strtoupper($s) !== 'LUNAS');
-                                }
-                            @endphp
-                            <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                @foreach($activeStagesFU as $stage)
-                                    <option value="{{ $stage }}" x-bind:selected="selectedProspect.status === '{{ $stage }}'">{{ $stage }}</option>
-                                @endforeach
-                            </select>
+                            <template x-if="canChangeProspectStatus(selectedProspect)">
+                                <div>
+                                    @php
+                                        $activeStagesFU = \App\Models\Prospek::getActiveStages();
+                                        if (strtolower(auth()->user()->role ?? '') === 'sales') {
+                                            $activeStagesFU = array_filter($activeStagesFU, fn($s) => strtoupper($s) !== 'LUNAS');
+                                        }
+                                    @endphp
+                                    <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                        @foreach($activeStagesFU as $stage)
+                                            <option value="{{ $stage }}" x-bind:selected="selectedProspect.status === '{{ $stage }}'">{{ $stage }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </template>
+                            <template x-if="!canChangeProspectStatus(selectedProspect)">
+                                <div>
+                                    <input type="hidden" name="status" :value="selectedProspect.status">
+                                    <div class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium flex items-center justify-between">
+                                        <span class="font-bold text-slate-800" x-text="selectedProspect.status"></span>
+                                        <span class="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-semibold flex items-center gap-1">
+                                            <svg class="w-3 h-3 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            Terkunci
+                                        </span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1">Status prospek ini tidak dapat diperbarui (status final atau tidak memiliki izin).</p>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                        <button type="button" @click="modalFollowUp = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
-                        <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs">Simpan Follow Up</button>
+                        <button type="button" @click="isSubmitting = false; modalFollowUp = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+                        <button 
+                            type="submit" 
+                            :disabled="isSubmitting"
+                            :class="isSubmitting ? 'opacity-70 cursor-not-allowed' : ''"
+                            class="px-5 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <span x-show="!isSubmitting">Simpan Follow Up</span>
+                            <span x-show="isSubmitting" class="flex items-center gap-1.5" x-cloak>
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Menyimpan...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>

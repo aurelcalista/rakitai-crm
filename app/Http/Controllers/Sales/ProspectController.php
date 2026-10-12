@@ -26,7 +26,20 @@ class ProspectController extends Controller
         $user = auth()->user();
 
         $query = Prospek::with(['cs', 'owner', 'sekolah', 'perusahaan', 'sales', 'latestFollowUp'])
-            ->where('sales_id', $user->id);
+            ->withCount('followUps')
+            ->where(function ($q) use ($user) {
+                $q->where('sales_id', $user->id)
+                  ->orWhere('owner_id', $user->id)
+                  ->orWhere(function ($sub) {
+                      $sub->where(function ($s) {
+                          $s->whereHas('sales', function ($sq) {
+                              $sq->whereIn('role', ['Sales', 'sales']);
+                          })->orWhereHas('owner', function ($oq) {
+                              $oq->whereIn('role', ['Sales', 'sales']);
+                          });
+                      });
+                  });
+            });
 
         // Optional status filter
         if ($request->filled('status') && $request->status !== 'all') {
@@ -443,6 +456,9 @@ class ProspectController extends Controller
         return [
             'id'             => $p->id,
             'name'           => $p->name,
+            'sales_id'       => $p->sales_id,
+            'owner_id'       => $p->owner_id,
+            'cs_id'          => $p->cs_id,
             'type'           => $p->type,
             'sekolah_id'     => $p->sekolah_id,
             'perusahaan_id'  => $p->perusahaan_id,
@@ -481,6 +497,11 @@ class ProspectController extends Controller
                 : null,
             'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
             'hasil_terakhir'  => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
+            'is_own'          => (bool) (auth()->id() && ($p->sales_id == auth()->id() || $p->owner_id == auth()->id())),
+            'is_other'        => (bool) (auth()->id() && !($p->sales_id == auth()->id() || $p->owner_id == auth()->id()) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales')),
+            'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
+            'has_follow_up_history' => ($p->follow_ups_count > 0) || ($latestFollowUp !== null),
+            'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $p)),
         ];
     }
 

@@ -257,6 +257,24 @@
                     
                     <div class="space-y-3.5 text-xs">
                         <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sales Pemilik Prospek</span>
+                            <p class="font-bold text-slate-800 mt-0.5 text-sm flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                <span>{{ $prospekModel->sales?->name ?? ($prospect['takeover_sales'] ?? 'Belum Ditugaskan') }}</span>
+                            </p>
+                        </div>
+
+                        @if($prospekModel->cs_id && $prospekModel->cs)
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Penangan CS (Handover)</span>
+                            <p class="font-bold text-indigo-900 mt-0.5 text-xs flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                <span>{{ $prospekModel->cs->name }}</span>
+                            </p>
+                        </div>
+                        @endif
+
+                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Status Pipeline</span>
                             <div class="mt-1">
                                 <x-status-badge :status="$prospect['status']" />
@@ -507,12 +525,14 @@
                             <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Riwayat Aktivitas & Timeline</h3>
                             <p class="text-xs text-slate-500">Log lengkap interaksi, perubahan status, dan catatan tim</p>
                         </div>
+                        @can('followUp', $prospekModel)
                         <button 
                             @click="selectedProspect = prospect; modalFollowUp = true"
                             class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition cursor-pointer"
                         >
                             Tambah Catatan
                         </button>
+                        @endcan
                     </div>
 
                 <!-- Timeline Items -->
@@ -534,7 +554,11 @@
                                 </div>
                                 
                                 <p class="text-xs text-slate-600 pt-1 leading-relaxed">{{ $item['notes'] }}</p>
-                                <div class="text-[10px] text-slate-400 pt-1 font-medium">Oleh: {{ $item['user'] }}</div>
+                                <div class="text-[10px] text-slate-500 pt-1 font-medium flex items-center gap-1">
+                                    <span>Pelaksana Aktivitas:</span>
+                                    <strong class="text-slate-700">{{ $item['user'] }}</strong>
+                                    <span class="text-slate-400">({{ $item['role'] }})</span>
+                                </div>
                             </div>
                         </div>
                     @endforeach

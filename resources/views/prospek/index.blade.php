@@ -14,8 +14,8 @@
         <x-empty-state 
             title="Belum ada prospek ditemukan" 
             description="Tidak ada data prospek yang sesuai dengan kriteria filter pencarian Anda."
-            :actionLabel="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'Tambah Prospek Baru' : null"
-            :actionClick="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'modalTambahProspek = true' : null"
+            :actionLabel="in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']) ? 'Tambah Prospek Baru' : null"
+            :actionClick="in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']) ? 'modalTambahProspek = true' : null"
         />
     </div>
 
@@ -25,26 +25,47 @@
 
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         searchQuery: '',
+        selectedScope: 'all',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedTakeover: 'all',
         currentPage: 1,
         perPage: 25,
+        authUserId: {{ auth()->id() ?? 0 }},
+        userRole: '{{ auth()->user()->role ?? '' }}',
         prospectsList: {{ json_encode($prospects) }},
         
+        isOwnProspect(p) {
+            return Boolean(p.is_own === true || (this.authUserId && (p.sales_id == this.authUserId || p.owner_id == this.authUserId)));
+        },
+        isOtherProspect(p) {
+            const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-'));
+            return Boolean(p.is_other === true || (!this.isOwnProspect(p) && hasSalesOwner));
+        },
         get filteredProspects() {
             return this.prospectsList.filter(p => {
-                const matchSearch = !this.searchQuery || 
-                    p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
-                    p.pic.toLowerCase().includes(this.searchQuery.toLowerCase());
+                const q = this.searchQuery.toLowerCase().trim();
+                const matchSearch = !q || 
+                    (p.name && p.name.toLowerCase().includes(q)) || 
+                    (p.pic && p.pic.toLowerCase().includes(q)) ||
+                    (p.whatsapp && p.whatsapp.includes(q)) ||
+                    (p.sales_name && p.sales_name.toLowerCase().includes(q)) ||
+                    (p.owner && p.owner.toLowerCase().includes(q));
                 
                 const matchStatus = this.selectedStatus === 'all' || p.status === this.selectedStatus;
                 const matchType = this.selectedType === 'all' || p.type === this.selectedType;
                 const matchTakeover = this.selectedTakeover === 'all' || 
-                    (this.selectedTakeover === 'sales' && p.active_takeover.includes('Sales')) ||
-                    (this.selectedTakeover === 'cs' && p.active_takeover.includes('CS'));
+                    (this.selectedTakeover === 'sales' && p.active_takeover && p.active_takeover.includes('Sales')) ||
+                    (this.selectedTakeover === 'cs' && p.active_takeover && p.active_takeover.includes('CS'));
+
+                let matchScope = true;
+                if (this.selectedScope === 'own') {
+                    matchScope = this.isOwnProspect(p);
+                } else if (this.selectedScope === 'others') {
+                    matchScope = this.isOtherProspect(p);
+                }
                 
-                return matchSearch && matchStatus && matchType && matchTakeover;
+                return matchSearch && matchStatus && matchType && matchTakeover && matchScope;
             });
         },
         get paginatedProspects() {
@@ -53,8 +74,18 @@
         },
         get totalPages() {
             return Math.ceil(this.filteredProspects.length / this.perPage) || 1;
+        },
+        getProspectUrl(prospect) {
+            const role = '{{ strtolower(auth()->user()->role ?? '') }}';
+            if (role === 'sales') {
+                return '/sales/prospek/' + prospect.id;
+            }
+            if (role === 'spv') {
+                return '/spv/prospek/' + prospect.id;
+            }
+            return '/prospek/' + prospect.id;
         }
-    }" x-effect="searchQuery; selectedStatus; selectedType; selectedTakeover; currentPage = 1">
+    }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; currentPage = 1">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -80,6 +111,37 @@
 
         <!-- Search & Filter Controls -->
         <div class="crm-card bg-white p-4 sm:p-5 space-y-4">
+            
+            @if(in_array(auth()->user()->role ?? '', ['Sales']))
+            <!-- Scope Filter Tabs for Sales -->
+            <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60">
+                <button 
+                    type="button" 
+                    @click="selectedScope = 'all'" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                    :class="selectedScope === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    Semua Prospek
+                </button>
+                <button 
+                    type="button" 
+                    @click="selectedScope = 'own'" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                    :class="selectedScope === 'own' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    Prospek Saya
+                </button>
+                <button 
+                    type="button" 
+                    @click="selectedScope = 'others'" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'others' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Follow-Up Sales Lain</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800" x-text="prospectsList.filter(p => isOtherProspect(p)).length"></span>
+                </button>
+            </div>
+            @endif
             
             <!-- Big Search Bar -->
             <div class="relative">
@@ -216,7 +278,7 @@
                 <!-- Reset Filter Button -->
                 <button 
                     type="button" 
-                    @click="selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
+                    @click="selectedScope = 'all'; selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
                     class="ml-auto text-slate-400 hover:text-slate-600 font-medium px-2 py-1"
                 >
                     Reset Filter
@@ -256,7 +318,7 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-4 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-4 px-4 font-semibold text-slate-900">
-                                    <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
+                                    <a :href="getProspectUrl(prospect)" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
                                 </td>
                                 <td class="py-4 px-3">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
@@ -280,19 +342,25 @@
                                         x-text="prospect.active_takeover"
                                     ></span>
                                 </td>
-                                <td class="py-4 px-3 text-slate-600 font-medium" x-text="prospect.owner"></td>
+                                <td class="py-4 px-3 text-slate-600 font-medium">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span x-text="prospect.owner"></span>
+                                        <span x-show="prospect.is_other" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="Prospek milik Sales lain">Sales Lain</span>
+                                    </div>
+                                </td>
                                 <td class="py-4 px-3 text-slate-500 text-[11px]" x-text="prospect.last_activity"></td>
                                 <td class="py-4 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
                                         <button 
                                             @click="selectedProspect = prospect; modalFollowUp = true"
-                                            class="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer"
-                                            title="Follow Up"
+                                            :class="prospect.is_other ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+                                            class="p-1.5 rounded-lg transition cursor-pointer"
+                                            :title="prospect.is_other ? 'Bantu Follow Up' : 'Follow Up'"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                         </button>
                                         <a 
-                                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id"
+                                            :href="getProspectUrl(prospect)"
                                             class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
                                             title="Lihat Detail"
                                         >
@@ -314,7 +382,7 @@
                             <div class="flex items-center gap-2.5">
                                 <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0" x-text="((prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name).substring(0, 2).toUpperCase()"></div>
                                 <div>
-                                    <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="font-bold text-xs text-slate-900 block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
+                                    <a :href="getProspectUrl(prospect)" class="font-bold text-xs text-slate-900 block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
                                     <span class="text-[11px] text-slate-500 block" x-text="prospect.type"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
@@ -338,9 +406,10 @@
                         <div class="flex items-center gap-2 pt-1">
                             <button 
                                 @click="selectedProspect = prospect; modalFollowUp = true"
-                                class="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 text-xs font-semibold text-center"
+                                :class="prospect.is_other ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200/80'"
+                                class="flex-1 py-2 rounded-xl border text-xs font-semibold text-center"
+                                x-text="prospect.is_other ? 'Bantu Follow Up' : 'Follow Up'"
                             >
-                                Follow Up
                             </button>
                             <button 
                                 @click="selectedProspect = prospect; modalUpdateStatus = true"
@@ -349,7 +418,7 @@
                                 Status
                             </button>
                             <a 
-                                :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id"
+                                :href="getProspectUrl(prospect)"
                                 class="py-2 px-3 rounded-xl bg-blue-600 text-white text-xs font-semibold shadow-xs"
                             >
                                 Detail

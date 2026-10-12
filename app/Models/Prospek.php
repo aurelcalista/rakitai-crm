@@ -64,12 +64,17 @@ class Prospek extends Model
             // Auto-handover to CS when status enters handover stages
             if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
-                    $cs = \App\Models\User::where('role', 'CS')
-                        ->where('status', 'Aktif')
-                        ->first();
-                        
+                    $cs = null;
+                    if ($prospek->wilayah_id) {
+                        $cs = \App\Models\User::where('role', 'CS')
+                            ->where('status', 'Aktif')
+                            ->where('wilayah_id', $prospek->wilayah_id)
+                            ->first();
+                    }
                     if (!$cs) {
-                        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
+                        $cs = \App\Models\User::where('role', 'CS')
+                            ->where('status', 'Aktif')
+                            ->first();
                     }
                     
                     if ($cs) {

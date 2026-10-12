@@ -55,6 +55,18 @@
 
                 <!-- SPV Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2">
+                    <!-- Follow Up Button for SPV -->
+                    @can('followUp', $prospekModel ?? \App\Models\Prospek::find($prospect['id']))
+                    <button 
+                        type="button" 
+                        @click="selectedProspect = {{ json_encode($prospect) }}; modalFollowUp = true"
+                        class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                        <span>Follow Up</span>
+                    </button>
+                    @endcan
+
                     <!-- Bantu Closing Button (SPV closing power with sales credit intact) -->
                     @if($prospect['status'] !== 'LUNAS')
                     <button 
@@ -153,9 +165,12 @@
                         </div>
 
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pemilik Lead & Handler</span>
-                            <p class="font-bold text-slate-900 mt-0.5">{{ $prospect['takeover_sales'] ? $prospect['takeover_sales'] . ' (Sales)' : ($prospect['takeover_cs'] ? $prospect['takeover_cs'] . ' (CS)' : 'Belum Ditugaskan') }}</p>
-                            <span class="text-[10px] text-slate-400">Owner Lead: {{ $prospect['owner'] ?? '-' }}</span>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sales Pemilik Prospek</span>
+                            <p class="font-bold text-slate-900 mt-0.5 text-sm">{{ $prospect['takeover_sales'] ? $prospect['takeover_sales'] . ' (Sales)' : 'Belum Ditugaskan' }}</p>
+                            @if(!empty($prospect['takeover_cs']))
+                                <span class="text-[11px] text-indigo-700 font-semibold block mt-0.5">Penangan CS: {{ $prospect['takeover_cs'] }}</span>
+                            @endif
+                            <span class="text-[10px] text-slate-400 block mt-0.5">Pembuat Lead: {{ $prospect['owner'] ?? '-' }}</span>
                         </div>
 
                         <div>
@@ -281,7 +296,11 @@
                                     <span class="text-[11px] text-slate-400">{{ $item['time'] }}</span>
                                 </div>
                                 <p class="text-xs text-slate-600 pt-1 leading-relaxed">{{ $item['notes'] }}</p>
-                                <div class="text-[10px] text-slate-400 pt-1 font-medium">Oleh: {{ $item['user'] }}</div>
+                                <div class="text-[10px] text-slate-500 pt-1 font-medium flex items-center gap-1">
+                                    <span>Pelaksana Aktivitas:</span>
+                                    <strong class="text-slate-700">{{ $item['user'] }}</strong>
+                                    <span class="text-slate-400">({{ $item['role'] }})</span>
+                                </div>
                             </div>
                         </div>
                     @empty
