@@ -14,24 +14,78 @@ use Illuminate\View\View;
 class VerifikasiController extends Controller
 {
     /**
-     * Halaman daftar transaksi menunggu verifikasi CS.
+     * Halaman daftar verifikasi & riwayat pembayaran CS.
      */
     public function index(Request $request): View
     {
-        // Hanya CS yang boleh mengakses
+        // Hanya CS, Admin, HM yang boleh mengakses
         abort_if(!in_array(auth()->user()->role, ['CS', 'Admin', 'HM']), 403);
 
-        $query = Transaksi::with(['prospek', 'user', 'prospek.sales'])
-            ->where('jenis', 'Pembayaran Termin 1')
-            ->where('payment_status', Transaksi::STATUS_PENDING)
-            ->latest('tanggal');
+        $activeTab = $request->query('tab', 'pending');
+        if (!in_array($activeTab, ['pending', 'riwayat'])) {
+            $activeTab = 'pending';
+        }
 
-        // Hitung badge total pending
-        $totalPending = (clone $query)->count();
+        $statusFilter = $request->query('status'); // all, verified, rejected
+        $search = $request->query('q');
+
+        // Statistik ringkasan
+        $totalPending = Transaksi::where('jenis', 'Pembayaran Termin 1')
+            ->where('payment_status', Transaksi::STATUS_PENDING)
+            ->count();
+        $totalVerified = Transaksi::where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->where('jenis', 'Pembayaran Termin 1')
+            ->count();
+        $totalRejected = Transaksi::where('payment_status', Transaksi::STATUS_REJECTED)
+            ->where('jenis', 'Pembayaran Termin 1')
+            ->count();
+        $totalRiwayat = $totalVerified + $totalRejected;
+        $sumVerifiedAmount = Transaksi::where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->where('jenis', 'Pembayaran Termin 1')
+            ->sum('nominal');
+
+        // Base Query dengan eager loading lengkap
+        $baseQuery = Transaksi::with(['prospek', 'user', 'prospek.sales', 'verifier', 'rejecter'])
+            ->where('jenis', 'Pembayaran Termin 1');
+
+        if ($activeTab === 'pending') {
+            $query = (clone $baseQuery)
+                ->where('payment_status', Transaksi::STATUS_PENDING)
+                ->latest('tanggal');
+        } else {
+            // Tab Riwayat: Tampilkan transaksi yang sudah verified atau rejected
+            $query = (clone $baseQuery)
+                ->whereIn('payment_status', [Transaksi::STATUS_VERIFIED, Transaksi::STATUS_REJECTED])
+                ->latest('updated_at');
+
+            if ($statusFilter && in_array($statusFilter, [Transaksi::STATUS_VERIFIED, Transaksi::STATUS_REJECTED])) {
+                $query->where('payment_status', $statusFilter);
+            }
+        }
+
+        // Filter Pencarian
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('prospek', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"))
+                  ->orWhere('notes', 'like', "%{$search}%")
+                  ->orWhere('rejection_reason', 'like', "%{$search}%");
+            });
+        }
 
         $transaksis = $query->paginate(20)->withQueryString();
 
-        return view('cs.verifikasi.index', compact('transaksis', 'totalPending'));
+        return view('cs.verifikasi.index', compact(
+            'transaksis',
+            'totalPending',
+            'totalVerified',
+            'totalRejected',
+            'totalRiwayat',
+            'sumVerifiedAmount',
+            'activeTab',
+            'statusFilter',
+            'search'
+        ));
     }
 
     /**

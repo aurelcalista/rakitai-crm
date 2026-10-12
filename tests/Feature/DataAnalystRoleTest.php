@@ -227,7 +227,7 @@ class DataAnalystRoleTest extends TestCase
     }
 
     /** @test */
-    public function test_data_analyst_export_generates_valid_csv_with_utf8_bom()
+    public function test_data_analyst_export_generates_valid_xlsx_file()
     {
         Prospek::create([
             'name'       => 'Calon Mahasiswa Export',
@@ -240,16 +240,38 @@ class DataAnalystRoleTest extends TestCase
 
         $response = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'prospek']));
         $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
         // Capture streamed response content
         $content = $response->streamedContent();
+        $this->assertNotEmpty($content);
 
-        // Check UTF-8 BOM
-        $bom = chr(0xEF) . chr(0xBB) . chr(0xBF);
-        $this->assertStringStartsWith($bom, $content);
-        $this->assertStringContainsString('Calon Mahasiswa Export', $content);
-        $this->assertStringContainsString('Kota Cirebon', $content);
+        // Verify valid OpenXML PK signature
+        $this->assertStringStartsWith("PK", $content);
+
+        // Load and verify with PhpSpreadsheet
+        $tempFile = tempnam(sys_get_temp_dir(), 'test_exp_') . '.xlsx';
+        file_put_contents($tempFile, $content);
+
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFile);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $this->assertEquals('Data Prospek', $sheet->getTitle());
+        $this->assertEquals('ID Prospek', $sheet->getCell('A1')->getValue());
+        $this->assertEquals('Nama Calon Mahasiswa', $sheet->getCell('B1')->getValue());
+        $this->assertEquals('No WhatsApp', $sheet->getCell('C1')->getValue());
+        $this->assertEquals('Wilayah', $sheet->getCell('K1')->getValue());
+
+        // Check data row
+        $this->assertEquals('Calon Mahasiswa Export', $sheet->getCell('B2')->getValue());
+        // Text format preserving leading zero
+        $this->assertEquals('0812999888', $sheet->getCell('C2')->getValue());
+        $this->assertEquals('Kota Cirebon', $sheet->getCell('K2')->getValue());
+
+        // Header bold check
+        $this->assertTrue($sheet->getStyle('A1')->getFont()->getBold());
+
+        unlink($tempFile);
     }
 
     /** @test */
@@ -351,31 +373,53 @@ class DataAnalystRoleTest extends TestCase
             'time'       => now(),
         ]);
 
-        $bom = chr(0xEF) . chr(0xBB) . chr(0xBF);
-
         // 1. Follow-up export
         $resFollowUp = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'follow_up']));
         $resFollowUp->assertStatus(200);
-        $resFollowUp->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $resFollowUp->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $contentFollowUp = $resFollowUp->streamedContent();
-        $this->assertStringStartsWith($bom, $contentFollowUp);
-        $this->assertStringContainsString('ID Follow-Up', $contentFollowUp);
-        $this->assertStringContainsString('Calon Ekspor Lengkap', $contentFollowUp);
+        $this->assertStringStartsWith("PK", $contentFollowUp);
+
+        $tempFu = tempnam(sys_get_temp_dir(), 'test_fu_') . '.xlsx';
+        file_put_contents($tempFu, $contentFollowUp);
+        $fuSpreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFu);
+        $fuSheet = $fuSpreadsheet->getActiveSheet();
+        $this->assertEquals('Aktivitas Follow-Up', $fuSheet->getTitle());
+        $this->assertEquals('ID Follow-Up', $fuSheet->getCell('A1')->getValue());
+        $this->assertEquals('Calon Ekspor Lengkap', $fuSheet->getCell('D2')->getValue());
+        $this->assertEquals('0812345678', $fuSheet->getCell('E2')->getValue());
+        unlink($tempFu);
 
         // 2. Timeline export
         $resTimeline = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'timeline']));
         $resTimeline->assertStatus(200);
+        $resTimeline->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $contentTimeline = $resTimeline->streamedContent();
-        $this->assertStringStartsWith($bom, $contentTimeline);
-        $this->assertStringContainsString('ID Log Timeline', $contentTimeline);
-        $this->assertStringContainsString('Calon Ekspor Lengkap', $contentTimeline);
+        $this->assertStringStartsWith("PK", $contentTimeline);
+
+        $tempTl = tempnam(sys_get_temp_dir(), 'test_tl_') . '.xlsx';
+        file_put_contents($tempTl, $contentTimeline);
+        $tlSpreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempTl);
+        $tlSheet = $tlSpreadsheet->getActiveSheet();
+        $this->assertEquals('Timeline Status', $tlSheet->getTitle());
+        $this->assertEquals('ID Log Timeline', $tlSheet->getCell('A1')->getValue());
+        $this->assertEquals('Calon Ekspor Lengkap', $tlSheet->getCell('D2')->getValue());
+        unlink($tempTl);
 
         // 3. Kualitas Data export
         $resKualitas = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'kualitas_data']));
         $resKualitas->assertStatus(200);
+        $resKualitas->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $contentKualitas = $resKualitas->streamedContent();
-        $this->assertStringStartsWith($bom, $contentKualitas);
-        $this->assertStringContainsString('Kategori Temuan Audit', $contentKualitas);
+        $this->assertStringStartsWith("PK", $contentKualitas);
+
+        $tempKd = tempnam(sys_get_temp_dir(), 'test_kd_') . '.xlsx';
+        file_put_contents($tempKd, $contentKualitas);
+        $kdSpreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempKd);
+        $kdSheet = $kdSpreadsheet->getActiveSheet();
+        $this->assertEquals('Audit Kualitas Data', $kdSheet->getTitle());
+        $this->assertEquals('Kategori Temuan Audit', $kdSheet->getCell('A1')->getValue());
+        unlink($tempKd);
     }
 
     /** @test */
@@ -412,6 +456,7 @@ class DataAnalystRoleTest extends TestCase
         $response->assertDontSee('title="Dashboard Analitik"');
         $response->assertDontSee('Data Prospek Global');
         $response->assertDontSee('title="Ekspor Data Excel"');
+        $response->assertDontSee('Kehadiran');
     }
 
     /** @test */
@@ -422,5 +467,139 @@ class DataAnalystRoleTest extends TestCase
 
         $resPotensi = $this->actingAs($this->analyst)->get(route('potensi-wilayah.index'));
         $resPotensi->assertStatus(200);
+    }
+
+    /** @test */
+    public function test_export_transaksi_funnel_summary_and_all_sheets_formatting()
+    {
+        $prospek = Prospek::create([
+            'name'       => 'Mahasiswa Bayar',
+            'whatsapp'   => '08555666777',
+            'status'     => 'LUNAS',
+            'type'       => 'Mahasiswa',
+            'source'     => 'Website CIC',
+            'wilayah_id' => $this->wilayah1->id,
+            'sales_id'   => $this->sales->id,
+            'tahun_akademik' => '2026/2027',
+        ]);
+
+        Transaksi::create([
+            'prospek_id'        => $prospek->id,
+            'jenis'             => 'Beli Formulir',
+            'nominal'           => 250000,
+            'metode_pembayaran' => 'bank_transfer',
+            'payment_status'    => 'verified',
+            'tanggal'           => now(),
+        ]);
+
+        Transaksi::create([
+            'prospek_id'        => $prospek->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 1500000,
+            'metode_pembayaran' => 'cash',
+            'payment_status'    => 'verified',
+            'tanggal'           => now(),
+        ]);
+
+        // 1. Test Transaksi Export
+        $resTx = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'transaksi']));
+        $resTx->assertStatus(200);
+        $resTx->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $tempTx = tempnam(sys_get_temp_dir(), 'tx_') . '.xlsx';
+        file_put_contents($tempTx, $resTx->streamedContent());
+        $txXls = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempTx);
+        $txSheet = $txXls->getActiveSheet();
+        $this->assertEquals('Data Transaksi', $txSheet->getTitle());
+        $this->assertEquals('ID Transaksi', $txSheet->getCell('A1')->getValue());
+        $this->assertEquals('Mahasiswa Bayar', $txSheet->getCell('C2')->getValue());
+        $this->assertEquals(250000, $txSheet->getCell('E2')->getValue());
+        $this->assertTrue($txSheet->getStyle('A1')->getFont()->getBold());
+        // AutoFilter on header
+        $this->assertNotEmpty($txSheet->getAutoFilter()->getRange());
+        unlink($tempTx);
+
+        // 2. Test Funnel Export
+        $resFunnel = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'funnel']));
+        $resFunnel->assertStatus(200);
+        $tempFn = tempnam(sys_get_temp_dir(), 'fn_') . '.xlsx';
+        file_put_contents($tempFn, $resFunnel->streamedContent());
+        $fnXls = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempFn);
+        $fnSheet = $fnXls->getActiveSheet();
+        $this->assertEquals('Funnel PMB', $fnSheet->getTitle());
+        $this->assertEquals('Tahap Funnel', $fnSheet->getCell('A1')->getValue());
+        $this->assertTrue($fnSheet->getStyle('A1')->getFont()->getBold());
+        unlink($tempFn);
+
+        // 3. Test Summary Export
+        $resSum = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'summary']));
+        $resSum->assertStatus(200);
+        $tempSm = tempnam(sys_get_temp_dir(), 'sm_') . '.xlsx';
+        file_put_contents($tempSm, $resSum->streamedContent());
+        $smXls = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempSm);
+        $smSheet = $smXls->getActiveSheet();
+        $this->assertEquals('Ringkasan Eksekutif', $smSheet->getTitle());
+        $this->assertEquals('Indikator Metrik PMB', $smSheet->getCell('A1')->getValue());
+        unlink($tempSm);
+
+        // 4. Test Multi-sheet All Workbook
+        $resAll = $this->actingAs($this->analyst)->get(route('analyst.export', ['type' => 'all']));
+        $resAll->assertStatus(200);
+        $tempAll = tempnam(sys_get_temp_dir(), 'all_') . '.xlsx';
+        file_put_contents($tempAll, $resAll->streamedContent());
+        $allXls = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempAll);
+        $this->assertGreaterThanOrEqual(10, $allXls->getSheetCount());
+        $this->assertNotNull($allXls->getSheetByName('Data Prospek'));
+        $this->assertNotNull($allXls->getSheetByName('Data Transaksi'));
+        $this->assertNotNull($allXls->getSheetByName('Ringkasan Eksekutif'));
+        unlink($tempAll);
+    }
+
+    /** @test */
+    public function test_export_filter_consistency_and_no_duplicate_rows()
+    {
+        // Prospect in Wilayah 1
+        $p1 = Prospek::create([
+            'name'           => 'Prospek Wilayah 1',
+            'whatsapp'       => '08111111111',
+            'status'         => 'BARU',
+            'type'           => 'Mahasiswa',
+            'source'         => 'Sekolah',
+            'wilayah_id'     => $this->wilayah1->id,
+            'tahun_akademik' => '2026/2027',
+        ]);
+
+        // Prospect in Wilayah 2
+        $p2 = Prospek::create([
+            'name'           => 'Prospek Wilayah 2',
+            'whatsapp'       => '08222222222',
+            'status'         => 'BARU',
+            'type'           => 'Mahasiswa',
+            'source'         => 'Sekolah',
+            'wilayah_id'     => $this->wilayah2->id,
+            'tahun_akademik' => '2026/2027',
+        ]);
+
+        // Multiple follow-ups for p1 (must NOT duplicate p1 in export)
+        \App\Models\FollowUp::create(['prospek_id' => $p1->id, 'user_id' => $this->sales->id, 'tanggal' => now(), 'metode' => 'WhatsApp']);
+        \App\Models\FollowUp::create(['prospek_id' => $p1->id, 'user_id' => $this->sales->id, 'tanggal' => now(), 'metode' => 'Telepon']);
+
+        // Filter by wilayah1 only
+        $res = $this->actingAs($this->analyst)->get(route('analyst.export', [
+            'type'       => 'prospek',
+            'wilayah_id' => $this->wilayah1->id,
+        ]));
+        $res->assertStatus(200);
+
+        $temp = tempnam(sys_get_temp_dir(), 'filter_') . '.xlsx';
+        file_put_contents($temp, $res->streamedContent());
+        $xls = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        $sheet = $xls->getActiveSheet();
+
+        // Row 1 is header, Row 2 is p1
+        $this->assertEquals('Prospek Wilayah 1', $sheet->getCell('B2')->getValue());
+        // p2 must not be in the file
+        $this->assertNull($sheet->getCell('B3')->getValue());
+        unlink($temp);
     }
 }

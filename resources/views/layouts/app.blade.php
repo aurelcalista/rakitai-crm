@@ -293,13 +293,13 @@ x-init="
                     </div>
                 </div>
 
+                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
                 <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
                 <!-- Section: ABSENSI -->
                 <div>
                     <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
-                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             title="Input Absensi"
@@ -311,7 +311,6 @@ x-init="
                             </svg>
                             <span x-show="!sidebarCollapsed">Input Absensi</span>
                         </a>
-                        @endif
 
                         @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
                         <a 
@@ -328,6 +327,7 @@ x-init="
                         @endif
                     </div>
                 </div>
+                @endif
 
                 @if($currentUser['role'] === 'EO')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
@@ -1373,11 +1373,11 @@ x-init="
                     </div>
                 </div>
 
+                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
                 <!-- SECTION: ABSENSI -->
                 <div x-show="matches('absensi kehadiran input absen kelola absen staf')">
                     <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
-                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             @click="mobileMenuOpen = false"
@@ -1390,7 +1390,6 @@ x-init="
                             </svg>
                             <span class="flex-1">Input Absensi</span>
                         </a>
-                        @endif
 
                         @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
                         <a 
@@ -1408,6 +1407,7 @@ x-init="
                         @endif
                     </div>
                 </div>
+                @endif
 
                 @if($currentUser['role'] === 'EO')
                     <!-- SECTION: EVENT ORGANIZER -->

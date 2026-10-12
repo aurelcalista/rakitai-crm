@@ -99,10 +99,17 @@ class Transaksi extends Model
                     ));
                 }
 
-                // 3. Notifikasi ke CS — kirim ke CS penanggung jawab atau seluruh CS
-                $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))->get();
-                if ($csList->isEmpty()) {
-                    $csList = \App\Models\User::where('role', 'CS')->get();
+                // 3. Notifikasi ke CS — jika butuh verifikasi, kirim ke seluruh staf CS aktif agar siapapun yang piket bisa memvalidasi
+                if ($isNeedVerification) {
+                    $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
+                    if ($csList->isEmpty()) {
+                        $csList = \App\Models\User::where('role', 'CS')->get();
+                    }
+                } else {
+                    $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))->get();
+                    if ($csList->isEmpty()) {
+                        $csList = \App\Models\User::where('role', 'CS')->get();
+                    }
                 }
 
                 $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? ($transaksi->metode_pembayaran ?: 'Transfer Bank / Online');

@@ -717,15 +717,67 @@ class CrmController extends Controller
         $lunasCount = count(array_filter($prospects, fn($p) => $p['status'] === 'LUNAS'));
         $dinginCount = count(array_filter($prospects, fn($p) => $p['status'] === 'DINGIN'));
 
+        // 1. Data Pembayaran Termin 1 Menunggu Verifikasi CS
+        $pendingPaymentsQuery = \App\Models\Transaksi::with(['prospek', 'user', 'prospek.sales'])
+            ->where('jenis', 'Pembayaran Termin 1')
+            ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING)
+            ->latest('tanggal');
+
+        $pendingPaymentCount = (clone $pendingPaymentsQuery)->count();
+        $pendingPaymentSum   = (clone $pendingPaymentsQuery)->sum('nominal');
+        $pendingPayments     = $pendingPaymentsQuery->limit(5)->get();
+
+        // 2. Data Prospek Baru Serah Terima (Handover) & Pemantauan SLA 2 Jam
+        $user = auth()->user();
+        $handoverProspects = \App\Models\Prospek::with(['sales', 'sekolah', 'perusahaan'])
+            ->whereIn('status', ['FORMULIR', '05 FORMULIR'])
+            ->where(function ($q) use ($user) {
+                if ($user) {
+                    $q->where('cs_id', $user->id)
+                      ->orWhereNull('cs_id');
+                }
+            })
+            ->whereNotNull('handover_at')
+            ->latest('handover_at')
+            ->limit(5)
+            ->get()
+            ->map(function ($p) {
+                $hasFollowUp = \App\Models\FollowUp::where('prospek_id', $p->id)
+                    ->where('created_at', '>=', $p->handover_at)
+                    ->exists();
+                $elapsedMinutes = $p->handover_at ? (int) $p->handover_at->diffInMinutes(now()) : 0;
+                $isOverdueSla = !$hasFollowUp && $elapsedMinutes >= 120;
+                $remainingMinutes = max(0, 120 - $elapsedMinutes);
+
+                return [
+                    'id'                => $p->id,
+                    'name'              => $p->name,
+                    'type'              => $p->type,
+                    'whatsapp'          => $p->whatsapp,
+                    'sales_name'        => $p->sales?->name ?? 'Sales Lapangan',
+                    'handover_time'     => $p->handover_at?->diffForHumans() ?? '-',
+                    'has_follow_up'     => $hasFollowUp,
+                    'is_overdue'        => $isOverdueSla,
+                    'remaining_minutes' => $remainingMinutes,
+                    'elapsed_minutes'   => $elapsedMinutes,
+                ];
+            });
+
+        $slaOverdueCount = $handoverProspects->where('is_overdue', true)->count();
+
         $stats = [
-            'total_prospek' => count($prospects),
-            'takeover_cs' => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'] ?? '', 'CS'))),
-            'follow_up_today' => $followUpTodayCount,
-            'follow_up_pending' => $followUpPendingCount,
-            'closing' => $lunasCount,
-            'lost' => $dinginCount,
-            'LUNAS' => $lunasCount,
-            'DINGIN' => $dinginCount,
+            'total_prospek'         => count($prospects),
+            'takeover_cs'           => count(array_filter($prospects, fn($p) => str_contains($p['active_takeover'] ?? '', 'CS'))),
+            'follow_up_today'       => $followUpTodayCount,
+            'follow_up_pending'     => $followUpPendingCount,
+            'closing'               => $lunasCount,
+            'lost'                  => $dinginCount,
+            'LUNAS'                 => $lunasCount,
+            'DINGIN'                => $dinginCount,
+            'pending_payment_count' => $pendingPaymentCount,
+            'pending_payment_sum'   => $pendingPaymentSum,
+            'handover_count'        => $handoverProspects->count(),
+            'sla_overdue_count'     => $slaOverdueCount,
         ];
 
         $targetAchievementService = app(\App\Services\TargetAchievementService::class);
@@ -733,7 +785,16 @@ class CrmController extends Controller
         $wilayahId = request('wilayah_id');
         $targetAchievementData = $targetAchievementService->getDashboardTargetData(auth()->user(), $period, $wilayahId);
 
-        return view('cs.dashboard', compact('stats', 'followUpsToday', 'targetAchievementData'));
+        return view('cs.dashboard', compact(
+            'stats',
+            'followUpsToday',
+            'targetAchievementData',
+            'pendingPayments',
+            'pendingPaymentCount',
+            'pendingPaymentSum',
+            'handoverProspects',
+            'slaOverdueCount'
+        ));
     }
 
     /**

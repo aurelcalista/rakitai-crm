@@ -137,6 +137,14 @@ class UserSeeder extends Seeder
                 'phone'      => '081711223399',
                 'wilayah_id' => $wilayahId,
             ],
+            // 15. analyst@cic.ac.id ( role data analyst )
+            [
+                'name'       => 'Data Analyst',
+                'email'      => 'analyst@cic.ac.id',
+                'role'       => 'Data Analyst',
+                'phone'      => '081299887766',
+                'wilayah_id' => null,
+            ],
         ];
 
         $createdUsers = [];
