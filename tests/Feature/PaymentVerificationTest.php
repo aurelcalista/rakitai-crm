@@ -595,5 +595,72 @@ class PaymentVerificationTest extends TestCase
         $response->assertSee($this->prospek->name);
         $response->assertSee('2.000.000');
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 28. CS can view Riwayat Verifikasi tab & filter
+    // ═══════════════════════════════════════════════════════
+    public function test_cs_can_view_riwayat_verifikasi_and_filter()
+    {
+        // Verified transaction
+        $verifiedTrx = Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 1500000,
+            'payment_status'    => 'verified',
+            'verified_by'       => $this->cs->id,
+            'verified_at'       => now(),
+        ]);
+
+        // Rejected transaction
+        $rejectedTrx = Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 500000,
+            'payment_status'    => 'rejected',
+            'rejected_by'       => $this->cs->id,
+            'rejected_at'       => now(),
+            'rejection_reason'  => 'Bukti Transfer Buram',
+        ]);
+
+        $this->actingAs($this->cs);
+
+        // Akses tab riwayat
+        $response = $this->get(route('cs.verifikasi.index', ['tab' => 'riwayat']));
+        $response->assertOk();
+        $response->assertSee('Riwayat Verifikasi');
+        $response->assertSee('1.500.000');
+        $response->assertSee('500.000');
+        $response->assertSee('Bukti Transfer Buram');
+
+        // Filter status rejected saja
+        $resRejected = $this->get(route('cs.verifikasi.index', ['tab' => 'riwayat', 'status' => 'rejected']));
+        $resRejected->assertOk();
+        $resRejected->assertSee('Bukti Transfer Buram');
+        $resRejected->assertSee('500.000');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 29. CS can view CS Dashboard with pending widget
+    // ═══════════════════════════════════════════════════════
+    public function test_cs_can_access_cs_dashboard_with_pending_widget()
+    {
+        Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 1750000,
+            'payment_status'    => 'pending',
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $this->actingAs($this->cs);
+        $response = $this->get(route('dashboard.cs'));
+        $response->assertOk();
+        $response->assertSee('Customer Service Lead');
+        $response->assertSee('Antrean Verifikasi Pembayaran');
+        $response->assertSee('1.750.000');
+    }
 }
 
