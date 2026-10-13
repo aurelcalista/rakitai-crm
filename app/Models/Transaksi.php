@@ -99,11 +99,15 @@ class Transaksi extends Model
                     ));
                 }
 
-                // 3. Notifikasi ke CS — jika butuh verifikasi, kirim ke seluruh staf CS aktif agar siapapun yang piket bisa memvalidasi
+                // 3. Notifikasi ke CS — kirim ke CS penanggung jawab (takeover aktif). Jika belum di-takeover, kirim ke seluruh staf CS aktif.
                 if ($isNeedVerification) {
-                    $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
-                    if ($csList->isEmpty()) {
-                        $csList = \App\Models\User::where('role', 'CS')->get();
+                    if ($cs) {
+                        $csList = collect([$cs]);
+                    } else {
+                        $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
+                        if ($csList->isEmpty()) {
+                            $csList = \App\Models\User::where('role', 'CS')->get();
+                        }
                     }
                 } else {
                     $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))->get();

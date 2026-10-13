@@ -62,13 +62,20 @@ class Prospek extends Model
             }
 
             // Auto-handover to CS when status enters handover stages
-            if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])) {
+            if ($prospek->isHandoverStage()) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
                     $cs = null;
                     if ($prospek->wilayah_id) {
+                        $parentWilayahId = $prospek->wilayah?->parent_id ?: $prospek->wilayah_id;
                         $cs = \App\Models\User::where('role', 'CS')
                             ->where('status', 'Aktif')
-                            ->where('wilayah_id', $prospek->wilayah_id)
+                            ->where(function ($q) use ($prospek, $parentWilayahId) {
+                                $q->where('wilayah_id', $prospek->wilayah_id)
+                                  ->orWhere('wilayah_id', $parentWilayahId)
+                                  ->orWhereHas('activeWilayahes', function ($wq) use ($prospek, $parentWilayahId) {
+                                      $wq->whereIn('wilayah_id', array_filter([$prospek->wilayah_id, $parentWilayahId]));
+                                  });
+                            })
                             ->first();
                     }
                     if (!$cs) {
@@ -544,6 +551,44 @@ class Prospek extends Model
             return $this->isHandledByCs($user);
         }
         return $this->isHandledBySales($user);
+    }
+
+    /**
+     * Check if the prospect has entered the handover stage (Tahap 05 FORMULIR s.d 08 LUNAS).
+     */
+    public function isHandoverStage(): bool
+    {
+        $status = strtoupper(trim($this->status ?? ''));
+        $cleanStatus = trim(preg_replace('/^\d+[\s\-_.]*/', '', $status));
+
+        $nonHandoverStatuses = [
+            'BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK', 'HANGAT', 'PANAS', 'DINGIN', 'NO RESPON', 'CANCEL',
+            'PRESENTATION', 'LEAD IN', 'COLD LEAD', 'INTERESTED', 'FOLLOW UP 1', 'FOLLOW UP', 'WARM LEAD', 'HOT LEAD',
+            'NEGOSIASI', 'LOST', 'DITOLAK/BATAL', 'DITOLAK / BATAL'
+        ];
+
+        if (in_array($status, $nonHandoverStatuses) || in_array($cleanStatus, $nonHandoverStatuses)) {
+            return false;
+        }
+
+        $handoverStatuses = [
+            'FORMULIR',
+            'BERKAS',
+            'CLOSING',
+            'LUNAS',
+            'BELI FORMULIR',
+            'MENDAFTAR',
+            'LULUS TES',
+            'PEMBAYARAN TERMIN 1',
+            'CLOSING (LUNAS)',
+        ];
+
+        if (in_array($cleanStatus, $handoverStatuses) || in_array($status, $handoverStatuses)) {
+            return true;
+        }
+
+        $stageNumber = (int) $this->stage_number;
+        return $stageNumber >= 5 && $stageNumber <= 8;
     }
 
     public function wilayah()

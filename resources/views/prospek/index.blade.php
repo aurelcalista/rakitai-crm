@@ -325,6 +325,7 @@
                                     <div class="text-[10px] text-slate-500 mt-1 font-semibold" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
+                                    <div class="text-[10px] text-teal-600 font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></div>
                                 </td>
                                 <td class="py-4 px-3">
                                     <a :href="'https://wa.me/' + prospect.whatsapp.replace(/[^0-9]/g, '')" target="_blank" class="text-[11px] text-emerald-600 hover:text-emerald-700 flex items-center gap-1 font-medium">
@@ -386,6 +387,7 @@
                                     <span class="text-[11px] text-slate-500 block" x-text="prospect.type"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
+                                    <span class="text-[10px] text-teal-600 block font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></span>
                                 </div>
                             </div>
                             <span 

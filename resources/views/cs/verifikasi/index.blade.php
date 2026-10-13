@@ -237,6 +237,13 @@
                                                     <span class="text-[10px] text-slate-400">• {{ $trx->prospek->whatsapp }}</span>
                                                 @endif
                                             </div>
+                                            @if($trx->prospek?->cs)
+                                                <div class="mt-1">
+                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 text-teal-800 border border-teal-200">
+                                                        CS: {{ $trx->prospek->cs->name }}
+                                                    </span>
+                                                </div>
+                                            @endif
                                         </td>
                                         {{-- Sales --}}
                                         <td class="px-4 py-4">

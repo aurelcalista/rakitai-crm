@@ -2191,8 +2191,10 @@ x-init="
                                         @endforeach
                                     </select>
                                 </div>
-                            @else
+                            @elseif(strtolower(auth()->user()->role ?? '') === 'sales')
                                 <input type="hidden" name="sales_id" value="{{ auth()->id() }}">
+                            @elseif(strtolower(auth()->user()->role ?? '') === 'cs')
+                                <input type="hidden" name="cs_id" value="{{ auth()->id() }}">
                             @endif
 
                             <div>

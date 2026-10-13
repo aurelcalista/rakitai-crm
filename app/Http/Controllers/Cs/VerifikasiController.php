@@ -28,25 +28,42 @@ class VerifikasiController extends Controller
 
         $statusFilter = $request->query('status'); // all, verified, rejected
         $search = $request->query('q');
-
-        // Statistik ringkasan
-        $totalPending = Transaksi::where('jenis', 'Pembayaran Termin 1')
-            ->where('payment_status', Transaksi::STATUS_PENDING)
-            ->count();
-        $totalVerified = Transaksi::where('payment_status', Transaksi::STATUS_VERIFIED)
-            ->where('jenis', 'Pembayaran Termin 1')
-            ->count();
-        $totalRejected = Transaksi::where('payment_status', Transaksi::STATUS_REJECTED)
-            ->where('jenis', 'Pembayaran Termin 1')
-            ->count();
-        $totalRiwayat = $totalVerified + $totalRejected;
-        $sumVerifiedAmount = Transaksi::where('payment_status', Transaksi::STATUS_VERIFIED)
-            ->where('jenis', 'Pembayaran Termin 1')
-            ->sum('nominal');
+        $user = auth()->user();
+        $isCs = $user && strtolower($user->role) === 'cs';
 
         // Base Query dengan eager loading lengkap
-        $baseQuery = Transaksi::with(['prospek', 'user', 'prospek.sales', 'verifier', 'rejecter'])
+        $baseQuery = Transaksi::with(['prospek.cs', 'prospek', 'user', 'prospek.sales', 'verifier', 'rejecter'])
             ->where('jenis', 'Pembayaran Termin 1');
+
+        if ($isCs) {
+            $baseQuery->whereHas('prospek', function ($q) use ($user) {
+                $q->where('cs_id', $user->id)
+                  ->orWhereNull('cs_id');
+            });
+        }
+
+        // Statistik ringkasan (scoped to current CS)
+        $statsQuery = Transaksi::where('jenis', 'Pembayaran Termin 1');
+        if ($isCs) {
+            $statsQuery->whereHas('prospek', function ($q) use ($user) {
+                $q->where('cs_id', $user->id)
+                  ->orWhereNull('cs_id');
+            });
+        }
+
+        $totalPending = (clone $statsQuery)
+            ->where('payment_status', Transaksi::STATUS_PENDING)
+            ->count();
+        $totalVerified = (clone $statsQuery)
+            ->where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->count();
+        $totalRejected = (clone $statsQuery)
+            ->where('payment_status', Transaksi::STATUS_REJECTED)
+            ->count();
+        $totalRiwayat = $totalVerified + $totalRejected;
+        $sumVerifiedAmount = (clone $statsQuery)
+            ->where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->sum('nominal');
 
         if ($activeTab === 'pending') {
             $query = (clone $baseQuery)
@@ -102,6 +119,11 @@ class VerifikasiController extends Controller
             return back()->withErrors(['error' => 'Anda tidak boleh memverifikasi transaksi yang Anda input sendiri.']);
         }
 
+        // CS hanya boleh memverifikasi transaksi dari prospek yang ditangani oleh dirinya atau belum di-takeover
+        if (strtolower(auth()->user()->role) === 'cs' && $transaksi->prospek?->cs_id && $transaksi->prospek->cs_id !== auth()->id()) {
+            abort(403, 'Transaksi ini berada di bawah penanganan CS lain.');
+        }
+
         // Hanya bisa verifikasi transaksi yang pending
         if ($transaksi->payment_status !== Transaksi::STATUS_PENDING) {
             return back()->with('info', 'Transaksi ini sudah diproses sebelumnya.');
@@ -127,45 +149,87 @@ class VerifikasiController extends Controller
             ]);
 
             // Update status prospek jika sekarang sudah memenuhi syarat Closing
-            $prospek = $transaksi->prospek->fresh('transaksis');
-            if ($prospek && \App\Services\ProspekService::isClosingValid($prospek)) {
+            $prospek = $transaksi->prospek?->fresh('transaksis');
+            $nominalText = 'Rp ' . number_format((float)$transaksi->nominal, 0, ',', '.');
+            $csName = auth()->user()->name;
+
+            // Resolve Sales penanggung jawab atau penginput transaksi
+            $sales = $prospek?->sales 
+                ?? ($prospek?->sales_id ? \App\Models\User::find($prospek->sales_id) : null)
+                ?? ($transaksi->user_id ? \App\Models\User::find($transaksi->user_id) : null)
+                ?? ($prospek?->owner_id ? \App\Models\User::find($prospek->owner_id) : null);
+
+            $isClosing = $prospek && \App\Services\ProspekService::isClosingValid($prospek);
+
+            if ($isClosing) {
                 $oldStatus = $prospek->status;
                 $prospek->status = 'LUNAS';
                 $prospek->stage_number = 7;
                 $prospek->save();
 
-                // Timeline
+                // Timeline Closing
                 ProspekTimeline::create([
                     'prospek_id'    => $prospek->id,
                     'user_id'       => auth()->id(),
                     'title'         => 'Closing Terverifikasi oleh CS',
-                    'notes'         => 'CS ' . auth()->user()->name . ' memverifikasi pembayaran. Transaksi ' . $transaksi->jenis . ' dinyatakan sah.',
+                    'notes'         => 'CS ' . $csName . ' memverifikasi pembayaran. Transaksi ' . $transaksi->jenis . ' dinyatakan sah. Prospek dinyatakan LUNAS.',
                     'status_before' => $oldStatus,
                     'status_after'  => 'LUNAS',
                     'time'          => now(),
                 ]);
+            } else {
+                // Timeline Verifikasi Transaksi biasa
+                if ($prospek) {
+                    ProspekTimeline::create([
+                        'prospek_id'    => $prospek->id,
+                        'user_id'       => auth()->id(),
+                        'title'         => 'Pembayaran Diverifikasi oleh CS',
+                        'notes'         => 'CS ' . $csName . ' memverifikasi transaksi ' . $transaksi->jenis . ' sebesar ' . $nominalText . '.',
+                        'status_before' => $prospek->status,
+                        'status_after'  => $prospek->status,
+                        'time'          => now(),
+                    ]);
+                }
+            }
 
-                // Notifikasi ke Sales bahwa pembayaran diverifikasi
-                $sales = $prospek->sales;
-                if ($sales) {
-                    $nominalText = 'Rp ' . number_format((float)$transaksi->nominal, 0, ',', '.');
-                    $sales->notify(new \App\Notifications\CrmActivityNotification(
-                        title: 'Pembayaran Diverifikasi!',
-                        message: "Pembayaran {$nominalText} untuk '{$prospek->name}' telah diverifikasi oleh CS. Prospek dinyatakan LUNAS (Closing).",
-                        type: 'success',
-                        link: '/prospek',
-                        icon: '',
-                        senderName: auth()->user()->name,
-                        senderRole: auth()->user()->role,
-                        action: 'pembayaran_diverifikasi'
-                    ));
+            // Notifikasi ke Sales bahwa pembayaran telah diverifikasi
+            if ($sales) {
+                $message = $isClosing
+                    ? "Pembayaran {$nominalText} ({$transaksi->jenis}) untuk '{$prospek?->name}' telah diverifikasi oleh CS {$csName}. Prospek dinyatakan LUNAS (Closing)."
+                    : "Pembayaran {$nominalText} ({$transaksi->jenis}) untuk '{$prospek?->name}' telah disetujui & diverifikasi oleh CS {$csName}.";
 
-                    // Evaluasi target Sales
+                $sales->notify(new \App\Notifications\CrmActivityNotification(
+                    title: 'Pembayaran Diverifikasi!',
+                    message: $message,
+                    type: 'success',
+                    link: '/prospek',
+                    icon: '',
+                    senderName: $csName,
+                    senderRole: auth()->user()->role,
+                    action: 'pembayaran_diverifikasi'
+                ));
+
+                // Jika Closing, evaluasi target Sales & notifikasi SPV
+                if ($isClosing) {
                     try {
                         $targetService = app(\App\Services\TargetAchievementService::class);
                         $targetService->checkAndNotifyTargetStatus($sales);
                     } catch (\Throwable $e) {
                         \Illuminate\Support\Facades\Log::warning("Gagal evaluasi target setelah verifikasi: " . $e->getMessage());
+                    }
+
+                    $spv = $sales->supervisor ?? ($prospek?->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
+                    if ($spv && $spv->id !== auth()->id()) {
+                        $spv->notify(new \App\Notifications\CrmActivityNotification(
+                            title: 'Closing Mahasiswa Baru!',
+                            message: "Pembayaran {$nominalText} untuk '{$prospek?->name}' telah diverifikasi oleh CS {$csName}. Prospek dari Sales {$sales->name} sah Closing (LUNAS).",
+                            type: 'success',
+                            link: '/spv/pipeline',
+                            icon: '',
+                            senderName: $csName,
+                            senderRole: auth()->user()->role,
+                            action: 'closing_verified_spv'
+                        ));
                     }
                 }
             }
@@ -185,6 +249,11 @@ class VerifikasiController extends Controller
         // Sales tidak boleh reject transaksinya sendiri
         if (auth()->id() === $transaksi->user_id) {
             return back()->withErrors(['error' => 'Anda tidak boleh menolak transaksi yang Anda input sendiri.']);
+        }
+
+        // CS hanya boleh menolak transaksi dari prospek yang ditangani oleh dirinya atau belum di-takeover
+        if (strtolower(auth()->user()->role) === 'cs' && $transaksi->prospek?->cs_id && $transaksi->prospek->cs_id !== auth()->id()) {
+            abort(403, 'Transaksi ini berada di bawah penanganan CS lain.');
         }
 
         // Hanya bisa reject transaksi yang pending

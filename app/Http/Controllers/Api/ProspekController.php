@@ -24,7 +24,17 @@ class ProspekController extends Controller
                   ->orWhere('owner_id', $user->id);
             });
         } elseif ($role === 'cs') {
-            $query->where('cs_id', $user->id);
+            $query->where(function ($q) use ($user) {
+                $q->where('cs_id', $user->id)
+                  ->orWhere('owner_id', $user->id)
+                  ->orWhere(function ($sub) {
+                      $sub->whereNull('cs_id')
+                          ->where(function ($st) {
+                              $st->where('stage_number', '>=', 5)
+                                 ->orWhereIn('status', ['FORMULIR', '05 FORMULIR', 'BERKAS', '06 BERKAS', 'CLOSING', '07 CLOSING', 'LUNAS', '08 LUNAS', 'Beli Formulir', 'Mendaftar']);
+                          });
+                  });
+            });
         } elseif ($role === 'spv') {
             $teamIds = $user->teamMemberIds();
             $query->where(function ($q) use ($teamIds) {

@@ -194,6 +194,9 @@
                                             {{ $trx->prospek?->name ?? 'Prospek #' . $trx->prospek_id }}
                                         </a>
                                         <span class="text-slate-400 text-[10px]">{{ $trx->prospek?->type ?? 'Individu' }}</span>
+                                        @if($trx->prospek?->cs)
+                                            <span class="text-teal-700 font-semibold text-[10px] ml-1.5">• CS: {{ $trx->prospek->cs->name }}</span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3.5 text-slate-700 font-medium">
                                         {{ $trx->user?->name ?? $trx->prospek?->sales?->name ?? '-' }}

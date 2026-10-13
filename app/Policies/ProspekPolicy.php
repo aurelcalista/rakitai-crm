@@ -76,12 +76,42 @@ class ProspekPolicy
     }
 
     /**
+     * Helper: check if CS is authorized to access the prospect.
+     * Sesuai aturan PRD & SOP CRM:
+     * - Prospek tahap awal (01 BARU s.d 04 PANAS) bersifat tertutup dan hanya dapat diakses
+     *   oleh Sales pemilik lead serta Supervisor (SPV) terkait, KECUALI jika ditugaskan langsung ke CS (cs_id).
+     * - Staf Customer Service (CS) berwenang mengakses prospek setelah masuk tahap 05 FORMULIR
+     *   (Serah Terima/Handover) ke atas (05 FORMULIR s.d 08 LUNAS) atau jika ditugaskan langsung.
+     * - Sesuai panduan SOP CRM: "Menerima pendelegasian prospek dari Sales tanpa pembatas wilayah."
+     */
+    private function isCsAuthorized(User $user, Prospek $prospek): bool
+    {
+        // 1. Ditugaskan langsung ke CS ini atau dibuat sendiri oleh CS ini
+        if ($prospek->cs_id === $user->id || $prospek->owner_id === $user->id) {
+            return true;
+        }
+
+        // 2. Jika prospek sudah ditugaskan ke CS lain, tolak akses CS ini
+        if (!is_null($prospek->cs_id) && $prospek->cs_id !== $user->id) {
+            return false;
+        }
+
+        // 3. Jika prospek belum mencapai tahap 05 FORMULIR, tolak akses CS
+        if (!$prospek->isHandoverStage()) {
+            return false;
+        }
+
+        // 4. Prospek telah masuk tahap 05 FORMULIR ke atas (Handover) dan belum ada CS -> Diizinkan untuk CS
+        return true;
+    }
+
+    /**
      * View a prospect.
      * Admin: global
      * HM: scoped to HM's Wilayah
      * SPV: scoped to team members under SPV
      * Sales: handled, owned, team members under same supervisor, or cs-assigned prospects
-     * CS: only assigned prospects or unassigned FORMULIR handover prospects in same Wilayah
+     * CS: assigned prospects or handover prospects (05 FORMULIR ke atas)
      */
     public function view(User $user, Prospek $prospek): bool
     {
@@ -92,8 +122,7 @@ class ProspekPolicy
                     || $this->isSalesAuthorized($user, $prospek)
                     || $prospek->cs_id === $user->id,
 
-            'cs'    => $prospek->cs_id === $user->id
-                    || (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id)),
+            'cs'    => $this->isCsAuthorized($user, $prospek),
 
             'spv'   => $this->isSpvAuthorized($user, $prospek),
 
@@ -132,6 +161,10 @@ class ProspekPolicy
             return $this->isSpvAuthorized($user, $prospek);
         }
 
+        if ($role === 'cs') {
+            return $this->isCsAuthorized($user, $prospek);
+        }
+
         return $prospek->isActiveHandler($user) || $prospek->owner_id === $user->id;
     }
 
@@ -155,7 +188,7 @@ class ProspekPolicy
         }
 
         if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
+            return $this->isCsAuthorized($user, $prospek);
         }
 
         if ($role === 'sales') {
@@ -189,7 +222,7 @@ class ProspekPolicy
         }
 
         if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
+            return $this->isCsAuthorized($user, $prospek);
         }
 
         if ($role === 'sales') {
@@ -230,7 +263,7 @@ class ProspekPolicy
         }
         
         if ($role === 'cs') {
-            return in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id);
+            return $this->isCsAuthorized($user, $prospek);
         }
 
         return false;
@@ -253,6 +286,10 @@ class ProspekPolicy
 
         if ($role === 'spv') {
             return $this->isSpvAuthorized($user, $prospek);
+        }
+
+        if ($role === 'cs') {
+            return $this->isCsAuthorized($user, $prospek);
         }
 
         return $prospek->sales_id === $user->id 
@@ -281,7 +318,7 @@ class ProspekPolicy
         }
 
         if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || is_null($prospek->sales_id);
+            return $prospek->cs_id === $user->id || $this->isCsAuthorized($user, $prospek);
         }
 
         return false;
@@ -304,6 +341,10 @@ class ProspekPolicy
 
         if ($role === 'spv') {
             return $this->isSpvAuthorized($user, $prospek);
+        }
+
+        if ($role === 'cs') {
+            return $this->isCsAuthorized($user, $prospek);
         }
 
         return $prospek->isActiveHandler($user);

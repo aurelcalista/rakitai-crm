@@ -717,18 +717,28 @@ class CrmController extends Controller
         $lunasCount = count(array_filter($prospects, fn($p) => $p['status'] === 'LUNAS'));
         $dinginCount = count(array_filter($prospects, fn($p) => $p['status'] === 'DINGIN'));
 
+        $user = auth()->user();
+        $isCs = $user && strtolower($user->role) === 'cs';
+
         // 1. Data Pembayaran Termin 1 Menunggu Verifikasi CS
-        $pendingPaymentsQuery = \App\Models\Transaksi::with(['prospek', 'user', 'prospek.sales'])
+        $pendingPaymentsQuery = \App\Models\Transaksi::with(['prospek.cs', 'prospek', 'user', 'prospek.sales'])
             ->where('jenis', 'Pembayaran Termin 1')
-            ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING)
-            ->latest('tanggal');
+            ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING);
+
+        if ($isCs) {
+            $pendingPaymentsQuery->whereHas('prospek', function ($q) use ($user) {
+                $q->where('cs_id', $user->id)
+                  ->orWhereNull('cs_id');
+            });
+        }
+
+        $pendingPaymentsQuery->latest('tanggal');
 
         $pendingPaymentCount = (clone $pendingPaymentsQuery)->count();
         $pendingPaymentSum   = (clone $pendingPaymentsQuery)->sum('nominal');
         $pendingPayments     = $pendingPaymentsQuery->limit(5)->get();
 
         // 2. Data Prospek Baru Serah Terima (Handover) & Pemantauan SLA 2 Jam
-        $user = auth()->user();
         $handoverProspects = \App\Models\Prospek::with(['sales', 'sekolah', 'perusahaan'])
             ->whereIn('status', ['FORMULIR', '05 FORMULIR'])
             ->where(function ($q) use ($user) {
@@ -1236,7 +1246,17 @@ class CrmController extends Controller
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
                     $q->where('cs_id', $user->id)
-                      ->orWhereNotNull('sales_id');
+                      ->orWhere('owner_id', $user->id)
+                      ->orWhere(function ($sub) {
+                          $sub->whereNull('cs_id')
+                              ->where(function ($st) {
+                                  $st->where('stage_number', '>=', 5)
+                                     ->orWhereIn('status', [
+                                         'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
+                                         '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
+                                     ]);
+                              });
+                      });
                 });
             } elseif (in_array($role, ['hm', 'eo'])) {
                 if ($role === 'hm') {
@@ -1388,18 +1408,20 @@ class CrmController extends Controller
             $user = \App\Models\User::find($ownerId);
             
             $salesId = $request->sales_id;
-            if (!$salesId && $user && $user->role === 'Sales') {
+            if (!$salesId && $user && strtolower($user->role) === 'sales') {
                 $salesId = $user->id;
             }
 
-            $csId = $request->cs_id ?? ($user && $user->role === 'CS' ? $user->id : null);
+            $csId = $request->cs_id ?? ($user && strtolower($user->role) === 'cs' ? $user->id : null);
             $wilayahId = $user?->wilayah_id;
 
             if ($salesId) {
                 $sales = \App\Models\User::find($salesId);
                 if ($sales && $sales->wilayah_id) {
                     $wilayahId = $sales->wilayah_id;
-                    $csId = null;
+                    if ($user && strtolower($user->role) !== 'cs') {
+                        $csId = null;
+                    }
                 }
             }
 
