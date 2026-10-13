@@ -294,10 +294,14 @@ Route::middleware('auth')->group(function () {
     // ──────────────────────────────────────────────────────────────
     Route::middleware(['role:Admin,HM,SPV,CS,Sales,EO'])->group(function () {
         // Attendance Routes
-        Route::get('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');
-        Route::post('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'store'])->name('attendance.store');
-        Route::get('/absensi/kelola', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
-        Route::get('/absensi/kelola/{id}', [\App\Http\Controllers\AttendanceController::class, 'show'])->name('attendance.show');
+        Route::middleware(['role:Sales,CS,EO,SPV'])->group(function () {
+            Route::get('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');
+            Route::post('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'store'])->name('attendance.store');
+        });
+        Route::middleware(['role:HM,SPV'])->group(function () {
+            Route::get('/absensi/kelola', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
+            Route::get('/absensi/kelola/{id}', [\App\Http\Controllers\AttendanceController::class, 'show'])->name('attendance.show');
+        });
         Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
         Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
         Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');

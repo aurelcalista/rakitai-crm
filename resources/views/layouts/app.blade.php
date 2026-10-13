@@ -293,13 +293,14 @@ x-init="
                     </div>
                 </div>
 
-                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm']))
                 <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
                 <!-- Section: ABSENSI -->
                 <div>
                     <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
+                        @if(!in_array(strtolower(auth()->user()->role), ['admin', 'hm']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             title="Input Absensi"
@@ -311,8 +312,9 @@ x-init="
                             </svg>
                             <span x-show="!sidebarCollapsed">Input Absensi</span>
                         </a>
+                        @endif
 
-                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm']))
                         <a 
                             href="{{ route('attendance.index') }}" 
                             title="Kelola Absensi"
@@ -695,7 +697,7 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Riwayat Pembayaran</span>
                             </a>
-                            @elseif($userRole !== 'spv')
+                            @else
                             <a 
                                 href="{{ route('follow-up.index') }}" 
                                 title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
@@ -1373,11 +1375,12 @@ x-init="
                     </div>
                 </div>
 
-                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm']))
                 <!-- SECTION: ABSENSI -->
                 <div x-show="matches('absensi kehadiran input absen kelola absen staf')">
                     <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
+                        @if(!in_array(strtolower(auth()->user()->role), ['admin', 'hm']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             @click="mobileMenuOpen = false"
@@ -1390,8 +1393,9 @@ x-init="
                             </svg>
                             <span class="flex-1">Input Absensi</span>
                         </a>
+                        @endif
 
-                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm']))
                         <a 
                             href="{{ route('attendance.index') }}" 
                             @click="mobileMenuOpen = false"
@@ -1805,7 +1809,7 @@ x-init="
                                     </svg>
                                     <span class="flex-1">Riwayat Pembayaran</span>
                                 </a>
-                            @elseif($userRole !== 'spv')
+                            @else
                                 <a 
                                     href="{{ route('follow-up.index') }}" 
                                     @click="mobileMenuOpen = false"
@@ -2573,7 +2577,8 @@ x-init="
                         },
                         body: JSON.stringify({
                             prospek_id: selectedProspect.id,
-                            status: $event.target.status.value
+                            status: $event.target.status.value,
+                            notes: $event.target.notes ? $event.target.notes.value : ''
                         })
                     }).then(r => r.json()).then(data => {
                         if(data.success) {

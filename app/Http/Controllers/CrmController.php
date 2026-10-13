@@ -1214,7 +1214,7 @@ class CrmController extends Controller
     private function getDbProspects(?Request $request = null)
     {
         $user = auth()->user();
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp', 'timelines' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp.user', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])->withCount('followUps');
 
@@ -1246,6 +1246,7 @@ class CrmController extends Controller
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
                     $q->where('cs_id', $user->id)
+<<<<<<< HEAD
                       ->orWhere('owner_id', $user->id)
                       ->orWhere(function ($sub) {
                           $sub->whereNull('cs_id')
@@ -1256,6 +1257,17 @@ class CrmController extends Controller
                                          '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
                                      ]);
                               });
+=======
+                      ->orWhere(function ($sub) use ($user) {
+                          $sub->whereNull('cs_id')
+                              ->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']);
+                          if ($user->wilayah_id) {
+                              $sub->where(function ($w) use ($user) {
+                                  $w->where('wilayah_id', $user->wilayah_id)
+                                    ->orWhereNull('wilayah_id');
+                              });
+                          }
+>>>>>>> 15736b4c175c204fe15bd3306940368db507a918
                       });
                 });
             } elseif (in_array($role, ['hm', 'eo'])) {
@@ -1299,7 +1311,55 @@ class CrmController extends Controller
         return $prospectsRaw->map(function ($p) use ($user) {
             $latestFollowUp = $p->latestFollowUp ?? ($p->relationLoaded('followUps') ? $p->followUps->first() : null);
             $authId = $user ? $user->id : 0;
+            $authRole = strtolower($user->role ?? '');
             $hasFollowUpHistory = ($p->follow_ups_count > 0) || ($latestFollowUp !== null);
+
+            $today = now()->toDateString();
+            $nextFollowUpDate = $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null;
+            $nextFollowUpRaw  = $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toIso8601String() : null;
+            $isDone = in_array(strtoupper((string)$p->status), ['LUNAS', 'DINGIN']);
+
+            if ($isDone) {
+                $timingCategory = 'done';
+                $priorityLabel = strtoupper((string)$p->status);
+                $priorityBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                $needFuPriority = null;
+                $othersPriority = null;
+            } elseif ($nextFollowUpDate !== null) {
+                if ($nextFollowUpDate < $today) {
+                    $timingCategory = 'overdue';
+                    $priorityLabel = 'Terlambat';
+                    $priorityBadgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                    $needFuPriority = 1;
+                    $othersPriority = 1;
+                } elseif ($nextFollowUpDate === $today) {
+                    $timingCategory = 'today';
+                    $priorityLabel = 'Jadwal Hari Ini';
+                    $priorityBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                    $needFuPriority = 2;
+                    $othersPriority = 2;
+                } else {
+                    $timingCategory = 'upcoming';
+                    $priorityLabel = 'Mendatang';
+                    $priorityBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                    $needFuPriority = null;
+                    $othersPriority = 5;
+                }
+            } else {
+                if (!$hasFollowUpHistory) {
+                    $timingCategory = 'uncontacted';
+                    $priorityLabel = 'Belum Dihubungi';
+                    $priorityBadgeClass = 'bg-sky-50 text-sky-700 border-sky-200';
+                    $needFuPriority = 3;
+                    $othersPriority = 3;
+                } else {
+                    $timingCategory = 'unscheduled';
+                    $priorityLabel = 'Belum Dijadwalkan';
+                    $priorityBadgeClass = 'bg-purple-50 text-purple-700 border-purple-200';
+                    $needFuPriority = 4;
+                    $othersPriority = 4;
+                }
+            }
 
             return [
                 'id' => $p->id,
@@ -1331,11 +1391,22 @@ class CrmController extends Controller
                 'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
                 'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
                 'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',
-                'next_follow_up_date' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->toDateString() : null,
+                'next_follow_up_date' => $nextFollowUpDate,
+                'next_follow_up_raw'  => $nextFollowUpRaw,
+                'updated_at_raw'      => $p->updated_at ? $p->updated_at->toIso8601String() : null,
+                'created_at_raw'      => $p->created_at ? $p->created_at->toIso8601String() : null,
+                'timing_category'     => $timingCategory,
+                'priority_label'      => $priorityLabel,
+                'priority_badge_class'=> $priorityBadgeClass,
+                'need_fu_priority'    => $needFuPriority,
+                'others_priority'     => $othersPriority,
                 'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
                 'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
-                'is_own' => (bool) ($authId && ($p->sales_id == $authId || $p->owner_id == $authId)),
-                'is_other' => (bool) ($authId && !($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales')),
+                'latest_follow_up_user' => $latestFollowUp && $latestFollowUp->user ? $latestFollowUp->user->name : null,
+                'latest_follow_up_user_id' => $latestFollowUp ? $latestFollowUp->user_id : null,
+                'is_assisted_by_other' => (bool) ($latestFollowUp && $latestFollowUp->user_id && $latestFollowUp->user_id != $p->sales_id && $latestFollowUp->user_id != $p->owner_id && $latestFollowUp->user_id != $p->cs_id),
+                'is_own' => (bool) ($authId && ($authRole === 'cs' ? ($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) : ($p->sales_id == $authId || $p->owner_id == $authId))),
+                'is_other' => (bool) ($authId && ($authRole === 'cs' ? (!($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) && !is_null($p->cs_id) && $p->cs_id != $authId) : (!($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id))))),
                 'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
                 'has_follow_up_history' => $hasFollowUpHistory,
                 'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $p)),
@@ -1512,7 +1583,7 @@ class CrmController extends Controller
      */
     public function prospekShow(int $id): View
     {
-        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp', 'followUps' => function($q) {
+        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp.user', 'followUps' => function($q) {
             $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with('user');
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -1569,12 +1640,32 @@ class CrmController extends Controller
             'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
             'timeline' => $prospectRaw->timelines->map(function ($t) {
                 return [
-                    'time' => $t->time ? $t->time->format('d M, H:i') : '-',
+                    'id' => $t->id,
+                    'user_id' => $t->user_id,
+                    'time' => $t->time ? $t->time->format('d M, H:i') : ($t->created_at ? $t->created_at->format('d M, H:i') : '-'),
                     'title' => $t->title,
                     'notes' => $t->notes,
+                    'status_before' => $t->status_before,
                     'status' => $t->status_after,
                     'user' => $t->user ? $t->user->name : 'Sistem',
                     'role' => $t->user ? $t->user->role : 'Admin',
+                ];
+            })->toArray(),
+            'follow_ups' => $prospectRaw->followUps->map(function ($f) use ($prospectRaw) {
+                $isHelper = (bool) ($f->user_id && $f->user_id != $prospectRaw->sales_id && $f->user_id != $prospectRaw->owner_id);
+                return [
+                    'id'             => $f->id,
+                    'user_id'        => $f->user_id,
+                    'user'           => $f->user ? $f->user->name : 'Sistem',
+                    'role'           => $f->user ? $f->user->role : 'Sales',
+                    'is_helper'      => $isHelper,
+                    'tanggal'        => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
+                    'metode'         => $f->metode ?? '-',
+                    'hasil'          => $f->hasil ?? '-',
+                    'catatan'        => $f->catatan ?? '-',
+                    'next_follow_up' => $f->next_follow_up
+                        ? \Carbon\Carbon::parse($f->next_follow_up)->format('d M Y, H:i')
+                        : '-',
                 ];
             })->toArray(),
         ];
@@ -1602,9 +1693,10 @@ class CrmController extends Controller
         $isHandler           = $prospectRaw->isHandledBySales(auth()->user()) || ($user && strtolower($user->role) === 'cs' && $prospectRaw->cs_id === $user->id);
 
         $prospekModel = $prospectRaw;
+        $followUps = $prospectRaw->followUps;
 
         return view('prospek.show', compact(
-            'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'prospekModel', 'transaksis',
+            'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'prospekModel', 'transaksis', 'followUps',
             'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
             'lostReasons', 'metodeOptions', 'isHandler'
         ));
@@ -1647,8 +1739,15 @@ class CrmController extends Controller
             return redirect()->back()->withErrors(['status' => 'Sales tidak dapat mengubah status menjadi Lunas.']);
         }
 
-        if ($user && strtolower($user->role) === 'cs' && $newStatus !== 'LUNAS' && $oldStatus !== $newStatus) {
-            return redirect()->back()->withErrors(['status' => 'CS hanya dapat mengubah status menjadi Lunas.']);
+        if ($user && strtolower($user->role) === 'cs') {
+            $allowedCsStatuses = ['FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON', 'BATAL DAFTAR', 'BATAL', 'CANCEL'];
+            if (!in_array($newStatus, $allowedCsStatuses) && $oldStatus !== $newStatus) {
+                return redirect()->back()->withErrors(['status' => 'CS hanya berwenang mengubah status ke FORMULIR, BERKAS, LUNAS, NO RESPON, atau BATAL DAFTAR.']);
+            }
+        }
+
+        if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return redirect()->back()->withErrors(['status' => 'Status LUNAS memerlukan verifikasi pembayaran (Beli Formulir & Pembayaran Termin 1) oleh CS.']);
         }
 
         if (!empty($validated['type'])) {
@@ -1823,45 +1922,67 @@ class CrmController extends Controller
 
     public function pipelineUpdateStatus(Request $request)
     {
+        $request->validate([
+            'prospek_id' => 'required|exists:prospeks,id',
+            'status'     => 'required|string',
+            'notes'      => 'nullable|string|max:1000',
+        ]);
+
         $prospek = Prospek::findOrFail($request->prospek_id);
         \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
         
         $user = auth()->user();
-        $oldStatus = $prospek->status;
-        $newStatus = strtoupper($request->status);
+        $oldStatus = strtoupper($prospek->status);
+        $newStatus = strtoupper(trim($request->status));
 
         // Status LUNAS cannot be changed to anything else
         if ($oldStatus === 'LUNAS' && $newStatus !== 'LUNAS') {
             return response()->json(['success' => false, 'message' => 'Prospek yang sudah Lunas tidak dapat diubah statusnya.'], 403);
         }
 
+        // Sales cannot transition a prospect to LUNAS directly
         if ($user && strtolower($user->role) === 'sales' && $newStatus === 'LUNAS') {
             return response()->json(['success' => false, 'message' => 'Sales tidak dapat mengubah status menjadi Lunas.'], 403);
         }
 
-        if ($user && strtolower($user->role) === 'cs' && $newStatus !== 'LUNAS' && $oldStatus !== $newStatus) {
-            return response()->json(['success' => false, 'message' => 'CS hanya dapat mengubah status menjadi Lunas.'], 403);
+        // CS is restricted to its authorized stages
+        if ($user && strtolower($user->role) === 'cs') {
+            $allowedCsStatuses = ['FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON', 'BATAL DAFTAR', 'BATAL', 'CANCEL'];
+            if (!in_array($newStatus, $allowedCsStatuses)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CS hanya berwenang mengubah status ke FORMULIR, BERKAS, LUNAS, NO RESPON, atau BATAL DAFTAR.'
+                ], 403);
+            }
         }
 
-        $prospek->status = $newStatus;
+        // Changing status to LUNAS strictly requires verified closing payments (Formulir + Termin 1)
+        if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status LUNAS memerlukan verifikasi pembayaran (Beli Formulir & Pembayaran Termin 1) oleh CS.'
+            ], 422);
+        }
+
         $stagesMap = \App\Models\Prospek::getDynamicStagesMap();
+        $prospek->status = $newStatus;
         $prospek->stage_number = $stagesMap[$newStatus] ?? $prospek->stage_number;
-        
         $prospek->save();
 
         if ($oldStatus !== $prospek->status) {
+            $customNote = $request->filled('notes') ? trim($request->notes) : null;
             ProspekTimeline::create([
-                'prospek_id' => $prospek->id,
-                'user_id' => auth()->id() ?? 1,
-                'title' => 'Status Diperbarui',
-                'notes' => 'Status prospek diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status,
+                'prospek_id'    => $prospek->id,
+                'user_id'       => auth()->id() ?? 1,
+                'title'         => 'Status Diperbarui via Pipeline Modal',
+                'notes'         => $customNote ?: ('Status prospek diubah dari ' . $oldStatus . ' menjadi ' . $prospek->status),
                 'status_before' => $oldStatus,
-                'status_after' => $prospek->status,
-                'time' => now(),
+                'status_after'  => $prospek->status,
+                'time'          => now(),
             ]);
         }
         
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'message' => 'Status berhasil diperbarui.']);
     }
 
 
@@ -2040,43 +2161,149 @@ class CrmController extends Controller
         $allProspects = collect($this->getDbProspects(request()));
         $today = now()->toDateString();
         $user = auth()->user();
+        $authRole = strtolower($user->role ?? '');
         
-        $prospects = [
-            'uncontacted' => [],
-            'today'       => [],
-            'overdue'     => [],
-            'unscheduled' => [],
-            'upcoming'    => [],
-            'others'      => [],
-            'done'        => [],
-        ];
+        $needFollowUp = [];
+        $others       = [];
+        $scheduled    = [];
+        $done         = [];
+
+        // Legacy / internal categories for backward compatibility
+        $uncontacted  = [];
+        $todayList    = [];
+        $overdue      = [];
+        $unscheduled  = [];
+        $upcoming     = [];
 
         foreach ($allProspects as $p) {
-            $isDone     = in_array(strtoupper($p['status'] ?? ''), ['LUNAS', 'DINGIN']);
-            $nextDate   = $p['next_follow_up_date'] ?? null;
-            $hasHistory = !empty($p['has_follow_up_history']) || (!empty($p['follow_up_count']) && $p['follow_up_count'] > 0);
-            $isOther    = !empty($p['is_other']);
+            $isDone  = in_array(strtoupper($p['status'] ?? ''), ['LUNAS', 'DINGIN']);
+            $isOwn   = !empty($p['is_own']);
+            $isOther = !empty($p['is_other']);
+            $timing  = $p['timing_category'] ?? 'uncontacted';
 
             if ($isDone) {
-                $prospects['done'][] = $p;
+                if ($isOwn || in_array($authRole, ['spv', 'hm', 'admin'])) {
+                    $done[] = $p;
+                }
             } else {
-                if (!$hasHistory) {
-                    $prospects['uncontacted'][] = $p;
-                } elseif ($nextDate === null) {
-                    $prospects['unscheduled'][] = $p;
-                } elseif ($nextDate === $today) {
-                    $prospects['today'][] = $p;
-                } elseif ($nextDate < $today) {
-                    $prospects['overdue'][] = $p;
-                } else {
-                    $prospects['upcoming'][] = $p;
+                // Active prospects
+                if ($isOwn) {
+                    if ($timing === 'upcoming') {
+                        $scheduled[] = $p;
+                    } else {
+                        $needFollowUp[] = $p;
+                    }
                 }
 
                 if ($isOther) {
-                    $prospects['others'][] = $p;
+                    $others[] = $p;
+                }
+
+                // Legacy keys
+                if ($timing === 'uncontacted') {
+                    $uncontacted[] = $p;
+                } elseif ($timing === 'today') {
+                    $todayList[] = $p;
+                } elseif ($timing === 'overdue') {
+                    $overdue[] = $p;
+                } elseif ($timing === 'unscheduled') {
+                    $unscheduled[] = $p;
+                } elseif ($timing === 'upcoming') {
+                    $upcoming[] = $p;
                 }
             }
         }
+
+        // Sort need_follow_up
+        usort($needFollowUp, function ($a, $b) {
+            $prioA = $a['need_fu_priority'] ?? 99;
+            $prioB = $b['need_fu_priority'] ?? 99;
+            if ($prioA !== $prioB) {
+                return $prioA <=> $prioB;
+            }
+            if ($prioA === 1 || $prioA === 2) {
+                $timeA = !empty($a['next_follow_up_raw']) ? strtotime($a['next_follow_up_raw']) : (!empty($a['next_follow_up_date']) ? strtotime($a['next_follow_up_date']) : 0);
+                $timeB = !empty($b['next_follow_up_raw']) ? strtotime($b['next_follow_up_raw']) : (!empty($b['next_follow_up_date']) ? strtotime($b['next_follow_up_date']) : 0);
+                if ($timeA !== $timeB) {
+                    return $timeA <=> $timeB;
+                }
+            }
+            if ($prioA === 3) {
+                $cA = !empty($a['created_at_raw']) ? strtotime($a['created_at_raw']) : 0;
+                $cB = !empty($b['created_at_raw']) ? strtotime($b['created_at_raw']) : 0;
+                if ($cA !== $cB) {
+                    return $cA <=> $cB;
+                }
+            }
+            $upA = !empty($a['updated_at_raw']) ? strtotime($a['updated_at_raw']) : 0;
+            $upB = !empty($b['updated_at_raw']) ? strtotime($b['updated_at_raw']) : 0;
+            return $upB <=> $upA;
+        });
+
+        // Sort others
+        usort($others, function ($a, $b) {
+            $prioA = $a['others_priority'] ?? 99;
+            $prioB = $b['others_priority'] ?? 99;
+            if ($prioA !== $prioB) {
+                return $prioA <=> $prioB;
+            }
+            if ($prioA === 1 || $prioA === 2 || $prioA === 5) {
+                $timeA = !empty($a['next_follow_up_raw']) ? strtotime($a['next_follow_up_raw']) : (!empty($a['next_follow_up_date']) ? strtotime($a['next_follow_up_date']) : 0);
+                $timeB = !empty($b['next_follow_up_raw']) ? strtotime($b['next_follow_up_raw']) : (!empty($b['next_follow_up_date']) ? strtotime($b['next_follow_up_date']) : 0);
+                if ($timeA !== $timeB) {
+                    return $timeA <=> $timeB;
+                }
+            }
+            if ($prioA === 3) {
+                $cA = !empty($a['created_at_raw']) ? strtotime($a['created_at_raw']) : 0;
+                $cB = !empty($b['created_at_raw']) ? strtotime($b['created_at_raw']) : 0;
+                if ($cA !== $cB) {
+                    return $cA <=> $cB;
+                }
+            }
+            $upA = !empty($a['updated_at_raw']) ? strtotime($a['updated_at_raw']) : 0;
+            $upB = !empty($b['updated_at_raw']) ? strtotime($b['updated_at_raw']) : 0;
+            return $upB <=> $upA;
+        });
+
+        // Sort scheduled
+        usort($scheduled, function ($a, $b) {
+            $timeA = !empty($a['next_follow_up_raw']) ? strtotime($a['next_follow_up_raw']) : (!empty($a['next_follow_up_date']) ? strtotime($a['next_follow_up_date']) : PHP_INT_MAX);
+            $timeB = !empty($b['next_follow_up_raw']) ? strtotime($b['next_follow_up_raw']) : (!empty($b['next_follow_up_date']) ? strtotime($b['next_follow_up_date']) : PHP_INT_MAX);
+            if ($timeA !== $timeB) {
+                return $timeA <=> $timeB;
+            }
+            $upA = !empty($a['updated_at_raw']) ? strtotime($a['updated_at_raw']) : 0;
+            $upB = !empty($b['updated_at_raw']) ? strtotime($b['updated_at_raw']) : 0;
+            return $upB <=> $upA;
+        });
+
+        // Sort done
+        usort($done, function ($a, $b) {
+            $upA = !empty($a['updated_at_raw']) ? strtotime($a['updated_at_raw']) : 0;
+            $upB = !empty($b['updated_at_raw']) ? strtotime($b['updated_at_raw']) : 0;
+            return $upB <=> $upA;
+        });
+
+        $prospects = [
+            'need_follow_up'     => $needFollowUp,
+            'others'             => $others,
+            'scheduled'          => $scheduled,
+            'done'               => $done,
+
+            // Aliases
+            'bantuan_sales_lain' => $others,
+            'terjadwal'          => $scheduled,
+            'selesai'            => $done,
+            'perlu_follow_up'    => $needFollowUp,
+
+            // Legacy keys
+            'uncontacted'        => $uncontacted,
+            'today'              => $todayList,
+            'overdue'            => $overdue,
+            'unscheduled'        => $unscheduled,
+            'upcoming'           => $upcoming,
+        ];
 
         $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
         $statuses      = \App\Models\Prospek::getActiveStages();
@@ -2125,6 +2352,21 @@ class CrmController extends Controller
                 return redirect()->back()
                     ->withInput()
                     ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
+            }
+
+            if (strtolower(auth()->user()->role ?? '') === 'cs') {
+                $allowedCsStatuses = ['FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON', 'BATAL DAFTAR', 'BATAL', 'CANCEL'];
+                if (!in_array(strtoupper(trim((string)$newStatus)), $allowedCsStatuses)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['status' => 'CS hanya berwenang mengubah status ke FORMULIR, BERKAS, LUNAS, NO RESPON, atau BATAL DAFTAR.']);
+                }
+            }
+
+            if (strtoupper($newStatus) === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['status' => 'Status LUNAS memerlukan verifikasi pembayaran (Beli Formulir & Pembayaran Termin 1) oleh CS.']);
             }
 
             $stagesMap = \App\Models\Prospek::getDynamicStagesMap();

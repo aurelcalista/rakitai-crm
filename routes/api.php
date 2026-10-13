@@ -22,5 +22,17 @@ Route::prefix('v1')->group(function () {
         Route::get('/kunjungan', [\App\Http\Controllers\Api\VisitController::class, 'index']);
         Route::post('/kunjungan', [\App\Http\Controllers\Api\VisitController::class, 'store']);
         Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Api\VisitController::class, 'show']);
+
+        // Mobile WebView Signed URL
+        Route::get('/mobile/signed-url', function (Request $request) {
+            $form = $request->query('form', 'prospek');
+            $routeName = $form === 'kunjungan' ? 'mobile.kunjungan.create' : 'mobile.prospek.create';
+            $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                $routeName,
+                now()->addMinutes(60),
+                ['signed_user_id' => $request->user()->id]
+            );
+            return response()->json(['signed_url' => $url]);
+        });
     });
 });

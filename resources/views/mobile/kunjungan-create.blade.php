@@ -131,9 +131,6 @@
 
         <form action="{{ route('mobile.kunjungan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
             @csrf
-            @if(request()->filled('user_id'))
-                <input type="hidden" name="user_id" value="{{ request('user_id') }}">
-            @endif
 
             <!-- Tab Jenis Kunjungan -->
             <div>

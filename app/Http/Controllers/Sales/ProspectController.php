@@ -219,9 +219,13 @@ class ProspectController extends Controller
 
         // Sales tidak bisa re-alokasi, kirim collection kosong agar view tidak error
         $salesTeam = \Illuminate\Support\Collection::make();
+        $prospekModel = $prospek;
+        $followUps = $prospek->followUps;
 
         return view('prospek.show', compact(
             'prospect',
+            'prospekModel',
+            'followUps',
             'transaksis',
             'isHandler',
             'allStages',
@@ -515,25 +519,33 @@ class ProspectController extends Controller
         $base['timeline'] = $p->timelines->map(function ($t) {
             $timeObj = $t->time ?? $t->created_at;
             return [
-                'time'   => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
-                'title'  => $t->title,
-                'notes'  => $t->notes,
-                'status' => $t->status_after,
-                'user'   => $t->user ? $t->user->name : 'Sistem',
-                'role'   => $t->user ? $t->user->role : 'System',
+                'id'            => $t->id,
+                'user_id'       => $t->user_id,
+                'time'          => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
+                'title'         => $t->title,
+                'notes'         => $t->notes,
+                'status_before' => $t->status_before,
+                'status'        => $t->status_after,
+                'user'          => $t->user ? $t->user->name : 'Sistem',
+                'role'          => $t->user ? $t->user->role : 'System',
             ];
         })->toArray();
 
-        $base['follow_ups'] = $p->followUps->map(function ($f) {
+        $base['follow_ups'] = $p->followUps->map(function ($f) use ($p) {
+            $isHelper = (bool) ($f->user_id && $f->user_id != $p->sales_id && $f->user_id != $p->owner_id);
             return [
-                'tanggal'      => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
-                'metode'       => $f->metode ?? '-',
-                'hasil'        => $f->hasil ?? '-',
-                'catatan'      => $f->catatan ?? '-',
+                'id'             => $f->id,
+                'user_id'        => $f->user_id,
+                'user'           => $f->user ? $f->user->name : 'Sistem',
+                'role'           => $f->user ? $f->user->role : 'Sales',
+                'is_helper'      => $isHelper,
+                'tanggal'        => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
+                'metode'         => $f->metode ?? '-',
+                'hasil'          => $f->hasil ?? '-',
+                'catatan'        => $f->catatan ?? '-',
                 'next_follow_up' => $f->next_follow_up
                     ? \Carbon\Carbon::parse($f->next_follow_up)->format('d M Y, H:i')
                     : '-',
-                'user'         => $f->user ? $f->user->name : 'Sistem',
             ];
         })->toArray();
 
