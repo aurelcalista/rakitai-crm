@@ -662,5 +662,108 @@ class PaymentVerificationTest extends TestCase
         $response->assertSee('Antrean Verifikasi Pembayaran');
         $response->assertSee('1.750.000');
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 30. CS input pembayaran Termin 1 langsung auto-verified & masuk riwayat
+    // ═══════════════════════════════════════════════════════
+    public function test_cs_creating_termin1_is_auto_verified_and_in_history()
+    {
+        // Prospek ditangani oleh CS dan sudah bayar formulir
+        $this->prospek->update([
+            'cs_id'        => $this->cs->id,
+            'status'       => 'FORMULIR',
+            'stage_number' => 5,
+        ]);
+        Transaksi::factory()->create([
+            'prospek_id'     => $this->prospek->id,
+            'user_id'        => $this->cs->id,
+            'jenis'          => 'Beli Formulir',
+            'payment_status' => 'verified',
+        ]);
+
+        $this->actingAs($this->cs);
+        $response = $this->post(route('prospek.transaksi', $this->prospek->id), [
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 2500000,
+            'tanggal'           => now()->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('transaksis', [
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->cs->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'payment_status'    => 'verified',
+            'verified_by'       => $this->cs->id,
+        ]);
+
+        // Prospek langsung LUNAS karena formulir + termin 1 terverifikasi
+        $this->prospek->refresh();
+        $this->assertEquals('LUNAS', $this->prospek->status);
+
+        // Masuk ke tab riwayat pembayaran CS
+        $resRiwayat = $this->get(route('cs.verifikasi.index', ['tab' => 'riwayat']));
+        $resRiwayat->assertOk();
+        $resRiwayat->assertSee('2.500.000');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 31. Sales input pembayaran Termin 1 tetap PENDING (butuh verifikasi CS)
+    // ═══════════════════════════════════════════════════════
+    public function test_sales_creating_termin1_remains_pending_for_cs()
+    {
+        $this->actingAs($this->sales);
+        $response = $this->post(route('prospek.transaksi', $this->prospek->id), [
+            'jenis'             => 'Pembayaran Termin 1',
+            'nominal'           => 3000000,
+            'tanggal'           => now()->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('transaksis', [
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'payment_status'    => 'pending',
+            'verified_by'       => null,
+        ]);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 32. CS dapat memverifikasi transaksi pending miliknya sendiri tanpa error
+    // ═══════════════════════════════════════════════════════
+    public function test_cs_can_verify_pending_transaction_even_if_self_inputted()
+    {
+        $this->prospek->update([
+            'cs_id'        => $this->cs->id,
+            'status'       => 'FORMULIR',
+            'stage_number' => 5,
+        ]);
+        Transaksi::factory()->create([
+            'prospek_id'     => $this->prospek->id,
+            'user_id'        => $this->cs->id,
+            'jenis'          => 'Beli Formulir',
+            'payment_status' => 'verified',
+        ]);
+
+        $trx = Transaksi::factory()->create([
+            'prospek_id'        => $this->prospek->id,
+            'user_id'           => $this->cs->id, // diinput oleh CS
+            'jenis'             => 'Pembayaran Termin 1',
+            'payment_status'    => 'pending',
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $this->actingAs($this->cs);
+        $response = $this->post(route('cs.verifikasi.verify', $trx->id));
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        $trx->refresh();
+        $this->assertEquals('verified', $trx->payment_status);
+        $this->assertEquals($this->cs->id, $trx->verified_by);
+    }
 }
 

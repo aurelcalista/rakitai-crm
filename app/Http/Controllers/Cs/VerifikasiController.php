@@ -115,7 +115,7 @@ class VerifikasiController extends Controller
         abort_if(!in_array(auth()->user()->role, ['CS', 'Admin', 'HM']), 403);
 
         // Sales tidak boleh verifikasi transaksinya sendiri
-        if (auth()->id() === $transaksi->user_id) {
+        if (strtolower(auth()->user()->role) === 'sales' && auth()->id() === $transaksi->user_id) {
             return back()->withErrors(['error' => 'Anda tidak boleh memverifikasi transaksi yang Anda input sendiri.']);
         }
 
@@ -247,7 +247,7 @@ class VerifikasiController extends Controller
         abort_if(!in_array(auth()->user()->role, ['CS', 'Admin', 'HM']), 403);
 
         // Sales tidak boleh reject transaksinya sendiri
-        if (auth()->id() === $transaksi->user_id) {
+        if (strtolower(auth()->user()->role) === 'sales' && auth()->id() === $transaksi->user_id) {
             return back()->withErrors(['error' => 'Anda tidak boleh menolak transaksi yang Anda input sendiri.']);
         }
 

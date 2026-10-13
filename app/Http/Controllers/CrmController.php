@@ -2430,15 +2430,19 @@ class CrmController extends Controller
             $fullNotes = $fullNotes ? "{$vaInfo} | Ref: {$fullNotes}" : $vaInfo;
         }
 
-        // Pembayaran Termin 1 dengan metode → PENDING (menunggu verifikasi CS)
-        // Beli Formulir atau tanpa metode → langsung VERIFIED (backward compatible)
+        // Periksa peran penginput transaksi
+        $userRole = strtolower(auth()->user()->role ?? '');
+        $isCsOrBackoffice = in_array($userRole, ['cs', 'admin', 'hm']);
+
+        // Jika CS/Admin/HM yang input: langsung VERIFIED dan masuk riwayat pembayaran
+        // Jika Sales yang input Pembayaran Termin 1 dengan metode: PENDING (harus diverifikasi CS)
         $isPembayaranTermin1 = $request->jenis === 'Pembayaran Termin 1';
         $hasMetode = !empty($request->metode_pembayaran);
-        $paymentStatus = ($isPembayaranTermin1 && $hasMetode)
+        $paymentStatus = ($isPembayaranTermin1 && $hasMetode && !$isCsOrBackoffice)
             ? \App\Models\Transaksi::STATUS_PENDING
             : \App\Models\Transaksi::STATUS_VERIFIED;
 
-        \App\Models\Transaksi::create([
+        $transaksiData = [
             'prospek_id'        => $prospek->id,
             'user_id'           => auth()->id(),
             'jenis'             => $request->jenis,
@@ -2447,7 +2451,14 @@ class CrmController extends Controller
             'notes'             => $fullNotes,
             'metode_pembayaran' => $request->metode_pembayaran,
             'payment_status'    => $paymentStatus,
-        ]);
+        ];
+
+        if ($paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED && $isCsOrBackoffice) {
+            $transaksiData['verified_by'] = auth()->id();
+            $transaksiData['verified_at'] = now();
+        }
+
+        $transaksi = \App\Models\Transaksi::create($transaksiData);
 
         $oldStatus = $prospek->status;
 
@@ -2471,24 +2482,75 @@ class CrmController extends Controller
         $prospek->save();
 
         $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? $request->metode_pembayaran;
-        $timelineNotes = 'Nominal: Rp ' . number_format($request->nominal, 0, ',', '.')
+        $nominalText = 'Rp ' . number_format($request->nominal, 0, ',', '.');
+        $timelineNotes = 'Nominal: ' . $nominalText
             . ($metodeLabel ? ' | Metode: ' . $metodeLabel : '')
-            . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : '')
+            . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : ' | Status: Terverifikasi Sah')
             . ($fullNotes ? ' | ' . $fullNotes : '');
 
         ProspekTimeline::create([
             'prospek_id'    => $prospek->id,
             'user_id'       => auth()->id(),
-            'title'         => 'Input Transaksi: ' . $request->jenis,
+            'title'         => 'Input Transaksi: ' . $request->jenis . ($paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED && $isCsOrBackoffice ? ' (Terverifikasi CS)' : ''),
             'notes'         => $timelineNotes,
             'status_before' => $oldStatus,
             'status_after'  => $prospek->status,
             'time'          => now(),
         ]);
 
+        // Jika diinput oleh CS dan terverifikasi, kirim notifikasi ke Sales pemilik prospek
+        if ($isCsOrBackoffice && $paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED) {
+            $sales = $prospek->sales
+                ?? ($prospek->sales_id ? \App\Models\User::find($prospek->sales_id) : null)
+                ?? ($prospek->owner_id ? \App\Models\User::find($prospek->owner_id) : null);
+
+            $isClosing = $prospek->status === 'LUNAS';
+            $csName = auth()->user()->name;
+
+            if ($sales && $sales->id !== auth()->id()) {
+                $notifMsg = $isClosing
+                    ? "Pembayaran {$nominalText} ({$request->jenis}) untuk '{$prospek->name}' telah diinput & diverifikasi oleh CS {$csName}. Prospek dinyatakan LUNAS (Closing)."
+                    : "Pembayaran {$nominalText} ({$request->jenis}) untuk '{$prospek->name}' telah diinput & diverifikasi oleh CS {$csName}.";
+
+                $sales->notify(new \App\Notifications\CrmActivityNotification(
+                    title: $isClosing ? 'Closing Terverifikasi!' : 'Pembayaran Terverifikasi!',
+                    message: $notifMsg,
+                    type: 'success',
+                    link: '/prospek',
+                    icon: '',
+                    senderName: $csName,
+                    senderRole: auth()->user()->role,
+                    action: 'pembayaran_diverifikasi'
+                ));
+
+                if ($isClosing) {
+                    try {
+                        $targetService = app(\App\Services\TargetAchievementService::class);
+                        $targetService->checkAndNotifyTargetStatus($sales);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Gagal evaluasi target setelah verifikasi CS: " . $e->getMessage());
+                    }
+
+                    $spv = $sales->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
+                    if ($spv && $spv->id !== auth()->id()) {
+                        $spv->notify(new \App\Notifications\CrmActivityNotification(
+                            title: 'Closing Mahasiswa Baru!',
+                            message: "Pembayaran {$nominalText} untuk '{$prospek->name}' telah diverifikasi oleh CS {$csName}. Prospek dari Sales {$sales->name} sah Closing (LUNAS).",
+                            type: 'success',
+                            link: '/spv/pipeline',
+                            icon: '',
+                            senderName: $csName,
+                            senderRole: auth()->user()->role,
+                            action: 'closing_verified_spv'
+                        ));
+                    }
+                }
+            }
+        }
+
         $successMsg = $paymentStatus === \App\Models\Transaksi::STATUS_PENDING
             ? 'Transaksi ' . $request->jenis . ' berhasil disimpan! Menunggu verifikasi CS.'
-            : 'Transaksi ' . $request->jenis . ' berhasil disimpan!';
+            : 'Transaksi ' . $request->jenis . ' berhasil disimpan dan terverifikasi!';
 
         return redirect()->back()->with('success', $successMsg);
     }
