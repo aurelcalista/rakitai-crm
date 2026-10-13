@@ -258,10 +258,21 @@
                     <div class="space-y-3.5 text-xs">
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sales Pemilik Prospek</span>
-                            <p class="font-bold text-slate-800 mt-0.5 text-sm flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                <span>{{ $prospekModel->sales?->name ?? ($prospect['takeover_sales'] ?? 'Belum Ditugaskan') }}</span>
-                            </p>
+                            <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                <p class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                    <span class="font-bold text-slate-800">{{ $prospekModel->owner?->name ?? ($prospekModel->sales?->name ?? ($prospect['owner'] ?? 'Belum Ditugaskan')) }}</span>
+                                </p>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                    Pemilik Awal
+                                </span>
+                            </div>
+                            @if($prospekModel->sales_id && $prospekModel->owner_id && $prospekModel->sales_id !== $prospekModel->owner_id && $prospekModel->sales)
+                                <div class="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
+                                    <span class="text-slate-400">Penangan Saat Ini:</span>
+                                    <strong class="text-slate-800">{{ $prospekModel->sales->name }}</strong>
+                                </div>
+                            @endif
                         </div>
 
                         @if($prospekModel->cs_id && $prospekModel->cs)
@@ -518,6 +529,138 @@
                     @endif
                 </div>
 
+                <!-- KARTU RIWAYAT FOLLOW-UP -->
+                <div class="crm-card bg-white p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Riwayat Follow-Up</h3>
+                                @php
+                                    $fuCount = count($prospect['follow_ups'] ?? ($prospekModel && $prospekModel->relationLoaded('followUps') ? $prospekModel->followUps : []));
+                                @endphp
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800">
+                                    {{ $fuCount }} Aktivitas
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Catatan interaksi, pelaksana follow-up lintas Sales, dan komitmen jadwal berikutnya</p>
+                        </div>
+                        @can('followUp', $prospekModel)
+                        <button 
+                            type="button" 
+                            @click="selectedProspect = prospect; modalFollowUp = true"
+                            class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            <span>Catat Follow Up</span>
+                        </button>
+                        @endcan
+                    </div>
+
+                    @php
+                        $fuItems = $prospect['follow_ups'] ?? [];
+                        if (empty($fuItems) && $prospekModel && $prospekModel->relationLoaded('followUps')) {
+                            $fuItems = $prospekModel->followUps->map(function($f) use ($prospekModel) {
+                                return [
+                                    'id'             => $f->id,
+                                    'user_id'        => $f->user_id,
+                                    'user'           => $f->user?->name ?? 'Sistem',
+                                    'role'           => $f->user?->role ?? 'Sales',
+                                    'is_helper'      => (bool) ($f->user_id && $f->user_id != $prospekModel->sales_id && $f->user_id != $prospekModel->owner_id),
+                                    'tanggal'        => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
+                                    'metode'         => $f->metode ?? '-',
+                                    'hasil'          => $f->hasil ?? '-',
+                                    'catatan'        => $f->catatan ?? '-',
+                                    'next_follow_up' => $f->next_follow_up ? \Carbon\Carbon::parse($f->next_follow_up)->format('d M Y, H:i') : '-',
+                                ];
+                            })->toArray();
+                        }
+                    @endphp
+
+                    @if(empty($fuItems))
+                        <div class="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            Belum ada riwayat follow-up yang dicatat untuk prospek ini.
+                        </div>
+                    @else
+                        <div class="space-y-3">
+                            @foreach($fuItems as $fu)
+                                <div class="p-4 rounded-xl border {{ !empty($fu['is_helper']) ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50/70 border-slate-200/80' }} transition space-y-2.5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <!-- Pelaksana Follow Up -->
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5 {{ !empty($fu['is_helper']) ? 'text-amber-600' : 'text-blue-600' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                                <span class="font-bold text-slate-900">{{ $fu['user'] ?? 'Sistem' }}</span>
+                                            </span>
+
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">
+                                                {{ $fu['role'] ?? 'Sales' }}
+                                            </span>
+
+                                            @if(!empty($fu['is_helper']))
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
+                                                    <svg class="w-3 h-3 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                                                    Bantuan Sales Lain
+                                                </span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300 inline-flex items-center gap-1">
+                                                    <svg class="w-3 h-3 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                    Pemilik Prospek
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <!-- Waktu Aktivitas -->
+                                        <div class="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span>{{ $fu['tanggal'] ?? '-' }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Metode, Hasil, dan Jadwal Berikutnya -->
+                                    <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                                        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white border border-slate-200 text-slate-700 flex items-center gap-1">
+                                            @if(str_contains(strtolower($fu['metode'] ?? ''), 'whatsapp'))
+                                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            @elseif(str_contains(strtolower($fu['metode'] ?? ''), 'telepon'))
+                                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            @elseif(str_contains(strtolower($fu['metode'] ?? ''), 'meeting'))
+                                                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                                            @else
+                                                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                                            @endif
+                                            Metode: {{ $fu['metode'] ?? '-' }}
+                                        </span>
+
+                                        <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white border border-slate-200 text-slate-800">
+                                            Hasil: <strong class="text-slate-900">{{ $fu['hasil'] ?? '-' }}</strong>
+                                        </span>
+
+                                        @if(!empty($fu['next_follow_up']) && $fu['next_follow_up'] !== '-')
+                                            <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 border border-blue-200 text-blue-800 flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                                Next Follow Up: <strong>{{ $fu['next_follow_up'] }}</strong>
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Catatan Follow Up -->
+                                    @if(!empty($fu['catatan']) && $fu['catatan'] !== '-')
+                                        <div class="bg-white p-2.5 rounded-lg border border-slate-100 text-xs text-slate-700 leading-relaxed">
+                                            <span class="text-slate-400 font-semibold block text-[10px] uppercase">Catatan:</span>
+                                            {{ $fu['catatan'] }}
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
                 <!-- RIWAYAT AKTIVITAS & TIMELINE -->
                 <div class="crm-card bg-white p-6 space-y-5">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -554,10 +697,34 @@
                                 </div>
                                 
                                 <p class="text-xs text-slate-600 pt-1 leading-relaxed">{{ $item['notes'] }}</p>
-                                <div class="text-[10px] text-slate-500 pt-1 font-medium flex items-center gap-1">
+
+                                @if(!empty($item['status_before']) && !empty($item['status']) && $item['status_before'] !== $item['status'])
+                                    <div class="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100/70 text-blue-900 border border-blue-200 mt-1">
+                                        <span>Perubahan Status:</span>
+                                        <span class="text-slate-500 line-through">{{ $item['status_before'] }}</span>
+                                        <span>→</span>
+                                        <span class="text-blue-700">{{ $item['status'] }}</span>
+                                    </div>
+                                @endif
+
+                                <div class="text-[10px] text-slate-500 pt-1 font-medium flex items-center gap-1.5 flex-wrap">
                                     <span>Pelaksana Aktivitas:</span>
                                     <strong class="text-slate-700">{{ $item['user'] }}</strong>
                                     <span class="text-slate-400">({{ $item['role'] }})</span>
+                                    @php
+                                        $isTimelineHelper = false;
+                                        if ($prospekModel) {
+                                            $actorUserId = $item['user_id'] ?? null;
+                                            if ($actorUserId && $actorUserId != $prospekModel->sales_id && $actorUserId != $prospekModel->owner_id) {
+                                                $isTimelineHelper = true;
+                                            }
+                                        }
+                                    @endphp
+                                    @if($isTimelineHelper)
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                            Bantuan Sales Lain
+                                        </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>

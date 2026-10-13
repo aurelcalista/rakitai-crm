@@ -78,7 +78,7 @@
             <!-- Role Filter Buttons -->
             <div class="flex flex-wrap items-center gap-2">
                 <span class="text-[11px] font-bold text-slate-400 uppercase">Role:</span>
-                @foreach([['val'=>'all','label'=>'Semua'],['val'=>'HM','label'=>'HM'],['val'=>'SPV','label'=>'SPV'],['val'=>'Sales','label'=>'Sales'],['val'=>'CS','label'=>'CS'],['val'=>'EO','label'=>'EO'],['val'=>'Admin','label'=>'Admin']] as $rf)
+                @foreach([['val'=>'all','label'=>'Semua'],['val'=>'HM','label'=>'HM'],['val'=>'SPV','label'=>'SPV'],['val'=>'Sales','label'=>'Sales'],['val'=>'CS','label'=>'CS'],['val'=>'EO','label'=>'EO'],['val'=>'Admin','label'=>'Admin'],['val'=>'Data Analyst','label'=>'Data Analyst']] as $rf)
                 <button type="button"
                     @click="roleFilter = '{{ $rf['val'] }}'"
                     :class="roleFilter === '{{ $rf['val'] }}' ? 'bg-purple-600 text-white font-bold' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
@@ -152,7 +152,8 @@
                                             'bg-teal-50 text-teal-800 border-teal-200': user.role === 'CS',
                                             'bg-orange-50 text-orange-700 border-orange-200': user.role === 'EO',
                                             'bg-indigo-50 text-indigo-700 border-indigo-200': user.role === 'SPV',
-                                            'bg-purple-50 text-purple-700 border-purple-200': user.role === 'HM' || user.role === 'Admin'
+                                            'bg-purple-50 text-purple-700 border-purple-200': user.role === 'HM' || user.role === 'Admin',
+                                            'bg-cyan-50 text-cyan-700 border-cyan-200': user.role === 'Data Analyst'
                                         }"
                                         x-text="user.role"></span>
                                 </td>

@@ -27,10 +27,13 @@ class ProspekService
 
         $hasFormulir = $transaksis->contains('jenis', 'Beli Formulir');
 
-        // Pembayaran Termin 1 HARUS berstatus verified
+        // Pembayaran Termin 1 HARUS berstatus verified (atau default verified untuk transaksi lama/in-memory)
         $hasVerifiedTermin1 = $transaksis
             ->where('jenis', 'Pembayaran Termin 1')
-            ->where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->filter(function ($t) {
+                $status = strtolower($t->payment_status ?? Transaksi::STATUS_VERIFIED);
+                return $status === Transaksi::STATUS_VERIFIED;
+            })
             ->isNotEmpty();
 
         return $hasFormulir && $hasVerifiedTermin1;

@@ -93,7 +93,7 @@ class ProspekPolicy
                     || $prospek->cs_id === $user->id,
 
             'cs'    => $prospek->cs_id === $user->id
-                    || (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id)),
+                    || (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id)),
 
             'spv'   => $this->isSpvAuthorized($user, $prospek),
 
@@ -155,7 +155,7 @@ class ProspekPolicy
         }
 
         if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
+            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
         }
 
         if ($role === 'sales') {
@@ -189,7 +189,7 @@ class ProspekPolicy
         }
 
         if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
+            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
         }
 
         if ($role === 'sales') {

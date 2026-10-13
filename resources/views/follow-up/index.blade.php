@@ -23,33 +23,37 @@
 
     <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
-        activeTab: 'uncontacted',
+        activeTab: 'need_follow_up',
         searchQuery: '',
-        selectedScope: 'all',
+        selectedPriority: 'all',
         authUserId: {{ auth()->id() ?? 0 }},
         userRole: '{{ auth()->user()->role ?? '' }}',
         prospectsList: {{ json_encode($prospects) }},
 
         init() {
-            if (this.prospectsList.today && this.prospectsList.today.length > 0) {
-                this.activeTab = 'today';
-            } else if (this.prospectsList.uncontacted && this.prospectsList.uncontacted.length > 0) {
-                this.activeTab = 'uncontacted';
-            } else if (this.prospectsList.overdue && this.prospectsList.overdue.length > 0) {
-                this.activeTab = 'overdue';
-            } else if (this.prospectsList.unscheduled && this.prospectsList.unscheduled.length > 0) {
-                this.activeTab = 'unscheduled';
+            if (this.prospectsList.need_follow_up && this.prospectsList.need_follow_up.length > 0) {
+                this.activeTab = 'need_follow_up';
             } else if (this.prospectsList.others && this.prospectsList.others.length > 0) {
                 this.activeTab = 'others';
+            } else if (this.prospectsList.scheduled && this.prospectsList.scheduled.length > 0) {
+                this.activeTab = 'scheduled';
+            } else if (this.prospectsList.done && this.prospectsList.done.length > 0) {
+                this.activeTab = 'done';
             } else {
-                this.activeTab = 'today';
+                this.activeTab = 'need_follow_up';
             }
         },
         
         isOwnProspect(p) {
+            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
+                return Boolean(p.is_own === true || (this.authUserId && (p.cs_id == this.authUserId || (!p.cs_id && ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'].includes(p.status)))));
+            }
             return Boolean(p.is_own === true || (this.authUserId && (p.sales_id == this.authUserId || p.owner_id == this.authUserId)));
         },
         isOtherProspect(p) {
+            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
+                return Boolean(p.is_other === true || (!this.isOwnProspect(p) && p.cs_id && p.cs_id != this.authUserId));
+            }
             const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-'));
             return Boolean(p.is_other === true || (!this.isOwnProspect(p) && hasSalesOwner));
         },
@@ -65,14 +69,13 @@
                     (p.sales_name && p.sales_name.toLowerCase().includes(q)) ||
                     (p.notes && p.notes.toLowerCase().includes(q));
 
-                let matchScope = true;
-                if (this.selectedScope === 'own') {
-                    matchScope = this.isOwnProspect(p);
-                } else if (this.selectedScope === 'others') {
-                    matchScope = this.isOtherProspect(p);
+                let matchPriority = true;
+                if (this.selectedPriority !== 'all') {
+                    matchPriority = (p.timing_category === this.selectedPriority) ||
+                                    (p.status && p.status.toUpperCase() === this.selectedPriority.toUpperCase());
                 }
 
-                return matchSearch && matchScope;
+                return matchSearch && matchPriority;
             });
         },
         getProspectUrl(prospect) {
@@ -93,11 +96,11 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Antrean Follow Up</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Pantau dan tindak lanjuti prospek aktif secara mandiri maupun kolaboratif lintas Sales.</p>
             </div>
-            @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']))
+            @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs', 'spv', 'hm', 'admin']))
             <div>
                 <button 
                     type="button" 
-                    @click="selectedProspect = (prospectsList.today[0] || prospectsList.uncontacted[0] || prospectsList.overdue[0] || prospectsList.others[0] || prospectsList.unscheduled[0] || prospectsList.upcoming[0] || prospectsList.done[0]); if(selectedProspect) { modalFollowUp = true }"
+                    @click="selectedProspect = (prospectsList.need_follow_up[0] || prospectsList.others[0] || prospectsList.scheduled[0] || prospectsList.done[0]); if(selectedProspect) { modalFollowUp = true }"
                     class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,78 +112,45 @@
             @endif
         </div>
 
-        <!-- Follow-up Status Tabs (Antrean Follow-Up Otomatis & Sales Lain) -->
+        <!-- Follow-up Status Tabs (4 Tab Utama: Perlu Follow-Up, Bantuan Sales Lain, Terjadwal, Selesai) -->
         <div class="flex border-b border-slate-200 bg-white px-3 rounded-2xl border overflow-x-auto whitespace-nowrap scrollbar-thin">
-            <!-- 1. Belum Dihubungi -->
+            <!-- 1. Perlu Follow-Up -->
             <button 
                 type="button" 
-                @click="activeTab = 'uncontacted'"
-                :class="activeTab === 'uncontacted' ? 'border-sky-600 text-sky-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
+                @click="activeTab = 'need_follow_up'; selectedPriority = 'all'"
+                :class="activeTab === 'need_follow_up' ? 'border-rose-600 text-rose-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
                 class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
             >
-                <span>Belum Dihubungi</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-sky-100 text-sky-800 font-bold" x-text="(prospectsList.uncontacted || []).length"></span>
+                <span>Perlu Follow-Up</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold" x-text="(prospectsList.need_follow_up || []).length"></span>
             </button>
 
-            <!-- 2. Jadwal Hari Ini -->
+            <!-- 2. Bantuan Sales Lain -->
             <button 
                 type="button" 
-                @click="activeTab = 'today'"
-                :class="activeTab === 'today' ? 'border-amber-600 text-amber-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
-                class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
-            >
-                <span>Jadwal Hari Ini</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold" x-text="(prospectsList.today || []).length"></span>
-            </button>
-
-            <!-- 3. Terlambat -->
-            <button 
-                type="button" 
-                @click="activeTab = 'overdue'"
-                :class="activeTab === 'overdue' ? 'border-rose-600 text-rose-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
-                class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
-            >
-                <span>Terlambat</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-bold" x-text="(prospectsList.overdue || []).length"></span>
-            </button>
-
-            <!-- 4. Belum Dijadwalkan -->
-            <button 
-                type="button" 
-                @click="activeTab = 'unscheduled'"
-                :class="activeTab === 'unscheduled' ? 'border-purple-600 text-purple-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
-                class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
-            >
-                <span>Belum Dijadwalkan</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-800 font-bold" x-text="(prospectsList.unscheduled || []).length"></span>
-            </button>
-
-            <!-- 5. Follow-Up Sales Lain -->
-            <button 
-                type="button" 
-                @click="activeTab = 'others'"
+                @click="activeTab = 'others'; selectedPriority = 'all'"
                 :class="activeTab === 'others' ? 'border-amber-600 text-amber-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
                 class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
             >
-                <span>Follow-Up Sales Lain</span>
+                <span>Bantuan Sales Lain</span>
                 <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold" x-text="(prospectsList.others || []).length"></span>
             </button>
 
-            <!-- 6. Mendatang -->
+            <!-- 3. Terjadwal -->
             <button 
                 type="button" 
-                @click="activeTab = 'upcoming'"
-                :class="activeTab === 'upcoming' ? 'border-blue-600 text-blue-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
+                @click="activeTab = 'scheduled'; selectedPriority = 'all'"
+                :class="activeTab === 'scheduled' ? 'border-blue-600 text-blue-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
                 class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
             >
-                <span>Mendatang</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold" x-text="(prospectsList.upcoming || []).length"></span>
+                <span>Terjadwal</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold" x-text="(prospectsList.scheduled || []).length"></span>
             </button>
 
-            <!-- 7. Selesai (Lunas / Dingin) -->
+            <!-- 4. Selesai (Lunas / Dingin) -->
             <button 
                 type="button" 
-                @click="activeTab = 'done'"
+                @click="activeTab = 'done'; selectedPriority = 'all'"
                 :class="activeTab === 'done' ? 'border-emerald-600 text-emerald-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
                 class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
             >
@@ -212,35 +182,31 @@
                 </button>
             </div>
 
-            <!-- Scope Filter Buttons (Khusus Sales) -->
-            @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales']))
-            <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/60 shrink-0 text-xs">
-                <button 
-                    type="button" 
-                    @click="selectedScope = 'all'" 
-                    class="px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer"
-                    :class="selectedScope === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+            <!-- Internal Priority / Sub-Status Filter -->
+            <div class="flex items-center gap-1.5 shrink-0 text-xs">
+                <span class="text-slate-400 font-medium hidden md:inline">Filter:</span>
+                <select 
+                    x-model="selectedPriority" 
+                    class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-xs cursor-pointer"
                 >
-                    Semua
-                </button>
-                <button 
-                    type="button" 
-                    @click="selectedScope = 'own'" 
-                    class="px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer"
-                    :class="selectedScope === 'own' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
-                >
-                    Prospek Saya
-                </button>
-                <button 
-                    type="button" 
-                    @click="selectedScope = 'others'" 
-                    class="px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer"
-                    :class="selectedScope === 'others' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
-                >
-                    Sales Lain
-                </button>
+                    <option value="all">Semua Status / Prioritas</option>
+                    <template x-if="activeTab === 'need_follow_up' || activeTab === 'others'">
+                        <optgroup label="Prioritas Jadwal">
+                            <option value="overdue">Terlambat</option>
+                            <option value="today">Jadwal Hari Ini</option>
+                            <option value="uncontacted">Belum Dihubungi</option>
+                            <option value="unscheduled">Belum Dijadwalkan</option>
+                            <option value="upcoming" x-show="activeTab === 'others'">Mendatang</option>
+                        </optgroup>
+                    </template>
+                    <template x-if="activeTab === 'done'">
+                        <optgroup label="Status Arsip">
+                            <option value="LUNAS">LUNAS</option>
+                            <option value="DINGIN">DINGIN</option>
+                        </optgroup>
+                    </template>
+                </select>
             </div>
-            @endif
         </div>
 
         <!-- Follow-up Cards List -->
@@ -259,9 +225,17 @@
                                     class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border"
                                     x-text="prospect.status"
                                 ></span>
-                                <span x-show="isOtherProspect(prospect)" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title="Prospek milik Sales lain, dapat dibantu follow-up">
-                                    Bantuan
-                                </span>
+                                <div class="flex items-center gap-1 flex-wrap justify-end">
+                                    <span x-show="isOtherProspect(prospect)" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title="Prospek milik Sales lain, dapat dibantu follow-up">
+                                        Bantuan
+                                    </span>
+                                    <span 
+                                        x-show="prospect.priority_label && !['LUNAS', 'DINGIN'].includes(prospect.status)" 
+                                        :class="prospect.priority_badge_class || 'bg-slate-100 text-slate-700 border-slate-200'"
+                                        class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border"
+                                        x-text="prospect.priority_label"
+                                    ></span>
+                                </div>
                             </div>
                         </div>
 
@@ -277,6 +251,13 @@
                             <div class="flex justify-between items-center text-slate-600">
                                 <span class="text-slate-400">Last Contact:</span>
                                 <span class="font-semibold text-slate-800" x-text="prospect.last_contact || '-'"></span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-600" x-show="prospect.latest_follow_up_user">
+                                <span class="text-slate-400">Pelaksana Terakhir:</span>
+                                <span class="font-semibold text-slate-800 text-[11px] flex items-center gap-1">
+                                    <span x-text="prospect.latest_follow_up_user"></span>
+                                    <span x-show="prospect.is_assisted_by_other" class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Bantuan</span>
+                                </span>
                             </div>
                             <div class="flex justify-between items-center text-slate-600">
                                 <span class="text-slate-400">Next Follow Up:</span>

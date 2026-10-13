@@ -20,17 +20,35 @@ use Illuminate\Support\Str;
 class MobileFormController extends Controller
 {
     /**
-     * Helper to authenticate via user_id if passed in WebView query string.
+     * Authenticate user via active session, Sanctum Bearer token, or valid temporary signed URL.
+     * Raw query parameter or body spoofing of user_id is strictly disallowed (CWE-287 fix).
      */
     protected function authenticateFromRequest(Request $request): ?User
     {
-        if (!Auth::check() && $request->filled('user_id')) {
-            $user = User::find($request->user_id);
-            if ($user) {
-                Auth::login($user);
+        // 1. Existing authenticated web session
+        if (Auth::check()) {
+            return Auth::user();
+        }
+
+        // 2. Sanctum Bearer Token (for Flutter / mobile API clients)
+        if ($request->bearerToken()) {
+            $sanctumUser = auth('sanctum')->user();
+            if ($sanctumUser && $sanctumUser->status === 'Aktif') {
+                Auth::login($sanctumUser);
+                return $sanctumUser;
             }
         }
-        return Auth::user();
+
+        // 3. Cryptographically signed temporary URL (for Flutter WebView integration)
+        if ($request->hasValidSignature() && $request->filled('signed_user_id')) {
+            $signedUser = User::where('status', 'Aktif')->find($request->signed_user_id);
+            if ($signedUser) {
+                Auth::login($signedUser);
+                return $signedUser;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -39,6 +57,12 @@ class MobileFormController extends Controller
     public function prospekCreate(Request $request)
     {
         $user = $this->authenticateFromRequest($request);
+        if (!$user) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+            return redirect()->guest(route('login'))->with('error', 'Silakan login terlebih dahulu untuk mengakses formulir lapangan.');
+        }
 
         $sekolahs = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
@@ -48,7 +72,7 @@ class MobileFormController extends Controller
 
         // Subordinate sales if user is SPV
         $salesList = [];
-        if ($user && in_array($user->role, ['SPV', 'Admin', 'Head Marketing'])) {
+        if ($user && in_array($user->role, ['SPV', 'Admin', 'Head Marketing', 'HM'])) {
             $salesList = User::where('role', 'Sales')->where('status', 'Aktif')->get();
         }
 
@@ -61,6 +85,12 @@ class MobileFormController extends Controller
     public function prospekStore(Request $request)
     {
         $user = $this->authenticateFromRequest($request);
+        if (!$user) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+            abort(401, 'Sesi tidak valid atau telah berakhir. Akses form lapangan memerlukan autentikasi yang sah.');
+        }
 
         $request->validate([
             'type'      => 'required|in:Sekolah,Corporate,Individu',
@@ -70,9 +100,12 @@ class MobileFormController extends Controller
             'source'    => 'required|string|max:100',
         ]);
 
-        $salesId = $request->input('sales_id');
-        if (empty($salesId)) {
-            $salesId = $user ? $user->id : 4; // Fallback to current user or default sales
+        // Resolve sales handler with role authorization (only SPV/Admin/HM can assign subordinate sales)
+        if (in_array($user->role, ['SPV', 'Admin', 'Head Marketing', 'HM']) && $request->filled('sales_id')) {
+            $targetSales = User::where('role', 'Sales')->where('status', 'Aktif')->find($request->sales_id);
+            $salesId = $targetSales ? $targetSales->id : $user->id;
+        } else {
+            $salesId = $user->id;
         }
 
         // Auto-resolve Name
@@ -101,6 +134,8 @@ class MobileFormController extends Controller
             'pic'              => $request->pic,
             'whatsapp'         => $request->whatsapp,
             'sales_id'         => $salesId,
+            'owner_id'         => $user->id,
+            'wilayah_id'       => $user->wilayah_id,
             'status'           => 'BARU',
             'stage_number'     => 1,
             'notes'            => $request->notes ?? 'Input melalui Form Mobile Flutter',
@@ -110,7 +145,7 @@ class MobileFormController extends Controller
 
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
-            'user_id'      => $salesId,
+            'user_id'      => $user->id,
             'title'        => 'Prospek Dibuat via Mobile App',
             'notes'        => 'Prospek berhasil diinput langsung melalui form mobile lapangan.',
             'status_after' => $prospek->status,
@@ -130,6 +165,12 @@ class MobileFormController extends Controller
     public function kunjunganCreate(Request $request)
     {
         $user = $this->authenticateFromRequest($request);
+        if (!$user) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+            return redirect()->guest(route('login'))->with('error', 'Silakan login terlebih dahulu untuk mengakses formulir kunjungan.');
+        }
 
         $prospekQuery = Prospek::where('type', 'Sekolah');
         if ($user && $user->role === 'Sales') {
@@ -153,6 +194,12 @@ class MobileFormController extends Controller
     public function kunjunganStore(Request $request)
     {
         $user = $this->authenticateFromRequest($request);
+        if (!$user) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+            abort(401, 'Sesi tidak valid atau telah berakhir. Akses form lapangan memerlukan autentikasi yang sah.');
+        }
 
         $request->validate([
             'jenis'        => 'required|in:Sekolah,Perusahaan',
@@ -230,7 +277,14 @@ class MobileFormController extends Controller
             $namaInstitusi = $request->jenis . ' Kunjungan Lapangan';
         }
 
-        $salesId = $user ? $user->id : 4;
+        // Resolve sales handler with role authorization (only SPV/Admin/HM can assign subordinate sales)
+        if (in_array($user->role, ['SPV', 'Admin', 'Head Marketing', 'HM']) && $request->filled('sales_id')) {
+            $targetSales = User::where('role', 'Sales')->where('status', 'Aktif')->find($request->sales_id);
+            $salesId = $targetSales ? $targetSales->id : $user->id;
+        } else {
+            $salesId = $user->id;
+        }
+
         $nomor = 'KNJ-M-' . $salesId . '-' . now()->format('YmdHis');
 
         $activeTa = TahunAkademik::getAktif();
@@ -286,7 +340,7 @@ class MobileFormController extends Controller
 
                 ProspekTimeline::create([
                     'prospek_id'   => $prospek->id,
-                    'user_id'      => $salesId,
+                    'user_id'      => $user->id,
                     'title'        => 'Laporan Kunjungan Mobile Sukses',
                     'notes'        => 'Kunjungan lapangan selesai diinput via Flutter WebView (' . $nomor . ')',
                     'status_after' => $prospek->status,

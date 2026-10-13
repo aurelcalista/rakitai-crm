@@ -286,7 +286,14 @@ class CrossRoleFollowUpTest extends TestCase
         $this->assertNotNull(collect($queues['unscheduled'])->firstWhere('id', $prospekUnscheduled->id));
         $this->assertNotNull(collect($queues['today'])->firstWhere('id', $prospekToday->id));
         $this->assertNotNull(collect($queues['overdue'])->firstWhere('id', $prospekOverdue->id));
-        $this->assertNotNull(collect($queues['done'])->firstWhere('id', $prospekDone->id));
+        // LUNAS prospect of Sales A must NOT appear in Sales B's active others or done
+        $this->assertNull(collect($queues['done'])->firstWhere('id', $prospekDone->id));
+        $this->assertNull(collect($queues['others'])->firstWhere('id', $prospekDone->id));
+
+        // But Sales A sees their own LUNAS prospect in done (Selesai)
+        $resA = $this->actingAs($this->salesA)->get(route('sales.follow-up.index'));
+        $queuesA = $resA->viewData('prospects');
+        $this->assertNotNull(collect($queuesA['done'])->firstWhere('id', $prospekDone->id));
 
         // Active prospects owned by Sales A must also be in others queue
         $this->assertNotNull(collect($queues['others'])->firstWhere('id', $prospekUnscheduled->id));
@@ -845,6 +852,211 @@ class CrossRoleFollowUpTest extends TestCase
         $resListSearch->assertOk();
         $resListSearch->assertSee('Andi Wijaya');
     }
+
+    /**
+     * Skenario Pengujian Wajib (Requirement 6):
+     * 1. Sales A membuat prospek.
+     * 2. Sales B melakukan follow-up pertama.
+     * 3. Sales A membuka detail prospek dan melihat Sales A sebagai pemilik serta Sales B sebagai pelaksana follow-up.
+     * 4. Sales C melakukan follow-up berikutnya.
+     * 5. Sales A tetap menjadi pemilik dan riwayat Sales B serta Sales C sama-sama tersimpan dan terlihat.
+     * 6. Status terbaru sesuai hasil aktivitas, tanpa menghapus riwayat sebelumnya.
+     * 7. User yang tidak berwenang tidak dapat membaca data yang dilindungi.
+     */
+    public function test_full_cross_sales_follow_up_tracking_and_visibility_scenario(): void
+    {
+        // 1. Sales A membuat prospek
+        $resStore = $this->actingAs($this->salesA)->post(route('sales.prospek.store'), [
+            'type' => 'Individu',
+            'pic' => 'Budi Pratama Skenario',
+            'whatsapp' => '081299998888',
+            'status' => 'BARU',
+            'source' => 'Instagram',
+            'notes' => 'Prospek awal diinput oleh Sales A',
+        ]);
+        $resStore->assertRedirect(route('sales.prospek.index'));
+
+        $prospek = Prospek::where('whatsapp', '081299998888')->firstOrFail();
+        $this->assertEquals($this->salesA->id, $prospek->sales_id, 'sales_id awal harus Sales A');
+        $this->assertEquals($this->salesA->id, $prospek->owner_id, 'owner_id awal harus Sales A');
+        $this->assertEquals('BARU', $prospek->status);
+
+        // 2. Sales B melakukan follow-up pertama
+        $resFuB = $this->actingAs($this->salesB)->post(route('sales.follow-up.store'), [
+            'prospek_id' => $prospek->id,
+            'metode' => 'WhatsApp',
+            'hasil' => 'Tertarik Konsultasi',
+            'catatan' => 'Follow up perdana oleh Sales B. Menanyakan rincian program studi dan biaya.',
+            'status' => 'KONTAK',
+            'next_follow_up' => now()->addDays(2)->toDateString(),
+        ]);
+        $resFuB->assertRedirect();
+
+        $prospek->refresh();
+        $this->assertEquals($this->salesA->id, $prospek->sales_id, 'sales_id harus tetap Sales A');
+        $this->assertEquals($this->salesA->id, $prospek->owner_id, 'owner_id harus tetap Sales A');
+        $this->assertEquals('KONTAK', $prospek->status, 'Status prospek harus berubah menjadi KONTAK');
+
+        $fuB = FollowUp::where('prospek_id', $prospek->id)->where('user_id', $this->salesB->id)->first();
+        $this->assertNotNull($fuB, 'Follow-up Sales B harus tersimpan');
+        $this->assertEquals('WhatsApp', $fuB->metode);
+        $this->assertEquals('Tertarik Konsultasi', $fuB->hasil);
+
+        // 3. Sales A membuka detail prospek dan melihat Sales A sebagai pemilik serta Sales B sebagai pelaksana follow-up
+        $resDetailA1 = $this->actingAs($this->salesA)->get(route('sales.prospek.show', $prospek->id));
+        $resDetailA1->assertOk();
+        $resDetailA1->assertSee($this->salesA->name);
+        $resDetailA1->assertSee('Pemilik Awal');
+        $resDetailA1->assertSee($this->salesB->name);
+        $resDetailA1->assertSee('Bantuan Sales Lain');
+        $resDetailA1->assertSee('Follow up perdana oleh Sales B');
+
+        $prospectDataA1 = $resDetailA1->viewData('prospect');
+        $this->assertNotEmpty($prospectDataA1['follow_ups'], 'follow_ups array harus terisi pada detail view');
+        $this->assertEquals($this->salesB->id, $prospectDataA1['follow_ups'][0]['user_id']);
+        $this->assertEquals($this->salesB->name, $prospectDataA1['follow_ups'][0]['user']);
+        $this->assertTrue($prospectDataA1['follow_ups'][0]['is_helper']);
+
+        // 4. Sales C melakukan follow-up berikutnya
+        $resFuC = $this->actingAs($this->salesC)->post(route('follow-up.store'), [
+            'prospek_id' => $prospek->id,
+            'metode' => 'Telepon',
+            'hasil' => 'Pemberkasan',
+            'catatan' => 'Follow up kedua oleh Sales C. Calon mahasiswa bersiap menyerahkan berkas.',
+            'status' => 'BERKAS',
+            'next_follow_up' => now()->addDays(3)->toDateString(),
+        ]);
+        $resFuC->assertRedirect();
+
+        $prospek->refresh();
+        $this->assertEquals($this->salesA->id, $prospek->sales_id, 'sales_id harus tetap Sales A setelah Sales C');
+        $this->assertEquals($this->salesA->id, $prospek->owner_id, 'owner_id harus tetap Sales A setelah Sales C');
+        $this->assertEquals('BERKAS', $prospek->status, 'Status prospek harus terupdate ke BERKAS');
+
+        // 5. Sales A tetap menjadi pemilik dan riwayat Sales B serta Sales C sama-sama tersimpan dan terlihat
+        $resDetailA2 = $this->actingAs($this->salesA)->get(route('sales.prospek.show', $prospek->id));
+        $resDetailA2->assertOk();
+        $resDetailA2->assertSee($this->salesA->name);
+        $resDetailA2->assertSee('Pemilik Awal');
+        $resDetailA2->assertSee($this->salesB->name);
+        $resDetailA2->assertSee($this->salesC->name);
+        $resDetailA2->assertSee('Follow up perdana oleh Sales B');
+        $resDetailA2->assertSee('Follow up kedua oleh Sales C');
+
+        $prospectDataA2 = $resDetailA2->viewData('prospect');
+        $this->assertCount(2, $prospectDataA2['follow_ups'], 'Kedua follow-up harus tersimpan di data view');
+        $fuUserIds = collect($prospectDataA2['follow_ups'])->pluck('user_id')->all();
+        $this->assertContains($this->salesB->id, $fuUserIds);
+        $this->assertContains($this->salesC->id, $fuUserIds);
+
+        // 6. Status terbaru sesuai hasil aktivitas ('BERKAS'), tanpa menghapus riwayat sebelumnya
+        $this->assertEquals('BERKAS', $prospek->status);
+        $this->assertEquals(2, FollowUp::where('prospek_id', $prospek->id)->count(), 'Total record follow_ups di DB harus tetap 2');
+        $this->assertDatabaseHas('follow_ups', [
+            'prospek_id' => $prospek->id,
+            'user_id' => $this->salesB->id,
+            'metode' => 'WhatsApp',
+        ]);
+        $this->assertDatabaseHas('follow_ups', [
+            'prospek_id' => $prospek->id,
+            'user_id' => $this->salesC->id,
+            'metode' => 'Telepon',
+        ]);
+
+        // 7. User yang tidak berwenang tidak dapat membaca data yang dilindungi
+        // a. Guest tidak dapat mengakses detail prospek
+        auth()->logout();
+        $this->get(route('sales.prospek.show', $prospek->id))->assertRedirect(route('login'));
+
+        // b. CS di wilayah berbeda tidak dapat mengakses prospek BARU yang ditangani Sales wilayah lain
+        $prospekProtected = Prospek::create([
+            'name' => 'Prospek Tertutup Khusus Wilayah 1',
+            'type' => 'Individu',
+            'pic' => 'Siswa Wilayah 1',
+            'whatsapp' => '087777777777',
+            'status' => 'BARU',
+            'sales_id' => $this->salesA->id,
+            'owner_id' => $this->salesA->id,
+            'wilayah_id' => $this->wilayah1->id,
+        ]);
+
+        $unauthorizedCs = User::create([
+            'name' => 'CS Luar Wilayah',
+            'email' => 'cs.luar@cic.ac.id',
+            'password' => bcrypt('password'),
+            'role' => 'CS',
+            'wilayah_id' => $this->wilayah2->id,
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($unauthorizedCs)->get(route('prospek.show', $prospekProtected->id))->assertForbidden();
+
+        // c. CS yang tidak berwenang tidak dapat melakukan follow-up
+        $this->actingAs($unauthorizedCs)->post(route('follow-up.store'), [
+            'prospek_id' => $prospekProtected->id,
+            'metode'     => 'WhatsApp',
+            'hasil'      => 'Unauthorized Follow Up',
+            'catatan'    => 'Mencoba follow-up tanpa izin',
+            'status'     => 'KONTAK',
+        ])->assertForbidden();
+
+        // d. Helper tidak dapat mengedit master data prospek
+        $this->actingAs($this->salesB)->put(route('sales.prospek.update', $prospek->id), [
+            'type' => 'Individu',
+            'pic' => 'Hacked by Helper',
+            'whatsapp' => '081299998888',
+            'status' => 'BERKAS',
+        ])->assertForbidden();
+    }
+
+    public function test_spv_can_access_follow_up_queue_and_record_follow_up_for_team_prospect()
+    {
+        // Prospek milik tim salesA (bawahan spv1)
+        $prospekTeam = Prospek::create([
+            'name'       => 'Prospek Siswa Binaan SPV',
+            'type'       => 'Individu',
+            'pic'        => 'Calon Mahasiswa SPV',
+            'whatsapp'   => '081234111222',
+            'status'     => 'KONTAK',
+            'sales_id'   => $this->salesA->id,
+            'owner_id'   => $this->salesA->id,
+            'wilayah_id' => $this->wilayah1->id,
+        ]);
+
+        // 1. SPV dapat mengakses halaman follow-up
+        $response = $this->actingAs($this->spv1)->get(route('follow-up.index'));
+        $response->assertStatus(200);
+
+        // 2. Prospek tim bawahan muncul di antrean Bantuan Sales Lain (others) SPV
+        $prospects = $response->viewData('prospects');
+        $othersIds = collect($prospects['others'])->pluck('id')->toArray();
+        $this->assertContains($prospekTeam->id, $othersIds);
+
+        // 3. SPV dapat mencatat follow-up untuk prospek timnya
+        $storeResponse = $this->actingAs($this->spv1)->post(route('follow-up.store'), [
+            'prospek_id' => $prospekTeam->id,
+            'metode'     => 'Telepon',
+            'hasil'      => 'Supervisi dan pengarahan program studi',
+            'catatan'    => 'SPV membantu follow-up dan menjelaskan beasiswa institusi',
+            'status'     => 'FORMULIR',
+        ]);
+
+        $storeResponse->assertRedirect();
+
+        // 4. Log follow-up mencatat SPV sebagai aktor pelaksana
+        $this->assertDatabaseHas('follow_ups', [
+            'prospek_id' => $prospekTeam->id,
+            'user_id'    => $this->spv1->id,
+            'hasil'      => 'Supervisi dan pengarahan program studi',
+        ]);
+
+        // 5. Pemilik awal tetap Sales A (tidak tertimpa)
+        $prospekFresh = $prospekTeam->fresh();
+        $this->assertEquals($this->salesA->id, $prospekFresh->sales_id);
+        $this->assertEquals($this->salesA->id, $prospekFresh->owner_id);
+        $this->assertEquals('FORMULIR', $prospekFresh->status);
+    }
 }
+
 
 
