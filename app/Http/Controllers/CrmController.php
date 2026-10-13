@@ -1246,9 +1246,8 @@ class CrmController extends Controller
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
                     $q->where('cs_id', $user->id)
-<<<<<<< HEAD
                       ->orWhere('owner_id', $user->id)
-                      ->orWhere(function ($sub) {
+                      ->orWhere(function ($sub) use ($user) {
                           $sub->whereNull('cs_id')
                               ->where(function ($st) {
                                   $st->where('stage_number', '>=', 5)
@@ -1257,17 +1256,12 @@ class CrmController extends Controller
                                          '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
                                      ]);
                               });
-=======
-                      ->orWhere(function ($sub) use ($user) {
-                          $sub->whereNull('cs_id')
-                              ->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']);
                           if ($user->wilayah_id) {
                               $sub->where(function ($w) use ($user) {
                                   $w->where('wilayah_id', $user->wilayah_id)
                                     ->orWhereNull('wilayah_id');
                               });
                           }
->>>>>>> 15736b4c175c204fe15bd3306940368db507a918
                       });
                 });
             } elseif (in_array($role, ['hm', 'eo'])) {
