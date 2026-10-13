@@ -147,7 +147,7 @@
 
         <!-- Filter & Search Bar Dinamis -->
         <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-            <form method="GET" action="{{ route('sales.pembayaran.index') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <form method="GET" action="{{ route('sales.pembayaran.index') }}" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                 <input type="hidden" name="status" value="{{ request('status', 'all') }}">
 
                 {{-- Search --}}
@@ -170,6 +170,18 @@
                         @foreach($allJenis as $j)
                             <option value="{{ $j }}" {{ request('jenis') === $j ? 'selected' : '' }}>{{ $j }}</option>
                         @endforeach
+                    </select>
+                </div>
+
+                {{-- Kategori Transaksi (Requirement M) --}}
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Kategori</label>
+                    <select name="kategori" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white font-medium">
+                        <option value="all" {{ request('kategori') === 'all' || !request('kategori') ? 'selected' : '' }}>Semua Kategori</option>
+                        <option value="DP Daftar" {{ request('kategori') === 'DP Daftar' ? 'selected' : '' }}>DP Daftar</option>
+                        <option value="DP Perlengkapan" {{ request('kategori') === 'DP Perlengkapan' ? 'selected' : '' }}>DP Perlengkapan</option>
+                        <option value="Lunas" {{ request('kategori') === 'Lunas' ? 'selected' : '' }}>Lunas</option>
+                        <option value="Keluar" {{ request('kategori') === 'Keluar' ? 'selected' : '' }}>Keluar</option>
                     </select>
                 </div>
 
@@ -224,7 +236,7 @@
                 </div>
             </form>
 
-            @if(request()->anyFilled(['search', 'jenis', 'metode', 'start_date', 'end_date']) || (request('status') && request('status') !== 'all'))
+            @if(request()->anyFilled(['search', 'jenis', 'kategori', 'metode', 'start_date', 'end_date']) || (request('status') && request('status') !== 'all'))
                 <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div class="text-slate-600">
                         Hasil Filter: <strong class="text-slate-900">{{ $stats['filtered_count'] }}</strong> data ditemukan &bull; Total Nominal: <strong class="text-emerald-700 font-bold">Rp {{ number_format($stats['filtered_total_amount'], 0, ',', '.') }}</strong>
@@ -259,6 +271,7 @@
                                 <th class="px-4 py-3 text-left">Ref / Tanggal</th>
                                 <th class="px-4 py-3 text-left">Calon Mahasiswa</th>
                                 <th class="px-4 py-3 text-left">Jenis Transaksi</th>
+                                <th class="px-4 py-3 text-left">Kategori</th>
                                 <th class="px-4 py-3 text-right">Nominal</th>
                                 <th class="px-4 py-3 text-left">Metode Bayar</th>
                                 <th class="px-4 py-3 text-center">Status Pembayaran</th>
@@ -292,6 +305,7 @@
                                         'tanggal' => $trx->tanggal ? $trx->tanggal->format('d/m/Y') : ($trx->created_at ? $trx->created_at->format('d/m/Y') : '-'),
                                         'waktu' => $trx->created_at ? $trx->created_at->format('H:i') : '',
                                         'jenis' => $trx->jenis,
+                                        'kategori' => $trx->kategori ?? '-',
                                         'nominal' => number_format($trx->nominal, 0, ',', '.'),
                                         'metode' => $metodeInfo['label'],
                                         'status' => $trx->payment_status,
@@ -308,6 +322,7 @@
                                         'rejecter_name' => $trx->rejecter?->name ?? null,
                                         'rejected_at' => $trx->rejected_at ? $trx->rejected_at->format('d/m/Y H:i') : null,
                                         'rejection_reason' => $trx->rejection_reason ?? null,
+                                        'checklist' => $trx->getChecklistArrayForJson(),
                                     ];
                                 @endphp
 
@@ -345,10 +360,51 @@
                                     </td>
 
                                     {{-- Jenis Transaksi --}}
+                                    <td class="px-4 py-3.5">
+                                        @php
+                                            $checklist = $trx->getComponentsChecklist();
+                                        @endphp
+                                        <div class="flex flex-wrap gap-1 max-w-[210px]">
+                                            @foreach($checklist as $comp)
+                                                @if($comp['is_checked'])
+                                                    @if($comp['status'] === 'verified')
+                                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-emerald-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Sudah Dibayar ({{ $comp['nominal_formatted'] }})">
+                                                            <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                                            <span>{{ $comp['short'] }}</span>
+                                                        </span>
+                                                    @elseif($comp['status'] === 'pending')
+                                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-amber-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Menunggu CS ({{ $comp['nominal_formatted'] }})">
+                                                            <svg class="w-2.5 h-2.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3"/></svg>
+                                                            <span>{{ $comp['short'] }}</span>
+                                                        </span>
+                                                    @else
+                                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-rose-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Ditolak">
+                                                            <svg class="w-2.5 h-2.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                            <span>{{ $comp['short'] }}</span>
+                                                        </span>
+                                                    @endif
+                                                @else
+                                                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-slate-50 text-slate-400 border border-slate-200/60 opacity-60" title="{{ $comp['label'] }}: Belum Ada / Belum Bayar">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"></span>
+                                                        <span>{{ $comp['short'] }}</span>
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                        <div class="mt-1 text-[10px] text-slate-400">
+                                            Item: <span class="font-bold text-slate-700">{{ $trx->jenis }}</span>
+                                        </div>
+                                    </td>
+
+                                    {{-- Kategori Transaksi --}}
                                     <td class="px-4 py-3.5 whitespace-nowrap">
-                                        <span class="px-2 py-0.5 rounded-md font-semibold text-[11px] {{ $trx->jenis === 'Pembayaran Termin 1' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200' }}">
-                                            {{ $trx->jenis }}
-                                        </span>
+                                        @if($trx->kategori)
+                                            <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                {{ $trx->kategori }}
+                                            </span>
+                                        @else
+                                            <span class="text-slate-400 text-[10px]">-</span>
+                                        @endif
                                     </td>
 
                                     {{-- Nominal --}}
@@ -494,12 +550,52 @@
                                 </div>
                             </div>
 
-                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-2">
-                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detail Pembayaran</div>
-                                <div class="grid grid-cols-2 gap-2 pt-1">
+                            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detail Pembayaran & Komponen</div>
+                                    <span class="text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md font-bold border border-purple-100" x-text="'Item Transaksi Ini: ' + selectedTrx.jenis"></span>
+                                </div>
+
+                                {{-- Checklist 5 Komponen Transaksi --}}
+                                <div>
+                                    <div class="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                                        <span>Status Komponen Tagihan Calon Mahasiswa:</span>
+                                        <span class="text-[10px] text-slate-400 font-normal">Dicentang vs Belum Bayar</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <template x-for="item in (selectedTrx.checklist || [])" :key="item.key">
+                                            <div class="p-2.5 rounded-xl border flex items-center justify-between transition"
+                                                 :class="item.is_checked ? (item.status === 'verified' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : (item.status === 'pending' ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-rose-50/70 border-rose-200 text-rose-900')) : 'bg-white border-slate-200/70 text-slate-400 opacity-70'">
+                                                <div class="flex items-center gap-2">
+                                                    <template x-if="item.is_checked && item.status === 'verified'">
+                                                        <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                                                    </template>
+                                                    <template x-if="item.is_checked && item.status === 'pending'">
+                                                        <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">⏳</span>
+                                                    </template>
+                                                    <template x-if="item.is_checked && item.status === 'rejected'">
+                                                        <span class="w-5 h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs shrink-0">✗</span>
+                                                    </template>
+                                                    <template x-if="!item.is_checked">
+                                                        <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs shrink-0">○</span>
+                                                    </template>
+                                                    <div>
+                                                        <div class="text-xs font-bold leading-tight" x-text="item.label" :class="item.is_current ? 'text-blue-700 underline decoration-blue-400 underline-offset-2' : ''"></div>
+                                                        <div class="text-[10px] font-medium" :class="item.is_checked ? 'opacity-85' : 'text-slate-400'" x-text="item.is_checked ? (item.status_label + (item.is_current ? ' (Transaksi Ini)' : '')) : 'Belum Bayar / Belum Dicentang'"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="text-xs font-extrabold" x-text="item.nominal_formatted"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
                                     <div>
-                                        <span class="text-slate-400 block text-[10px]">Jenis Transaksi:</span>
-                                        <span class="font-semibold text-purple-700" x-text="selectedTrx.jenis"></span>
+                                        <span class="text-slate-400 block text-[10px]">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="selectedTrx.kategori"></span>
                                     </div>
                                     <div>
                                         <span class="text-slate-400 block text-[10px]">Metode Pembayaran:</span>

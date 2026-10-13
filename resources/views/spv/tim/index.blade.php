@@ -420,8 +420,9 @@
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $member['role'] === 'Sales' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200' }}">
                                         {{ $member['role'] }}
                                     </span>
-                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                        🆔 {{ $member['kode'] ?? '-' }}
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                        <svg class="w-2.5 h-2.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+                                        <span>{{ $member['kode'] ?? '-' }}</span>
                                     </span>
                                 </div>
                             </div>
@@ -540,7 +541,7 @@
                             class="py-1.5 px-2 rounded-lg text-center transition cursor-pointer"
                             :class="useOtherCity ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
                         >
-                            Di Kota Lainnya ✨
+                            Di Kota Lainnya
                         </button>
                     </div>
 
@@ -631,7 +632,10 @@
                             </div>
                         </div>
                         @if(count($kecamatanList) == 0)
-                            <p class="text-[11px] text-amber-600 font-semibold mt-1">⚠️ Belum ada kecamatan di bawah wilayah SPV ini. Silakan gunakan opsi 'Di Kota Lainnya' atau koordinasikan dengan HM.</p>
+                            <p class="text-[11px] text-amber-600 font-semibold mt-1 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <span>Belum ada kecamatan di bawah wilayah SPV ini. Silakan gunakan opsi 'Di Kota Lainnya' atau koordinasikan dengan HM.</span>
+                            </p>
                         @endif
                     </div>
 

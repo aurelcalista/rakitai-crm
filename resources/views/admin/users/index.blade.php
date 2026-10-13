@@ -128,18 +128,19 @@
                                 <td class="py-3.5 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-3.5 px-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 overflow-hidden">
+                                        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0 overflow-hidden shadow-xs">
                                             <template x-if="user.avatar_url">
-                                                <img :src="user.avatar_url" :alt="user.name" class="w-full h-full object-cover">
+                                                <img :src="user.avatar_url" :alt="user.name" class="w-full h-full object-cover" x-on:error="$el.style.display = 'none'; $el.nextElementSibling.style.display = 'flex'">
                                             </template>
-                                            <template x-if="!user.avatar_url">
-                                                <span x-text="user.avatar"></span>
-                                            </template>
+                                            <div :style="user.avatar_url ? 'display: none' : ''" class="w-full h-full flex items-center justify-center font-bold text-xs" x-text="user.initials || user.avatar || 'U'"></div>
                                         </div>
                                         <div>
                                             <div class="flex items-center gap-1.5">
                                                 <span class="font-bold text-slate-900" x-text="user.name"></span>
-                                                <span class="px-1.5 py-0.2 rounded font-mono text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200" x-show="user.kode" x-text="'🆔 ' + user.kode"></span>
+                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200" x-show="user.kode">
+                                                    <svg class="w-2.5 h-2.5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+                                                    <span x-text="user.kode"></span>
+                                                </span>
                                             </div>
                                             <div class="text-[11px] text-slate-400" x-text="user.email"></div>
                                         </div>
@@ -524,11 +525,9 @@
                             <div class="flex items-center gap-4">
                                 <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-blue-600 text-white font-bold flex items-center justify-center text-xl overflow-hidden shadow-xs">
                                     <template x-if="selectedUser.avatar_url">
-                                        <img :src="selectedUser.avatar_url" :alt="selectedUser.name" class="w-full h-full object-cover">
+                                        <img :src="selectedUser.avatar_url" :alt="selectedUser.name" class="w-full h-full object-cover" x-on:error="$el.style.display = 'none'; $el.nextElementSibling.style.display = 'flex'">
                                     </template>
-                                    <template x-if="!selectedUser.avatar_url">
-                                        <span x-text="selectedUser.avatar"></span>
-                                    </template>
+                                    <div :style="selectedUser.avatar_url ? 'display: none' : ''" class="w-full h-full flex items-center justify-center font-bold text-xl" x-text="selectedUser.initials || selectedUser.avatar || 'U'"></div>
                                 </div>
                                 <div>
                                     <div class="text-lg font-extrabold text-slate-900" x-text="selectedUser.name"></div>

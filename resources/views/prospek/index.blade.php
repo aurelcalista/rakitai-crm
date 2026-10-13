@@ -109,6 +109,109 @@
             @endif
         </div>
 
+        {{-- CS Prospect Activity Metrics & Period Filter (Requirement P) --}}
+        @if(isset($csMetrics) && in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <span>Aktivitas & Metrik Prospek CS</span>
+                        @if(!empty($csMetrics['start_date']) || !empty($csMetrics['end_date']))
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                                Periode: {{ $csMetrics['start_date'] ?? 'Awal' }} s/d {{ $csMetrics['end_date'] ?? 'Kini' }}
+                            </span>
+                        @endif
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Pantau produktivitas penanganan dan interaksi prospek berdasarkan rentang periode.</p>
+                </div>
+                {{-- Date Filter Form --}}
+                <form method="GET" action="{{ route('prospek.index') }}" class="flex flex-wrap items-center gap-2 text-xs">
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500">Dari:</label>
+                        <input type="date" name="start_date" value="{{ $csMetrics['start_date'] ?? '' }}"
+                               class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500">Sampai:</label>
+                        <input type="date" name="end_date" value="{{ $csMetrics['end_date'] ?? '' }}"
+                               class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    </div>
+                    <button type="submit" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold transition cursor-pointer text-xs">
+                        Filter
+                    </button>
+                    @if(!empty($csMetrics['start_date']) || !empty($csMetrics['end_date']))
+                        <a href="{{ route('prospek.index') }}" class="px-2.5 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 font-semibold transition text-xs">
+                            Reset
+                        </a>
+                    @endif
+                </form>
+            </div>
+
+            {{-- 4 Metric Cards --}}
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {{-- 1. Diinput --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Prospek Diinput</span>
+                        <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-900">{{ $csMetrics['diinput'] }}</span>
+                        <span class="text-[11px] text-slate-500">prospek</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Dibuat dalam periode</p>
+                </div>
+
+                {{-- 2. Dihubungi --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Prospek Dihubungi</span>
+                        <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-900">{{ $csMetrics['dihubungi'] }}</span>
+                        <span class="text-[11px] text-slate-500">prospek unik</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Histori kontak tercatat</p>
+                </div>
+
+                {{-- 3. Di-Follow-up --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Di-Follow-up</span>
+                        <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-900">{{ $csMetrics['follow_up'] }}</span>
+                        <span class="text-[11px] text-slate-500">prospek unik</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Tercatat follow-up</p>
+                </div>
+
+                {{-- 4. Hot Prospect --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Hot Prospect</span>
+                        <span class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-rose-900">{{ $csMetrics['hot_prospect'] }}</span>
+                        <span class="text-[11px] text-rose-700">prospek</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Status/transisi HOT</p>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Search & Filter Controls -->
         <div class="crm-card bg-white p-4 sm:p-5 space-y-4">
             
@@ -305,6 +408,7 @@
                             <th class="py-3.5 px-3 w-10 text-center">No</th>
                             <th class="py-3.5 px-4">Nama Prospek</th>
                             <th class="py-3.5 px-3">Tipe</th>
+                            <th class="py-3.5 px-3">Kelas Kuliah</th>
                             <th class="py-3.5 px-3">WhatsApp</th>
                             <th class="py-3.5 px-3">Status Pipeline</th>
                             <th class="py-3.5 px-3">Takeover Aktif</th>
@@ -326,6 +430,11 @@
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
                                     <div class="text-[10px] text-teal-600 font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></div>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border"
+                                          :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                          x-text="prospect.kelas || 'Reguler'"></span>
                                 </td>
                                 <td class="py-4 px-3">
                                     <a :href="'https://wa.me/' + prospect.whatsapp.replace(/[^0-9]/g, '')" target="_blank" class="text-[11px] text-emerald-600 hover:text-emerald-700 flex items-center gap-1 font-medium">
@@ -388,6 +497,9 @@
                                     <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
                                     <span class="text-[10px] text-teal-600 block font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></span>
+                                    <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border inline-block mt-1"
+                                          :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                          x-text="'Kelas ' + (prospect.kelas || 'Reguler')"></span>
                                 </div>
                             </div>
                             <span 

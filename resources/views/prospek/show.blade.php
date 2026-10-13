@@ -20,8 +20,30 @@
         modalEditProspek: false,
         modalTransaksi: false,
         transaksiStep: 1,
-        selectedJenis: 'Pembayaran Termin 1',
-        nominalVal: 1500000,
+        kategoriVal: 'DP Daftar',
+        trxItems: {
+            'Pendaftaran': { checked: true, nominal: 250000 },
+            'Perlengkapan': { checked: false, nominal: 350000 },
+            'Gedung': { checked: false, nominal: 0 },
+            'DP/Konversi': { checked: false, nominal: 500000 },
+            'UKT': { checked: false, nominal: 1500000 }
+        },
+        get totalNominal() {
+            let sum = 0;
+            for (const key in this.trxItems) {
+                if (this.trxItems[key].checked) {
+                    sum += Number(this.trxItems[key].nominal || 0);
+                }
+            }
+            return sum;
+        },
+        get checkedJenisCount() {
+            let count = 0;
+            for (const key in this.trxItems) {
+                if (this.trxItems[key].checked) count++;
+            }
+            return count;
+        },
         tanggalVal: '{{ date('Y-m-d') }}',
         metodePembayaran: 'bank_transfer',
         selectedBankId: '{{ \App\Models\BankAccount::where('is_active', true)->value('id') ?? '' }}',
@@ -60,9 +82,12 @@
             if (!num) return '0';
             return new Intl.NumberFormat('id-ID').format(num);
         },
-        openModalTransaksi(jenis = 'Pembayaran Termin 1', nominal = 1500000) {
-            this.selectedJenis = jenis;
-            this.nominalVal = nominal;
+        openModalTransaksi(kategori = 'DP Daftar', precheck = 'Pendaftaran') {
+            this.kategoriVal = kategori;
+            for (const key in this.trxItems) {
+                this.trxItems[key].checked = (key === precheck);
+                if (key === 'Gedung') this.trxItems[key].nominal = 0;
+            }
             this.transaksiStep = 1;
             this.modalTransaksi = true;
         },
@@ -343,6 +368,23 @@
                         @endif
 
                         <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pilihan Kelas Kuliah</span>
+                            <div class="mt-1">
+                                @if(($prospekModel->kelas ?? $prospect['kelas'] ?? 'Reguler') === 'Karyawan')
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1.5">
+                                        <span>Karyawan</span>
+                                        <span class="font-normal text-[10px] text-purple-500">(Kelas Sore / Malam)</span>
+                                    </span>
+                                @else
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1.5">
+                                        <span>Reguler</span>
+                                        <span class="font-normal text-[10px] text-blue-500">(Kelas Pagi / Siang)</span>
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>
                             <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] ?? '-' }}</p>
                         </div>
@@ -365,7 +407,7 @@
                         @can('transaction', $prospekModel ?? null)
                         <button 
                             type="button" 
-                            @click="openModalTransaksi('Pembayaran Termin 1', 1500000)"
+                            @click="openModalTransaksi('DP Daftar', 'Pendaftaran')"
                             class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
                         >
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -436,11 +478,11 @@
                     @if(($transaksis ?? collect())->isEmpty())
                         <div class="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                             <p class="text-xs font-bold text-slate-700">Belum ada transaksi pembayaran</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Catat pembayaran Beli Formulir atau Termin 1 untuk memproses pipeline closing.</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Catat pembayaran formulir, perlengkapan, atau termin untuk memproses pipeline closing.</p>
                             @can('transaction', $prospekModel ?? null)
                             <button 
                                 type="button" 
-                                @click="openModalTransaksi('Beli Formulir', 250000)"
+                                @click="openModalTransaksi('DP Daftar', 'Pendaftaran')"
                                 class="mt-3 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                                 <span>Input Transaksi Sekarang</span>
@@ -454,6 +496,7 @@
                                     <tr>
                                         <th class="px-3.5 py-2.5 text-left">Tanggal</th>
                                         <th class="px-3.5 py-2.5 text-left">Jenis Transaksi</th>
+                                        <th class="px-3.5 py-2.5 text-left">Kategori</th>
                                         <th class="px-3.5 py-2.5 text-right">Nominal</th>
                                         <th class="px-3.5 py-2.5 text-left">Metode Bayar</th>
                                         <th class="px-3.5 py-2.5 text-center">Status</th>
@@ -468,6 +511,15 @@
                                             </td>
                                             <td class="px-3.5 py-3 font-bold text-slate-800 whitespace-nowrap">
                                                 {{ $trx->jenis }}
+                                            </td>
+                                            <td class="px-3.5 py-3 whitespace-nowrap">
+                                                @if($trx->kategori)
+                                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                        {{ $trx->kategori }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-slate-400 text-[11px]">-</span>
+                                                @endif
                                             </td>
                                             <td class="px-3.5 py-3 text-right font-extrabold text-slate-900 whitespace-nowrap">
                                                 Rp {{ number_format($trx->nominal, 0, ',', '.') }}
@@ -684,7 +736,7 @@
                         <div class="relative flex items-start gap-4">
                             <!-- Timeline Dot / Avatar -->
                             <div class="w-6 h-6 rounded-full bg-white border-2 {{ str_contains($item['title'], 'Re-alokasi') ? 'border-purple-600 text-purple-600' : 'border-blue-600 text-blue-600' }} font-bold flex items-center justify-center text-[10px] shrink-0 z-10">
-                                @if(str_contains($item['title'], 'Re-alokasi')) ⇄ @elseif($item['role'] === 'Sales') S @elseif($item['role'] === 'CS') C @else ✓ @endif
+                                @if(str_contains($item['title'], 'Re-alokasi')) <svg class="w-3 h-3 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg> @elseif($item['role'] === 'Sales') S @elseif($item['role'] === 'CS') C @else <svg class="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> @endif
                             </div>
 
                             <div class="flex-1 {{ str_contains($item['title'], 'Re-alokasi') ? 'bg-purple-50/60 border-purple-200' : 'bg-slate-50/70 border-slate-200/80' }} p-4 rounded-xl border space-y-1">
@@ -882,26 +934,83 @@
                                     />
                                 </div>
 
-                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-1.5">
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
+                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-3 p-3.5 bg-slate-50/80 rounded-2xl border border-blue-200/60" x-data="{
+                                    manualWilayahId: '',
+                                    wilayahData: {{ json_encode($wilayahKabupatenList ?? []) }},
+                                    get kecamatanList() {
+                                        if (!this.manualWilayahId) return [];
+                                        const w = this.wilayahData.find(item => item.id == this.manualWilayahId);
+                                        return w ? (w.children || []) : [];
+                                    }
+                                }">
+                                    <!-- 1. Nama Sekolah -->
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_manual" 
+                                                value="{{ old('sekolah_manual', empty($prospect['sekolah_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
+                                                placeholder="Contoh: SMAN 1 Cirebon" 
+                                                class="w-full text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                                            >
                                         </div>
-                                        <input 
-                                            type="text" 
-                                            name="sekolah_manual" 
-                                            value="{{ old('sekolah_manual', empty($prospect['sekolah_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
-                                            placeholder="Ketik nama sekolah (misal: SMAN 1 Cirebon)..." 
-                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
-                                        >
                                     </div>
+
+                                    <!-- 2. Kategori Sekolah & Wilayah/Kota -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kategori Sekolah</label>
+                                            <select name="sekolah_kategori_id" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Kategori --</option>
+                                                @foreach($kategoriSekolahList ?? [] as $kat)
+                                                    <option value="{{ $kat->id }}">{{ $kat->nama }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Wilayah / Kota</label>
+                                            <select name="sekolah_wilayah_id" x-model="manualWilayahId" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Wilayah / Kota --</option>
+                                                <template x-for="w in wilayahData" :key="w.id">
+                                                    <option :value="w.id" x-text="w.nama"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- 3. Kecamatan & Telepon Sekolah -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kecamatan</label>
+                                            <select name="sekolah_kecamatan" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Kecamatan --</option>
+                                                <template x-for="c in kecamatanList" :key="c.id">
+                                                    <option :value="c.nama" x-text="c.nama"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Telepon Sekolah</label>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_telepon" 
+                                                placeholder="Contoh: (0231) 201234" 
+                                                class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                                            >
+                                        </div>
+                                    </div>
+
                                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
                                         <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <span>Sekolah baru akan otomatis tersimpan ke master data.</span>
+                                        <span>Sekolah baru akan otomatis tersimpan ke Data Master Admin dan dapat dikelola langsung.</span>
                                     </div>
                                 </div>
                             </div>
@@ -975,6 +1084,27 @@
                                 </div>
                             </div>
 
+
+                            <!-- Pilihan Kelas Kuliah (SPV Standard) -->
+                            <div class="space-y-1.5 bg-slate-50/70 p-3 rounded-xl border border-slate-200">
+                                <label class="block text-xs font-semibold text-slate-700">Pilihan Kelas Kuliah <span class="text-rose-500">*</span></label>
+                                <div class="grid grid-cols-2 gap-3 mt-1">
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition">
+                                        <input type="radio" name="kelas" value="Reguler" {{ ($prospect['kelas'] ?? 'Reguler') === 'Reguler' ? 'checked' : '' }} class="text-blue-600 focus:ring-blue-500">
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">Reguler</div>
+                                            <div class="text-[10px] text-slate-500">Pagi / Siang</div>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition">
+                                        <input type="radio" name="kelas" value="Karyawan" {{ ($prospect['kelas'] ?? '') === 'Karyawan' ? 'checked' : '' }} class="text-blue-600 focus:ring-blue-500">
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">Karyawan</div>
+                                            <div class="text-[10px] text-slate-500">Sore / Malam</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
 
                             <div x-data="{ selectedProdi: '{{ $prospect['prodi_id'] ?? (empty($prospect['prodi_id']) && !empty($prospect['prodi_lainnya']) ? 'lainnya' : '') }}' }">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
@@ -1101,7 +1231,7 @@
                         </div>
                     </button>
 
-                    <button type="button" @click="if(nominalVal > 0) transaksiStep = 2" class="flex items-center gap-2 p-2 rounded-xl text-left transition" :class="transaksiStep === 2 ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 opacity-70'">
+                    <button type="button" @click="if(checkedJenisCount > 0) transaksiStep = 2" class="flex items-center gap-2 p-2 rounded-xl text-left transition" :class="transaksiStep === 2 ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 opacity-70'">
                         <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="transaksiStep === 2 ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'">2</span>
                         <div>
                             <div class="text-[11px] font-bold" :class="transaksiStep === 2 ? 'text-emerald-900' : 'text-slate-600'">Nomor Bayar & Kirim</div>
@@ -1118,39 +1248,147 @@
                     {{-- ─────────────────────────────────────────────────── --}}
                     <div x-show="transaksiStep === 1" class="space-y-4">
 
-                        {{-- Quick Presets --}}
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" @click="selectedJenis = 'Beli Formulir'; nominalVal = 250000" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer" :class="selectedJenis === 'Beli Formulir' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                                Formulir (Rp 250.000)
-                            </button>
-                            <button type="button" @click="selectedJenis = 'Pembayaran Termin 1'; nominalVal = 1500000" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer" :class="selectedJenis === 'Pembayaran Termin 1' && nominalVal == 1500000 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                                Termin 1 (Rp 1.500.000)
-                            </button>
-                            <button type="button" @click="selectedJenis = 'Pembayaran Termin 1'; nominalVal = 3000000" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer" :class="selectedJenis === 'Pembayaran Termin 1' && nominalVal == 3000000 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                                Termin 1 (Rp 3.000.000)
-                            </button>
-                        </div>
-
-                        {{-- Jenis Transaksi --}}
+                        {{-- Kategori Transaksi (Requirement J: Tepat 4 Pilihan Dropdown) --}}
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Transaksi <span class="text-rose-500">*</span></label>
-                            <select name="jenis" x-model="selectedJenis" required
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                Kategori Transaksi <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="kategori" x-model="kategoriVal" required
                                 class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white font-medium">
-                                <option value="Beli Formulir">Beli Formulir</option>
-                                <option value="Pembayaran Termin 1">Pembayaran Termin 1 (Syarat Closing)</option>
+                                <option value="DP Daftar">DP Daftar</option>
+                                <option value="DP Perlengkapan">DP Perlengkapan</option>
+                                <option value="Lunas">Lunas</option>
+                                <option value="Keluar">Keluar</option>
                             </select>
+                            <div class="text-[10px] text-slate-400 mt-1">Pilih kategori transaksi yang relevan.</div>
                         </div>
 
-                        {{-- Nominal --}}
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nominal Transaksi (Rp) <span class="text-rose-500">*</span></label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-xs font-bold">Rp</span>
-                                <input type="number" name="nominal" x-model="nominalVal" required min="0" max="9999999999" step="1000" placeholder="1500000"
-                                    class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition font-bold text-slate-900 text-base">
+                        {{-- Multi-Pilihan Checkbox Jenis Transaksi (Requirement I: 5 Pilihan) --}}
+                        <div class="space-y-2">
+                            <label class="block text-xs font-semibold text-slate-700">
+                                Pilihan Jenis Transaksi <span class="text-rose-500">*</span>
+                                <span class="text-[11px] font-normal text-slate-500">(Bisa pilih lebih dari satu)</span>
+                            </label>
+                            
+                            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                <!-- 1. Pendaftaran -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Pendaftaran'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <input type="checkbox" name="jenis_items[]" value="Pendaftaran" x-model="trxItems['Pendaftaran'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800">Pendaftaran</div>
+                                                <div class="text-[10px] text-slate-500">Biaya pendaftaran / formulir</div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['Pendaftaran'].checked">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[Pendaftaran]" x-model="trxItems['Pendaftaran'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 2. Perlengkapan -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Perlengkapan'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <input type="checkbox" name="jenis_items[]" value="Perlengkapan" x-model="trxItems['Perlengkapan'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800">Perlengkapan</div>
+                                                <div class="text-[10px] text-slate-500">Biaya jas almamater / atribut</div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['Perlengkapan'].checked">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[Perlengkapan]" x-model="trxItems['Perlengkapan'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 3. Gedung (Default FREE / Rp 0) -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Gedung'].checked ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <input type="checkbox" name="jenis_items[]" value="Gedung" x-model="trxItems['Gedung'].checked" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>Gedung</span>
+                                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700">DEFAULT FREE</span>
+                                                </div>
+                                                <div class="text-[10px] text-slate-500">Default FREE (Rp 0, bukan tunggakan)</div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['Gedung'].checked">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[Gedung]" x-model="trxItems['Gedung'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 4. DP/Konversi -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['DP/Konversi'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <input type="checkbox" name="jenis_items[]" value="DP/Konversi" x-model="trxItems['DP/Konversi'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800">DP/Konversi</div>
+                                                <div class="text-[10px] text-slate-500">Down Payment / Mahasiswa Konversi</div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['DP/Konversi'].checked">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[DP/Konversi]" x-model="trxItems['DP/Konversi'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 5. UKT -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['UKT'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <input type="checkbox" name="jenis_items[]" value="UKT" x-model="trxItems['UKT'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800">UKT</div>
+                                                <div class="text-[10px] text-slate-500">Uang Kuliah Tunggal semester berjalan</div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['UKT'].checked">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[UKT]" x-model="trxItems['UKT'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-[11px] text-slate-500 mt-1 font-medium" x-show="nominalVal > 0">
-                                Terbilang: <span class="text-blue-700 font-bold" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+
+                            <!-- Hidden backward compatibility input for single nominal -->
+                            <input type="hidden" name="nominal" :value="totalNominal">
+                        </div>
+
+                        {{-- Total Pembayaran Ringkasan --}}
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                            <div class="text-xs font-bold text-slate-700">Total Nominal Pembayaran:</div>
+                            <div class="text-sm font-black text-emerald-700">
+                                Rp <span x-text="formatRupiah(totalNominal)"></span>
                             </div>
                         </div>
 
@@ -1207,7 +1445,7 @@
                                 class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">
                                 Batal
                             </button>
-                            <button type="button" @click="if(!nominalVal || nominalVal <= 0) { alert('Harap isi nominal transaksi.'); return; } transaksiStep = 2"
+                            <button type="button" @click="if(checkedJenisCount === 0) { alert('Harap pilih minimal satu jenis transaksi.'); return; } transaksiStep = 2"
                                 class="px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
                                 <span>Lihat Nomor Pembayaran & Lanjut</span>
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -1248,8 +1486,13 @@
                                     </div>
 
                                     <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-500 font-medium">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="kategoriVal"></span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-xs">
                                         <span class="text-slate-500 font-medium">Total Transfer:</span>
-                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(totalNominal)"></span>
                                     </div>
                                 </div>
 
@@ -1284,8 +1527,13 @@
                                     </div>
 
                                     <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-500 font-medium">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="kategoriVal"></span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-xs">
                                         <span class="text-slate-500 font-medium">Total Bayar:</span>
-                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(totalNominal)"></span>
                                     </div>
                                 </div>
                                 <p class="text-[10px] text-blue-800">Kode bayar VA dapat langsung dibayarkan melalui ATM / M-Banking calon mahasiswa.</p>
@@ -1317,8 +1565,13 @@
                                     </div>
 
                                     <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-500 font-medium">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="kategoriVal"></span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-xs">
                                         <span class="text-slate-500 font-medium">Total Nominal:</span>
-                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(totalNominal)"></span>
                                     </div>
                                 </div>
                             </div>
@@ -1331,7 +1584,8 @@
                                     <span>Pembayaran Kasir Kampus UCIC</span>
                                 </div>
                                 <p class="text-xs text-slate-700">Pembayaran tunai langsung di Kasir Keuangan PMB Kampus UCIC (Jl. Kesambi No. 202, Cirebon).</p>
-                                <div class="text-xs font-bold text-emerald-800">Total: <span x-text="'Rp ' + formatRupiah(nominalVal)"></span></div>
+                                <div class="text-xs font-bold text-slate-800">Kategori: <span class="text-indigo-700 font-extrabold" x-text="kategoriVal"></span></div>
+                                <div class="text-xs font-bold text-emerald-800">Total: <span x-text="'Rp ' + formatRupiah(totalNominal)"></span></div>
                             </div>
                         </template>
 
@@ -1344,12 +1598,24 @@
                                 class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition resize-none"></textarea>
                         </div>
 
-                        {{-- Alert CS Verification Flow --}}
-                        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                            <div class="text-[11px] leading-relaxed">
-                                Transaksi ini akan berstatus <strong>PENDING</strong> dan otomatis masuk ke antrean notifikasi <strong>CS</strong> untuk dicek dan disetujui. Target Closing akan masuk ke akun Anda setelah pembayaran diverifikasi oleh CS.
+                        {{-- Alert Verification Flow --}}
+                        @php
+                            $userRole = strtolower(auth()->user()->role ?? '');
+                            $isCsOrBackoffice = in_array($userRole, ['cs', 'admin', 'hm']);
+                        @endphp
+                        @if($isCsOrBackoffice)
+                            <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
+                                <div class="text-[11px] leading-relaxed">
+                                    Transaksi ini diinput oleh <strong>{{ auth()->user()->role }}</strong> dan akan <strong>LANGSUNG TERVERIFIKASI SAH</strong> serta langsung tercatat ke riwayat pembayaran.
+                                </div>
                             </div>
-                        </div>
+                        @else
+                            <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                                <div class="text-[11px] leading-relaxed">
+                                    Transaksi ini akan berstatus <strong>PENDING</strong> dan otomatis masuk ke antrean notifikasi <strong>CS</strong> untuk dicek dan disetujui. Target Closing akan masuk ke akun Anda setelah pembayaran diverifikasi oleh CS.
+                                </div>
+                            </div>
+                        @endif
 
                         {{-- Tombol Step 2 --}}
                         <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
@@ -1361,7 +1627,7 @@
                             <button type="submit"
                                 class="px-5 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                <span>Simpan & Kirim ke CS</span>
+                                <span>{{ $isCsOrBackoffice ? 'Simpan Transaksi (Verifikasi Langsung)' : 'Simpan & Kirim ke CS' }}</span>
                             </button>
                         </div>
 

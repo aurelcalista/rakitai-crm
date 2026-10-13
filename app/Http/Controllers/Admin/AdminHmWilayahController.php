@@ -121,9 +121,7 @@ class AdminHmWilayahController extends Controller
             }
         }
 
-        if (empty($hm->wilayah_id)) {
-            $hm->update(['wilayah_id' => $wilayah->id]);
-        }
+        $hm->update(['wilayah_id' => $wilayah->id]);
 
         // Attach or update pivot for this new HM
         if (!$hm->activeWilayahes()->where('wilayah_id', $wilayah->id)->exists()) {

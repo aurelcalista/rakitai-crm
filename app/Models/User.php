@@ -36,6 +36,8 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $appends = ['avatar_url', 'initials'];
+
     public function getJabatanAttribute($value): string
     {
         return $value ?: ($this->role ?? 'Staff');
@@ -109,11 +111,28 @@ class User extends Authenticatable
     }
 
     /**
-     * Get avatar public URL if set.
+     * Get avatar public URL if set and valid.
      */
     public function getAvatarUrlAttribute(): ?string
     {
-        return $this->avatar ? asset('storage/' . $this->avatar) : null;
+        if (empty($this->avatar)) {
+            return null;
+        }
+
+        // If avatar string is just initials or invalid short string
+        if (strlen($this->avatar) <= 4 && !str_contains($this->avatar, '.')) {
+            return null;
+        }
+
+        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://')) {
+            return $this->avatar;
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($this->avatar)) {
+            return asset('storage/' . $this->avatar);
+        }
+
+        return null;
     }
 
     /**
@@ -122,7 +141,13 @@ class User extends Authenticatable
     public function getInitialsAttribute(): string
     {
         $words = array_values(array_filter(explode(' ', trim($this->name))));
-        return strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+        if (empty($words)) {
+            return 'U';
+        }
+        if (count($words) === 1) {
+            return strtoupper(substr($words[0], 0, 2));
+        }
+        return strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
     }
 
     /**

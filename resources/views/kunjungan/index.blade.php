@@ -41,14 +41,14 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kunjungan Sekolah & Corporate</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Dokumentasi hasil kunjungan lapangan, presentasi edu-fair, dan audiensi kemitraan.</p>
             </div>
-            @if(auth()->user()->role === 'Sales')
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 {{--
                     ALUR 2: Kunjungan Mandiri (tidak terikat Event).
-                    event_id akan NULL — Sales pilih instansi sendiri.
+                    event_id akan NULL — Sales/CS pilih instansi sendiri.
                 --}}
                 <a
-                    href="{{ route('sales.kunjungan.create') }}"
+                    href="{{ auth()->user()->role === 'Sales' && Route::has('sales.kunjungan.create') ? route('sales.kunjungan.create') : route('kunjungan.create') }}"
                     id="btn-tambah-kunjungan"
                     class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
                 >
@@ -363,7 +363,7 @@
                                             </div>
                                             <div>
                                                 <span class="text-slate-500">Workshop AI:</span>
-                                                <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? '✓ Bersedia' : 'Belum Bersedia'"></p>
+                                                <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? 'Bersedia' : 'Belum Bersedia'"></p>
                                             </div>
                                             <template x-if="selectedVisit.detail_potensi_mahasiswa && selectedVisit.detail_potensi_mahasiswa !== '-'">
                                                 <div class="col-span-2">

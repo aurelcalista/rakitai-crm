@@ -405,7 +405,11 @@ class VisitController extends Controller
             ]);
         }
 
-        return redirect()->route('sales.kunjungan.index')
+        $redirectRoute = auth()->user()->role === 'Sales' && \Illuminate\Support\Facades\Route::has('sales.kunjungan.index')
+            ? 'sales.kunjungan.index'
+            : 'kunjungan.index';
+
+        return redirect()->route($redirectRoute)
             ->with('success', 'Kunjungan berhasil disimpan!');
     }
 

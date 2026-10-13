@@ -205,13 +205,26 @@ class ProspectController extends Controller
             if (!empty($request->sekolah_manual)) {
                 $manualName = trim($request->sekolah_manual);
                 if ($manualName !== '') {
-                    $sekolah = Sekolah::firstOrCreate(
-                        ['nama' => $manualName],
-                        [
-                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
-                            'status' => 'Aktif'
-                        ]
-                    );
+                    $sekolah = Sekolah::where('nama', $manualName)->first();
+                    if (!$sekolah) {
+                        $kecVal = $request->input('sekolah_kecamatan');
+                        $kecName = $kecVal;
+                        if (is_numeric($kecVal)) {
+                            $wKec = Wilayah::find($kecVal);
+                            $kecName = $wKec?->nama;
+                        }
+
+                        $sekolah = Sekolah::create([
+                            'kode'        => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'nama'        => $manualName,
+                            'kategori_id' => $request->input('sekolah_kategori_id') ?: null,
+                            'wilayah_id'  => $request->input('sekolah_wilayah_id') ?: null,
+                            'kecamatan'   => $kecName ?: '-',
+                            'telepon'     => $request->input('sekolah_telepon') ?: null,
+                            'status'      => 'Aktif',
+                            'sales_id'    => $salesId ?? null,
+                        ]);
+                    }
                     $validated['sekolah_id'] = $sekolah->id;
                     $name = $sekolah->nama;
                 }

@@ -1214,7 +1214,7 @@ class CrmController extends Controller
     private function getDbProspects(?Request $request = null)
     {
         $user = auth()->user();
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp.user', 'timelines' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp.user', 'followUps', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])->withCount('followUps');
 
@@ -1245,8 +1245,11 @@ class CrmController extends Controller
                 });
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
-                    $q->where('cs_id', $user->id)
+                    $q->whereNotNull('cs_id')
                       ->orWhere('owner_id', $user->id)
+                      ->orWhereHas('owner', function ($oq) {
+                          $oq->whereIn('role', ['CS', 'cs']);
+                      })
                       ->orWhere(function ($sub) use ($user) {
                           $sub->whereNull('cs_id')
                               ->where(function ($st) {
@@ -1298,6 +1301,13 @@ class CrmController extends Controller
                     }
                 }
             }
+        }
+
+        if ($request && $request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request && $request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
         }
 
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
@@ -1359,6 +1369,7 @@ class CrmController extends Controller
                 'id' => $p->id,
                 'name' => $p->name,
                 'type' => $p->type,
+                'kelas' => $p->kelas ?: 'Reguler',
                 'sekolah_name' => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
                 'sales_id' => $p->sales_id,
                 'owner_id' => $p->owner_id,
@@ -1403,6 +1414,11 @@ class CrmController extends Controller
                 'is_other' => (bool) ($authId && ($authRole === 'cs' ? (!($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) && !is_null($p->cs_id) && $p->cs_id != $authId) : (!($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id))))),
                 'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
                 'has_follow_up_history' => $hasFollowUpHistory,
+                'follow_ups_history' => $p->relationLoaded('followUps') ? $p->followUps->map(fn($f) => [
+                    'tanggal' => $f->tanggal ? \Carbon\Carbon::parse($f->tanggal)->toDateString() : null,
+                    'metode'  => $f->metode,
+                    'user_id' => $f->user_id,
+                ])->toArray() : [],
                 'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $p)),
                 'timeline' => $p->timelines->map(function ($t) {
                     return [
@@ -1448,7 +1464,80 @@ class CrmController extends Controller
             }
         }
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList'));
+        $csMetrics = null;
+        if ($user && in_array(strtolower($user->role), ['cs', 'admin'])) {
+            $startDateCarbon = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+            $endDateCarbon   = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+
+            $csBaseQuery = \App\Models\Prospek::query();
+            if (strtolower($user->role) === 'cs' && $user->wilayah_id) {
+                $csBaseQuery->where(function ($w) use ($user) {
+                    $w->where('wilayah_id', $user->wilayah_id)
+                      ->orWhereNull('wilayah_id');
+                });
+            }
+
+            // 1. Jumlah prospek yang diinput (berdasarkan waktu pembuatan)
+            $inputQuery = (clone $csBaseQuery);
+            if ($startDateCarbon) $inputQuery->where('created_at', '>=', $startDateCarbon);
+            if ($endDateCarbon)   $inputQuery->where('created_at', '<=', $endDateCarbon);
+            $totalDiinput = $inputQuery->count();
+
+            // List ID prospek CS
+            $csProspectIds = (clone $csBaseQuery)->pluck('id');
+
+            // 2. Jumlah prospek yang dihubungi
+            $contactQuery = \App\Models\FollowUp::whereIn('prospek_id', $csProspectIds);
+            if ($startDateCarbon) $contactQuery->where('tanggal', '>=', $startDateCarbon);
+            if ($endDateCarbon)   $contactQuery->where('tanggal', '<=', $endDateCarbon);
+            $totalDihubungi = (clone $contactQuery)->where(function ($q) {
+                $q->whereIn('metode', ['Telepon', 'WhatsApp', 'Panggilan', 'SMS', 'Chat'])
+                  ->orWhere('hasil', 'like', '%Hubung%')
+                  ->orWhere('hasil', 'like', '%Kontak%');
+            })->distinct('prospek_id')->count('prospek_id');
+
+            if ($totalDihubungi === 0) {
+                $totalDihubungi = (clone $contactQuery)->distinct('prospek_id')->count('prospek_id');
+            }
+
+            // 3. Jumlah prospek yang di-follow-up
+            $fuQuery = \App\Models\FollowUp::whereIn('prospek_id', $csProspectIds);
+            if ($startDateCarbon) $fuQuery->where('tanggal', '>=', $startDateCarbon);
+            if ($endDateCarbon)   $fuQuery->where('tanggal', '<=', $endDateCarbon);
+            $totalFollowUp = $fuQuery->distinct('prospek_id')->count('prospek_id');
+
+            // 4. Jumlah hot prospect
+            $hotQuery = (clone $csBaseQuery)->where(function ($q) use ($startDateCarbon, $endDateCarbon) {
+                $q->where(function ($sq) {
+                    $sq->whereIn('status', ['HOT PROSPEK', 'PANAS'])
+                       ->orWhere('category', 'like', '%Hot%');
+                });
+                if ($startDateCarbon || $endDateCarbon) {
+                    $q->orWhereHas('timelines', function ($tq) use ($startDateCarbon, $endDateCarbon) {
+                        $tq->where(function ($tsq) {
+                            $tsq->whereIn('status_after', ['HOT PROSPEK', 'PANAS'])
+                                ->orWhere('title', 'like', '%Hot%');
+                        });
+                        if ($startDateCarbon) $tq->where('time', '>=', $startDateCarbon);
+                        if ($endDateCarbon)   $tq->where('time', '<=', $endDateCarbon);
+                    });
+                }
+            });
+            if ($startDateCarbon) $hotQuery->where('created_at', '>=', $startDateCarbon);
+            if ($endDateCarbon)   $hotQuery->where('created_at', '<=', $endDateCarbon);
+            $totalHot = $hotQuery->count();
+
+            $csMetrics = [
+                'diinput'      => $totalDiinput,
+                'dihubungi'    => $totalDihubungi,
+                'follow_up'    => $totalFollowUp,
+                'hot_prospect' => $totalHot,
+                'start_date'   => $request->start_date,
+                'end_date'     => $request->end_date,
+            ];
+        }
+
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics'));
     }
 
     public function prospekStore(Request $request)
@@ -1492,10 +1581,27 @@ class CrmController extends Controller
 
             // Handle Manual Input (Sekolah / Perusahaan)
             if ($request->type === 'Sekolah' && empty($request->sekolah_id) && $request->filled('sekolah_manual')) {
-                $sek = \App\Models\Sekolah::firstOrCreate(
-                    ['nama' => trim($request->sekolah_manual)],
-                    ['status' => 'Aktif']
-                );
+                $manualName = trim($request->sekolah_manual);
+                $sek = \App\Models\Sekolah::where('nama', $manualName)->first();
+                if (!$sek) {
+                    $kecVal = $request->input('sekolah_kecamatan');
+                    $kecName = $kecVal;
+                    if (is_numeric($kecVal)) {
+                        $wKec = \App\Models\Wilayah::find($kecVal);
+                        $kecName = $wKec?->nama;
+                    }
+
+                    $sek = \App\Models\Sekolah::create([
+                        'kode'        => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                        'nama'        => $manualName,
+                        'kategori_id' => $request->input('sekolah_kategori_id') ?: null,
+                        'wilayah_id'  => $request->input('sekolah_wilayah_id') ?: null,
+                        'kecamatan'   => $kecName ?: '-',
+                        'telepon'     => $request->input('sekolah_telepon') ?: null,
+                        'status'      => 'Aktif',
+                        'sales_id'    => $salesId,
+                    ]);
+                }
                 $request->merge(['sekolah_id' => $sek->id]);
             } elseif ($request->type === 'Corporate' && empty($request->perusahaan_id) && $request->filled('perusahaan_manual')) {
                 $per = \App\Models\Perusahaan::firstOrCreate(
@@ -1608,6 +1714,7 @@ class CrmController extends Controller
             'prodi_id' => $prospectRaw->prodi_id,
             'sekolah_name' => $prospectRaw->type === 'Sekolah' ? ($prospectRaw->sekolah ? $prospectRaw->sekolah->nama : '-') : ($prospectRaw->type === 'Corporate' ? ($prospectRaw->perusahaan ? $prospectRaw->perusahaan->nama : '-') : '-'),
             'category' => $prospectRaw->category ?? '-',
+            'kelas' => $prospectRaw->kelas ?: 'Reguler',
             'pic' => $prospectRaw->pic ?? '-',
             'pic_phone' => $prospectRaw->pic_phone ?? '-',
             'whatsapp' => $prospectRaw->whatsapp ?? '-',
@@ -1682,6 +1789,10 @@ class CrmController extends Controller
         $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
         $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+        $kategoriSekolahList = \App\Models\MasterData::where('type', 'kategori_sekolah')->where('status', 'Aktif')->get();
+        $wilayahKabupatenList = \App\Models\Wilayah::whereNull('parent_id')->with(['children' => function($q) {
+            $q->where('status', 'Aktif')->orderBy('nama');
+        }])->orderBy('nama')->get();
         $lostReasons         = \App\Models\Prospek::LOST_REASONS;
         $metodeOptions       = \App\Models\FollowUp::METODE_OPTIONS;
         $isHandler           = $prospectRaw->isHandledBySales(auth()->user()) || ($user && strtolower($user->role) === 'cs' && $prospectRaw->cs_id === $user->id);
@@ -1692,6 +1803,7 @@ class CrmController extends Controller
         return view('prospek.show', compact(
             'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'prospekModel', 'transaksis', 'followUps',
             'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
+            'kategoriSekolahList', 'wilayahKabupatenList',
             'lostReasons', 'metodeOptions', 'isHandler'
         ));
     }
@@ -1718,6 +1830,11 @@ class CrmController extends Controller
             'prodi_lainnya' => 'nullable|string',
             'source' => 'nullable|string',
             'notes' => 'nullable|string',
+            'kelas' => 'nullable|in:Reguler,Karyawan',
+            'sekolah_kategori_id' => 'nullable|exists:master_data,id',
+            'sekolah_wilayah_id' => 'nullable|exists:wilayahs,id',
+            'sekolah_kecamatan' => 'nullable|string|max:100',
+            'sekolah_telepon' => 'nullable|string|max:50',
         ]);
 
         $user = auth()->user();
@@ -1750,10 +1867,26 @@ class CrmController extends Controller
                 if (!empty($request->sekolah_manual)) {
                     $manualName = trim($request->sekolah_manual);
                     if ($manualName !== '') {
-                        $sekolah = \App\Models\Sekolah::firstOrCreate(
-                            ['nama' => $manualName],
-                            ['kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)), 'status' => 'Aktif']
-                        );
+                        $sekolah = \App\Models\Sekolah::where('nama', $manualName)->first();
+                        if (!$sekolah) {
+                            $kecVal = $request->input('sekolah_kecamatan');
+                            $kecName = $kecVal;
+                            if (is_numeric($kecVal)) {
+                                $wKec = \App\Models\Wilayah::find($kecVal);
+                                $kecName = $wKec?->nama;
+                            }
+
+                            $sekolah = \App\Models\Sekolah::create([
+                                'kode'        => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                                'nama'        => $manualName,
+                                'kategori_id' => $request->input('sekolah_kategori_id') ?: null,
+                                'wilayah_id'  => $request->input('sekolah_wilayah_id') ?: null,
+                                'kecamatan'   => $kecName ?: '-',
+                                'telepon'     => $request->input('sekolah_telepon') ?: null,
+                                'status'      => 'Aktif',
+                                'sales_id'    => $prospek->sales_id,
+                            ]);
+                        }
                         $validated['sekolah_id'] = $sekolah->id;
                         $validated['name'] = $sekolah->nama;
                     }
@@ -2403,17 +2536,23 @@ class CrmController extends Controller
         $this->authorize('transaction', $prospek);
 
         $request->validate([
-            'jenis'             => 'required|in:Beli Formulir,Pembayaran Termin 1',
-            'nominal'           => 'required|numeric|min:0|max:9999999999',
+            'kategori'          => 'nullable|string|in:' . implode(',', \App\Models\Transaksi::KATEGORI_LIST),
+            'jenis_items'       => 'nullable|array',
+            'jenis_items.*'     => 'string|max:100',
+            'nominal_items'     => 'nullable|array',
+            'nominal_items.*'   => 'nullable|numeric|min:0|max:9999999999',
+            'jenis'             => 'nullable|string|max:100',
+            'nominal'           => 'nullable|numeric|min:0|max:9999999999',
             'tanggal'           => 'required|date',
             'notes'             => 'nullable|string|max:1000',
             'metode_pembayaran' => 'nullable|string|in:virtual_account,gopay,dana,shopeepay,tunai,bank_transfer',
             'bank_account_id'   => 'nullable|integer|exists:bank_accounts,id',
             'bank_va'           => 'nullable|string|max:100',
         ], [
-            'nominal.max' => 'Nominal transaksi tidak boleh melebihi batas wajar (maksimal Rp 9.999.999.999).',
-            'nominal.min' => 'Nominal transaksi tidak boleh bernilai negatif.',
-            'nominal.numeric' => 'Nominal transaksi harus berupa angka yang valid.',
+            'kategori.required' => 'Kategori transaksi wajib dipilih.',
+            'kategori.in'       => 'Kategori transaksi harus salah satu dari: DP Daftar, DP Perlengkapan, Lunas, Keluar.',
+            'nominal.max'       => 'Nominal transaksi tidak boleh melebihi batas wajar (maksimal Rp 9.999.999.999).',
+            'nominal.min'       => 'Nominal transaksi tidak boleh bernilai negatif.',
         ]);
 
         $bankAccount = null;
@@ -2435,68 +2574,113 @@ class CrmController extends Controller
         $isCsOrBackoffice = in_array($userRole, ['cs', 'admin', 'hm']);
 
         // Jika CS/Admin/HM yang input: langsung VERIFIED dan masuk riwayat pembayaran
-        // Jika Sales yang input Pembayaran Termin 1 dengan metode: PENDING (harus diverifikasi CS)
-        $isPembayaranTermin1 = $request->jenis === 'Pembayaran Termin 1';
-        $hasMetode = !empty($request->metode_pembayaran);
-        $paymentStatus = ($isPembayaranTermin1 && $hasMetode && !$isCsOrBackoffice)
-            ? \App\Models\Transaksi::STATUS_PENDING
-            : \App\Models\Transaksi::STATUS_VERIFIED;
+        // Jika Sales yang input: PENDING (harus diverifikasi CS), bahkan jika kategori Lunas (Requirement L3)
+        $paymentStatus = $isCsOrBackoffice
+            ? \App\Models\Transaksi::STATUS_VERIFIED
+            : \App\Models\Transaksi::STATUS_PENDING;
 
-        $transaksiData = [
-            'prospek_id'        => $prospek->id,
-            'user_id'           => auth()->id(),
-            'jenis'             => $request->jenis,
-            'nominal'           => $request->nominal,
-            'tanggal'           => $request->tanggal,
-            'notes'             => $fullNotes,
-            'metode_pembayaran' => $request->metode_pembayaran,
-            'payment_status'    => $paymentStatus,
-        ];
-
-        if ($paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED && $isCsOrBackoffice) {
-            $transaksiData['verified_by'] = auth()->id();
-            $transaksiData['verified_at'] = now();
-        }
-
-        $transaksi = \App\Models\Transaksi::create($transaksiData);
-
-        $oldStatus = $prospek->status;
-
-        if ($isPembayaranTermin1 && $paymentStatus === \App\Models\Transaksi::STATUS_PENDING) {
-            // Tunggu verifikasi CS — tidak langsung LUNAS, masuk BERKAS dulu
-            if ($prospek->stage_number < 6) {
-                $prospek->status = 'BERKAS';
-                $prospek->stage_number = 6;
+        // Tentukan komponen transaksi yang dipilih
+        $itemsToCreate = [];
+        if ($request->has('jenis_items') && is_array($request->jenis_items) && count($request->jenis_items) > 0) {
+            foreach ($request->jenis_items as $j) {
+                $nom = (float) $request->input("nominal_items.{$j}", ($j === 'Gedung' ? 0 : 0));
+                $itemsToCreate[] = [
+                    'jenis'   => $j,
+                    'nominal' => $nom,
+                ];
             }
-        } elseif (\App\Services\ProspekService::isClosingValid($prospek->fresh())) {
-            $prospek->status = 'LUNAS';
-            $prospek->stage_number = 7;
-        } elseif ($isPembayaranTermin1 && $prospek->stage_number < 6) {
-            $prospek->status = 'BERKAS';
-            $prospek->stage_number = 6;
-        } elseif ($request->jenis === 'Beli Formulir' && $prospek->stage_number < 5) {
-            $prospek->status = 'FORMULIR';
-            $prospek->stage_number = 5;
+        } elseif ($request->filled('jenis')) {
+            $itemsToCreate[] = [
+                'jenis'   => $request->jenis,
+                'nominal' => (float) ($request->nominal ?? 0),
+            ];
+        } else {
+            return redirect()->back()->withErrors(['jenis_items' => 'Harap pilih minimal satu jenis komponen transaksi.']);
         }
 
-        $prospek->save();
+        $totalNominal = 0;
+        $createdJenisNames = [];
+        $createdTransactions = [];
 
-        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? $request->metode_pembayaran;
-        $nominalText = 'Rp ' . number_format($request->nominal, 0, ',', '.');
-        $timelineNotes = 'Nominal: ' . $nominalText
-            . ($metodeLabel ? ' | Metode: ' . $metodeLabel : '')
-            . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : ' | Status: Terverifikasi Sah')
-            . ($fullNotes ? ' | ' . $fullNotes : '');
+        DB::transaction(function () use (
+            $prospek, $request, $fullNotes, $paymentStatus, $isCsOrBackoffice,
+            $itemsToCreate, &$totalNominal, &$createdJenisNames, &$createdTransactions
+        ) {
+            foreach ($itemsToCreate as $item) {
+                $itemJenis = $item['jenis'];
+                $itemNominal = $item['nominal'];
+                $totalNominal += $itemNominal;
+                $createdJenisNames[] = $itemJenis;
 
-        ProspekTimeline::create([
-            'prospek_id'    => $prospek->id,
-            'user_id'       => auth()->id(),
-            'title'         => 'Input Transaksi: ' . $request->jenis . ($paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED && $isCsOrBackoffice ? ' (Terverifikasi CS)' : ''),
-            'notes'         => $timelineNotes,
-            'status_before' => $oldStatus,
-            'status_after'  => $prospek->status,
-            'time'          => now(),
-        ]);
+                $itemNotes = $fullNotes;
+                $isItemGedungFree = ($itemJenis === 'Gedung' && $itemNominal == 0);
+                if ($isItemGedungFree) {
+                    $itemNotes = $itemNotes ? "Gedung (FREE) | {$itemNotes}" : 'Gedung (FREE)';
+                }
+
+                $itemPaymentStatus = $isItemGedungFree ? \App\Models\Transaksi::STATUS_VERIFIED : $paymentStatus;
+
+                $transaksiData = [
+                    'prospek_id'        => $prospek->id,
+                    'user_id'           => auth()->id(),
+                    'jenis'             => $itemJenis,
+                    'kategori'          => $request->kategori ?: 'Lunas',
+                    'nominal'           => $itemNominal,
+                    'tanggal'           => $request->tanggal,
+                    'notes'             => $itemNotes,
+                    'metode_pembayaran' => $request->metode_pembayaran,
+                    'payment_status'    => $itemPaymentStatus,
+                ];
+
+                if ($itemPaymentStatus === \App\Models\Transaksi::STATUS_VERIFIED) {
+                    $transaksiData['verified_by'] = auth()->id();
+                    $transaksiData['verified_at'] = now();
+                }
+
+                $createdTransactions[] = \App\Models\Transaksi::create($transaksiData);
+            }
+
+            $oldStatus = $prospek->status;
+
+            // Update status pipeline jika relevan
+            if ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING) {
+                if ($prospek->stage_number < 6) {
+                    $prospek->status = 'BERKAS';
+                    $prospek->stage_number = 6;
+                }
+            } elseif (\App\Services\ProspekService::isClosingValid($prospek->fresh())) {
+                $prospek->status = 'LUNAS';
+                $prospek->stage_number = 7;
+            } elseif (in_array('Pendaftaran', $createdJenisNames) || in_array('Beli Formulir', $createdJenisNames)) {
+                if ($prospek->stage_number < 5) {
+                    $prospek->status = 'FORMULIR';
+                    $prospek->stage_number = 5;
+                }
+            }
+
+            $prospek->save();
+
+            $jenisSummary = implode(', ', $createdJenisNames);
+            $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$request->metode_pembayaran] ?? $request->metode_pembayaran;
+            $nominalText = 'Rp ' . number_format($totalNominal, 0, ',', '.');
+            $timelineNotes = "Komponen: {$jenisSummary} | Kategori: {$request->kategori} | Total: {$nominalText}"
+                . ($metodeLabel ? ' | Metode: ' . $metodeLabel : '')
+                . ($paymentStatus === \App\Models\Transaksi::STATUS_PENDING ? ' | Status: Menunggu Verifikasi CS' : ' | Status: Terverifikasi Sah')
+                . ($fullNotes ? ' | ' . $fullNotes : '');
+
+            ProspekTimeline::create([
+                'prospek_id'    => $prospek->id,
+                'user_id'       => auth()->id(),
+                'title'         => 'Input Transaksi (' . $request->kategori . '): ' . $jenisSummary . ($paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED && $isCsOrBackoffice ? ' (Terverifikasi CS)' : ''),
+                'notes'         => $timelineNotes,
+                'status_before' => $oldStatus,
+                'status_after'  => $prospek->status,
+                'time'          => now(),
+            ]);
+        });
+
+        $nominalText = 'Rp ' . number_format($totalNominal, 0, ',', '.');
+        $jenisSummary = implode(', ', $createdJenisNames);
 
         // Jika diinput oleh CS dan terverifikasi, kirim notifikasi ke Sales pemilik prospek
         if ($isCsOrBackoffice && $paymentStatus === \App\Models\Transaksi::STATUS_VERIFIED) {
@@ -2509,8 +2693,8 @@ class CrmController extends Controller
 
             if ($sales && $sales->id !== auth()->id()) {
                 $notifMsg = $isClosing
-                    ? "Pembayaran {$nominalText} ({$request->jenis}) untuk '{$prospek->name}' telah diinput & diverifikasi oleh CS {$csName}. Prospek dinyatakan LUNAS (Closing)."
-                    : "Pembayaran {$nominalText} ({$request->jenis}) untuk '{$prospek->name}' telah diinput & diverifikasi oleh CS {$csName}.";
+                    ? "Pembayaran {$nominalText} ({$jenisSummary} - {$request->kategori}) untuk '{$prospek->name}' telah diinput & diverifikasi oleh CS {$csName}. Prospek dinyatakan LUNAS (Closing)."
+                    : "Pembayaran {$nominalText} ({$jenisSummary} - {$request->kategori}) untuk '{$prospek->name}' telah diinput & diverifikasi oleh CS {$csName}.";
 
                 $sales->notify(new \App\Notifications\CrmActivityNotification(
                     title: $isClosing ? 'Closing Terverifikasi!' : 'Pembayaran Terverifikasi!',
@@ -2549,8 +2733,8 @@ class CrmController extends Controller
         }
 
         $successMsg = $paymentStatus === \App\Models\Transaksi::STATUS_PENDING
-            ? 'Transaksi ' . $request->jenis . ' berhasil disimpan! Menunggu verifikasi CS.'
-            : 'Transaksi ' . $request->jenis . ' berhasil disimpan dan terverifikasi!';
+            ? 'Transaksi (' . $request->kategori . ') berhasil disimpan! Menunggu verifikasi CS.'
+            : 'Transaksi (' . $request->kategori . ') berhasil disimpan dan terverifikasi!';
 
         return redirect()->back()->with('success', $successMsg);
     }

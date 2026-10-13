@@ -314,8 +314,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
         Route::get('/prospek/{id}/realokasi', fn($id) => redirect()->route('prospek.show', $id));
 
-        Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
-        Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');
+        Route::get('/kunjungan',         [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
+        Route::get('/kunjungan/create',  [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
+        Route::post('/kunjungan',        [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
+        Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
 
         Route::get('/follow-up',  [CrmController::class, 'followUpIndex'])->name('follow-up.index');
         Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');

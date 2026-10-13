@@ -395,13 +395,16 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        <span x-text="geoStatus === 'loading' ? 'Mencari...' : (geoStatus === 'ok' ? 'Update GPS ✓' : 'Ambil GPS')"></span>
+                        <span x-text="geoStatus === 'loading' ? 'Mencari...' : (geoStatus === 'ok' ? 'Update GPS' : 'Ambil GPS')"></span>
                     </button>
                 </div>
 
                 <div x-show="lat && lng" class="p-2.5 bg-white rounded-xl border border-slate-200 text-[11px] text-slate-700 font-mono flex items-center justify-between">
                     <span x-text="'Lat: ' + lat + ', Lng: ' + lng"></span>
-                    <span class="text-emerald-600 font-bold">Akurat ✓</span>
+                    <span class="text-emerald-600 font-bold flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Akurat
+                    </span>
                 </div>
 
                 <input type="hidden" name="lat" :value="lat" required>
@@ -416,7 +419,6 @@
                         type="file" 
                         name="foto" 
                         accept="image/*" 
-                        capture="environment" 
                         required 
                         @change="handlePhotoChange($event)"
                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -427,7 +429,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            <span class="text-xs font-bold text-slate-700">Ambil Foto / Pilih dari Galeri</span>
+                            <span class="text-xs font-bold text-slate-700">Pilih File Foto dari Galeri / Dokumen</span>
                             <span class="text-[10px] text-slate-400 mt-0.5">Maks. 5MB (JPG, PNG, WebP)</span>
                         </div>
                     </template>

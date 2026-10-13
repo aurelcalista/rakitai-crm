@@ -61,7 +61,7 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <h3 class="text-sm sm:text-base font-extrabold text-amber-900 tracking-tight flex items-center gap-2">
-                                <span>⚠️ ALARM SLA: Serah Terima CS Belum Direspons (> 2 Jam)</span>
+                                <span>ALARM SLA: Serah Terima CS Belum Direspons (> 2 Jam)</span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-600 text-white">{{ count($overdueHandovers) }} Prospek</span>
                             </h3>
                             <span class="text-[11px] text-amber-700 font-semibold">SLA Maksimal: 2 Jam</span>
@@ -434,7 +434,10 @@
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                 Customer Service
                                             </span>
-                                            <div class="text-[11px] text-slate-500 font-medium">🏢 Centralized (Tanpa Wilayah)</div>
+                                            <div class="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                                <span>Centralized (Tanpa Wilayah)</span>
+                                            </div>
                                         @else
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                                 Sales Wilayah

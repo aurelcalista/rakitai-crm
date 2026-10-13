@@ -273,7 +273,10 @@
                                             <td class="px-3 py-2.5 text-slate-600 text-[11px]">
                                                 {{ $trx->notes ?? '-' }}
                                                 @if($trx->verifier)
-                                                    <div class="text-[10px] text-emerald-700">✓ CS: {{ $trx->verifier->name }}</div>
+                                                    <div class="text-[10px] text-emerald-700 flex items-center gap-1">
+                                                        <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                        <span>CS: {{ $trx->verifier->name }}</span>
+                                                    </div>
                                                 @endif
                                             </td>
                                         </tr>
@@ -418,7 +421,7 @@
                     @forelse($prospect['timeline'] ?? [] as $item)
                         <div class="relative flex items-start gap-4">
                             <div class="w-6 h-6 rounded-full bg-white border-2 border-blue-600 text-blue-600 font-bold flex items-center justify-center text-[10px] shrink-0 z-10">
-                                @if(($item['role'] ?? '') === 'Sales') S @elseif(($item['role'] ?? '') === 'CS') C @else ✓ @endif
+                                @if(($item['role'] ?? '') === 'Sales') S @elseif(($item['role'] ?? '') === 'CS') C @else <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> @endif
                             </div>
 
                             <div class="flex-1 bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-1">

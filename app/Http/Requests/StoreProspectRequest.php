@@ -78,8 +78,13 @@ class StoreProspectRequest extends FormRequest
                 }
             ],
             'prodi_lainnya' => 'nullable|string',
-            'wa_ortu' => 'nullable|string|max:20',
+            'wa_ortu' => 'nullable|string|max:255',
             'asal_kelas' => 'nullable|string|max:100',
+            'kelas' => 'nullable|in:Reguler,Karyawan',
+            'sekolah_kategori_id' => 'nullable|exists:master_data,id',
+            'sekolah_wilayah_id' => 'nullable|exists:wilayahs,id',
+            'sekolah_kecamatan' => 'nullable|string|max:100',
+            'sekolah_telepon' => 'nullable|string|max:50',
         ];
     }
 

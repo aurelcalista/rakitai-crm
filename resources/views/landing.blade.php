@@ -669,7 +669,7 @@
                     <!-- Cute Handwritten Note under subtitle -->
                     <div class="mt-2 text-center pointer-events-none select-none">
                         <span class="font-handwriting text-xs sm:text-base text-blue-600/90 font-bold -rotate-2 inline-block">
-                            Klik salah satu pertanyaan di bawah ini ya! 👇
+                            Klik salah satu pertanyaan di bawah ini ya!
                         </span>
                     </div>
                 </div>
@@ -684,7 +684,7 @@
                             <!-- Cute Doodle Thought Note -->
                             <div class="absolute top-2 sm:top-4 lg:top-8 right-2 sm:right-6 z-20 pointer-events-none select-none text-left">
                                 <span class="font-handwriting text-base sm:text-lg lg:text-xl text-slate-700 -rotate-6 inline-block font-bold drop-shadow-2xs whitespace-nowrap">
-                                    Punya pertanyaan? 🤔
+                                    Punya pertanyaan?
                                 </span>
                                 <!-- Doodle curved arrow pointing towards FAQ -->
                                 <div class="pl-4 pt-0.5">
@@ -775,7 +775,7 @@
                             <!-- Cute Doodle Answer Note -->
                             <div class="absolute top-2 sm:top-4 lg:top-8 left-2 sm:left-4 z-20 pointer-events-none select-none text-right">
                                 <span class="font-handwriting text-base sm:text-lg lg:text-xl text-blue-600 rotate-3 inline-block font-bold drop-shadow-2xs whitespace-nowrap">
-                                    Jawaban selengkapnya! 💡
+                                    Jawaban selengkapnya!
                                 </span>
                                 <!-- Doodle curved arrow pointing towards FAQ -->
                                 <div class="flex justify-end pr-3 pt-0.5">

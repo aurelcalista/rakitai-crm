@@ -15,7 +15,8 @@ class AdminEventTypeController extends Controller
             'name' => auth()->user()->name,
             'role' => auth()->user()->role,
             'role_label' => strtoupper(auth()->user()->role),
-            'avatar' => strtoupper(substr(auth()->user()->name, 0, 1)),
+            'avatar' => auth()->user()->initials,
+            'avatar_url' => auth()->user()->avatar_url,
         ];
 
         $eventTypes = MasterData::where('type', 'jenis_event')->orderBy('nama')->get();

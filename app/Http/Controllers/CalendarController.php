@@ -19,7 +19,8 @@ class CalendarController extends Controller
             'name' => $user->name,
             'role' => $user->role,
             'role_label' => strtoupper($user->role),
-            'avatar' => strtoupper(substr($user->name, 0, 1)),
+            'avatar' => $user->initials,
+            'avatar_url' => $user->avatar_url,
         ];
 
         // Prepare data for the Add Agenda modal

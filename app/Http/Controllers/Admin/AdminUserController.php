@@ -17,8 +17,6 @@ class AdminUserController extends Controller
                 $user->kode = User::generateUserCode($user->role);
                 $user->save();
             }
-            $user->avatar_url = $user->avatar_url;
-            $user->avatar = $user->initials;
             $user->formatted_created_at = $user->created_at ? $user->created_at->format('d-m-Y') : '-';
             return $user;
         });

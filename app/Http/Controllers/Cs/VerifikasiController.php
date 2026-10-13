@@ -19,7 +19,8 @@ class VerifikasiController extends Controller
     public function index(Request $request): View
     {
         // Hanya CS, Admin, HM yang boleh mengakses
-        abort_if(!in_array(auth()->user()->role, ['CS', 'Admin', 'HM']), 403);
+        $userRole = strtoupper(auth()->user()->role ?? '');
+        abort_if(!in_array($userRole, ['CS', 'ADMIN', 'HM', 'HEAD MARKETING']), 403);
 
         $activeTab = $request->query('tab', 'pending');
         if (!in_array($activeTab, ['pending', 'riwayat'])) {
@@ -31,23 +32,34 @@ class VerifikasiController extends Controller
         $user = auth()->user();
         $isCs = $user && strtolower($user->role) === 'cs';
 
-        // Base Query dengan eager loading lengkap
-        $baseQuery = Transaksi::with(['prospek.cs', 'prospek', 'user', 'prospek.sales', 'verifier', 'rejecter'])
-            ->where('jenis', 'Pembayaran Termin 1');
+        $kategoriFilter = $request->query('kategori');
 
-        if ($isCs) {
+        // Base Query dengan eager loading lengkap
+        $baseQuery = Transaksi::with([
+            'prospek.cs',
+            'prospek.transaksis',
+            'prospek.sekolah',
+            'prospek.perusahaan',
+            'prospek.prodi',
+            'prospek.sales',
+            'user',
+            'verifier',
+            'rejecter'
+        ]);
+
+        if ($isCs && $user->wilayah_id) {
             $baseQuery->whereHas('prospek', function ($q) use ($user) {
-                $q->where('cs_id', $user->id)
-                  ->orWhereNull('cs_id');
+                $q->where('wilayah_id', $user->wilayah_id)
+                  ->orWhereNull('wilayah_id');
             });
         }
 
-        // Statistik ringkasan (scoped to current CS)
-        $statsQuery = Transaksi::where('jenis', 'Pembayaran Termin 1');
-        if ($isCs) {
+        // Statistik ringkasan (scoped to current CS/Wilayah)
+        $statsQuery = Transaksi::query();
+        if ($isCs && $user->wilayah_id) {
             $statsQuery->whereHas('prospek', function ($q) use ($user) {
-                $q->where('cs_id', $user->id)
-                  ->orWhereNull('cs_id');
+                $q->where('wilayah_id', $user->wilayah_id)
+                  ->orWhereNull('wilayah_id');
             });
         }
 
@@ -80,6 +92,11 @@ class VerifikasiController extends Controller
             }
         }
 
+        // Filter Kategori
+        if ($kategoriFilter && $kategoriFilter !== 'all') {
+            $query->where('kategori', $kategoriFilter);
+        }
+
         // Filter Pencarian
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -101,6 +118,7 @@ class VerifikasiController extends Controller
             'sumVerifiedAmount',
             'activeTab',
             'statusFilter',
+            'kategoriFilter',
             'search'
         ));
     }
@@ -111,17 +129,13 @@ class VerifikasiController extends Controller
      */
     public function verify(Request $request, Transaksi $transaksi): RedirectResponse
     {
-        // Hanya CS yang boleh memverifikasi
-        abort_if(!in_array(auth()->user()->role, ['CS', 'Admin', 'HM']), 403);
+        // Hanya CS, Admin, HM yang boleh memverifikasi
+        $userRole = strtoupper(auth()->user()->role ?? '');
+        abort_if(!in_array($userRole, ['CS', 'ADMIN', 'HM', 'HEAD MARKETING']), 403);
 
         // Sales tidak boleh verifikasi transaksinya sendiri
         if (strtolower(auth()->user()->role) === 'sales' && auth()->id() === $transaksi->user_id) {
             return back()->withErrors(['error' => 'Anda tidak boleh memverifikasi transaksi yang Anda input sendiri.']);
-        }
-
-        // CS hanya boleh memverifikasi transaksi dari prospek yang ditangani oleh dirinya atau belum di-takeover
-        if (strtolower(auth()->user()->role) === 'cs' && $transaksi->prospek?->cs_id && $transaksi->prospek->cs_id !== auth()->id()) {
-            abort(403, 'Transaksi ini berada di bawah penanganan CS lain.');
         }
 
         // Hanya bisa verifikasi transaksi yang pending
@@ -244,16 +258,18 @@ class VerifikasiController extends Controller
     public function reject(Request $request, Transaksi $transaksi): RedirectResponse
     {
         // Hanya CS yang boleh
-        abort_if(!in_array(auth()->user()->role, ['CS', 'Admin', 'HM']), 403);
+        $userRole = strtoupper(auth()->user()->role ?? '');
+        abort_if(!in_array($userRole, ['CS', 'ADMIN', 'HM', 'HEAD MARKETING']), 403);
 
         // Sales tidak boleh reject transaksinya sendiri
         if (strtolower(auth()->user()->role) === 'sales' && auth()->id() === $transaksi->user_id) {
             return back()->withErrors(['error' => 'Anda tidak boleh menolak transaksi yang Anda input sendiri.']);
         }
 
-        // CS hanya boleh menolak transaksi dari prospek yang ditangani oleh dirinya atau belum di-takeover
-        if (strtolower(auth()->user()->role) === 'cs' && $transaksi->prospek?->cs_id && $transaksi->prospek->cs_id !== auth()->id()) {
-            abort(403, 'Transaksi ini berada di bawah penanganan CS lain.');
+
+        // Gedung (FREE) tidak boleh ditolak
+        if ($transaksi->jenis === 'Gedung' && (float)$transaksi->nominal == 0) {
+            return back()->withErrors(['error' => 'Transaksi komponen Gedung bersifat FREE (Rp 0) dan tidak dapat ditolak.']);
         }
 
         // Hanya bisa reject transaksi yang pending

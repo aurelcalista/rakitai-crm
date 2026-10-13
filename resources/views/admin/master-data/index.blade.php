@@ -191,8 +191,9 @@
         <!-- Tab Content: Program Studi -->
         <div x-show="activeTab === 'program_studi'" x-cloak class="crm-card bg-white overflow-hidden">
             <div class="p-4 bg-purple-50 border-b border-purple-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div class="text-xs text-purple-900 font-medium">
-                    💡 Untuk mengelola <strong>Kuota Target, UKT, dan Status Prodi</strong>, silakan gunakan modul khusus <strong>Data Prodi</strong>.
+                <div class="text-xs text-purple-900 font-medium flex items-center gap-2">
+                    <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Untuk mengelola <strong>Kuota Target, UKT, dan Status Prodi</strong>, silakan gunakan modul khusus <strong>Data Prodi</strong>.</span>
                 </div>
                 <a href="{{ route('admin.prodi.index') }}" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shrink-0 shadow-xs">
                     Kelola Kuota & UKT Prodi &rarr;

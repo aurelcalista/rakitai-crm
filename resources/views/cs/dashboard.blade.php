@@ -31,7 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }} 👋</h2>
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }}</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">Customer Service Lead</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">Pusat kendali operasional: Validasi pembayaran Termin 1, tindak lanjut lead serah terima, dan follow-up harian.</p>
@@ -64,8 +64,8 @@
                 @if(($pendingPaymentCount ?? 0) > 0)
                     <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start justify-between gap-3 shadow-xs">
                         <div class="flex items-start gap-3">
-                            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold text-sm shadow-xs">
-                                💳
+                            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                             </div>
                             <div>
                                 <h4 class="text-xs sm:text-sm font-bold text-amber-950">Ada {{ $pendingPaymentCount }} Pembayaran Perlu Diverifikasi</h4>
@@ -81,8 +81,8 @@
                 @if(($slaOverdueCount ?? 0) > 0)
                     <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start justify-between gap-3 shadow-xs">
                         <div class="flex items-start gap-3">
-                            <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 font-bold text-sm shadow-xs">
-                                🚨
+                            <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                             </div>
                             <div>
                                 <h4 class="text-xs sm:text-sm font-bold text-rose-950">{{ $slaOverdueCount }} Prospek Lewat Batas SLA 2 Jam</h4>
@@ -155,8 +155,8 @@
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
-                        💳
+                    <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                     </span>
                     <div>
                         <h3 class="text-sm font-bold text-slate-900 tracking-tight">Antrean Verifikasi Pembayaran (Termin 1)</h3>
@@ -220,8 +220,9 @@
                                             <form action="{{ route('cs.verifikasi.verify', $trx->id) }}" method="POST"
                                                   onsubmit="return confirm('Konfirmasi verifikasi pembayaran untuk calon mahasiswa ini? Prospek akan dinyatakan LUNAS.')">
                                                 @csrf
-                                                <button type="submit" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition cursor-pointer">
-                                                    ✓ Verifikasi
+                                                <button type="submit" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition cursor-pointer inline-flex items-center gap-1">
+                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                    <span>Verifikasi</span>
                                                 </button>
                                             </form>
                                             <a href="{{ route('cs.verifikasi.index') }}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition">
@@ -248,8 +249,8 @@
         <div id="section-handover" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
-                        ⏱️
+                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </span>
                     <div>
                         <h3 class="text-sm font-bold text-slate-900 tracking-tight">Prospek Masuk Tahap Formulir (SLA Handover)</h3>
@@ -290,16 +291,19 @@
                                     </td>
                                     <td class="px-4 py-3.5 text-center">
                                         @if($hp['has_follow_up'])
-                                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                                                ✓ Sudah Direspons CS
+                                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] inline-flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                <span>Sudah Direspons CS</span>
                                             </span>
                                         @elseif($hp['is_overdue'])
-                                            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px] border border-rose-200">
-                                                🚨 Overdue (+{{ $hp['elapsed_minutes'] - 120 }}m)
+                                            <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px] border border-rose-200 inline-flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                                <span>Overdue (+{{ $hp['elapsed_minutes'] - 120 }}m)</span>
                                             </span>
                                         @else
-                                            <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px] border border-amber-200">
-                                                ⏳ Sisa {{ $hp['remaining_minutes'] }} menit
+                                            <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px] border border-amber-200 inline-flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span>Sisa {{ $hp['remaining_minutes'] }} menit</span>
                                             </span>
                                         @endif
                                     </td>

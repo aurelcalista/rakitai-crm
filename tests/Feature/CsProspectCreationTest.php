@@ -141,27 +141,28 @@ class CsProspectCreationTest extends TestCase
         $this->assertEquals($csYuda->id, $prospekYuda->fresh()->cs_id);
         $resYuda->assertSee('Camaba Yuda');
 
-        // 2. In CS Mei Fie's verification page: Transaksi DOES NOT appear
+        // 2. Section O: CS Mei Fie can also view shared CS transactions
         $resMeiFie = $this->actingAs($csMeiFie)->get(route('cs.verifikasi.index'));
         $resMeiFie->assertOk();
-        $resMeiFie->assertDontSee('Camaba Yuda');
+        $resMeiFie->assertSee('Camaba Yuda');
 
-        // 3. CS Mei Fie trying to verify CS Yuda's transaction directly is rejected with 403
-        $resTamper = $this->actingAs($csMeiFie)->post(route('cs.verifikasi.verify', $trx->id));
-        $resTamper->assertStatus(403);
+        // 3. Section O: CS Mei Fie can verify the transaction without 403
+        $resVerify = $this->actingAs($csMeiFie)->post(route('cs.verifikasi.verify', $trx->id));
+        $resVerify->assertRedirect();
+        $this->assertEquals(\App\Models\Transaksi::STATUS_VERIFIED, $trx->fresh()->payment_status);
 
-        // 4. In CS Mei Fie's /prospek (Data Kontak), CS Yuda's prospect DOES NOT appear
+        // 4. In CS Mei Fie's /prospek, CS Yuda's prospect appears
         $resProspekMeiFie = $this->actingAs($csMeiFie)->get(route('prospek.index'));
         $resProspekMeiFie->assertOk();
-        $resProspekMeiFie->assertDontSee('Camaba Yuda');
+        $resProspekMeiFie->assertSee('Camaba Yuda');
 
-        // 5. In CS Yuda's /prospek, Camaba Yuda DOES appear
+        // 5. In CS Yuda's /prospek, Camaba Yuda also appears
         $resProspekYuda = $this->actingAs($csYuda)->get(route('prospek.index'));
         $resProspekYuda->assertOk();
         $resProspekYuda->assertSee('Camaba Yuda');
 
-        // 6. Direct detail access to CS Yuda's prospect by CS Mei Fie is 403 Forbidden
-        $resShowTamper = $this->actingAs($csMeiFie)->get(route('prospek.show', $prospekYuda->id));
-        $resShowTamper->assertStatus(403);
+        // 6. Section O: Direct detail access to CS Yuda's prospect by CS Mei Fie is allowed (not 403)
+        $resShowMeiFie = $this->actingAs($csMeiFie)->get(route('prospek.show', $prospekYuda->id));
+        $resShowMeiFie->assertOk();
     }
 }

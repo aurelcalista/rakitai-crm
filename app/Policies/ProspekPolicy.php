@@ -77,12 +77,9 @@ class ProspekPolicy
 
     /**
      * Helper: check if CS is authorized to access the prospect.
-     * Sesuai aturan PRD & SOP CRM:
-     * - Prospek tahap awal (01 BARU s.d 04 PANAS) bersifat tertutup dan hanya dapat diakses
-     *   oleh Sales pemilik lead serta Supervisor (SPV) terkait, KECUALI jika ditugaskan langsung ke CS (cs_id).
-     * - Staf Customer Service (CS) berwenang mengakses prospek setelah masuk tahap 05 FORMULIR
-     *   (Serah Terima/Handover) ke atas (05 FORMULIR s.d 08 LUNAS) atau jika ditugaskan langsung.
-     * - Sesuai panduan SOP CRM: "Menerima pendelegasian prospek dari Sales tanpa pembatas wilayah."
+     * Sesuai revisi SOP CRM & Ketentuan:
+     * - Semua staf CS dapat melihat dan menangani prospek yang dibuat atau ditangani oleh CS lain.
+     * - Staf CS juga berwenang mengakses prospek setelah masuk tahap 05 FORMULIR ke atas (Handover dari Sales).
      */
     private function isCsAuthorized(User $user, Prospek $prospek): bool
     {
@@ -91,23 +88,29 @@ class ProspekPolicy
             return true;
         }
 
-        // 2. Jika prospek sudah ditugaskan ke CS lain, tolak akses CS ini
-        if (!is_null($prospek->cs_id) && $prospek->cs_id !== $user->id) {
-            return false;
+        // 2. Prospek milik CS lain atau ditugaskan ke CS lain:
+        // Semua CS dapat melihat dan menangani prospek milik CS lain
+        $csHandler = $prospek->cs ?? ($prospek->cs_id ? User::find($prospek->cs_id) : null);
+        $leadOwner  = $prospek->owner ?? ($prospek->owner_id ? User::find($prospek->owner_id) : null);
+        $csRole = strtolower(optional($csHandler)->role ?? '');
+        $ownerRole = strtolower(optional($leadOwner)->role ?? '');
+
+        if ($csRole === 'cs' || $ownerRole === 'cs' || !is_null($prospek->cs_id)) {
+            if ($user->wilayah_id && $prospek->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
+                return false;
+            }
+            return true;
         }
 
-        // 3. Jika prospek belum mencapai tahap 05 FORMULIR, tolak akses CS
-        if (!$prospek->isHandoverStage()) {
-            return false;
+        // 3. Prospek telah masuk tahap 05 FORMULIR ke atas (Handover dari Sales)
+        if ($prospek->isHandoverStage()) {
+            if ($user->wilayah_id && $prospek->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
+                return false;
+            }
+            return true;
         }
 
-        // 4. Pembatasan wilayah jika CS memiliki wilayah tertentu
-        if ($user->wilayah_id && $prospek->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
-            return false;
-        }
-
-        // 5. Prospek telah masuk tahap 05 FORMULIR ke atas (Handover) dan belum ada CS -> Diizinkan untuk CS
-        return true;
+        return false;
     }
 
     /**

@@ -90,13 +90,26 @@ class ProspectController extends Controller
             if (!empty($request->sekolah_manual)) {
                 $manualName = trim($request->sekolah_manual);
                 if ($manualName !== '') {
-                    $sekolah = Sekolah::firstOrCreate(
-                        ['nama' => $manualName],
-                        [
-                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
-                            'status' => 'Aktif'
-                        ]
-                    );
+                    $sekolah = Sekolah::where('nama', $manualName)->first();
+                    if (!$sekolah) {
+                        $kecVal = $request->input('sekolah_kecamatan');
+                        $kecName = $kecVal;
+                        if (is_numeric($kecVal)) {
+                            $wKec = \App\Models\Wilayah::find($kecVal);
+                            $kecName = $wKec?->nama;
+                        }
+
+                        $sekolah = Sekolah::create([
+                            'kode'        => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'nama'        => $manualName,
+                            'kategori_id' => $request->input('sekolah_kategori_id') ?: null,
+                            'wilayah_id'  => $request->input('sekolah_wilayah_id') ?: null,
+                            'kecamatan'   => $kecName ?: '-',
+                            'telepon'     => $request->input('sekolah_telepon') ?: null,
+                            'status'      => 'Aktif',
+                            'sales_id'    => $user->id,
+                        ]);
+                    }
                     $validated['sekolah_id'] = $sekolah->id;
                     $name = $sekolah->nama;
                 }
@@ -161,6 +174,7 @@ class ProspectController extends Controller
                 'notes'        => $validated['notes'] ?? null,
                 'source'       => $validated['source'] ?? null,
                 'prodi_id'     => $validated['prodi_id'] ?? null,
+                'kelas'        => $validated['kelas'] ?? 'Reguler',
                 'sales_id'     => $user->id,
                 'cs_id'        => null, // Will be set during takeover
                 'wilayah_id'   => $wilayahId,
@@ -255,13 +269,26 @@ class ProspectController extends Controller
             if (!empty($request->sekolah_manual)) {
                 $manualName = trim($request->sekolah_manual);
                 if ($manualName !== '') {
-                    $sekolah = Sekolah::firstOrCreate(
-                        ['nama' => $manualName],
-                        [
-                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
-                            'status' => 'Aktif'
-                        ]
-                    );
+                    $sekolah = Sekolah::where('nama', $manualName)->first();
+                    if (!$sekolah) {
+                        $kecVal = $request->input('sekolah_kecamatan');
+                        $kecName = $kecVal;
+                        if (is_numeric($kecVal)) {
+                            $wKec = \App\Models\Wilayah::find($kecVal);
+                            $kecName = $wKec?->nama;
+                        }
+
+                        $sekolah = Sekolah::create([
+                            'kode'        => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'nama'        => $manualName,
+                            'kategori_id' => $request->input('sekolah_kategori_id') ?: null,
+                            'wilayah_id'  => $request->input('sekolah_wilayah_id') ?: null,
+                            'kecamatan'   => $kecName ?: '-',
+                            'telepon'     => $request->input('sekolah_telepon') ?: null,
+                            'status'      => 'Aktif',
+                            'sales_id'    => $prospek->sales_id,
+                        ]);
+                    }
                     $validated['sekolah_id'] = $sekolah->id;
                     $validated['name'] = $sekolah->nama;
                 }
@@ -464,6 +491,7 @@ class ProspectController extends Controller
             'owner_id'       => $p->owner_id,
             'cs_id'          => $p->cs_id,
             'type'           => $p->type,
+            'kelas'          => $p->kelas ?: 'Reguler',
             'sekolah_id'     => $p->sekolah_id,
             'perusahaan_id'  => $p->perusahaan_id,
             'prodi_id'       => $p->prodi_id,

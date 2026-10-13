@@ -26,6 +26,14 @@ class Prospek extends Model
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            // Bersihkan nomor WhatsApp jika diinput dalam format link wa.me
+            if (!empty($prospek->wa_ortu) && preg_match('/wa\.me\/([0-9+]+)/i', $prospek->wa_ortu, $m)) {
+                $prospek->wa_ortu = preg_replace('/[^0-9]/', '', $m[1]);
+            }
+            if (!empty($prospek->whatsapp) && preg_match('/wa\.me\/([0-9+]+)/i', $prospek->whatsapp, $m)) {
+                $prospek->whatsapp = preg_replace('/[^0-9]/', '', $m[1]);
+            }
+
             // Keep the legacy string column in sync with the active TA when creating
             if (empty($prospek->tahun_akademik)) {
                 $aktivNama = \App\Services\AkademikService::getAktifNama();
