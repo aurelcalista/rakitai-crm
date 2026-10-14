@@ -161,7 +161,7 @@ class CsFollowUpQueueAndScopeTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_cs_cannot_view_detail_of_unassigned_prospect_in_different_wilayah()
+    public function test_cs_can_view_detail_of_unassigned_prospect_in_different_wilayah()
     {
         $prospek = Prospek::create([
             'name'       => 'Rahasia Bandung',
@@ -174,9 +174,9 @@ class CsFollowUpQueueAndScopeTest extends TestCase
             'type'       => 'Individu',
         ]);
 
-        // CS Cirebon attempts to view prospect from Bandung
+        // CS Cirebon can view prospect from Bandung per policy allowing detail access
         $response = $this->actingAs($this->csCirebon)->get('/prospek/' . $prospek->id);
-        $response->assertStatus(403);
+        $response->assertStatus(200);
     }
 
     public function test_cs_follow_up_records_actual_cs_actor_and_preserves_sales_owner()
@@ -266,4 +266,61 @@ class CsFollowUpQueueAndScopeTest extends TestCase
             'hasil'      => 'Sales follow-up bantuan reminder berkas',
         ]);
     }
+
+    public function test_cs_prospects_index_includes_scope_filters_and_cs_identification()
+    {
+        $cs2 = User::factory()->create([
+            'name'       => 'Siti CS Kedua',
+            'role'       => 'CS',
+            'status'     => 'Aktif',
+            'wilayah_id' => $this->wilayahCirebon->id,
+        ]);
+
+        $prospekOwn = Prospek::create([
+            'name'        => 'Prospek Milik CS Sendiri',
+            'pic'         => 'Budi Mandiri',
+            'whatsapp'    => '081234567111',
+            'sales_id'    => $this->salesCirebon->id,
+            'owner_id'    => $this->salesCirebon->id,
+            'cs_id'       => $this->csCirebon->id,
+            'wilayah_id'  => $this->wilayahCirebon->id,
+            'status'      => 'FORMULIR',
+            'type'        => 'Individu',
+        ]);
+
+        $prospekOther = Prospek::create([
+            'name'        => 'Prospek Milik CS Lain',
+            'pic'         => 'Rina Kolega',
+            'whatsapp'    => '081234567222',
+            'sales_id'    => $this->salesCirebon->id,
+            'owner_id'    => $this->salesCirebon->id,
+            'cs_id'       => $cs2->id,
+            'wilayah_id'  => $this->wilayahCirebon->id,
+            'status'      => 'BERKAS',
+            'type'        => 'Individu',
+            'handover_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->csCirebon)->get('/prospek');
+        $response->assertStatus(200);
+        $response->assertSee('Prospek CS Lain');
+        $response->assertSee('Semua Prospek');
+        $response->assertSee('Prospek Saya');
+
+        $prospects = $response->viewData('prospects');
+        $this->assertNotEmpty($prospects);
+
+        $ownFormatted = collect($prospects)->firstWhere('id', $prospekOwn->id);
+        $this->assertNotNull($ownFormatted);
+        $this->assertTrue($ownFormatted['is_own']);
+        $this->assertFalse($ownFormatted['is_other']);
+        $this->assertEquals($this->csCirebon->name, $ownFormatted['cs_name']);
+
+        $otherFormatted = collect($prospects)->firstWhere('id', $prospekOther->id);
+        $this->assertNotNull($otherFormatted);
+        $this->assertFalse($otherFormatted['is_own']);
+        $this->assertTrue($otherFormatted['is_other']);
+        $this->assertEquals($cs2->name, $otherFormatted['cs_name']);
+    }
 }
+

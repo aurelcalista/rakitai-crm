@@ -67,6 +67,9 @@
                     (p.pic && p.pic.toLowerCase().includes(q)) ||
                     (p.whatsapp && p.whatsapp.includes(q)) ||
                     (p.sales_name && p.sales_name.toLowerCase().includes(q)) ||
+                    (p.cs_name && p.cs_name.toLowerCase().includes(q)) ||
+                    (p.takeover_cs && p.takeover_cs.toLowerCase().includes(q)) ||
+                    (p.owner && p.owner.toLowerCase().includes(q)) ||
                     (p.notes && p.notes.toLowerCase().includes(q));
 
                 let matchPriority = true;
@@ -132,7 +135,7 @@
                 :class="activeTab === 'others' ? 'border-amber-600 text-amber-700 font-bold border-b-2' : 'border-transparent text-slate-500 hover:text-slate-700'"
                 class="py-3.5 px-3.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 cursor-pointer"
             >
-                <span>Bantuan Sales Lain</span>
+                <span x-text="userRole && userRole.toLowerCase() === 'cs' ? 'Bantuan CS Lain' : 'Bantuan Sales Lain'"></span>
                 <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold" x-text="(prospectsList.others || []).length"></span>
             </button>
 
@@ -165,7 +168,7 @@
                 <input 
                     type="text" 
                     x-model="searchQuery" 
-                    placeholder="Cari prospek, PIC, no WhatsApp, catatan, atau nama Sales..." 
+                    placeholder="Cari prospek, PIC, no WhatsApp, catatan, sales, atau CS..." 
                     class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs sm:text-sm transition bg-slate-50/50 focus:bg-white"
                 >
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
