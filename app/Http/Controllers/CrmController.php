@@ -1245,27 +1245,27 @@ class CrmController extends Controller
                 });
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
-                    $q->whereNotNull('cs_id')
-                      ->orWhere('owner_id', $user->id)
-                      ->orWhereHas('owner', function ($oq) {
-                          $oq->whereIn('role', ['CS', 'cs']);
-                      })
-                      ->orWhere(function ($sub) use ($user) {
-                          $sub->whereNull('cs_id')
-                              ->where(function ($st) {
-                                  $st->where('stage_number', '>=', 5)
-                                     ->orWhereIn('status', [
-                                         'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
-                                         '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
-                                     ]);
-                              });
-                          if ($user->wilayah_id) {
-                              $sub->where(function ($w) use ($user) {
-                                  $w->where('wilayah_id', $user->wilayah_id)
-                                    ->orWhereNull('wilayah_id');
-                              });
-                          }
-                      });
+                    $q->where(function ($sq) use ($user) {
+                        $sq->where('cs_id', $user->id)
+                           ->orWhere('owner_id', $user->id)
+                           ->orWhereNotNull('cs_id')
+                           ->orWhereHas('owner', function ($oq) {
+                               $oq->whereIn('role', ['CS', 'cs']);
+                           })
+                           ->orWhere(function ($st) {
+                               $st->where('stage_number', '>=', 5)
+                                  ->orWhereIn('status', [
+                                      'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
+                                      '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
+                                  ]);
+                           });
+                    });
+                    if ($user->wilayah_id) {
+                        $q->where(function ($w) use ($user) {
+                            $w->where('wilayah_id', $user->wilayah_id)
+                              ->orWhereNull('wilayah_id');
+                        });
+                    }
                 });
             } elseif (in_array($role, ['hm', 'eo'])) {
                 if ($role === 'hm') {
@@ -1375,6 +1375,7 @@ class CrmController extends Controller
                 'owner_id' => $p->owner_id,
                 'cs_id' => $p->cs_id,
                 'sales_name' => $p->sales ? $p->sales->name : '-',
+                'cs_name' => $p->cs ? $p->cs->name : ($p->owner && strtolower($p->owner->role ?? '') === 'cs' ? $p->owner->name : '-'),
                 'category' => $p->category ?? '-',
                 'pic' => $p->pic ?? '-',
                 'pic_phone' => $p->pic_phone ?? '-',
@@ -1382,7 +1383,7 @@ class CrmController extends Controller
                 'status' => $p->status,
                 'stage_number' => $p->stage_number,
                 'takeover_sales' => $p->sales ? $p->sales->name : null,
-                'takeover_cs' => $p->cs ? $p->cs->name : null,
+                'takeover_cs' => $p->cs ? $p->cs->name : ($p->owner && strtolower($p->owner->role ?? '') === 'cs' ? $p->owner->name : null),
                 'active_takeover' => $p->activeHandlerLabel(),
                 'owner' => $p->owner ? $p->owner->name : 'Sistem',
                 'last_activity' => $p->updated_at->diffForHumans(),
@@ -1410,8 +1411,13 @@ class CrmController extends Controller
                 'latest_follow_up_user' => $latestFollowUp && $latestFollowUp->user ? $latestFollowUp->user->name : null,
                 'latest_follow_up_user_id' => $latestFollowUp ? $latestFollowUp->user_id : null,
                 'is_assisted_by_other' => (bool) ($latestFollowUp && $latestFollowUp->user_id && $latestFollowUp->user_id != $p->sales_id && $latestFollowUp->user_id != $p->owner_id && $latestFollowUp->user_id != $p->cs_id),
-                'is_own' => (bool) ($authId && ($authRole === 'cs' ? ($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) : ($p->sales_id == $authId || $p->owner_id == $authId))),
-                'is_other' => (bool) ($authId && ($authRole === 'cs' ? (!($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) && !is_null($p->cs_id) && $p->cs_id != $authId) : (!($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id))))),
+                'is_own' => (bool) ($authId && ($authRole === 'cs'
+                    ? ($p->cs_id == $authId || $p->owner_id == $authId || (is_null($p->cs_id) && in_array(strtoupper((string)$p->status), ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'])))
+                    : ($p->sales_id == $authId || $p->owner_id == $authId))),
+                'is_other' => (bool) ($authId && ($authRole === 'cs'
+                    ? (!($p->cs_id == $authId || $p->owner_id == $authId || (is_null($p->cs_id) && in_array(strtoupper((string)$p->status), ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'])))
+                       && ((!is_null($p->cs_id) && $p->cs_id != $authId) || (strtolower(optional($p->owner)->role ?? '') === 'cs' && $p->owner_id != $authId)))
+                    : (!($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id))))),
                 'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
                 'has_follow_up_history' => $hasFollowUpHistory,
                 'follow_ups_history' => $p->relationLoaded('followUps') ? $p->followUps->map(fn($f) => [

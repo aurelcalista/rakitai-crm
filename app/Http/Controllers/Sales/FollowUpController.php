@@ -319,6 +319,8 @@ class FollowUpController extends Controller
             'hasil_terakhir'      => $latestFU ? ($latestFU->hasil ?? '-') : '-',
             'notes'               => $latestFU && $latestFU->catatan ? $latestFU->catatan : ($p->notes ?? '-'),
             'sales_name'          => $p->sales ? $p->sales->name : ($p->owner ? $p->owner->name : '-'),
+            'cs_name'             => $p->cs ? $p->cs->name : ($p->owner && strtolower($p->owner->role ?? '') === 'cs' ? $p->owner->name : '-'),
+            'takeover_cs'         => $p->cs ? $p->cs->name : ($p->owner && strtolower($p->owner->role ?? '') === 'cs' ? $p->owner->name : null),
             'owner'               => $p->owner ? $p->owner->name : 'Sistem',
             'latest_follow_up_user' => $latestFU && $latestFU->user ? $latestFU->user->name : null,
             'latest_follow_up_user_id' => $latestFU ? $latestFU->user_id : null,

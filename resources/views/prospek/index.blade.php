@@ -36,9 +36,16 @@
         prospectsList: {{ json_encode($prospects) }},
         
         isOwnProspect(p) {
+            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
+                return Boolean(p.is_own === true || (this.authUserId && (p.cs_id == this.authUserId || p.owner_id == this.authUserId)));
+            }
             return Boolean(p.is_own === true || (this.authUserId && (p.sales_id == this.authUserId || p.owner_id == this.authUserId)));
         },
         isOtherProspect(p) {
+            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
+                const hasOtherCs = Boolean((p.cs_id && p.cs_id != this.authUserId) || (p.owner_id && p.owner_id != this.authUserId && p.cs_name && p.cs_name !== '-'));
+                return Boolean(p.is_other === true || (!this.isOwnProspect(p) && hasOtherCs));
+            }
             const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-'));
             return Boolean(p.is_other === true || (!this.isOwnProspect(p) && hasSalesOwner));
         },
@@ -50,6 +57,9 @@
                     (p.pic && p.pic.toLowerCase().includes(q)) ||
                     (p.whatsapp && p.whatsapp.includes(q)) ||
                     (p.sales_name && p.sales_name.toLowerCase().includes(q)) ||
+                    (p.cs_name && p.cs_name.toLowerCase().includes(q)) ||
+                    (p.takeover_cs && p.takeover_cs.toLowerCase().includes(q)) ||
+                    (p.sekolah_name && p.sekolah_name.toLowerCase().includes(q)) ||
                     (p.owner && p.owner.toLowerCase().includes(q));
                 
                 const matchStatus = this.selectedStatus === 'all' || p.status === this.selectedStatus;
@@ -227,8 +237,8 @@
         <!-- Search & Filter Controls -->
         <div class="crm-card bg-white p-4 sm:p-5 space-y-4">
             
-            @if(in_array(auth()->user()->role ?? '', ['Sales']))
-            <!-- Scope Filter Tabs for Sales -->
+            @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']))
+            <!-- Scope Filter Tabs for Sales & CS -->
             <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60">
                 <button 
                     type="button" 
@@ -252,7 +262,7 @@
                     class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
                     :class="selectedScope === 'others' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
                 >
-                    <span>Follow-Up Sales Lain</span>
+                    <span x-text="userRole.toLowerCase() === 'cs' ? 'Prospek CS Lain' : 'Follow-Up Sales Lain'"></span>
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800" x-text="prospectsList.filter(p => isOtherProspect(p)).length"></span>
                 </button>
             </div>
@@ -263,7 +273,7 @@
                 <input 
                     type="text" 
                     x-model="searchQuery"
-                    placeholder="Cari nama sekolah, instansi, kontak PIC, atau nomor telepon..." 
+                    placeholder="Cari nama sekolah, instansi, kontak PIC, nomor telepon, sales, atau CS..." 
                     class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs sm:text-sm transition bg-slate-50/50 focus:bg-white"
                 >
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -441,7 +451,7 @@
                                     <div class="text-[10px] text-slate-500 mt-1 font-semibold" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
-                                    <div class="text-[10px] text-teal-600 font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></div>
+                                    <div class="text-[10px] text-teal-600 font-semibold" x-show="(prospect.cs_name && prospect.cs_name !== '-') || (prospect.takeover_cs && prospect.takeover_cs !== '-')" x-text="'CS: ' + ((prospect.cs_name && prospect.cs_name !== '-') ? prospect.cs_name : prospect.takeover_cs)"></div>
                                 </td>
                                 <td class="py-4 px-3 whitespace-nowrap">
                                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border"
@@ -467,7 +477,7 @@
                                 <td class="py-4 px-3 text-slate-600 font-medium">
                                     <div class="flex items-center gap-1.5 flex-wrap">
                                         <span x-text="prospect.owner"></span>
-                                        <span x-show="prospect.is_other" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="Prospek milik Sales lain">Sales Lain</span>
+                                        <span x-show="isOtherProspect(prospect)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" :title="userRole.toLowerCase() === 'cs' ? 'Prospek milik CS lain' : 'Prospek milik Sales lain'" x-text="userRole.toLowerCase() === 'cs' ? 'CS Lain' : 'Sales Lain'"></span>
                                     </div>
                                 </td>
                                 <td class="py-4 px-3 text-slate-500 text-[11px]" x-text="prospect.last_activity"></td>
@@ -475,9 +485,9 @@
                                     <div class="flex items-center justify-end gap-1">
                                         <button 
                                             @click="selectedProspect = prospect; modalFollowUp = true"
-                                            :class="prospect.is_other ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+                                            :class="isOtherProspect(prospect) ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
                                             class="p-1.5 rounded-lg transition cursor-pointer"
-                                            :title="prospect.is_other ? 'Bantu Follow Up' : 'Follow Up'"
+                                            :title="isOtherProspect(prospect) ? (userRole.toLowerCase() === 'cs' ? 'Bantu Follow Up CS Lain' : 'Bantu Follow Up') : 'Follow Up'"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                         </button>
@@ -508,17 +518,20 @@
                                     <span class="text-[11px] text-slate-500 block" x-text="prospect.type"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
                                     <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
-                                    <span class="text-[10px] text-teal-600 block font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></span>
+                                    <span class="text-[10px] text-teal-600 block font-semibold" x-show="(prospect.cs_name && prospect.cs_name !== '-') || (prospect.takeover_cs && prospect.takeover_cs !== '-')" x-text="'CS: ' + ((prospect.cs_name && prospect.cs_name !== '-') ? prospect.cs_name : prospect.takeover_cs)"></span>
                                     <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border inline-block mt-1"
                                           :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
                                           x-text="'Kelas ' + (prospect.kelas || 'Reguler')"></span>
                                 </div>
                             </div>
-                            <span 
-                                :class="'badge-' + prospect.status.toLowerCase().replace(/ /g, '-')"
-                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
-                                x-text="prospect.status"
-                            ></span>
+                            <div class="flex flex-col items-end gap-1">
+                                <span 
+                                    :class="'badge-' + prospect.status.toLowerCase().replace(/ /g, '-')"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
+                                    x-text="prospect.status"
+                                ></span>
+                                <span x-show="isOtherProspect(prospect)" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200" :title="userRole.toLowerCase() === 'cs' ? 'Prospek milik CS lain' : 'Prospek milik Sales lain'" x-text="userRole.toLowerCase() === 'cs' ? 'CS Lain' : 'Sales Lain'"></span>
+                            </div>
                         </div>
 
                         <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-xs space-y-1">
@@ -532,9 +545,9 @@
                         <div class="flex items-center gap-2 pt-1">
                             <button 
                                 @click="selectedProspect = prospect; modalFollowUp = true"
-                                :class="prospect.is_other ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200/80'"
+                                :class="isOtherProspect(prospect) ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200/80'"
                                 class="flex-1 py-2 rounded-xl border text-xs font-semibold text-center"
-                                x-text="prospect.is_other ? 'Bantu Follow Up' : 'Follow Up'"
+                                x-text="isOtherProspect(prospect) ? 'Bantu Follow Up' : 'Follow Up'"
                             >
                             </button>
                             <button 
