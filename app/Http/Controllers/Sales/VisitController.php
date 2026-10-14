@@ -33,8 +33,13 @@ class VisitController extends Controller
             ->orderBy('tanggal', 'desc');
 
         // Optional filter by type
-        if ($request->filled('jenis') && in_array($request->jenis, ['Sekolah', 'Perusahaan'])) {
-            $query->where('jenis', $request->jenis);
+        if ($request->filled('jenis')) {
+            $jenis = ucfirst(strtolower($request->jenis));
+            if (in_array($jenis, ['Corporate', 'Perusahaan'])) {
+                $query->whereIn('jenis', ['Perusahaan', 'Corporate']);
+            } elseif ($jenis === 'Sekolah') {
+                $query->where('jenis', 'Sekolah');
+            }
         }
 
         $visits = $query->get()->map(fn ($k) => $this->formatKunjungan($k))->toArray();

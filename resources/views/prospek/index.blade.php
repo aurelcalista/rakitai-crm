@@ -109,38 +109,50 @@
             @endif
         </div>
 
-        {{-- CS Prospect Activity Metrics & Period Filter (Requirement P) --}}
-        @if(isset($csMetrics) && in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+        {{-- Prospect Activity Metrics & Period Filter (CS & Sales) --}}
+        @php
+            $userRoleLower = strtolower(auth()->user()->role ?? '');
+            $metricsData = $userRoleLower === 'sales' ? ($salesMetrics ?? null) : ($csMetrics ?? null);
+            $showMetrics = isset($metricsData) && in_array($userRoleLower, ['sales', 'cs', 'admin']);
+            $metricsTitle = $userRoleLower === 'sales' ? 'Aktivitas & Metrik Prospek Sales' : 'Aktivitas & Metrik Prospek CS';
+        @endphp
+        @if($showMetrics)
         <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                     <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <span>Aktivitas & Metrik Prospek CS</span>
-                        @if(!empty($csMetrics['start_date']) || !empty($csMetrics['end_date']))
+                        <span>{{ $metricsTitle }}</span>
+                        @if(!empty($metricsData['start_date']) || !empty($metricsData['end_date']))
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                                Periode: {{ $csMetrics['start_date'] ?? 'Awal' }} s/d {{ $csMetrics['end_date'] ?? 'Kini' }}
+                                Periode: {{ $metricsData['start_date'] ?? 'Awal' }} s/d {{ $metricsData['end_date'] ?? 'Kini' }}
                             </span>
                         @endif
                     </h3>
                     <p class="text-[11px] text-slate-500">Pantau produktivitas penanganan dan interaksi prospek berdasarkan rentang periode.</p>
                 </div>
                 {{-- Date Filter Form --}}
-                <form method="GET" action="{{ route('prospek.index') }}" class="flex flex-wrap items-center gap-2 text-xs">
+                <form method="GET" action="{{ url()->current() }}" class="flex flex-wrap items-center gap-2 text-xs">
+                    @if(request()->filled('status'))
+                        <input type="hidden" name="status" value="{{ request('status') }}">
+                    @endif
+                    @if(request()->filled('q'))
+                        <input type="hidden" name="q" value="{{ request('q') }}">
+                    @endif
                     <div class="flex items-center gap-1.5">
                         <label class="text-[11px] font-semibold text-slate-500">Dari:</label>
-                        <input type="date" name="start_date" value="{{ $csMetrics['start_date'] ?? '' }}"
+                        <input type="date" name="start_date" value="{{ $metricsData['start_date'] ?? '' }}"
                                class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
                     </div>
                     <div class="flex items-center gap-1.5">
                         <label class="text-[11px] font-semibold text-slate-500">Sampai:</label>
-                        <input type="date" name="end_date" value="{{ $csMetrics['end_date'] ?? '' }}"
+                        <input type="date" name="end_date" value="{{ $metricsData['end_date'] ?? '' }}"
                                class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
                     </div>
                     <button type="submit" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold transition cursor-pointer text-xs">
                         Filter
                     </button>
-                    @if(!empty($csMetrics['start_date']) || !empty($csMetrics['end_date']))
-                        <a href="{{ route('prospek.index') }}" class="px-2.5 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 font-semibold transition text-xs">
+                    @if(!empty($metricsData['start_date']) || !empty($metricsData['end_date']))
+                        <a href="{{ url()->current() }}" class="px-2.5 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 font-semibold transition text-xs">
                             Reset
                         </a>
                     @endif
@@ -158,25 +170,25 @@
                         </span>
                     </div>
                     <div class="mt-2 flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-slate-900">{{ $csMetrics['diinput'] }}</span>
+                        <span class="text-2xl font-black text-slate-900">{{ $metricsData['diinput'] }}</span>
                         <span class="text-[11px] text-slate-500">prospek</span>
                     </div>
                     <p class="text-[10px] text-slate-400 mt-1">Dibuat dalam periode</p>
                 </div>
 
-                {{-- 2. Dihubungi --}}
+                {{-- 2. Dihubungi / Prospek Aktif --}}
                 <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold text-slate-600">Prospek Dihubungi</span>
+                        <span class="text-xs font-semibold text-slate-600">{{ $userRoleLower === 'sales' ? 'Prospek Aktif' : 'Prospek Dihubungi' }}</span>
                         <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
                         </span>
                     </div>
                     <div class="mt-2 flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-slate-900">{{ $csMetrics['dihubungi'] }}</span>
+                        <span class="text-2xl font-black text-slate-900">{{ $metricsData['dihubungi'] }}</span>
                         <span class="text-[11px] text-slate-500">prospek unik</span>
                     </div>
-                    <p class="text-[10px] text-slate-400 mt-1">Histori kontak tercatat</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ $userRoleLower === 'sales' ? 'Memiliki histori interaksi' : 'Histori kontak tercatat' }}</p>
                 </div>
 
                 {{-- 3. Di-Follow-up --}}
@@ -188,7 +200,7 @@
                         </span>
                     </div>
                     <div class="mt-2 flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-slate-900">{{ $csMetrics['follow_up'] }}</span>
+                        <span class="text-2xl font-black text-slate-900">{{ $metricsData['follow_up'] }}</span>
                         <span class="text-[11px] text-slate-500">prospek unik</span>
                     </div>
                     <p class="text-[10px] text-slate-400 mt-1">Tercatat follow-up</p>
@@ -203,7 +215,7 @@
                         </span>
                     </div>
                     <div class="mt-2 flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-rose-900">{{ $csMetrics['hot_prospect'] }}</span>
+                        <span class="text-2xl font-black text-rose-900">{{ $metricsData['hot_prospect'] }}</span>
                         <span class="text-[11px] text-rose-700">prospek</span>
                     </div>
                     <p class="text-[10px] text-slate-400 mt-1">Status/transisi HOT</p>

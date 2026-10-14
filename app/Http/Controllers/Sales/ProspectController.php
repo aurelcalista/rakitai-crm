@@ -51,6 +51,14 @@ class ProspectController extends Controller
             $query->where('name', 'like', '%' . $request->q . '%');
         }
 
+        // Optional date filter
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
         $prospects = $query->orderBy('updated_at', 'desc')->get()
             ->map(fn ($p) => $this->formatProspek($p))
             ->toArray();
@@ -58,7 +66,84 @@ class ProspectController extends Controller
         $statuses = Prospek::getActiveStages();
         $lostReasons = Prospek::LOST_REASONS;
 
-        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons'));
+        // Sales Activity Metrics (Scoped specifically to this Sales user)
+        $startDateCarbon = $request->filled('start_date') ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : null;
+        $endDateCarbon   = $request->filled('end_date') ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : null;
+
+        $salesBaseQuery = Prospek::where(function ($q) use ($user) {
+            $q->where('sales_id', $user->id)
+              ->orWhere('owner_id', $user->id);
+        });
+
+        // 1. Prospek Diinput oleh Sales ini
+        $inputQuery = (clone $salesBaseQuery);
+        if ($startDateCarbon) $inputQuery->where('created_at', '>=', $startDateCarbon);
+        if ($endDateCarbon)   $inputQuery->where('created_at', '<=', $endDateCarbon);
+        $totalDiinput = $inputQuery->count();
+
+        // List ID prospek milik Sales ini
+        $salesProspectIds = (clone $salesBaseQuery)->pluck('id');
+
+        // 2. Prospek Dihubungi
+        $contactQuery = \App\Models\FollowUp::where(function ($q) use ($user, $salesProspectIds) {
+            $q->where('user_id', $user->id)
+              ->orWhereIn('prospek_id', $salesProspectIds);
+        });
+        if ($startDateCarbon) $contactQuery->where('tanggal', '>=', $startDateCarbon);
+        if ($endDateCarbon)   $contactQuery->where('tanggal', '<=', $endDateCarbon);
+        $totalDihubungi = (clone $contactQuery)->where(function ($q) {
+            $q->whereIn('metode', ['Telepon', 'WhatsApp', 'Panggilan', 'SMS', 'Chat'])
+              ->orWhere('hasil', 'like', '%Hubung%')
+              ->orWhere('hasil', 'like', '%Kontak%');
+        })->distinct('prospek_id')->count('prospek_id');
+
+        if ($totalDihubungi === 0) {
+            $totalDihubungi = (clone $contactQuery)->distinct('prospek_id')->count('prospek_id');
+        }
+
+        // 3. Di-Follow-up
+        $fuQuery = \App\Models\FollowUp::where(function ($q) use ($user, $salesProspectIds) {
+            $q->where('user_id', $user->id)
+              ->orWhereIn('prospek_id', $salesProspectIds);
+        });
+        if ($startDateCarbon) $fuQuery->where('tanggal', '>=', $startDateCarbon);
+        if ($endDateCarbon)   $fuQuery->where('tanggal', '<=', $endDateCarbon);
+        $totalFollowUp = $fuQuery->distinct('prospek_id')->count('prospek_id');
+
+        // 4. Hot Prospect
+        $hotQuery = (clone $salesBaseQuery)->where(function ($q) use ($startDateCarbon, $endDateCarbon) {
+            $q->where(function ($sq) {
+                $sq->whereIn('status', ['HOT PROSPEK', 'PANAS', 'HOT'])
+                   ->orWhere('category', 'like', '%Hot%');
+            });
+            if ($startDateCarbon || $endDateCarbon) {
+                $q->orWhereHas('timelines', function ($tq) use ($startDateCarbon, $endDateCarbon) {
+                    $tq->where(function ($tsq) {
+                        $tsq->whereIn('status_after', ['HOT PROSPEK', 'PANAS', 'HOT'])
+                            ->orWhere('title', 'like', '%Hot%');
+                    });
+                    if ($startDateCarbon) $tq->where('time', '>=', $startDateCarbon);
+                    if ($endDateCarbon)   $tq->where('time', '<=', $endDateCarbon);
+                });
+            }
+        });
+        if ($startDateCarbon) $hotQuery->where('created_at', '>=', $startDateCarbon);
+        if ($endDateCarbon)   $hotQuery->where('created_at', '<=', $endDateCarbon);
+        $totalHot = $hotQuery->count();
+
+        $salesMetrics = [
+            'diinput'      => $totalDiinput,
+            'dihubungi'    => $totalDihubungi,
+            'follow_up'    => $totalFollowUp,
+            'hot_prospect' => $totalHot,
+            'start_date'   => $request->start_date,
+            'end_date'     => $request->end_date,
+        ];
+
+        $sekolahs    = Sekolah::getDynamicSchools();
+        $perusahaans = Perusahaan::getDynamicPerusahaans();
+
+        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons', 'salesMetrics', 'sekolahs', 'perusahaans'));
     }
 
     /**

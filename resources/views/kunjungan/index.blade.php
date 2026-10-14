@@ -31,7 +31,16 @@
         deleteVisitId: null,
         get filteredVisits() {
             if (this.kunjunganFilter === 'all') return this.visitsList;
-            return this.visitsList.filter(v => v.type.toLowerCase() === this.kunjunganFilter.toLowerCase());
+            if (this.kunjunganFilter === 'corporate' || this.kunjunganFilter === 'perusahaan') {
+                return this.visitsList.filter(v => {
+                    const t = (v.type || '').toLowerCase();
+                    return t === 'corporate' || t === 'perusahaan';
+                });
+            }
+            if (this.kunjunganFilter === 'sekolah') {
+                return this.visitsList.filter(v => (v.type || '').toLowerCase() === 'sekolah');
+            }
+            return this.visitsList.filter(v => (v.type || '').toLowerCase() === this.kunjunganFilter.toLowerCase());
         }
     }">
 
@@ -175,6 +184,19 @@
                         </div>
                     </div>
 
+                </div>
+            </template>
+
+            <!-- Empty Filter State -->
+            <template x-if="filteredVisits.length === 0">
+                <div class="col-span-full py-12 text-center bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-700">Tidak ada data kunjungan</p>
+                    <p class="text-xs text-slate-400 mt-1">Tidak ditemukan kunjungan untuk filter kategori yang dipilih.</p>
                 </div>
             </template>
         </div>
