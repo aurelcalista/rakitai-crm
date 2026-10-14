@@ -31,11 +31,43 @@ class ProspectController extends Controller
         $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'latestFollowUp'])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
-              ->orWhereIn('cs_id', $teamMemberIds);
+              ->orWhereIn('cs_id', $teamMemberIds)
+              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
             if ($user->wilayah_id) {
                 $q->orWhere('wilayah_id', $user->wilayah_id);
             }
         });
+
+        // Filter tab scope: all, own, others, presensi
+        if ($request->filled('scope')) {
+            if ($request->scope === 'own') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('sales_id', $user->id)
+                      ->orWhere('owner_id', $user->id)
+                      ->orWhere('takeover_by_id', $user->id);
+                });
+            } elseif ($request->scope === 'others') {
+                $query->where(function ($q) use ($user) {
+                    $q->where(function ($sub) use ($user) {
+                        $sub->whereNull('sales_id')->orWhere('sales_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('owner_id')->orWhere('owner_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('takeover_by_id')->orWhere('takeover_by_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) {
+                        $sub->whereNotNull('sales_id')
+                           ->orWhereNotNull('takeover_by_id')
+                           ->orWhereHas('sales')
+                           ->orWhereHas('owner');
+                    });
+                });
+            } elseif ($request->scope === 'presensi') {
+                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+            }
+        }
 
         // Filter by Sales handler
         if ($request->filled('sales_id') && $request->sales_id !== 'all') {
@@ -397,7 +429,7 @@ class ProspectController extends Controller
     {
         Gate::authorize('view', $prospek);
 
-        $prospek->load(['sales', 'cs', 'owner', 'prodi', 'sekolah', 'wilayah', 'followUps' => function ($q) {
+        $prospek->load(['sales', 'cs', 'owner', 'takeoverBy', 'prodi', 'sekolah.wilayah', 'wilayah', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -730,12 +762,19 @@ class ProspectController extends Controller
             'sales_id'       => $p->sales_id,
             'sekolah_id'     => $p->sekolah_id,
             'wilayah_id'     => $p->wilayah_id,
-            'sekolah_nama'   => $p->sekolah ? $p->sekolah->nama : null,
-            'wilayah_nama'   => $p->wilayah ? $p->wilayah->nama : null,
+            'sekolah_nama'   => $p->sekolah?->nama ?? ($p->sekolah_manual ?: ($p->name !== $p->pic ? $p->name : null)),
+            'wilayah_nama'   => $p->sekolah?->wilayah?->nama ?? ($p->wilayah?->nama ?? 'Belum Diisi'),
             'takeover_sales' => $p->sales ? $p->sales->name : null,
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
             'active_takeover' => $p->activeHandlerLabel(),
             'owner'          => $p->owner ? $p->owner->name : 'Sistem',
+            'status_takeover' => $p->status_takeover ?: ($p->takeover_by_id ? 'Sudah Di-takeover' : 'Belum Di-takeover'),
+            'takeover_by_name' => $p->takeoverBy?->name ?? null,
+            'takeover_by_role' => $p->takeoverBy?->role ?? null,
+            'takeover_at'    => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
+            'is_presensi'    => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
+            'is_own'          => (bool) (auth()->id() && ($p->sales_id == auth()->id() || $p->owner_id == auth()->id() || $p->takeover_by_id == auth()->id())),
+            'is_other'        => (bool) (auth()->id() && !($p->sales_id == auth()->id() || $p->owner_id == auth()->id() || $p->takeover_by_id == auth()->id()) && (!is_null($p->sales_id) || !is_null($p->takeover_by_id) || !is_null($p->cs_id))),
             'last_activity'  => $p->updated_at->diffForHumans(),
             'potential'      => $p->potential ?? '-',
             'prodi_id'       => $p->prodi_id,

@@ -361,6 +361,18 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Jenis Event</span>
                             </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                title="Data Prospek ({{ $globalProspekCount ?? 0 }})"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prospek</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
                         </div>
                     </div>
                 @endif
@@ -383,6 +395,18 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                title="Data Prospek ({{ $globalProspekCount ?? 0 }})"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prospek</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-700 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             <a 
                                 href="{{ route('admin.work-calendar.index') }}" 
@@ -613,9 +637,7 @@ x-init="
 
                     <!-- Section: CRM CORE (Sales, CS, SPV, HM) -->
                     @php
-                        $prospekMenuTitle = 'Prospek';
-                        if ($userRole === 'sales') $prospekMenuTitle = 'Data Prospek';
-                        if ($userRole === 'cs') $prospekMenuTitle = 'Data Kontak';
+                        $prospekMenuTitle = 'Data Prospek';
                     @endphp
                     <div>
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
@@ -714,7 +736,7 @@ x-init="
 
                             {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->count(); @endphp
                             <a 
                                 href="{{ route('cs.verifikasi.index') }}" 
                                 title="Verifikasi Pembayaran ({{ $pendingVerifikasiCount }} Menunggu)"
@@ -1439,6 +1461,19 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Jenis Event</span>
                             </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola data prospek leads database pmb event peserta"
+                                x-show="matches('kelola data prospek leads database pmb event peserta')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Data Prospek</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
                         </div>
                     </div>
                 @endif
@@ -1459,6 +1494,19 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span class="flex-1">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data prospek leads pmb database admin"
+                                x-show="matches('data prospek leads pmb database admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Data Prospek</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             <a 
                                 href="{{ route('admin.work-calendar.index') }}" 
@@ -1715,9 +1763,7 @@ x-init="
                 @elseif($currentUser['role'] !== 'EO')
                     <!-- SECTION: CRM INBOUND (Sales, CS, SPV, HM) -->
                     @php
-                        $prospekMobileTitle = 'Prospek';
-                        if ($userRole === 'sales') $prospekMobileTitle = 'Data Prospek';
-                        if ($userRole === 'cs') $prospekMobileTitle = 'Data Kontak';
+                        $prospekMobileTitle = 'Data Prospek';
                     @endphp
                     <div x-show="matches('crm inbound prospek kontak kunjungan follow up event pipeline verifikasi bayar pembayaran')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
@@ -1821,7 +1867,7 @@ x-init="
 
                             {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->count(); @endphp
                             <a 
                                 href="{{ route('cs.verifikasi.index') }}" 
                                 @click="mobileMenuOpen = false"
@@ -2210,7 +2256,7 @@ x-init="
                             </div>
 
                             <!-- Input Sekolah (Search & Manual Mode) -->
-                            <div x-show="prospekType === 'Sekolah'" x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                            <div x-show="prospekType === 'Sekolah'" x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-2">
                                 <div class="flex items-center justify-between mb-1.5 h-5">
                                     <template x-if="!modeManualSekolah">
                                         <div class="flex items-center justify-between w-full">
@@ -2274,7 +2320,7 @@ x-init="
                                             <input 
                                                 type="text" 
                                                 name="sekolah_manual" 
-                                                placeholder="Contoh: SMAN 1 Cirebon" 
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
                                                 class="w-full text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                                             >
                                         </div>
@@ -3038,7 +3084,7 @@ x-init="
                                             if(inp) { inp.value = $event.detail.search; inp.focus(); } 
                                         }); 
                                     }" 
-                                    class="space-y-1.5"
+                                    class="space-y-2"
                                 >
                                     <div class="flex items-center justify-between mb-1 h-5">
                                         <template x-if="!modeManualSekolah">
@@ -3094,7 +3140,7 @@ x-init="
                                                 name="sekolah_manual" 
                                                 x-model="sekolah_manual" 
                                                 @input="namaInstitusi = $event.target.value"
-                                                placeholder="Ketik nama sekolah manual (misal: SMAN 1 Cirebon)..." 
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
                                                 class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
                                             >
                                         </div>

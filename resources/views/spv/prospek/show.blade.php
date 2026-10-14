@@ -165,18 +165,18 @@
                         </div>
 
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sales Pemilik Prospek</span>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Owner Awal</span>
                             <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
                                 <p class="font-bold text-slate-900 text-sm">
-                                    {{ $prospekModel->owner?->name ?? ($prospekModel->sales?->name ?? ($prospect['owner'] ?? ($prospect['takeover_sales'] ?? 'Belum Ditugaskan'))) }}
+                                    {{ $prospekModel->owner?->name ?? 'Sistem' }}
                                 </p>
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                    Pemilik Awal
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {{ $prospekModel->owner_id ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200' }}">
+                                    {{ $prospekModel->owner_id ? 'Pemilik Awal' : 'Sistem' }}
                                 </span>
                             </div>
-                            @if($prospekModel->sales_id && $prospekModel->owner_id && $prospekModel->sales_id !== $prospekModel->owner_id && $prospekModel->sales)
+                            @if($prospekModel->sales_id && $prospekModel->sales)
                                 <div class="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
-                                    <span class="text-slate-400">Penangan Saat Ini:</span>
+                                    <span class="text-slate-400">Sales Penangan:</span>
                                     <strong class="text-slate-800">{{ $prospekModel->sales->name }}</strong>
                                 </div>
                             @endif
@@ -186,14 +186,62 @@
                         </div>
 
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Wilayah / Teritori</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['wilayah_nama'] ?? '-' }}</p>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
+                            <div class="mt-0.5">
+                                @if($prospekModel->isPresensiSiswa())
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                        Presensi Siswa
+                                    </span>
+                                @else
+                                    <span class="font-medium text-slate-800">{{ $prospect['source'] ?? '-' }}</span>
+                                @endif
+                            </div>
                         </div>
 
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Asal Sekolah & Wilayah</span>
+                            <p class="font-medium text-slate-800 mt-0.5">
+                                {{ $prospekModel->sekolah?->nama ?? ($prospekModel->sekolah_manual ?: ($prospect['sekolah_nama'] ?? 'Belum Diisi')) }}
+                            </p>
+                            <p class="text-[11px] text-slate-500 mt-0.5">
+                                Wilayah: <strong>{{ $prospekModel->sekolah?->wilayah?->nama ?? ($prospekModel->wilayah?->nama ?? ($prospect['wilayah_nama'] ?? 'Belum Diisi')) }}</strong>
+                            </p>
                         </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Status Takeover</span>
+                            <div class="mt-1">
+                                @if($prospekModel->status_takeover === 'Sudah Di-takeover' || $prospekModel->takeover_by_id)
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                        Sudah Di-takeover
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                        Belum Di-takeover
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        @if($prospekModel->takeover_by_id || $prospekModel->takeoverBy)
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pengambil Alih</span>
+                            <p class="font-bold text-slate-800 mt-0.5 text-xs flex items-center gap-1.5">
+                                <span>{{ $prospekModel->takeoverBy?->name ?? 'User #' . $prospekModel->takeover_by_id }}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    {{ $prospekModel->takeoverBy?->role ?? 'Sales' }}
+                                </span>
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Waktu Takeover</span>
+                            <p class="font-medium text-slate-700 mt-0.5 text-xs">
+                                {{ $prospekModel->takeover_at ? $prospekModel->takeover_at->format('d M Y, H:i') : '-' }}
+                            </p>
+                        </div>
+                        @endif
 
 
                         <div>

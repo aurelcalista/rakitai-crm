@@ -401,6 +401,13 @@ class DataAnalystController extends Controller
 
         $query = $this->exportService->buildProspekQuery($filters);
 
+        // Scope filter
+        if ($request->filled('scope')) {
+            if ($request->scope === 'presensi') {
+                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+            }
+        }
+
         // Search text
         if ($request->filled('search')) {
             $search = '%' . trim($request->search) . '%';
@@ -418,6 +425,7 @@ class DataAnalystController extends Controller
         $prodiOptions = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $taOptions = TahunAkademik::orderByDesc('nama')->get();
         $salesOptions = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
+        $sourceOptions = Prospek::SOURCES;
 
         return view('analyst.prospek', compact(
             'prospeks',
@@ -425,7 +433,8 @@ class DataAnalystController extends Controller
             'wilayahOptions',
             'prodiOptions',
             'taOptions',
-            'salesOptions'
+            'salesOptions',
+            'sourceOptions'
         ));
     }
 

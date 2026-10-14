@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Cs;
 
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
+use App\Models\Prodi;
 use App\Models\ProspekTimeline;
 use App\Models\Transaksi;
 use Illuminate\Http\RedirectResponse;
@@ -33,8 +34,44 @@ class VerifikasiController extends Controller
         $isCs = $user && strtolower($user->role) === 'cs';
 
         $kategoriFilter = $request->query('kategori');
+        $prodiFilter = $request->query('prodi_id');
+        $kelasFilter = $request->query('kelas');
 
-        // Base Query dengan eager loading lengkap
+        // Helper closure untuk menerapkan filter yang konsisten (kategori, jurusan/prodi, kelas, pencarian)
+        $applyFilters = function ($q) use ($search, $kategoriFilter, $prodiFilter, $kelasFilter) {
+            if ($kategoriFilter && $kategoriFilter !== 'all') {
+                $q->where('kategori', $kategoriFilter);
+            }
+
+            if ($prodiFilter && $prodiFilter !== 'all') {
+                $q->whereHas('prospek', function ($p) use ($prodiFilter) {
+                    $p->where('prodi_id', $prodiFilter);
+                });
+            }
+
+            if ($kelasFilter && $kelasFilter !== 'all') {
+                $q->whereHas('prospek', function ($p) use ($kelasFilter) {
+                    $p->where('kelas', $kelasFilter);
+                });
+            }
+
+            if ($search) {
+                $q->where(function ($sq) use ($search) {
+                    $sq->whereHas('prospek', function ($p) use ($search) {
+                        $p->where('name', 'like', "%{$search}%")
+                          ->orWhere('pic', 'like', "%{$search}%")
+                          ->orWhere('whatsapp', 'like', "%{$search}%")
+                          ->orWhereHas('sekolah', fn($sk) => $sk->where('nama', 'like', "%{$search}%"))
+                          ->orWhereHas('perusahaan', fn($pr) => $pr->where('nama', 'like', "%{$search}%"));
+                    })
+                    ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"))
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    ->orWhere('rejection_reason', 'like', "%{$search}%");
+                });
+            }
+        };
+
+        // Base Query dengan eager loading lengkap (Verifikasi pembayaran dapat diakses oleh semua CS tanpa sekat wilayah)
         $baseQuery = Transaksi::with([
             'prospek.cs',
             'prospek.transaksis',
@@ -47,21 +84,11 @@ class VerifikasiController extends Controller
             'rejecter'
         ]);
 
-        if ($isCs && $user->wilayah_id) {
-            $baseQuery->whereHas('prospek', function ($q) use ($user) {
-                $q->where('wilayah_id', $user->wilayah_id)
-                  ->orWhereNull('wilayah_id');
-            });
-        }
-
-        // Statistik ringkasan (scoped to current CS/Wilayah)
+        // Statistik ringkasan (mencakup seluruh antrean verifikasi untuk semua CS)
         $statsQuery = Transaksi::query();
-        if ($isCs && $user->wilayah_id) {
-            $statsQuery->whereHas('prospek', function ($q) use ($user) {
-                $q->where('wilayah_id', $user->wilayah_id)
-                  ->orWhereNull('wilayah_id');
-            });
-        }
+
+        // Terapkan filter jurusan, kelas, kategori, dan pencarian pada statistik card
+        $applyFilters($statsQuery);
 
         $totalPending = (clone $statsQuery)
             ->where('payment_status', Transaksi::STATUS_PENDING)
@@ -92,25 +119,17 @@ class VerifikasiController extends Controller
             }
         }
 
-        // Filter Kategori
-        if ($kategoriFilter && $kategoriFilter !== 'all') {
-            $query->where('kategori', $kategoriFilter);
-        }
-
-        // Filter Pencarian
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('prospek', fn($p) => $p->where('name', 'like', "%{$search}%"))
-                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', "%{$search}%"))
-                  ->orWhere('notes', 'like', "%{$search}%")
-                  ->orWhere('rejection_reason', 'like', "%{$search}%");
-            });
-        }
+        // Terapkan filter yang sama pada query tabel transaksi
+        $applyFilters($query);
 
         $transaksis = $query->paginate(20)->withQueryString();
+        $prodis = Prodi::orderBy('nama')->get();
 
         return view('cs.verifikasi.index', compact(
             'transaksis',
+            'prodis',
+            'prodiFilter',
+            'kelasFilter',
             'totalPending',
             'totalVerified',
             'totalRejected',

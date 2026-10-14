@@ -720,17 +720,9 @@ class CrmController extends Controller
         $user = auth()->user();
         $isCs = $user && strtolower($user->role) === 'cs';
 
-        // 1. Data Pembayaran Termin 1 Menunggu Verifikasi CS
+        // 1. Data Pembayaran Menunggu Verifikasi CS (seluruh jenis transaksi pending dapat diverifikasi oleh semua CS)
         $pendingPaymentsQuery = \App\Models\Transaksi::with(['prospek.cs', 'prospek', 'user', 'prospek.sales'])
-            ->where('jenis', 'Pembayaran Termin 1')
             ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING);
-
-        if ($isCs) {
-            $pendingPaymentsQuery->whereHas('prospek', function ($q) use ($user) {
-                $q->where('cs_id', $user->id)
-                  ->orWhereNull('cs_id');
-            });
-        }
 
         $pendingPaymentsQuery->latest('tanggal');
 
@@ -1214,7 +1206,7 @@ class CrmController extends Controller
     private function getDbProspects(?Request $request = null)
     {
         $user = auth()->user();
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'latestFollowUp.user', 'followUps', 'timelines' => function ($q) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'takeoverBy', 'sekolah.wilayah', 'perusahaan', 'latestFollowUp.user', 'followUps', 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
         }])->withCount('followUps');
 
@@ -1224,6 +1216,7 @@ class CrmController extends Controller
                 $query->where(function ($q) use ($user) {
                     $q->where('sales_id', $user->id)
                       ->orWhere('owner_id', $user->id)
+                      ->orWhere('takeover_by_id', $user->id)
                       ->orWhere(function ($sub) {
                           $sub->where(function ($s) {
                               $s->whereHas('sales', function ($sq) {
@@ -1232,13 +1225,17 @@ class CrmController extends Controller
                                   $oq->whereIn('role', ['Sales', 'sales']);
                               });
                           });
-                      });
+                      })
+                      // Pengecualian akses lintas wilayah untuk Sales pada sumber Presensi Siswa
+                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
                 });
             } elseif ($role === 'spv') {
                 $salesIds = $user->teamMemberIds();
                 $query->where(function ($q) use ($salesIds, $user) {
                     $q->whereIn('sales_id', $salesIds)
-                      ->orWhereIn('owner_id', $salesIds);
+                      ->orWhereIn('owner_id', $salesIds)
+                      ->orWhere('takeover_by_id', $user->id)
+                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
                     if ($user->wilayah_id) {
                         $q->orWhere('wilayah_id', $user->wilayah_id);
                     }
@@ -1247,18 +1244,19 @@ class CrmController extends Controller
                 $query->where(function ($q) use ($user) {
                     $q->whereNotNull('cs_id')
                       ->orWhere('owner_id', $user->id)
+                      ->orWhere('takeover_by_id', $user->id)
                       ->orWhereHas('owner', function ($oq) {
                           $oq->whereIn('role', ['CS', 'cs']);
                       })
+                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA)
                       ->orWhere(function ($sub) use ($user) {
-                          $sub->whereNull('cs_id')
-                              ->where(function ($st) {
-                                  $st->where('stage_number', '>=', 5)
-                                     ->orWhereIn('status', [
-                                         'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
-                                         '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
-                                     ]);
-                              });
+                          $sub->where(function ($st) {
+                              $st->where('stage_number', '>=', 5)
+                                 ->orWhereIn('status', [
+                                     'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
+                                     '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
+                                 ]);
+                          });
                           if ($user->wilayah_id) {
                               $sub->where(function ($w) use ($user) {
                                   $w->where('wilayah_id', $user->wilayah_id)
@@ -1271,9 +1269,9 @@ class CrmController extends Controller
                 if ($role === 'hm') {
                     $hmMemberIds = $user->hmMemberIds();
                     
-                    if ($request && $request->sales_id) {
+                    if ($request && $request->sales_id && $request->scope !== 'presensi') {
                         $query->where('sales_id', $request->sales_id);
-                    } elseif ($request && $request->spv_id) {
+                    } elseif ($request && $request->spv_id && $request->scope !== 'presensi') {
                         $spvSalesIds = \App\Models\User::where('supervisor_id', $request->spv_id)
                                           ->where('role', 'Sales')
                                           ->pluck('id')->toArray();
@@ -1288,7 +1286,8 @@ class CrmController extends Controller
                         $allSalesInScope = array_unique(array_merge($salesInScope, $directSalesInScope));
                         
                         $query->where(function($q) use ($allSalesInScope, $user) {
-                            $q->whereIn('sales_id', $allSalesInScope);
+                            $q->whereIn('sales_id', $allSalesInScope)
+                              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
                             if ($user->wilayah_id) {
                                 // Also include any prospects explicitly assigned to HM's wilayah
                                 $q->orWhere('wilayah_id', $user->wilayah_id);
@@ -1296,10 +1295,49 @@ class CrmController extends Controller
                         });
                     }
                 } else {
-                    if ($user->wilayah_id) {
-                        $query->where('wilayah_id', $user->wilayah_id);
-                    }
+                    $query->where(function ($q) use ($user) {
+                        $q->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+                        if ($user->wilayah_id) {
+                            $q->orWhere('wilayah_id', $user->wilayah_id);
+                        }
+                    });
                 }
+            }
+        }
+
+        // Backend filter tab scope: all, own, others, presensi
+        if ($request && $request->filled('scope')) {
+            if ($request->scope === 'own') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('sales_id', $user->id)
+                      ->orWhere('owner_id', $user->id)
+                      ->orWhere('takeover_by_id', $user->id)
+                      ->orWhere('cs_id', $user->id);
+                });
+            } elseif ($request->scope === 'others') {
+                $query->where(function ($q) use ($user) {
+                    $q->where(function ($sub) use ($user) {
+                        $sub->whereNull('sales_id')->orWhere('sales_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('owner_id')->orWhere('owner_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('takeover_by_id')->orWhere('takeover_by_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('cs_id')->orWhere('cs_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) {
+                        $sub->whereNotNull('sales_id')
+                           ->orWhereNotNull('takeover_by_id')
+                           ->orWhereNotNull('cs_id')
+                           ->orWhereHas('sales')
+                           ->orWhereHas('owner');
+                    });
+                });
+            } elseif ($request->scope === 'presensi') {
+                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
             }
         }
 
@@ -1365,15 +1403,20 @@ class CrmController extends Controller
                 }
             }
 
+            $sekolahNama = $p->sekolah?->nama ?? ($p->type === 'Sekolah' && $p->name !== $p->pic ? $p->name : '-');
+            $wilayahNama = $p->sekolah?->wilayah?->nama ?? $p->wilayah?->nama ?? 'Belum Diisi';
+
             return [
                 'id' => $p->id,
                 'name' => $p->name,
                 'type' => $p->type,
                 'kelas' => $p->kelas ?: 'Reguler',
-                'sekolah_name' => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+                'sekolah_name' => $p->type === 'Sekolah' ? $sekolahNama : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : ($p->name !== $p->pic ? $p->name : '-')) : '-'),
+                'wilayah_name' => $wilayahNama,
                 'sales_id' => $p->sales_id,
                 'owner_id' => $p->owner_id,
                 'cs_id' => $p->cs_id,
+                'takeover_by_id' => $p->takeover_by_id,
                 'sales_name' => $p->sales ? $p->sales->name : '-',
                 'category' => $p->category ?? '-',
                 'pic' => $p->pic ?? '-',
@@ -1384,7 +1427,12 @@ class CrmController extends Controller
                 'takeover_sales' => $p->sales ? $p->sales->name : null,
                 'takeover_cs' => $p->cs ? $p->cs->name : null,
                 'active_takeover' => $p->activeHandlerLabel(),
-                'owner' => $p->owner ? $p->owner->name : 'Sistem',
+                'owner' => $p->owner_id ? ($p->owner?->name ?? 'User') : 'Sistem',
+                'status_takeover' => $p->status_takeover ?: ($p->takeover_by_id ? 'Sudah Di-takeover' : 'Belum Di-takeover'),
+                'takeover_by_name' => $p->takeoverBy?->name ?? null,
+                'takeover_by_role' => $p->takeoverBy?->role ?? null,
+                'takeover_at' => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
+                'is_presensi' => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
                 'last_activity' => $p->updated_at->diffForHumans(),
                 'potential' => $p->potential ?? '-',
                 'source' => $p->source ?? '-',
@@ -1410,8 +1458,8 @@ class CrmController extends Controller
                 'latest_follow_up_user' => $latestFollowUp && $latestFollowUp->user ? $latestFollowUp->user->name : null,
                 'latest_follow_up_user_id' => $latestFollowUp ? $latestFollowUp->user_id : null,
                 'is_assisted_by_other' => (bool) ($latestFollowUp && $latestFollowUp->user_id && $latestFollowUp->user_id != $p->sales_id && $latestFollowUp->user_id != $p->owner_id && $latestFollowUp->user_id != $p->cs_id),
-                'is_own' => (bool) ($authId && ($authRole === 'cs' ? ($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) : ($p->sales_id == $authId || $p->owner_id == $authId))),
-                'is_other' => (bool) ($authId && ($authRole === 'cs' ? (!($p->cs_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) && !is_null($p->cs_id) && $p->cs_id != $authId) : (!($p->sales_id == $authId || $p->owner_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id))))),
+                'is_own' => (bool) ($authId && ($authRole === 'cs' ? ($p->cs_id == $authId || $p->owner_id == $authId || $p->takeover_by_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) : ($p->sales_id == $authId || $p->owner_id == $authId || $p->takeover_by_id == $authId))),
+                'is_other' => (bool) ($authId && ($authRole === 'cs' ? (!($p->cs_id == $authId || $p->owner_id == $authId || $p->takeover_by_id == $authId || (is_null($p->cs_id) && in_array($p->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS']))) && !is_null($p->cs_id) && $p->cs_id != $authId) : (!($p->sales_id == $authId || $p->owner_id == $authId || $p->takeover_by_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id) || !is_null($p->takeover_by_id))))),
                 'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
                 'has_follow_up_history' => $hasFollowUpHistory,
                 'follow_ups_history' => $p->relationLoaded('followUps') ? $p->followUps->map(fn($f) => [
@@ -1440,6 +1488,7 @@ class CrmController extends Controller
         $sekolahs = \App\Models\Sekolah::where('status', 'Aktif')->get();
         $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
         $statuses = \App\Models\Prospek::getActiveStages();
+        $prodis = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
 
         $user = auth()->user();
         $isHm = $user && strtolower($user->role) === 'hm';
@@ -1611,7 +1660,7 @@ class CrmController extends Controller
             ];
         }
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics', 'salesMetrics'));
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics', 'salesMetrics', 'prodis'));
     }
 
     public function prospekStore(Request $request)
@@ -1753,11 +1802,122 @@ class CrmController extends Controller
     }
 
     /**
+     * Tambah Presensi Siswa Manual (Presensi Langsung di Counter CS / Event).
+     */
+    public function prospekPresensiManual(Request $request)
+    {
+        $validated = $request->validate([
+            'nama'           => 'required|string|max:255',
+            'sekolah_id'     => 'nullable|exists:sekolahs,id',
+            'sekolah_manual' => 'nullable|string|max:255',
+            'asal_kelas'     => 'required|string|max:100',
+            'no_whatsapp'    => 'required|string|max:25',
+            'wa_ortu'        => 'nullable|string|max:25',
+            'prodi_id'       => 'required',
+            'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
+            'kelas'          => 'required|in:Reguler,Karyawan',
+            'notes'          => 'nullable|string|max:1000',
+        ]);
+
+        if (empty($validated['sekolah_id']) && empty($request->sekolah_manual)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['sekolah_id' => 'Nama sekolah wajib dipilih dari master data atau diisi manual jika belum terdaftar.']);
+        }
+
+        $name = $validated['nama'];
+        $sekolahId = null;
+        $wilayahId = null;
+        $manualNotes = null;
+
+        if (!empty($validated['sekolah_id'])) {
+            $sekolah = \App\Models\Sekolah::find($validated['sekolah_id']);
+            if ($sekolah) {
+                $name = $sekolah->nama;
+                $sekolahId = $sekolah->id;
+                $wilayahId = $sekolah->wilayah_id;
+            }
+        } elseif (!empty($request->sekolah_manual)) {
+            $manualName = trim($request->sekolah_manual);
+            // Cek apakah nama manual cocok (case-insensitive) dengan data master sekolah yang ada
+            $matched = \App\Models\Sekolah::whereRaw('LOWER(nama) = ?', [strtolower($manualName)])->first();
+            if ($matched) {
+                $name = $matched->nama;
+                $sekolahId = $matched->id;
+                $wilayahId = $matched->wilayah_id;
+            } else {
+                // Buat sekolah baru di master data, lokasi NULL untuk dilengkapi Admin
+                $newSchool = \App\Models\Sekolah::create([
+                    'kode'   => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                    'nama'   => $manualName,
+                    'status' => 'Aktif',
+                ]);
+                $name = $newSchool->nama;
+                $sekolahId = $newSchool->id;
+                $wilayahId = null;
+                $manualNotes = 'Sekolah baru otomatis ditambahkan ke Master Data: ' . $manualName;
+            }
+        }
+
+        $currentUser = auth()->user();
+        $inputterRole = $currentUser ? ($currentUser->role ?? 'CS') : 'CS';
+        $inputterName = $currentUser ? $currentUser->name : 'Staff';
+
+        $notes = 'Presensi siswa langsung dicatat manual oleh ' . $inputterName . ' (' . $inputterRole . ')';
+        if (!empty($validated['notes'])) {
+            $notes .= ' | Catatan: ' . trim($validated['notes']);
+        }
+        if ($manualNotes) {
+            $notes .= ' | ' . $manualNotes;
+        }
+
+        $prospek = Prospek::create([
+            'name'             => $name,
+            'whatsapp'         => $validated['no_whatsapp'],
+            'wa_ortu'          => $validated['wa_ortu'] ?? null,
+            'pic'              => $validated['nama'],
+            'pic_phone'        => $validated['no_whatsapp'],
+            'type'             => 'Sekolah',
+            'sekolah_id'       => $sekolahId,
+            'wilayah_id'       => $wilayahId,
+            'asal_kelas'       => $validated['asal_kelas'] ?? null,
+            'perusahaan_id'    => null,
+            'prodi_id'         => $validated['prodi_id'] === 'lainnya' ? null : $validated['prodi_id'],
+            'prodi_lainnya'    => $validated['prodi_id'] === 'lainnya' ? $validated['prodi_lainnya'] : null,
+            'kelas'            => $validated['kelas'],
+            'status'           => 'BARU',
+            'stage_number'     => 1,
+            'source'           => Prospek::SOURCE_PRESENSI_SISWA,
+            'notes'            => $notes,
+            'owner_id'         => null, // Owner awal murni Sistem
+            'sales_id'         => null, // Bebas untuk di-takeover Sales/CS
+            'cs_id'            => null,
+            'status_takeover'  => 'Belum Di-takeover',
+            'takeover_by_id'   => null,
+            'takeover_at'      => null,
+        ]);
+
+        ProspekTimeline::create([
+            'prospek_id'   => $prospek->id,
+            'user_id'      => auth()->id(),
+            'title'        => 'Presensi Siswa Langsung Dicatat',
+            'notes'        => 'Data presensi siswa dicatat langsung oleh ' . $inputterName . ' (' . $inputterRole . ') melalui form presensi manual.',
+            'status_after' => $prospek->status,
+            'time'         => now(),
+        ]);
+
+        $redirectRoute = (strtolower(auth()->user()->role ?? '') === 'sales') ? 'sales.prospek.index' : 'prospek.index';
+
+        return redirect()->route($redirectRoute, ['scope' => 'presensi'])
+            ->with('success', 'Presensi siswa "' . $prospek->pic . '" berhasil disimpan dan masuk ke filter Presensi Siswa.');
+    }
+
+    /**
      * Detail Prospek.
      */
     public function prospekShow(int $id): View
     {
-        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'latestFollowUp.user', 'followUps' => function($q) {
+        $prospectRaw = Prospek::with(['sales', 'cs', 'owner', 'takeoverBy', 'sekolah.wilayah', 'wilayah', 'perusahaan', 'prodi', 'latestFollowUp.user', 'followUps' => function($q) {
             $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->with('user');
         }, 'timelines' => function($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -1774,6 +1934,15 @@ class CrmController extends Controller
         $latestFollowUp = $prospectRaw->latestFollowUp ?? ($prospectRaw->relationLoaded('followUps') ? $prospectRaw->followUps->first() : null);
 
         $transaksis = $prospectRaw->transaksis;
+        $pendingList         = $transaksis->where('payment_status', 'pending');
+        $hasPendingTrx       = $pendingList->isNotEmpty();
+        $hasVerifiedTermin1  = $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Pembayaran Termin 1', 'DP/Konversi', 'UKT', 'Perlengkapan']) || $t->kategori === 'Lunas')->isNotEmpty();
+        $hasVerifiedFormulir = $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Beli Formulir', 'Pendaftaran']) || $t->kategori === 'DP Daftar')->isNotEmpty();
+        $totalPaid           = (float) $transaksis->where('payment_status', 'verified')->sum('nominal');
+        $totalPending        = (float) $transaksis->where('payment_status', 'pending')->sum('nominal');
+
+        $sekolahNama = $prospectRaw->sekolah?->nama ?? ($prospectRaw->sekolah_manual ?: ($prospectRaw->type === 'Corporate' ? ($prospectRaw->perusahaan?->nama ?? '-') : ($prospectRaw->type === 'Sekolah' ? $prospectRaw->name : '-')));
+        $wilayahNama = $prospectRaw->sekolah?->wilayah?->nama ?? ($prospectRaw->wilayah?->nama ?? 'Belum Diisi');
 
         $prospect = [
             'id' => $prospectRaw->id,
@@ -1782,11 +1951,13 @@ class CrmController extends Controller
             'sales_id' => $prospectRaw->sales_id,
             'owner_id' => $prospectRaw->owner_id,
             'cs_id' => $prospectRaw->cs_id,
+            'takeover_by_id' => $prospectRaw->takeover_by_id,
             'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $prospectRaw)),
             'sekolah_id' => $prospectRaw->sekolah_id,
             'perusahaan_id' => $prospectRaw->perusahaan_id,
             'prodi_id' => $prospectRaw->prodi_id,
-            'sekolah_name' => $prospectRaw->type === 'Sekolah' ? ($prospectRaw->sekolah ? $prospectRaw->sekolah->nama : '-') : ($prospectRaw->type === 'Corporate' ? ($prospectRaw->perusahaan ? $prospectRaw->perusahaan->nama : '-') : '-'),
+            'sekolah_name' => $sekolahNama,
+            'wilayah_name' => $wilayahNama,
             'category' => $prospectRaw->category ?? '-',
             'kelas' => $prospectRaw->kelas ?: 'Reguler',
             'pic' => $prospectRaw->pic ?? '-',
@@ -1801,6 +1972,11 @@ class CrmController extends Controller
             'takeover_cs' => $prospectRaw->cs ? $prospectRaw->cs->name : null,
             'active_takeover' => $prospectRaw->activeHandlerLabel(),
             'owner' => $prospectRaw->owner ? $prospectRaw->owner->name : 'Sistem',
+            'status_takeover' => $prospectRaw->status_takeover ?? ($prospectRaw->takeover_by_id ? 'Sudah Di-takeover' : 'Belum Di-takeover'),
+            'takeover_by_name' => $prospectRaw->takeoverBy?->name ?? null,
+            'takeover_by_role' => $prospectRaw->takeoverBy?->role ?? null,
+            'takeover_at' => $prospectRaw->takeover_at ? $prospectRaw->takeover_at->format('d M Y, H:i') : null,
+            'is_presensi' => (bool) ($prospectRaw->source === Prospek::SOURCE_PRESENSI_SISWA || $prospectRaw->source === 'Presensi Siswa'),
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
             'source' => $prospectRaw->source ?? '-',
             'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($prospectRaw->notes ?? ''),
@@ -1878,7 +2054,8 @@ class CrmController extends Controller
             'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'prospekModel', 'transaksis', 'followUps',
             'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
             'kategoriSekolahList', 'wilayahKabupatenList',
-            'lostReasons', 'metodeOptions', 'isHandler'
+            'lostReasons', 'metodeOptions', 'isHandler',
+            'hasPendingTrx', 'pendingList', 'hasVerifiedTermin1', 'hasVerifiedFormulir', 'totalPaid', 'totalPending'
         ));
     }
 
@@ -2046,35 +2223,118 @@ class CrmController extends Controller
 
     public function prospekTakeover(int $id)
     {
-        $prospek = Prospek::findOrFail($id);
-        \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
-
-        $cs = null;
-        if (strtolower(auth()->user()->role) === 'cs') {
-            $cs = auth()->user();
-        } else {
-            // Pick any active CS
-            $cs = \App\Models\User::where('role', 'CS')->first();
+        $user = auth()->user();
+        if (!$user) {
+            abort(401);
         }
 
-        if (!$cs) {
-            return redirect()->back()->withErrors(['cs_id' => 'Tidak ada user CS yang tersedia untuk menerima prospek.']);
+        $userId = $user->id;
+        $userRole = strtolower($user->role);
+
+        $result = DB::transaction(function () use ($id, $user, $userId, $userRole) {
+            // Atomic row locking to prevent race condition between concurrent requests
+            $prospek = Prospek::where('id', $id)->lockForUpdate()->firstOrFail();
+            \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
+
+            // Double takeover prevention
+            if ($prospek->status_takeover === 'Sudah Di-takeover' || !is_null($prospek->takeover_by_id)) {
+                $takenByName = $prospek->takeoverBy?->name ?? 'pengguna lain';
+                return [
+                    'success' => false,
+                    'message' => 'Prospek ini sudah di-takeover sebelumnya oleh ' . $takenByName . '.',
+                ];
+            }
+
+            // Presensi Siswa takeover:
+            if ($prospek->source === Prospek::SOURCE_PRESENSI_SISWA || $prospek->source === 'Presensi Siswa') {
+                $updates = [
+                    'status_takeover' => 'Sudah Di-takeover',
+                    'takeover_by_id'  => $userId,
+                    'takeover_at'     => now(),
+                ];
+                if ($userRole === 'sales') {
+                    $updates['sales_id'] = $userId;
+                } elseif ($userRole === 'cs') {
+                    $updates['cs_id'] = $userId;
+                }
+
+                $prospek->update($updates);
+
+                ProspekTimeline::create([
+                    'prospek_id'   => $prospek->id,
+                    'user_id'      => $userId,
+                    'title'        => 'Takeover Presensi Siswa',
+                    'notes'        => 'Prospek Presensi Siswa berhasil di-takeover oleh ' . $user->name . ' (' . $user->role . ').',
+                    'status_after' => $prospek->status,
+                    'time'         => now(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Prospek Presensi Siswa berhasil di-takeover oleh Anda.',
+                ];
+            }
+
+            // Non-Presensi Siswa (CS proactive takeover or Sales handover):
+            if ($userRole === 'cs') {
+                $prospek->update([
+                    'cs_id'           => $userId,
+                    'status_takeover' => 'Sudah Di-takeover',
+                    'takeover_by_id'  => $userId,
+                    'takeover_at'     => now(),
+                ]);
+
+                ProspekTimeline::create([
+                    'prospek_id'   => $prospek->id,
+                    'user_id'      => $userId,
+                    'title'        => 'Takeover CS',
+                    'notes'        => 'Prospek di-takeover oleh CS ' . $user->name,
+                    'status_after' => $prospek->status,
+                    'time'         => now(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Prospek berhasil di-takeover oleh CS ' . $user->name,
+                ];
+            }
+
+            // Handover to CS by Sales/Admin/HM
+            $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first() ?? \App\Models\User::where('role', 'CS')->first();
+            if (!$cs) {
+                return [
+                    'success' => false,
+                    'message' => 'Tidak ada user CS yang tersedia untuk menerima prospek.',
+                ];
+            }
+
+            $prospek->update([
+                'cs_id'           => $cs->id,
+                'status_takeover' => 'Sudah Di-takeover',
+                'takeover_by_id'  => $userId,
+                'takeover_at'     => now(),
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'   => $prospek->id,
+                'user_id'      => $userId,
+                'title'        => 'Prospek Diserahkan ke CS',
+                'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
+                'status_after' => $prospek->status,
+                'time'         => now(),
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Prospek berhasil diserahkan ke CS ' . $cs->name,
+            ];
+        });
+
+        if (!$result['success']) {
+            return redirect()->back()->with('error', $result['message'])->withErrors(['takeover' => $result['message']]);
         }
 
-        $prospek->update([
-            'cs_id' => $cs->id,
-        ]);
-
-        \App\Models\ProspekTimeline::create([
-            'prospek_id'   => $prospek->id,
-            'user_id'      => auth()->id(),
-            'title'        => 'Prospek Diserahkan ke CS',
-            'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
-            'status_after'  => $prospek->status,
-            'time'          => now(),
-        ]);
-
-        return redirect()->back()->with('success', 'Prospek berhasil diserahkan ke CS ' . $cs->name);
+        return redirect()->back()->with('success', $result['message']);
     }
 
     /**
@@ -2679,6 +2939,46 @@ class CrmController extends Controller
             ];
         } else {
             return redirect()->back()->withErrors(['jenis_items' => 'Harap pilih minimal satu jenis komponen transaksi.']);
+        }
+
+        // Validasi backend: Mencegah pengajuan ulang atas komponen transaksi yang sudah lunas atau sedang menunggu verifikasi
+        $existingTransaksis = $prospek->transaksis()->get();
+        $aliasesMap = [
+            'Pendaftaran'  => ['Pendaftaran', 'Beli Formulir'],
+            'Perlengkapan' => ['Perlengkapan'],
+            'Gedung'       => ['Gedung'],
+            'DP/Konversi'  => ['DP/Konversi', 'DP', 'Pembayaran Termin 1'],
+            'UKT'          => ['UKT'],
+        ];
+
+        foreach ($itemsToCreate as $item) {
+            $itemJenis = $item['jenis'];
+            $checkAliases = [$itemJenis];
+            foreach ($aliasesMap as $stdKey => $aliases) {
+                if ($stdKey === $itemJenis || in_array($itemJenis, $aliases)) {
+                    $checkAliases = array_unique(array_merge($checkAliases, $aliases));
+                }
+            }
+
+            // 1. Cek apakah komponen ini sudah pernah lunas / diverifikasi sah
+            $alreadyVerified = $existingTransaksis->first(function ($t) use ($checkAliases) {
+                return in_array($t->jenis, $checkAliases) && $t->payment_status === \App\Models\Transaksi::STATUS_VERIFIED;
+            });
+            if ($alreadyVerified) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['jenis_items' => "Transaksi '{$itemJenis}' untuk prospek ini sudah lunas & diverifikasi sah. Tidak dapat diajukan kembali sebagai tagihan baru."]);
+            }
+
+            // 2. Cek apakah komponen ini sedang dalam antrean pending verifikasi CS
+            $alreadyPending = $existingTransaksis->first(function ($t) use ($checkAliases) {
+                return in_array($t->jenis, $checkAliases) && $t->payment_status === \App\Models\Transaksi::STATUS_PENDING;
+            });
+            if ($alreadyPending) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['jenis_items' => "Transaksi '{$itemJenis}' sedang menunggu proses verifikasi oleh CS. Harap tunggu verifikasi selesai sebelum mengajukan kembali."]);
+            }
         }
 
         $totalNominal = 0;

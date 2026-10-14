@@ -7,6 +7,7 @@ use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use App\Models\Sekolah;
 use App\Models\Perusahaan;
+use App\Models\Prodi;
 use App\Models\FollowUp;
 use App\Http\Requests\StoreProspectRequest;
 use App\Http\Requests\UpdateProspectRequest;
@@ -25,11 +26,12 @@ class ProspectController extends Controller
     {
         $user = auth()->user();
 
-        $query = Prospek::with(['cs', 'owner', 'sekolah', 'perusahaan', 'sales', 'latestFollowUp'])
+        $query = Prospek::with(['cs', 'owner', 'sekolah.wilayah', 'perusahaan', 'sales', 'takeoverBy', 'latestFollowUp'])
             ->withCount('followUps')
             ->where(function ($q) use ($user) {
                 $q->where('sales_id', $user->id)
                   ->orWhere('owner_id', $user->id)
+                  ->orWhere('takeover_by_id', $user->id)
                   ->orWhere(function ($sub) {
                       $sub->where(function ($s) {
                           $s->whereHas('sales', function ($sq) {
@@ -38,8 +40,41 @@ class ProspectController extends Controller
                               $oq->whereIn('role', ['Sales', 'sales']);
                           });
                       });
-                  });
+                  })
+                  // Akses lintas wilayah murni untuk sumber Presensi Siswa
+                  ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
             });
+
+        // Filter tab scope: all, own, others, presensi
+        if ($request->filled('scope')) {
+            if ($request->scope === 'own') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('sales_id', $user->id)
+                      ->orWhere('owner_id', $user->id)
+                      ->orWhere('takeover_by_id', $user->id);
+                });
+            } elseif ($request->scope === 'others') {
+                $query->where(function ($q) use ($user) {
+                    $q->where(function ($sub) use ($user) {
+                        $sub->whereNull('sales_id')->orWhere('sales_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('owner_id')->orWhere('owner_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('takeover_by_id')->orWhere('takeover_by_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) {
+                        $sub->whereNotNull('sales_id')
+                           ->orWhereNotNull('takeover_by_id')
+                           ->orWhereHas('sales')
+                           ->orWhereHas('owner');
+                    });
+                });
+            } elseif ($request->scope === 'presensi') {
+                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+            }
+        }
 
         // Optional status filter
         if ($request->filled('status') && $request->status !== 'all') {
@@ -48,7 +83,11 @@ class ProspectController extends Controller
 
         // Optional search by name
         if ($request->filled('q')) {
-            $query->where('name', 'like', '%' . $request->q . '%');
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->q . '%')
+                  ->orWhere('pic', 'like', '%' . $request->q . '%')
+                  ->orWhere('whatsapp', 'like', '%' . $request->q . '%');
+            });
         }
 
         // Optional date filter
@@ -142,8 +181,9 @@ class ProspectController extends Controller
 
         $sekolahs    = Sekolah::getDynamicSchools();
         $perusahaans = Perusahaan::getDynamicPerusahaans();
+        $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
 
-        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons', 'salesMetrics', 'sekolahs', 'perusahaans'));
+        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons', 'salesMetrics', 'sekolahs', 'perusahaans', 'prodis'));
     }
 
     /**
@@ -290,7 +330,7 @@ class ProspectController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('view', $prospek);
 
-        $prospek->load(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'prodi', 'followUps' => function ($q) {
+        $prospek->load(['sales', 'cs', 'owner', 'takeoverBy', 'sekolah.wilayah', 'wilayah', 'perusahaan', 'prodi', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -300,6 +340,12 @@ class ProspectController extends Controller
 
         $isHandler = $prospek->isHandledBySales(auth()->user());
         $transaksis = $prospek->transaksis;
+        $pendingList         = $transaksis->where('payment_status', 'pending');
+        $hasPendingTrx       = $pendingList->isNotEmpty();
+        $hasVerifiedTermin1  = $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Pembayaran Termin 1', 'DP/Konversi', 'UKT', 'Perlengkapan']) || $t->kategori === 'Lunas')->isNotEmpty();
+        $hasVerifiedFormulir = $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Beli Formulir', 'Pendaftaran']) || $t->kategori === 'DP Daftar')->isNotEmpty();
+        $totalPaid           = (float) $transaksis->where('payment_status', 'verified')->sum('nominal');
+        $totalPending        = (float) $transaksis->where('payment_status', 'pending')->sum('nominal');
 
         $stagesMap = Prospek::getDynamicStagesMap();
         $allStages = array_map(function ($stageName) use ($stagesMap) {
@@ -335,7 +381,13 @@ class ProspectController extends Controller
             'perusahaansList',
             'prodisList',
             'sumberProspekList',
-            'kategoriProspekList'
+            'kategoriProspekList',
+            'hasPendingTrx',
+            'pendingList',
+            'hasVerifiedTermin1',
+            'hasVerifiedFormulir',
+            'totalPaid',
+            'totalPending'
         ));
     }
 
@@ -522,42 +574,103 @@ class ProspectController extends Controller
     }
 
     /**
-     * Handover prospect from Sales to CS.
+     * Takeover prospect (Presensi Siswa or Handover).
      */
     public function takeover(Request $request, Prospek $prospek): RedirectResponse
     {
-        \Illuminate\Support\Facades\Gate::authorize('takeover', $prospek);
-
-        // Find a CS to assign to. Try same wilayah first, otherwise pick any active CS.
-        $cs = \App\Models\User::where('role', 'CS')
-            ->when($prospek->wilayah_id, function ($q) use ($prospek) {
-                return $q->where('wilayah_id', $prospek->wilayah_id);
-            })
-            ->first();
-
-        if (!$cs) {
-            $cs = \App\Models\User::where('role', 'CS')->first();
+        $user = auth()->user();
+        if (!$user) {
+            abort(401);
         }
 
-        if (!$cs) {
-            return redirect()->back()->withErrors(['cs_id' => 'Tidak ada user CS yang tersedia untuk menerima prospek.']);
+        $userId = $user->id;
+        $userRole = strtolower($user->role);
+        $prospekId = $prospek->id;
+
+        $result = DB::transaction(function () use ($prospekId, $user, $userId, $userRole) {
+            // Atomic row locking to prevent race condition between concurrent requests
+            $lead = Prospek::where('id', $prospekId)->lockForUpdate()->firstOrFail();
+            \Illuminate\Support\Facades\Gate::authorize('takeover', $lead);
+
+            // Double takeover prevention
+            if ($lead->status_takeover === 'Sudah Di-takeover' || !is_null($lead->takeover_by_id)) {
+                $takenByName = $lead->takeoverBy?->name ?? 'pengguna lain';
+                return [
+                    'success' => false,
+                    'message' => 'Prospek ini sudah di-takeover sebelumnya oleh ' . $takenByName . '.',
+                ];
+            }
+
+            // Presensi Siswa takeover by Sales
+            if ($lead->source === Prospek::SOURCE_PRESENSI_SISWA || $lead->source === 'Presensi Siswa') {
+                $lead->update([
+                    'sales_id'        => $userId,
+                    'status_takeover' => 'Sudah Di-takeover',
+                    'takeover_by_id'  => $userId,
+                    'takeover_at'     => now(),
+                ]);
+
+                ProspekTimeline::create([
+                    'prospek_id'   => $lead->id,
+                    'user_id'      => $userId,
+                    'title'        => 'Takeover Presensi Siswa',
+                    'notes'        => 'Prospek Presensi Siswa berhasil di-takeover oleh ' . $user->name . ' (' . $user->role . ').',
+                    'status_after' => $lead->status,
+                    'time'         => now(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Prospek Presensi Siswa berhasil di-takeover oleh Anda.',
+                ];
+            }
+
+            // Non-Presensi Siswa: Handover from Sales to CS
+            $cs = \App\Models\User::where('role', 'CS')
+                ->when($lead->wilayah_id, function ($q) use ($lead) {
+                    return $q->where('wilayah_id', $lead->wilayah_id);
+                })
+                ->first();
+
+            if (!$cs) {
+                $cs = \App\Models\User::where('role', 'CS')->first();
+            }
+
+            if (!$cs) {
+                return [
+                    'success' => false,
+                    'message' => 'Tidak ada user CS yang tersedia untuk menerima prospek.',
+                ];
+            }
+
+            $lead->update([
+                'cs_id'                  => $cs->id,
+                'active_follow_up_count' => 0,
+                'status_takeover'        => 'Sudah Di-takeover',
+                'takeover_by_id'         => $userId,
+                'takeover_at'            => now(),
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'   => $lead->id,
+                'user_id'      => $userId,
+                'title'        => 'Prospek Diserahkan ke CS',
+                'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
+                'status_after' => $lead->status,
+                'time'         => now(),
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Prospek berhasil diserahkan ke CS ' . $cs->name,
+            ];
+        });
+
+        if (!$result['success']) {
+            return redirect()->back()->with('error', $result['message'])->withErrors(['takeover' => $result['message']]);
         }
 
-        $prospek->update([
-            'cs_id' => $cs->id,
-            'active_follow_up_count' => 0,
-        ]);
-
-        ProspekTimeline::create([
-            'prospek_id'   => $prospek->id,
-            'user_id'      => auth()->id(),
-            'title'        => 'Prospek Diserahkan ke CS',
-            'notes'        => 'Prospek diserahkan ke CS: ' . $cs->name,
-            'status_after'  => $prospek->status,
-            'time'          => now(),
-        ]);
-
-        return redirect()->back()->with('success', 'Prospek berhasil diserahkan ke CS ' . $cs->name);
+        return redirect()->back()->with('success', $result['message']);
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────────
@@ -568,6 +681,10 @@ class ProspectController extends Controller
     private function formatProspek(\App\Models\Prospek $p): array
     {
         $latestFollowUp = $p->latestFollowUp ?? $p->followUps->first();
+        $authId = auth()->id();
+
+        $sekolahNama = $p->sekolah?->nama ?? ($p->type === 'Sekolah' && $p->name !== $p->pic ? $p->name : '-');
+        $wilayahNama = $p->sekolah?->wilayah?->nama ?? $p->wilayah?->nama ?? 'Belum Diisi';
 
         return [
             'id'             => $p->id,
@@ -575,13 +692,15 @@ class ProspectController extends Controller
             'sales_id'       => $p->sales_id,
             'owner_id'       => $p->owner_id,
             'cs_id'          => $p->cs_id,
+            'takeover_by_id' => $p->takeover_by_id,
             'type'           => $p->type,
             'kelas'          => $p->kelas ?: 'Reguler',
             'sekolah_id'     => $p->sekolah_id,
             'perusahaan_id'  => $p->perusahaan_id,
             'prodi_id'       => $p->prodi_id,
             'prodi_nama'     => $p->prodi ? $p->prodi->nama : '-',
-            'sekolah_name'   => $p->type === 'Sekolah' ? ($p->sekolah ? $p->sekolah->nama : '-') : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+            'sekolah_name'   => $p->type === 'Sekolah' ? $sekolahNama : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : '-') : '-'),
+            'wilayah_name'   => $wilayahNama,
             'sales_name'     => $p->sales ? $p->sales->name : '-',
             'category'       => $p->category ?? '-',
             'pic'            => $p->pic ?? '-',
@@ -595,7 +714,12 @@ class ProspectController extends Controller
             'takeover_sales' => $p->sales ? $p->sales->name : null,
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
             'active_takeover' => $p->activeHandlerLabel(),
-            'owner'          => $p->owner ? $p->owner->name : 'Sistem',
+            'owner'          => $p->owner_id ? ($p->owner?->name ?? 'User') : 'Sistem',
+            'status_takeover' => $p->status_takeover ?: ($p->takeover_by_id ? 'Sudah Di-takeover' : 'Belum Di-takeover'),
+            'takeover_by_name' => $p->takeoverBy?->name ?? null,
+            'takeover_by_role' => $p->takeoverBy?->role ?? null,
+            'takeover_at'    => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
+            'is_presensi'    => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
             'last_activity'  => $p->updated_at ? $p->updated_at->diffForHumans() : '-',
             'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
             'source'         => $p->source ?? '-',
@@ -614,8 +738,8 @@ class ProspectController extends Controller
                 : null,
             'metode_terakhir' => $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
             'hasil_terakhir'  => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
-            'is_own'          => (bool) (auth()->id() && ($p->sales_id == auth()->id() || $p->owner_id == auth()->id())),
-            'is_other'        => (bool) (auth()->id() && !($p->sales_id == auth()->id() || $p->owner_id == auth()->id()) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales')),
+            'is_own'          => (bool) ($authId && ($p->sales_id == $authId || $p->owner_id == $authId || $p->takeover_by_id == $authId)),
+            'is_other'        => (bool) ($authId && !($p->sales_id == $authId || $p->owner_id == $authId || $p->takeover_by_id == $authId) && (strtolower(optional($p->sales)->role ?? '') === 'sales' || strtolower(optional($p->owner)->role ?? '') === 'sales' || !is_null($p->sales_id))),
             'follow_up_count' => $p->follow_ups_count ?? ($p->relationLoaded('followUps') ? $p->followUps->count() : 0),
             'has_follow_up_history' => ($p->follow_ups_count > 0) || ($latestFollowUp !== null),
             'can_update_status' => (bool) (auth()->user() && auth()->user()->can('updateStatus', $p)),

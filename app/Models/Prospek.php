@@ -9,6 +9,8 @@ class Prospek extends Model
 {
     use HasFactory;
 
+    public const SOURCE_PRESENSI_SISWA = 'Presensi Siswa';
+
     protected $fillable = [
         'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
         'status', 'stage_number', 'notes',
@@ -17,10 +19,12 @@ class Prospek extends Model
         'lost_reason', 'lost_note',
         'follow_up_count', 'active_follow_up_count',
         'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',
+        'status_takeover', 'takeover_by_id', 'takeover_at',
     ];
 
     protected $casts = [
         'handover_at' => 'datetime',
+        'takeover_at' => 'datetime',
     ];
 
     protected static function booted()
@@ -48,16 +52,19 @@ class Prospek extends Model
                 }
             }
 
-            if (empty($prospek->sales_id)) {
-                if ($prospek->sekolah_id) {
-                    $sekolah = Sekolah::find($prospek->sekolah_id);
-                    if ($sekolah && $sekolah->sales_id) {
-                        $prospek->sales_id = $sekolah->sales_id;
-                    }
-                } elseif ($prospek->perusahaan_id) {
-                    $perusahaan = Perusahaan::find($prospek->perusahaan_id);
-                    if ($perusahaan && $perusahaan->sales_id) {
-                        $prospek->sales_id = $perusahaan->sales_id;
+            // Presensi Siswa murni dimiliki Sistem awal dan TIDAK boleh otomatis menugaskan Sales sekolah
+            if ($prospek->source !== self::SOURCE_PRESENSI_SISWA && $prospek->source !== 'Presensi Siswa') {
+                if (empty($prospek->sales_id)) {
+                    if ($prospek->sekolah_id) {
+                        $sekolah = Sekolah::find($prospek->sekolah_id);
+                        if ($sekolah && $sekolah->sales_id) {
+                            $prospek->sales_id = $sekolah->sales_id;
+                        }
+                    } elseif ($prospek->perusahaan_id) {
+                        $perusahaan = Perusahaan::find($prospek->perusahaan_id);
+                        if ($perusahaan && $perusahaan->sales_id) {
+                            $prospek->sales_id = $perusahaan->sales_id;
+                        }
                     }
                 }
             }
@@ -439,6 +446,7 @@ class Prospek extends Model
         'Acara Kampus',
         'MGBK/Miniclass',
         'Spanduk/Baliho',
+        'Presensi Siswa',
         'Lainnya',
     ];
 
@@ -520,6 +528,32 @@ class Prospek extends Model
     ];
 
     /**
+     * Dapatkan nama calon mahasiswa / prospek aktual (individu/siswa/pic).
+     * Jika tipe Sekolah dan PIC terisi, nama prospek aktual adalah PIC (nama siswa).
+     */
+    public function getCamabaNameAttribute(): string
+    {
+        if ($this->type === 'Sekolah' && !empty($this->pic) && $this->pic !== '-') {
+            return $this->pic;
+        }
+
+        if ($this->type === 'Corporate' && !empty($this->pic) && $this->pic !== '-') {
+            return $this->pic;
+        }
+
+        return $this->name ?? $this->pic ?? 'Calon Mahasiswa';
+    }
+
+    /**
+     * Dapatkan nama sekolah atau institusi asal.
+     */
+    public function getSekolahNamaAttribute(): string
+    {
+        return $this->sekolah?->nama 
+            ?? ($this->type === 'Sekolah' && !empty($this->name) && $this->name !== $this->pic ? $this->name : ($this->perusahaan?->nama ?? '-'));
+    }
+
+    /**
      * Check if the given user is the active Sales handler of this prospect.
      */
     public function isHandledBySales(\App\Models\User $user): bool
@@ -540,6 +574,10 @@ class Prospek extends Model
      */
     public function activeHandlerLabel(): string
     {
+        // If taken over via Presensi Siswa / takeover action
+        if ($this->takeover_by_id && $this->takeoverBy) {
+            return $this->takeoverBy->role . ' — ' . $this->takeoverBy->name;
+        }
         // If handed over to CS, CS is the active handler
         if ($this->cs_id && $this->cs) {
             return 'CS — ' . $this->cs->name;
@@ -555,10 +593,21 @@ class Prospek extends Model
      */
     public function isActiveHandler(\App\Models\User $user): bool
     {
+        if ($this->takeover_by_id) {
+            return $this->takeover_by_id === $user->id;
+        }
         if ($this->cs_id) {
             return $this->isHandledByCs($user);
         }
         return $this->isHandledBySales($user);
+    }
+
+    /**
+     * Check if the prospect originated from the student visit attendance form.
+     */
+    public function isPresensiSiswa(): bool
+    {
+        return $this->source === self::SOURCE_PRESENSI_SISWA || $this->source === 'Presensi Siswa';
     }
 
     /**
@@ -632,6 +681,11 @@ class Prospek extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function takeoverBy()
+    {
+        return $this->belongsTo(User::class, 'takeover_by_id');
     }
 
     public function followUps()

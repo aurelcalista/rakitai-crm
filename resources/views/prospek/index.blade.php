@@ -25,22 +25,42 @@
 
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         searchQuery: '',
-        selectedScope: 'all',
+        selectedScope: '{{ request('scope', 'all') }}',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedTakeover: 'all',
         currentPage: 1,
         perPage: 25,
         authUserId: {{ auth()->id() ?? 0 }},
-        userRole: '{{ auth()->user()->role ?? '' }}',
+        userRole: '{{ strtolower(auth()->user()->role ?? '') }}',
         prospectsList: {{ json_encode($prospects) }},
+        modalPresensiManual: {{ old('form_type') === 'presensi_manual' ? 'true' : 'false' }},
         
         isOwnProspect(p) {
-            return Boolean(p.is_own === true || (this.authUserId && (p.sales_id == this.authUserId || p.owner_id == this.authUserId)));
+            if (p.is_own === true) return true;
+            if (!this.authUserId) return false;
+            if (p.sales_id == this.authUserId || p.owner_id == this.authUserId || p.takeover_by_id == this.authUserId) return true;
+            if (this.userRole === 'cs' && p.cs_id == this.authUserId) return true;
+            return false;
         },
         isOtherProspect(p) {
-            const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-'));
-            return Boolean(p.is_other === true || (!this.isOwnProspect(p) && hasSalesOwner));
+            if (this.isOwnProspect(p)) return false;
+            return Boolean(p.is_other === true || p.sales_id || p.takeover_by_id || p.cs_id || (p.owner_id && p.owner_id !== '-'));
+        },
+        isPresensiSiswa(p) {
+            return Boolean(p.is_presensi === true || (p.source && p.source.toLowerCase().includes('presensi')));
+        },
+        updateUrlScope(scope) {
+            this.selectedScope = scope;
+            try {
+                const url = new URL(window.location.href);
+                if (scope === 'all') {
+                    url.searchParams.delete('scope');
+                } else {
+                    url.searchParams.set('scope', scope);
+                }
+                window.history.replaceState({}, '', url.toString());
+            } catch(e) {}
         },
         get filteredProspects() {
             return this.prospectsList.filter(p => {
@@ -49,6 +69,8 @@
                     (p.name && p.name.toLowerCase().includes(q)) || 
                     (p.pic && p.pic.toLowerCase().includes(q)) ||
                     (p.whatsapp && p.whatsapp.includes(q)) ||
+                    (p.sekolah_name && p.sekolah_name.toLowerCase().includes(q)) ||
+                    (p.wilayah_name && p.wilayah_name.toLowerCase().includes(q)) ||
                     (p.sales_name && p.sales_name.toLowerCase().includes(q)) ||
                     (p.owner && p.owner.toLowerCase().includes(q));
                 
@@ -56,13 +78,17 @@
                 const matchType = this.selectedType === 'all' || p.type === this.selectedType;
                 const matchTakeover = this.selectedTakeover === 'all' || 
                     (this.selectedTakeover === 'sales' && p.active_takeover && p.active_takeover.includes('Sales')) ||
-                    (this.selectedTakeover === 'cs' && p.active_takeover && p.active_takeover.includes('CS'));
+                    (this.selectedTakeover === 'cs' && p.active_takeover && p.active_takeover.includes('CS')) ||
+                    (this.selectedTakeover === 'taken' && p.status_takeover === 'Sudah Di-takeover') ||
+                    (this.selectedTakeover === 'untaken' && p.status_takeover === 'Belum Di-takeover');
 
                 let matchScope = true;
                 if (this.selectedScope === 'own') {
                     matchScope = this.isOwnProspect(p);
                 } else if (this.selectedScope === 'others') {
                     matchScope = this.isOtherProspect(p);
+                } else if (this.selectedScope === 'presensi') {
+                    matchScope = this.isPresensiSiswa(p);
                 }
                 
                 return matchSearch && matchStatus && matchType && matchTakeover && matchScope;
@@ -93,8 +119,20 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Prospek</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data calon mahasiswa, sekolah mitra, dan instansi inbound UCIC.</p>
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
-            <div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
+            <div class="flex flex-wrap items-center gap-2">
+                @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
+                <button 
+                    type="button" 
+                    @click="modalPresensiManual = true"
+                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Tambah Presensi Siswa</span>
+                </button>
+                @endif
                 <button 
                     type="button" 
                     @click="modalTambahProspek = true"
@@ -227,36 +265,53 @@
         <!-- Search & Filter Controls -->
         <div class="crm-card bg-white p-4 sm:p-5 space-y-4">
             
-            @if(in_array(auth()->user()->role ?? '', ['Sales']))
-            <!-- Scope Filter Tabs for Sales -->
-            <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60">
+            <!-- Multirole Scope Filter Tabs: Semua Prospek, Prospek Saya, Prospek User Lain, Presensi Siswa -->
+            <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60 flex-wrap">
                 <button 
                     type="button" 
-                    @click="selectedScope = 'all'" 
-                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                    @click="updateUrlScope('all')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
                     :class="selectedScope === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
                 >
-                    Semua Prospek
+                    <span>Semua Prospek</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'all' ? 'bg-slate-100 text-slate-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.length"></span>
                 </button>
                 <button 
                     type="button" 
-                    @click="selectedScope = 'own'" 
-                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                    @click="updateUrlScope('own')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
                     :class="selectedScope === 'own' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
                 >
-                    Prospek Saya
+                    <span>Prospek Saya</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'own' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isOwnProspect(p)).length"></span>
                 </button>
                 <button 
                     type="button" 
-                    @click="selectedScope = 'others'" 
+                    @click="updateUrlScope('others')" 
                     class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
                     :class="selectedScope === 'others' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
                 >
-                    <span>Follow-Up Sales Lain</span>
-                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800" x-text="prospectsList.filter(p => isOtherProspect(p)).length"></span>
+                    <span>Prospek User Lain</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'others' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isOtherProspect(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('presensi')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'presensi' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Presensi Siswa</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'presensi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isPresensiSiswa(p)).length"></span>
                 </button>
             </div>
-            @endif
             
             <!-- Big Search Bar -->
             <div class="relative">
@@ -418,13 +473,13 @@
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
                             <th class="py-3.5 px-3 w-10 text-center">No</th>
-                            <th class="py-3.5 px-4">Nama Prospek</th>
-                            <th class="py-3.5 px-3">Tipe</th>
+                            <th class="py-3.5 px-4">Nama Siswa / PIC</th>
+                            <th class="py-3.5 px-3">Asal Sekolah / Wilayah</th>
                             <th class="py-3.5 px-3">Kelas Kuliah</th>
                             <th class="py-3.5 px-3">WhatsApp</th>
                             <th class="py-3.5 px-3">Status Pipeline</th>
-                            <th class="py-3.5 px-3">Takeover Aktif</th>
-                            <th class="py-3.5 px-3">Owner</th>
+                            <th class="py-3.5 px-3">Status Takeover</th>
+                            <th class="py-3.5 px-3">Owner Awal</th>
                             <th class="py-3.5 px-3">Aktivitas</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
@@ -435,13 +490,14 @@
                                 <td class="py-4 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-4 px-4 font-semibold text-slate-900">
                                     <a :href="getProspectUrl(prospect)" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
+                                    <div class="text-[10px] text-slate-400 font-medium mt-0.5" x-show="prospect.is_presensi">
+                                        <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 text-[9px]">Presensi Siswa</span>
+                                    </div>
                                 </td>
                                 <td class="py-4 px-3">
-                                    <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
-                                    <div class="text-[10px] text-slate-500 mt-1 font-semibold" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
-                                    <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
-                                    <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
-                                    <div class="text-[10px] text-teal-600 font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></div>
+                                    <div class="font-semibold text-slate-800 text-[11px]" x-text="prospect.sekolah_name || '-'"></div>
+                                    <div class="text-[10px] text-slate-400 font-medium mt-0.5" x-text="prospect.wilayah_name || 'Belum Diisi'"></div>
+                                    <div class="text-[10px] text-slate-500 font-medium" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
                                 </td>
                                 <td class="py-4 px-3 whitespace-nowrap">
                                     <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border"
@@ -459,20 +515,32 @@
                                 </td>
                                 <td class="py-4 px-3">
                                     <span 
-                                        :class="prospect.active_takeover.includes('CS') ? 'bg-teal-50 text-teal-800 border-teal-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                        :class="prospect.status_takeover === 'Sudah Di-takeover' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'"
                                         class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold border"
-                                        x-text="prospect.active_takeover"
+                                        x-text="prospect.status_takeover || 'Belum Di-takeover'"
                                     ></span>
+                                    <div class="text-[10px] text-slate-500 font-medium mt-0.5" x-show="prospect.takeover_by_name" x-text="'Oleh: ' + prospect.takeover_by_name"></div>
+                                    <div class="text-[9px] text-slate-400 mt-0.2" x-show="prospect.takeover_at" x-text="prospect.takeover_at"></div>
                                 </td>
                                 <td class="py-4 px-3 text-slate-600 font-medium">
                                     <div class="flex items-center gap-1.5 flex-wrap">
-                                        <span x-text="prospect.owner"></span>
+                                        <span x-text="prospect.owner || 'Sistem'"></span>
+                                        <span x-show="!prospect.owner_id || prospect.owner === 'Sistem'" class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Sistem</span>
                                         <span x-show="prospect.is_other" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="Prospek milik Sales lain">Sales Lain</span>
                                     </div>
                                 </td>
                                 <td class="py-4 px-3 text-slate-500 text-[11px]" x-text="prospect.last_activity"></td>
                                 <td class="py-4 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
+                                        <template x-if="prospect.is_presensi && prospect.status_takeover !== 'Sudah Di-takeover'">
+                                            <a 
+                                                :href="getProspectUrl(prospect)"
+                                                class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-2xs whitespace-nowrap"
+                                                title="Takeover Prospek Ini"
+                                            >
+                                                Takeover
+                                            </a>
+                                        </template>
                                         <button 
                                             @click="selectedProspect = prospect; modalFollowUp = true"
                                             :class="prospect.is_other ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
@@ -505,13 +573,17 @@
                                 <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0" x-text="((prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name).substring(0, 2).toUpperCase()"></div>
                                 <div>
                                     <a :href="getProspectUrl(prospect)" class="font-bold text-xs text-slate-900 block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
-                                    <span class="text-[11px] text-slate-500 block" x-text="prospect.type"></span>
-                                    <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
-                                    <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
-                                    <span class="text-[10px] text-teal-600 block font-semibold" x-show="prospect.takeover_cs && (!prospect.sales_name || prospect.sales_name === '-')" x-text="'CS: ' + prospect.takeover_cs"></span>
-                                    <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border inline-block mt-1"
-                                          :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
-                                          x-text="'Kelas ' + (prospect.kelas || 'Reguler')"></span>
+                                    <div class="text-[10px] text-slate-500 font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
+                                    <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.wilayah_name" x-text="prospect.wilayah_name"></div>
+                                    <div class="text-[10px] text-slate-400" x-show="prospect.owner" x-text="'Owner: ' + (prospect.owner || 'Sistem')"></div>
+                                    <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                                        <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border"
+                                              :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                              x-text="'Kelas ' + (prospect.kelas || 'Reguler')"></span>
+                                        <span class="px-1.5 py-0.5 rounded-md text-[9px] font-semibold border"
+                                              :class="prospect.status_takeover === 'Sudah Di-takeover' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'"
+                                              x-text="prospect.status_takeover || 'Belum Di-takeover'"></span>
+                                    </div>
                                 </div>
                             </div>
                             <span 
@@ -556,6 +628,292 @@
             <x-table-pagination total="filteredProspects.length" page="currentPage" perPage="perPage" totalPages="totalPages" color="blue" />
         </div>
 
+        <!-- MODAL: TAMBAH PRESENSI SISWA MANUAL (LANGSUNG) -->
+        <div 
+            x-show="modalPresensiManual" 
+            x-cloak 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            role="dialog" 
+            aria-modal="true"
+        >
+            <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+                <!-- Backdrop -->
+                <div 
+                    x-show="modalPresensiManual" 
+                    x-transition:enter="ease-out duration-300"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="ease-in duration-200"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                    class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" 
+                    @click="modalPresensiManual = false"
+                ></div>
+
+                <!-- Dialog Box -->
+                <div 
+                    x-show="modalPresensiManual" 
+                    x-transition:enter="ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave="ease-in duration-200"
+                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    class="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto border border-slate-100"
+                    x-data="{
+                        manualSchool: {{ old('sekolah_manual') ? 'true' : 'false' }},
+                        manualSchoolName: '{{ addslashes(old('sekolah_manual', '')) }}',
+                        selectedProdi: '{{ old('prodi_id', '') }}',
+                        isSubmitting: false,
+                        sekolahsList: {{ json_encode(collect($sekolahs ?? [])->map(fn($s) => [
+                            'id' => is_object($s) ? $s->id : ($s['id'] ?? ''),
+                            'nama' => is_object($s) ? $s->nama : ($s['nama'] ?? ($s['label'] ?? '')),
+                            'wilayah' => is_object($s) ? ($s->wilayah ? $s->wilayah->nama : '') : ($s['wilayah'] ?? ($s['sub'] ?? ''))
+                        ])) }},
+                        async submitPresensi(e) {
+                            if (this.manualSchool && this.manualSchoolName.trim()) {
+                                const result = await window.checkSchoolDuplicate({
+                                    manualName: this.manualSchoolName,
+                                    schoolList: this.sekolahsList,
+                                    onUseExisting: (matched) => {
+                                        this.manualSchool = false;
+                                        this.manualSchoolName = '';
+                                        window.dispatchEvent(new CustomEvent('select-item', {
+                                            detail: { name: 'sekolah_id', value: String(matched.id), label: matched.nama }
+                                        }));
+                                    }
+                                });
+                                if (result === false) {
+                                    this.isSubmitting = false;
+                                    return;
+                                }
+                            }
+                            this.isSubmitting = true;
+                            e.target.submit();
+                        }
+                    }"
+                    x-on:switch-manual.window="if ($event.detail.name === 'sekolah_id') { manualSchool = true; manualSchoolName = $event.detail.search; }"
+                >
+                    <!-- Header -->
+                    <div class="flex items-start justify-between pb-4 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base sm:text-lg font-bold text-slate-900">Tambah Presensi Siswa (Langsung)</h3>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Presensi Siswa</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">Catat kehadiran siswa/calon mahasiswa yang hadir langsung di counter CS atau event.</p>
+                            </div>
+                        </div>
+                        <button @click="modalPresensiManual = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <!-- Validation Error Alert -->
+                    @if ($errors->any() && old('form_type') === 'presensi_manual')
+                        <div class="mt-4 bg-rose-50 border border-rose-200 text-rose-800 p-3.5 rounded-xl text-xs space-y-1">
+                            <div class="font-bold flex items-center gap-1.5 text-rose-900">
+                                <svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <span>Gagal Menyimpan Presensi:</span>
+                            </div>
+                            <ul class="list-disc pl-5 space-y-0.5 font-medium">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <!-- Form -->
+                    <form action="{{ route('prospek.presensi-manual') }}" method="POST" @submit.prevent="submitPresensi($event)" class="mt-4 space-y-4">
+                        @csrf
+                        <input type="hidden" name="form_type" value="presensi_manual">
+
+                        <!-- 1. Nama Lengkap Siswa -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Siswa <span class="text-rose-500">*</span></label>
+                            <input 
+                                type="text" 
+                                name="nama" 
+                                value="{{ old('form_type') === 'presensi_manual' ? old('nama') : '' }}" 
+                                required 
+                                placeholder="Contoh: Muhammad Rizki Fauzi"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                            >
+                        </div>
+
+                        <!-- 2. Asal Sekolah Selector (Master + Manual Toggle) -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-700">Asal Sekolah <span class="text-rose-500">*</span></label>
+                                <button 
+                                    type="button" 
+                                    @click="manualSchool = !manualSchool" 
+                                    class="text-[11px] text-emerald-600 hover:text-emerald-800 font-semibold cursor-pointer underline decoration-emerald-300"
+                                >
+                                    <span x-show="!manualSchool">+ Sekolah belum ada di list? Ketik manual</span>
+                                    <span x-show="manualSchool">&larr; Pilih dari Master Sekolah</span>
+                                </button>
+                            </div>
+
+                            <!-- Dropdown Master Sekolah -->
+                            <div x-show="!manualSchool">
+                                <x-searchable-select 
+                                    name="sekolah_id" 
+                                    :options="$sekolahs ?? []" 
+                                    placeholder="-- Ketik untuk mencari Sekolah... --" 
+                                    :value="old('form_type') === 'presensi_manual' ? old('sekolah_id') : ''" 
+                                />
+                            </div>
+
+                            <!-- Manual Input Sekolah -->
+                            <div x-show="manualSchool" style="display: none;">
+                                <input 
+                                    type="text" 
+                                    name="sekolah_manual" 
+                                    x-model="manualSchoolName"
+                                    placeholder="Contoh: SMK NEGERI 1 CIREBON" 
+                                    autocomplete="off"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                                <p class="text-[10px] text-slate-400 mt-1">Jika sekolah belum terdaftar di database, masukkan nama lengkap dan detail sesuai nama resminya. Sekolah baru otomatis dibuat di Master Sekolah.</p>
+                            </div>
+                        </div>
+
+                        <!-- 3. Asal Kelas / Jurusan -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Kelas / Jurusan di Sekolah <span class="text-rose-500">*</span></label>
+                            <input 
+                                type="text" 
+                                name="asal_kelas" 
+                                value="{{ old('form_type') === 'presensi_manual' ? old('asal_kelas') : '' }}" 
+                                required 
+                                placeholder="Contoh: 12 RPL 1 / 12 MIPA 2" 
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                            >
+                        </div>
+
+                        <!-- 4. Nomor Kontak (WhatsApp Siswa & Ortu) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp Siswa <span class="text-rose-500">*</span></label>
+                                <input 
+                                    type="tel" 
+                                    name="no_whatsapp" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('no_whatsapp') : '' }}" 
+                                    required 
+                                    placeholder="Contoh: 081234567890" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp Orang Tua <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                                <input 
+                                    type="tel" 
+                                    name="wa_ortu" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('wa_ortu') : '' }}" 
+                                    placeholder="Contoh: 081298765432" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- 5. Pilihan Program Studi -->
+                        @php
+                            $prodisList = isset($prodis) && count($prodis) ? $prodis : \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+                        @endphp
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Pilihan Program Studi <span class="text-rose-500">*</span></label>
+                            <select 
+                                name="prodi_id" 
+                                x-model="selectedProdi" 
+                                required 
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+                            >
+                                <option value="">-- Pilih Program Studi yang Diminati --</option>
+                                @foreach($prodisList as $prodi)
+                                    <option value="{{ $prodi->id }}" {{ (old('form_type') === 'presensi_manual' && old('prodi_id') == $prodi->id) ? 'selected' : '' }}>
+                                        {{ $prodi->jenjang }} {{ $prodi->nama }}
+                                    </option>
+                                @endforeach
+                                <option value="lainnya" {{ (old('form_type') === 'presensi_manual' && old('prodi_id') === 'lainnya') ? 'selected' : '' }}>Lainnya / Belum Memilih</option>
+                            </select>
+
+                            <!-- Input Prodi Lainnya -->
+                            <div x-show="selectedProdi === 'lainnya'" x-transition class="mt-2" style="display: none;">
+                                <input 
+                                    type="text" 
+                                    name="prodi_lainnya" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('prodi_lainnya') : '' }}" 
+                                    :required="selectedProdi === 'lainnya'" 
+                                    placeholder="Sebutkan program studi atau peminatan..." 
+                                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- 6. Pilihan Tipe Kelas -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Tipe Kelas Kampus <span class="text-rose-500">*</span></label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-bold text-center transition bg-slate-50 border-slate-200 text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-300">
+                                    <input type="radio" name="kelas" value="Reguler" required class="mr-2 text-emerald-600 focus:ring-emerald-500" {{ (old('form_type') === 'presensi_manual' ? old('kelas', 'Reguler') : 'Reguler') === 'Reguler' ? 'checked' : '' }}>
+                                    <span>Reguler (Pagi)</span>
+                                </label>
+                                <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-bold text-center transition bg-slate-50 border-slate-200 text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-300">
+                                    <input type="radio" name="kelas" value="Karyawan" required class="mr-2 text-emerald-600 focus:ring-emerald-500" {{ (old('form_type') === 'presensi_manual' && old('kelas') === 'Karyawan') ? 'checked' : '' }}>
+                                    <span>Karyawan (Sore/Malam)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 7. Catatan Khusus Presensi (Opsional) -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Catatan Tambahan <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                            <textarea 
+                                name="notes" 
+                                rows="2" 
+                                placeholder="Contoh: Datang langsung ke kampus bersama orang tua, berminat beasiswa KIP / Prestasi..." 
+                                class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                            >{{ old('form_type') === 'presensi_manual' ? old('notes') : '' }}</textarea>
+                        </div>
+
+                        <!-- Footer Buttons -->
+                        <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+                            <button 
+                                type="button" 
+                                @click="modalPresensiManual = false" 
+                                class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                type="submit" 
+                                :disabled="isSubmitting" 
+                                class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <svg x-show="!isSubmitting" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <svg x-show="isSubmitting" x-cloak class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span x-text="isSubmitting ? 'Menyimpan...' : 'Simpan Presensi Siswa'"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </x-app-layout>
+

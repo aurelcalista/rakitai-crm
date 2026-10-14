@@ -150,7 +150,7 @@
         </div>
 
         {{-- ═════════════════════════════════════════════════════════════════ --}}
-        {{-- WIDGET: ANTREAN VERIFIKASI PEMBAYARAN TERMIN 1                  --}}
+        {{-- WIDGET: ANTREAN VERIFIKASI PEMBAYARAN                           --}}
         {{-- ═════════════════════════════════════════════════════════════════ --}}
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -159,7 +159,7 @@
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                     </span>
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900 tracking-tight">Antrean Verifikasi Pembayaran (Termin 1)</h3>
+                        <h3 class="text-sm font-bold text-slate-900 tracking-tight">Antrean Verifikasi Pembayaran</h3>
                         <p class="text-[11px] text-slate-500">Pembayaran dari Sales yang menunggu pengesahan CS agar sah Closing</p>
                     </div>
                 </div>
@@ -180,6 +180,7 @@
                             <tr>
                                 <th class="px-4 py-3 text-left">Calon Mahasiswa</th>
                                 <th class="px-4 py-3 text-left">Sales Lapangan</th>
+                                <th class="px-4 py-3 text-left">Komponen / Jenis</th>
                                 <th class="px-4 py-3 text-right">Nominal</th>
                                 <th class="px-4 py-3 text-left">Metode & Info Bank</th>
                                 <th class="px-4 py-3 text-left">Tanggal</th>
@@ -200,6 +201,14 @@
                                     </td>
                                     <td class="px-4 py-3.5 text-slate-700 font-medium">
                                         {{ $trx->user?->name ?? $trx->prospek?->sales?->name ?? '-' }}
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[10px]">
+                                            {{ $trx->jenis }}
+                                        </span>
+                                        @if($trx->kategori)
+                                            <span class="text-[10px] text-slate-400 block mt-0.5">{{ $trx->kategori }}</span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3.5 text-right font-black text-slate-900 text-xs">
                                         Rp {{ number_format($trx->nominal, 0, ',', '.') }}
@@ -237,7 +246,7 @@
                 </div>
             @else
                 <div class="py-10 text-center text-slate-400 text-xs">
-                    <p class="font-semibold text-slate-600">Tidak ada antrean pembayaran Termin 1 yang pending</p>
+                    <p class="font-semibold text-slate-600">Tidak ada antrean pembayaran yang pending</p>
                     <p class="text-[11px] text-slate-400 mt-0.5">Semua transaksi yang diinput Sales sudah berhasil diverifikasi.</p>
                 </div>
             @endif

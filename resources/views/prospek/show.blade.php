@@ -3,12 +3,30 @@
     $pageSubtitle = $prospect['name'];
     $prospekModel = $prospekModel ?? \App\Models\Prospek::find($prospect['id']);
     $transaksis = $transaksis ?? ($prospekModel ? $prospekModel->transaksis()->with(['user', 'verifier', 'rejecter'])->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get() : collect());
-    $pendingList = $transaksis->where('payment_status', 'pending');
-    $hasPendingTrx = $pendingList->isNotEmpty();
-    $hasVerifiedTermin1 = $transaksis->where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'verified')->isNotEmpty();
-    $hasVerifiedFormulir = $transaksis->where('jenis', 'Beli Formulir')->where('payment_status', 'verified')->isNotEmpty();
-    $totalPaid = $transaksis->where('payment_status', 'verified')->sum('nominal');
-    $totalPending = $transaksis->where('payment_status', 'pending')->sum('nominal');
+    $pendingList = $pendingList ?? $transaksis->where('payment_status', 'pending');
+    $hasPendingTrx = $hasPendingTrx ?? $pendingList->isNotEmpty();
+    $hasVerifiedTermin1 = $hasVerifiedTermin1 ?? $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Pembayaran Termin 1', 'DP/Konversi', 'UKT', 'Perlengkapan']) || $t->kategori === 'Lunas')->isNotEmpty();
+    $hasVerifiedFormulir = $hasVerifiedFormulir ?? $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Beli Formulir', 'Pendaftaran']) || $t->kategori === 'DP Daftar')->isNotEmpty();
+    $totalPaid = $totalPaid ?? $transaksis->where('payment_status', 'verified')->sum('nominal');
+    $totalPending = $totalPending ?? $transaksis->where('payment_status', 'pending')->sum('nominal');
+
+    $aliasesMap = [
+        'Pendaftaran'  => ['Pendaftaran', 'Beli Formulir'],
+        'Perlengkapan' => ['Perlengkapan'],
+        'Gedung'       => ['Gedung'],
+        'DP/Konversi'  => ['DP/Konversi', 'DP', 'Pembayaran Termin 1'],
+        'UKT'          => ['UKT'],
+    ];
+    $verifiedTypes = [];
+    $pendingTypes = [];
+    foreach ($aliasesMap as $key => $aliases) {
+        $verifiedTypes[$key] = $transaksis->contains(function ($t) use ($aliases) {
+            return in_array($t->jenis, $aliases) && $t->payment_status === \App\Models\Transaksi::STATUS_VERIFIED;
+        });
+        $pendingTypes[$key] = $transaksis->contains(function ($t) use ($aliases) {
+            return in_array($t->jenis, $aliases) && $t->payment_status === \App\Models\Transaksi::STATUS_PENDING;
+        });
+    }
 @endphp
 
 <x-app-layout :title="'Detail Prospek - ' . $prospect['name']">
@@ -20,18 +38,43 @@
         modalEditProspek: false,
         modalTransaksi: false,
         transaksiStep: 1,
-        kategoriVal: 'DP Daftar',
+        kategoriVal: '{{ (!empty($verifiedTypes['Pendaftaran']) || !empty($pendingTypes['Pendaftaran'])) ? 'DP Perlengkapan' : 'DP Daftar' }}',
         trxItems: {
-            'Pendaftaran': { checked: true, nominal: 250000 },
-            'Perlengkapan': { checked: false, nominal: 350000 },
-            'Gedung': { checked: false, nominal: 0 },
-            'DP/Konversi': { checked: false, nominal: 500000 },
-            'UKT': { checked: false, nominal: 1500000 }
+            'Pendaftaran': {
+                checked: {{ (!empty($verifiedTypes['Pendaftaran']) || !empty($pendingTypes['Pendaftaran'])) ? 'false' : 'true' }},
+                nominal: 250000,
+                is_paid: {{ !empty($verifiedTypes['Pendaftaran']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['Pendaftaran']) ? 'true' : 'false' }}
+            },
+            'Perlengkapan': {
+                checked: false,
+                nominal: 350000,
+                is_paid: {{ !empty($verifiedTypes['Perlengkapan']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['Perlengkapan']) ? 'true' : 'false' }}
+            },
+            'Gedung': {
+                checked: false,
+                nominal: 0,
+                is_paid: {{ !empty($verifiedTypes['Gedung']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['Gedung']) ? 'true' : 'false' }}
+            },
+            'DP/Konversi': {
+                checked: false,
+                nominal: 500000,
+                is_paid: {{ !empty($verifiedTypes['DP/Konversi']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['DP/Konversi']) ? 'true' : 'false' }}
+            },
+            'UKT': {
+                checked: false,
+                nominal: 1500000,
+                is_paid: {{ !empty($verifiedTypes['UKT']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['UKT']) ? 'true' : 'false' }}
+            }
         },
         get totalNominal() {
             let sum = 0;
             for (const key in this.trxItems) {
-                if (this.trxItems[key].checked) {
+                if (this.trxItems[key].checked && !this.trxItems[key].is_paid && !this.trxItems[key].is_pending) {
                     sum += Number(this.trxItems[key].nominal || 0);
                 }
             }
@@ -40,7 +83,7 @@
         get checkedJenisCount() {
             let count = 0;
             for (const key in this.trxItems) {
-                if (this.trxItems[key].checked) count++;
+                if (this.trxItems[key].checked && !this.trxItems[key].is_paid && !this.trxItems[key].is_pending) count++;
             }
             return count;
         },
@@ -82,10 +125,20 @@
             if (!num) return '0';
             return new Intl.NumberFormat('id-ID').format(num);
         },
-        openModalTransaksi(kategori = 'DP Daftar', precheck = 'Pendaftaran') {
+        openModalTransaksi(kategori = null, precheck = null) {
+            if (!kategori) {
+                kategori = (this.trxItems['Pendaftaran'].is_paid || this.trxItems['Pendaftaran'].is_pending) ? 'DP Perlengkapan' : 'DP Daftar';
+            }
+            if (!precheck) {
+                precheck = (this.trxItems['Pendaftaran'].is_paid || this.trxItems['Pendaftaran'].is_pending) ? 'Perlengkapan' : 'Pendaftaran';
+            }
             this.kategoriVal = kategori;
             for (const key in this.trxItems) {
-                this.trxItems[key].checked = (key === precheck);
+                if (this.trxItems[key].is_paid || this.trxItems[key].is_pending) {
+                    this.trxItems[key].checked = false;
+                } else {
+                    this.trxItems[key].checked = (key === precheck);
+                }
                 if (key === 'Gedung') this.trxItems[key].nominal = 0;
             }
             this.transaksiStep = 1;
@@ -182,7 +235,7 @@
                     @can('transaction', $prospekModel ?? null)
                     <button 
                         type="button" 
-                        @click="modalTransaksi = true"
+                        @click="openModalTransaksi()"
                         class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                     >
                         <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -202,17 +255,24 @@
                     @endcan
 
                     @can('takeover', $prospekModel ?? null)
-                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="{{ strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.' }}">
+                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="{{ ($prospekModel->isPresensiSiswa() ? 'Yakin ingin melakukan takeover prospek Presensi Siswa ini?' : (strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.')) }}">
                         @csrf
                         <button 
                             type="submit" 
                             class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                            <span>{{ strtolower(auth()->user()->role) === 'cs' ? 'Takeover (Ambil Alih)' : 'Serahkan ke CS' }}</span>
+                            <span>{{ $prospekModel->isPresensiSiswa() ? 'Takeover Presensi Siswa' : (strtolower(auth()->user()->role) === 'cs' ? 'Takeover (Ambil Alih)' : 'Serahkan ke CS') }}</span>
                         </button>
                     </form>
                     @endcan
+
+                    @if($prospekModel->isPresensiSiswa() && ($prospekModel->status_takeover === 'Sudah Di-takeover' || $prospekModel->takeover_by_id))
+                    <div class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        <span>Sudah Di-takeover: <strong>{{ $prospekModel->takeoverBy?->name ?? 'User #' . $prospekModel->takeover_by_id }}</strong> ({{ $prospekModel->takeoverBy?->role ?? 'Sales' }})</span>
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -282,30 +342,80 @@
                     
                     <div class="space-y-3.5 text-xs">
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sales Pemilik Prospek</span>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Owner Awal</span>
                             <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
                                 <p class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                                     <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                    <span class="font-bold text-slate-800">{{ $prospekModel->owner?->name ?? ($prospekModel->sales?->name ?? ($prospect['owner'] ?? 'Belum Ditugaskan')) }}</span>
+                                    <span class="font-bold text-slate-800">{{ $prospekModel->owner?->name ?? 'Sistem' }}</span>
                                 </p>
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                    Pemilik Awal
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {{ $prospekModel->owner_id ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200' }}">
+                                    {{ $prospekModel->owner_id ? 'Pemilik Awal' : 'Sistem' }}
                                 </span>
                             </div>
-                            @if($prospekModel->sales_id && $prospekModel->owner_id && $prospekModel->sales_id !== $prospekModel->owner_id && $prospekModel->sales)
+                            @if($prospekModel->sales_id && $prospekModel->sales)
                                 <div class="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
-                                    <span class="text-slate-400">Penangan Saat Ini:</span>
+                                    <span class="text-slate-400">Sales Penangan:</span>
                                     <strong class="text-slate-800">{{ $prospekModel->sales->name }}</strong>
                                 </div>
                             @endif
                         </div>
 
-                        @if($prospekModel->cs_id && $prospekModel->cs)
                         <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Penangan CS (Handover)</span>
-                            <p class="font-bold text-indigo-900 mt-0.5 text-xs flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                <span>{{ $prospekModel->cs->name }}</span>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
+                            <div class="mt-0.5">
+                                @if($prospekModel->isPresensiSiswa())
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                        Presensi Siswa
+                                    </span>
+                                @else
+                                    <span class="font-medium text-slate-800">{{ $prospect['source'] ?? '-' }}</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Asal Sekolah & Wilayah</span>
+                            <p class="font-medium text-slate-800 mt-0.5">
+                                {{ $prospekModel->sekolah?->nama ?? ($prospekModel->sekolah_manual ?: ($prospect['sekolah_name'] ?? 'Belum Diisi')) }}
+                            </p>
+                            <p class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                                <span>Wilayah: <strong>{{ $prospekModel->sekolah?->wilayah?->nama ?? ($prospekModel->wilayah?->nama ?? ($prospect['wilayah_name'] ?? 'Belum Diisi')) }}</strong></span>
+                            </p>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Status Takeover</span>
+                            <div class="mt-1">
+                                @if($prospekModel->status_takeover === 'Sudah Di-takeover' || $prospekModel->takeover_by_id)
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                        Sudah Di-takeover
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                        Belum Di-takeover
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        @if($prospekModel->takeover_by_id || $prospekModel->takeoverBy)
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pengambil Alih</span>
+                            <p class="font-bold text-slate-800 mt-0.5 text-xs flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                <span>{{ $prospekModel->takeoverBy?->name ?? 'User #' . $prospekModel->takeover_by_id }}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    {{ $prospekModel->takeoverBy?->role ?? 'Sales' }}
+                                </span>
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Waktu Takeover</span>
+                            <p class="font-medium text-slate-700 mt-0.5 text-xs">
+                                {{ $prospekModel->takeover_at ? $prospekModel->takeover_at->format('d M Y, H:i') : '-' }}
                             </p>
                         </div>
                         @endif
@@ -336,11 +446,6 @@
                                     <span class="text-slate-500 font-medium italic">Belum ada transaksi</span>
                                 @endif
                             </div>
-                        </div>
-
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
                         </div>
 
                         @if($prospekModel->asal_kelas)
@@ -407,7 +512,7 @@
                         @can('transaction', $prospekModel ?? null)
                         <button 
                             type="button" 
-                            @click="openModalTransaksi('DP Daftar', 'Pendaftaran')"
+                            @click="openModalTransaksi()"
                             class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
                         >
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -482,7 +587,7 @@
                             @can('transaction', $prospekModel ?? null)
                             <button 
                                 type="button" 
-                                @click="openModalTransaksi('DP Daftar', 'Pendaftaran')"
+                                @click="openModalTransaksi()"
                                 class="mt-3 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                                 <span>Input Transaksi Sekarang</span>
@@ -890,7 +995,7 @@
                             </div>
 
                             <!-- Input Sekolah (Search & Manual Mode) -->
-                            <div x-show="prospekType === 'Sekolah'" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                            <div x-show="prospekType === 'Sekolah'" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-2">
                                 <div class="flex items-center justify-between mb-1.5 h-5">
                                     <template x-if="!modeManualSekolah">
                                         <div class="flex items-center justify-between w-full">
@@ -956,7 +1061,7 @@
                                                 type="text" 
                                                 name="sekolah_manual" 
                                                 value="{{ old('sekolah_manual', empty($prospect['sekolah_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
-                                                placeholder="Contoh: SMAN 1 Cirebon" 
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
                                                 class="w-full text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                                             >
                                         </div>
@@ -1272,16 +1377,26 @@
                             
                             <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
                                 <!-- 1. Pendaftaran -->
-                                <div class="p-3 rounded-xl border transition" :class="trxItems['Pendaftaran'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Pendaftaran'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['Pendaftaran'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['Pendaftaran'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
                                     <div class="flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <input type="checkbox" name="jenis_items[]" value="Pendaftaran" x-model="trxItems['Pendaftaran'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['Pendaftaran'].is_paid || trxItems['Pendaftaran'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="Pendaftaran" x-model="trxItems['Pendaftaran'].checked" :disabled="trxItems['Pendaftaran'].is_paid || trxItems['Pendaftaran'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <div>
-                                                <div class="text-xs font-bold text-slate-800">Pendaftaran</div>
-                                                <div class="text-[10px] text-slate-500">Biaya pendaftaran / formulir</div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>Pendaftaran</span>
+                                                    <template x-if="trxItems['Pendaftaran'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['Pendaftaran'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['Pendaftaran'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['Pendaftaran'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['Pendaftaran'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['Pendaftaran'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Biaya pendaftaran / formulir')">
+                                                </div>
                                             </div>
                                         </label>
-                                        <template x-if="trxItems['Pendaftaran'].checked">
+                                        <template x-if="trxItems['Pendaftaran'].checked && !trxItems['Pendaftaran'].is_paid && !trxItems['Pendaftaran'].is_pending">
                                             <div class="w-36">
                                                 <div class="relative">
                                                     <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
@@ -1293,16 +1408,26 @@
                                 </div>
 
                                 <!-- 2. Perlengkapan -->
-                                <div class="p-3 rounded-xl border transition" :class="trxItems['Perlengkapan'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Perlengkapan'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['Perlengkapan'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['Perlengkapan'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
                                     <div class="flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <input type="checkbox" name="jenis_items[]" value="Perlengkapan" x-model="trxItems['Perlengkapan'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['Perlengkapan'].is_paid || trxItems['Perlengkapan'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="Perlengkapan" x-model="trxItems['Perlengkapan'].checked" :disabled="trxItems['Perlengkapan'].is_paid || trxItems['Perlengkapan'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <div>
-                                                <div class="text-xs font-bold text-slate-800">Perlengkapan</div>
-                                                <div class="text-[10px] text-slate-500">Biaya jas almamater / atribut</div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>Perlengkapan</span>
+                                                    <template x-if="trxItems['Perlengkapan'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['Perlengkapan'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['Perlengkapan'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['Perlengkapan'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['Perlengkapan'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['Perlengkapan'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Biaya jas almamater / atribut')">
+                                                </div>
                                             </div>
                                         </label>
-                                        <template x-if="trxItems['Perlengkapan'].checked">
+                                        <template x-if="trxItems['Perlengkapan'].checked && !trxItems['Perlengkapan'].is_paid && !trxItems['Perlengkapan'].is_pending">
                                             <div class="w-36">
                                                 <div class="relative">
                                                     <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
@@ -1314,19 +1439,29 @@
                                 </div>
 
                                 <!-- 3. Gedung (Default FREE / Rp 0) -->
-                                <div class="p-3 rounded-xl border transition" :class="trxItems['Gedung'].checked ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'">
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Gedung'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['Gedung'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['Gedung'].checked ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'))">
                                     <div class="flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <input type="checkbox" name="jenis_items[]" value="Gedung" x-model="trxItems['Gedung'].checked" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['Gedung'].is_paid || trxItems['Gedung'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="Gedung" x-model="trxItems['Gedung'].checked" :disabled="trxItems['Gedung'].is_paid || trxItems['Gedung'].is_pending" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <div>
                                                 <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                                                     <span>Gedung</span>
-                                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700">DEFAULT FREE</span>
+                                                    <template x-if="trxItems['Gedung'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS (FREE)</span>
+                                                    </template>
+                                                    <template x-if="trxItems['Gedung'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                    <template x-if="!trxItems['Gedung'].is_paid && !trxItems['Gedung'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700">DEFAULT FREE</span>
+                                                    </template>
                                                 </div>
-                                                <div class="text-[10px] text-slate-500">Default FREE (Rp 0, bukan tunggakan)</div>
+                                                <div class="text-[10px]" :class="trxItems['Gedung'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['Gedung'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['Gedung'].is_paid ? 'Biaya gedung FREE telah tercatat & diverifikasi sah' : (trxItems['Gedung'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Default FREE (Rp 0, bukan tunggakan)')">
+                                                </div>
                                             </div>
                                         </label>
-                                        <template x-if="trxItems['Gedung'].checked">
+                                        <template x-if="trxItems['Gedung'].checked && !trxItems['Gedung'].is_paid && !trxItems['Gedung'].is_pending">
                                             <div class="w-36">
                                                 <div class="relative">
                                                     <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
@@ -1338,16 +1473,26 @@
                                 </div>
 
                                 <!-- 4. DP/Konversi -->
-                                <div class="p-3 rounded-xl border transition" :class="trxItems['DP/Konversi'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['DP/Konversi'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['DP/Konversi'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['DP/Konversi'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
                                     <div class="flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <input type="checkbox" name="jenis_items[]" value="DP/Konversi" x-model="trxItems['DP/Konversi'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['DP/Konversi'].is_paid || trxItems['DP/Konversi'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="DP/Konversi" x-model="trxItems['DP/Konversi'].checked" :disabled="trxItems['DP/Konversi'].is_paid || trxItems['DP/Konversi'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <div>
-                                                <div class="text-xs font-bold text-slate-800">DP/Konversi</div>
-                                                <div class="text-[10px] text-slate-500">Down Payment / Mahasiswa Konversi</div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>DP/Konversi</span>
+                                                    <template x-if="trxItems['DP/Konversi'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['DP/Konversi'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['DP/Konversi'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['DP/Konversi'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['DP/Konversi'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['DP/Konversi'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Down Payment / Mahasiswa Konversi')">
+                                                </div>
                                             </div>
                                         </label>
-                                        <template x-if="trxItems['DP/Konversi'].checked">
+                                        <template x-if="trxItems['DP/Konversi'].checked && !trxItems['DP/Konversi'].is_paid && !trxItems['DP/Konversi'].is_pending">
                                             <div class="w-36">
                                                 <div class="relative">
                                                     <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
@@ -1359,16 +1504,26 @@
                                 </div>
 
                                 <!-- 5. UKT -->
-                                <div class="p-3 rounded-xl border transition" :class="trxItems['UKT'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'">
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['UKT'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['UKT'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['UKT'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
                                     <div class="flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <input type="checkbox" name="jenis_items[]" value="UKT" x-model="trxItems['UKT'].checked" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['UKT'].is_paid || trxItems['UKT'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="UKT" x-model="trxItems['UKT'].checked" :disabled="trxItems['UKT'].is_paid || trxItems['UKT'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <div>
-                                                <div class="text-xs font-bold text-slate-800">UKT</div>
-                                                <div class="text-[10px] text-slate-500">Uang Kuliah Tunggal semester berjalan</div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>UKT</span>
+                                                    <template x-if="trxItems['UKT'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['UKT'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['UKT'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['UKT'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['UKT'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['UKT'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Uang Kuliah Tunggal semester berjalan')">
+                                                </div>
                                             </div>
                                         </label>
-                                        <template x-if="trxItems['UKT'].checked">
+                                        <template x-if="trxItems['UKT'].checked && !trxItems['UKT'].is_paid && !trxItems['UKT'].is_pending">
                                             <div class="w-36">
                                                 <div class="relative">
                                                     <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>

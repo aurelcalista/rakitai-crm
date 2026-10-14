@@ -304,6 +304,7 @@ Route::middleware('auth')->group(function () {
         });
         Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
         Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
+        Route::post('/prospek/presensi-manual', [CrmController::class, 'prospekPresensiManual'])->name('prospek.presensi-manual');
         Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
         Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
         Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');

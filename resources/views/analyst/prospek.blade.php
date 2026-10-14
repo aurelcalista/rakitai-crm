@@ -50,9 +50,25 @@
 
         <!-- Filter Bar -->
         <form method="GET" action="{{ route('analyst.prospek.index') }}" class="no-print bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs mb-3">
+            <!-- Multirole Scope Filter Tabs: Semua Prospek, Presensi Siswa -->
+            <div class="flex items-center gap-1.5 p-1 mb-4 bg-slate-100 rounded-xl w-fit border border-slate-200/60 flex-wrap">
+                <a 
+                    href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null]))) }}" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 {{ !request('scope') ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800' }}"
+                >
+                    <span>Semua Prospek</span>
+                </a>
+                <a 
+                    href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'presensi'])) }}" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 {{ request('scope') === 'presensi' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-800' }}"
+                >
+                    <span>Presensi Siswa</span>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 text-xs mb-3">
                 <!-- Search text -->
-                <div class="col-span-2">
+                <div class="col-span-2 sm:col-span-1 lg:col-span-2">
                     <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Cari Nama / WhatsApp</label>
                     <input 
                         type="text" 
@@ -98,6 +114,17 @@
                         <option value="all">Semua Prodi</option>
                         @foreach($prodiOptions as $p)
                             <option value="{{ $p->id }}" {{ ($filters['prodi_id'] ?? '') == $p->id ? 'selected' : '' }}>{{ $p->nama }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Sumber Prospek -->
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Sumber Prospek</label>
+                    <select name="source" onchange="this.form.submit()" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                        <option value="all">Semua Sumber</option>
+                        @foreach($sourceOptions as $src)
+                            <option value="{{ $src }}" {{ ($filters['source'] ?? '') === $src ? 'selected' : '' }}>{{ $src }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -148,7 +175,11 @@
                                 <td class="py-3 px-3.5 font-mono text-[11px] text-slate-400">#{{ $p->id }}</td>
                                 <td class="py-3 px-3.5">
                                     <div class="font-bold text-slate-900">{{ $p->name }}</div>
-                                    <div class="text-[10px] text-slate-400">{{ $p->source ?: 'Sumber tidak tercatat' }}</div>
+                                    @if($p->source === \App\Models\Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa')
+                                        <div class="mt-0.5"><span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9.5px] font-bold border border-emerald-200">Presensi Siswa</span></div>
+                                    @else
+                                        <div class="text-[10px] text-slate-400">{{ $p->source ?: 'Sumber tidak tercatat' }}</div>
+                                    @endif
                                 </td>
                                 <td class="py-3 px-3.5 font-mono text-slate-700">
                                     {{ $p->whatsapp ?: '-' }}

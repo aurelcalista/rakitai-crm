@@ -79,8 +79,7 @@ class Transaksi extends Model
                 $spv = $sales?->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
                 $cs = $prospek->cs ?? ($prospek->cs_id ? \App\Models\User::find($prospek->cs_id) : null);
 
-                $isPembayaranTermin1 = $transaksi->jenis === 'Pembayaran Termin 1';
-                $isNeedVerification  = $isPembayaranTermin1 && $transaksi->payment_status === self::STATUS_PENDING;
+                $isNeedVerification  = $transaksi->payment_status === self::STATUS_PENDING;
 
                 // 1. Notifikasi ke Sales (hanya jika yang input bukan Sales pemilik)
                 if ($sales && (!$auth || $auth->id !== $sales->id)) {
@@ -113,21 +112,14 @@ class Transaksi extends Model
                     ));
                 }
 
-                // 3. Notifikasi ke CS — kirim ke CS penanggung jawab (takeover aktif). Jika belum di-takeover, kirim ke seluruh staf CS aktif.
+                // 3. Notifikasi ke CS — seluruh CS aktif menerima notifikasi antrean verifikasi pembayaran
                 if ($isNeedVerification) {
-                    if ($cs) {
-                        $csList = collect([$cs]);
-                    } else {
-                        $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
-                        if ($csList->isEmpty()) {
-                            $csList = \App\Models\User::where('role', 'CS')->get();
-                        }
-                    }
-                } else {
-                    $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))->get();
+                    $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
                     if ($csList->isEmpty()) {
                         $csList = \App\Models\User::where('role', 'CS')->get();
                     }
+                } else {
+                    $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->get();
                 }
 
                 $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? ($transaksi->metode_pembayaran ?: 'Transfer Bank / Online');
@@ -166,9 +158,7 @@ class Transaksi extends Model
      */
     public function needsVerification(): bool
     {
-        return $this->jenis === 'Pembayaran Termin 1'
-            && $this->metode_pembayaran !== null
-            && $this->payment_status === self::STATUS_PENDING;
+        return $this->payment_status === self::STATUS_PENDING;
     }
 
     /**

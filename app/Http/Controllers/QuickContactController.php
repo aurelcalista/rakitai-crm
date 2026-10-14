@@ -32,31 +32,76 @@ class QuickContactController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'jenis_instansi' => 'required|in:Sekolah,PT',
-            'sekolah_id'     => 'nullable|required_if:jenis_instansi,Sekolah|exists:sekolahs,id',
-            'perusahaan_id'  => 'nullable|required_if:jenis_instansi,PT|exists:perusahaans,id',
-            'nama'           => 'required|string|max:255',
-            'no_whatsapp'    => 'required|string|max:20',
-            'wa_ortu'        => 'nullable|string|max:20',
-            'asal_kelas'     => 'nullable|string|max:255',
-            'prodi_id'       => 'required|string',
-            'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
-            'kelas'          => 'required|in:Reguler,Karyawan',
+            'jenis_instansi'    => 'required|in:Sekolah,PT',
+            'sekolah_id'        => 'nullable|exists:sekolahs,id',
+            'sekolah_manual'    => 'nullable|string|max:255',
+            'perusahaan_id'     => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string|max:255',
+            'nama'              => 'required|string|max:255',
+            'no_whatsapp'       => 'required|string|max:20',
+            'wa_ortu'           => 'nullable|string|max:20',
+            'asal_kelas'        => 'nullable|string|max:255',
+            'prodi_id'          => 'required|string',
+            'prodi_lainnya'     => 'nullable|required_if:prodi_id,lainnya|string|max:255',
+            'kelas'             => 'required|in:Reguler,Karyawan',
         ]);
 
-        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
+        if ($validated['jenis_instansi'] === 'Sekolah' && empty($validated['sekolah_id']) && empty($request->sekolah_manual)) {
+            return redirect()->back()->withInput()->withErrors(['sekolah_id' => 'Nama sekolah wajib dipilih atau diisi manual jika belum terdaftar.']);
+        }
 
         $name = $validated['nama'];
-        if ($validated['jenis_instansi'] === 'Sekolah' && !empty($validated['sekolah_id'])) {
-            $sekolah = Sekolah::find($validated['sekolah_id']);
-            if ($sekolah) {
-                $name = $sekolah->nama;
+        $sekolahId = null;
+        $perusahaanId = null;
+        $wilayahId = null;
+        $manualNotes = null;
+
+        if ($validated['jenis_instansi'] === 'Sekolah') {
+            if (!empty($validated['sekolah_id'])) {
+                $sekolah = Sekolah::find($validated['sekolah_id']);
+                if ($sekolah) {
+                    $name = $sekolah->nama;
+                    $sekolahId = $sekolah->id;
+                    $wilayahId = $sekolah->wilayah_id;
+                }
+            } elseif (!empty($request->sekolah_manual)) {
+                $manualName = trim($request->sekolah_manual);
+                // Cek apakah nama manual cocok (case-insensitive) dengan data master sekolah yang ada
+                $matched = Sekolah::whereRaw('LOWER(nama) = ?', [strtolower($manualName)])->first();
+                if ($matched) {
+                    $name = $matched->nama;
+                    $sekolahId = $matched->id;
+                    $wilayahId = $matched->wilayah_id;
+                } else {
+                    // Buat sekolah baru di master data, lokasi NULL untuk dilengkapi Admin
+                    $newSchool = Sekolah::create([
+                        'kode'   => 'SCH-' . strtoupper(Str::random(6)),
+                        'nama'   => $manualName,
+                        'status' => 'Aktif',
+                    ]);
+                    $name = $newSchool->nama;
+                    $sekolahId = $newSchool->id;
+                    $wilayahId = null;
+                    $manualNotes = 'Sekolah baru otomatis ditambahkan ke Master Data: ' . $manualName;
+                }
             }
-        } elseif ($validated['jenis_instansi'] === 'PT' && !empty($validated['perusahaan_id'])) {
-            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
-            if ($perusahaan) {
-                $name = $perusahaan->nama;
+        } elseif ($validated['jenis_instansi'] === 'PT') {
+            if (!empty($validated['perusahaan_id'])) {
+                $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+                if ($perusahaan) {
+                    $name = $perusahaan->nama;
+                    $perusahaanId = $perusahaan->id;
+                    $wilayahId = $perusahaan->wilayah_id;
+                }
+            } elseif (!empty($request->perusahaan_manual)) {
+                $name = trim($request->perusahaan_manual) ?: $validated['nama'];
+                $manualNotes = 'Perusahaan (Belum Terdaftar): ' . trim($request->perusahaan_manual);
             }
+        }
+
+        $notes = 'Diinput mandiri melalui form Presensi Siswa';
+        if ($manualNotes) {
+            $notes .= ' | ' . $manualNotes;
         }
 
         $prospek = Prospek::create([
@@ -66,24 +111,30 @@ class QuickContactController extends Controller
             'pic'              => $validated['nama'],
             'pic_phone'        => $validated['no_whatsapp'],
             'type'             => $validated['jenis_instansi'] === 'PT' ? 'Corporate' : 'Sekolah',
-            'sekolah_id'       => $validated['jenis_instansi'] === 'Sekolah' ? $validated['sekolah_id'] : null,
+            'sekolah_id'       => $sekolahId,
+            'wilayah_id'       => $wilayahId,
             'asal_kelas'       => $validated['asal_kelas'] ?? null,
-            'perusahaan_id'    => $validated['jenis_instansi'] === 'PT' ? $validated['perusahaan_id'] : null,
+            'perusahaan_id'    => $perusahaanId,
             'prodi_id'         => $validated['prodi_id'] === 'lainnya' ? null : $validated['prodi_id'],
             'prodi_lainnya'    => $validated['prodi_id'] === 'lainnya' ? $validated['prodi_lainnya'] : null,
             'kelas'            => $validated['kelas'],
             'status'           => 'BARU',
             'stage_number'     => 1,
-            'source'           => 'Lainnya',
-            'notes'            => 'Diinput mandiri melalui form Tambah Kontak Cepat',
-            'cs_id'            => $cs ? $cs->id : null,
+            'source'           => Prospek::SOURCE_PRESENSI_SISWA,
+            'notes'            => $notes,
+            'owner_id'         => null, // Owner awal murni Sistem
+            'sales_id'         => null, // Tidak otomatis menugaskan Sales
+            'cs_id'            => null, // Tidak otomatis menugaskan CS
+            'status_takeover'  => 'Belum Di-takeover',
+            'takeover_by_id'   => null,
+            'takeover_at'      => null,
         ]);
 
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
-            'user_id'      => null, // System or unauthenticated user
-            'title'        => 'Prospek Masuk (Kontak Cepat)',
-            'notes'        => 'Prospek diinput mandiri oleh calon mahasiswa melalui form Tambah Kontak Cepat dari Landing Page.',
+            'user_id'      => null, // Owner awal: Sistem
+            'title'        => 'Presensi Siswa Masuk',
+            'notes'        => 'Data presensi siswa berhasil masuk ke CRM dari formulir presensi sekolah.',
             'status_after' => $prospek->status,
             'time'         => now(),
         ]);
@@ -96,24 +147,37 @@ class QuickContactController extends Controller
         $request->merge(['jenis_instansi' => 'PT']);
         
         $validated = $request->validate([
-            'perusahaan_id'  => 'nullable|exists:perusahaans,id',
-            'nama'           => 'required|string|max:255',
-            'no_whatsapp'    => 'required|string|max:20',
-            'wa_ortu'        => 'nullable|string|max:20',
-            'asal_kelas'     => 'nullable|string|max:255',
-            'prodi_id'       => 'required|string',
-            'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
-            'kelas'          => 'required|in:Reguler,Karyawan',
+            'perusahaan_id'     => 'nullable|exists:perusahaans,id',
+            'perusahaan_manual' => 'nullable|string|max:255',
+            'nama'              => 'required|string|max:255',
+            'no_whatsapp'       => 'required|string|max:20',
+            'wa_ortu'           => 'nullable|string|max:20',
+            'asal_kelas'        => 'nullable|string|max:255',
+            'prodi_id'          => 'required|string',
+            'prodi_lainnya'     => 'nullable|required_if:prodi_id,lainnya|string|max:255',
+            'kelas'             => 'required|in:Reguler,Karyawan',
         ]);
 
-        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
-
         $name = $validated['nama'];
+        $perusahaanId = null;
+        $wilayahId = null;
+        $manualNotes = null;
+
         if (!empty($validated['perusahaan_id'])) {
             $perusahaan = Perusahaan::find($validated['perusahaan_id']);
             if ($perusahaan) {
                 $name = $perusahaan->nama;
+                $perusahaanId = $perusahaan->id;
+                $wilayahId = $perusahaan->wilayah_id;
             }
+        } elseif (!empty($request->perusahaan_manual)) {
+            $name = trim($request->perusahaan_manual);
+            $manualNotes = 'Perusahaan (Belum Terdaftar): ' . $name;
+        }
+
+        $notes = 'Diinput mandiri melalui form Presensi Corporate';
+        if ($manualNotes) {
+            $notes .= ' | ' . $manualNotes;
         }
 
         $prospek = Prospek::create([
@@ -124,23 +188,29 @@ class QuickContactController extends Controller
             'pic_phone'        => $validated['no_whatsapp'],
             'type'             => 'Corporate',
             'sekolah_id'       => null,
+            'wilayah_id'       => $wilayahId,
             'asal_kelas'       => $validated['asal_kelas'] ?? null,
-            'perusahaan_id'    => $validated['perusahaan_id'] ?? null,
+            'perusahaan_id'    => $perusahaanId,
             'prodi_id'         => $validated['prodi_id'] === 'lainnya' ? null : $validated['prodi_id'],
             'prodi_lainnya'    => $validated['prodi_id'] === 'lainnya' ? $validated['prodi_lainnya'] : null,
             'kelas'            => $validated['kelas'],
             'status'           => 'BARU',
             'stage_number'     => 1,
-            'source'           => 'Lainnya',
-            'notes'            => 'Diinput mandiri melalui form Presensi Corporate',
-            'cs_id'            => $cs ? $cs->id : null,
+            'source'           => Prospek::SOURCE_PRESENSI_SISWA,
+            'notes'            => $notes,
+            'owner_id'         => null, // Owner awal Sistem
+            'sales_id'         => null,
+            'cs_id'            => null,
+            'status_takeover'  => 'Belum Di-takeover',
+            'takeover_by_id'   => null,
+            'takeover_at'      => null,
         ]);
 
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
             'user_id'      => null,
-            'title'        => 'Prospek Masuk (Presensi Corporate)',
-            'notes'        => 'Prospek diinput mandiri oleh PIC Perusahaan melalui form Presensi Corporate.',
+            'title'        => 'Presensi Corporate Masuk',
+            'notes'        => 'Data presensi berhasil masuk ke CRM dari form presensi corporate.',
             'status_after' => $prospek->status,
             'time'         => now(),
         ]);

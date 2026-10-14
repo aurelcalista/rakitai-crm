@@ -317,7 +317,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Nama Sekolah *</label>
-                                <input type="text" name="nama" required placeholder="SMA Negeri 5 Cirebon" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                                <input type="text" name="nama" required placeholder="Contoh: SMK NEGERI 1 CIREBON" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Kategori *</label>

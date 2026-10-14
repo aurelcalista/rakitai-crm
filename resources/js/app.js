@@ -28,6 +28,190 @@ window.confirmLogout = function() {
 };
 
 // ──────────────────────────────────────────────────────────────────
+// School Duplicate Detection & Confirmation Modal Helper
+// (Pre-Submit Validation: Zero visual clutter on the form,
+//  checks on submit and prompts if a similar school exists in database)
+// ──────────────────────────────────────────────────────────────────
+export function normalizeSchoolName(str) {
+    if (!str) return '';
+    let s = String(str).toUpperCase();
+    // Replace brackets and punctuation with spaces
+    s = s.replace(/[()\/\\.,_-]/g, ' ');
+    s = s.replace(/\s+/g, ' ').trim();
+
+    // Standardize Indonesian school abbreviations
+    s = s.replace(/\bSMKN\b/g, 'SMK NEGERI');
+    s = s.replace(/\bSMAN\b/g, 'SMA NEGERI');
+    s = s.replace(/\bSMAS\b/g, 'SMA SWASTA');
+    s = s.replace(/\bSMKS\b/g, 'SMK SWASTA');
+    s = s.replace(/\bMAN\b/g, 'MA NEGERI');
+    s = s.replace(/\bMAS\b/g, 'MA SWASTA');
+    s = s.replace(/\bSMPN\b/g, 'SMP NEGERI');
+    s = s.replace(/\bSMPS\b/g, 'SMP SWASTA');
+    s = s.replace(/\bMTSN\b/g, 'MTS NEGERI');
+    s = s.replace(/\bMTSS\b/g, 'MTS SWASTA');
+
+    s = s.replace(/\bSMK N\b/g, 'SMK NEGERI');
+    s = s.replace(/\bSMA N\b/g, 'SMA NEGERI');
+    s = s.replace(/\bSMP N\b/g, 'SMP NEGERI');
+
+    // Roman numerals conversion
+    s = s.replace(/\bXII\b/g, '12');
+    s = s.replace(/\bXI\b/g, '11');
+    s = s.replace(/\bX\b/g, '10');
+    s = s.replace(/\bIX\b/g, '9');
+    s = s.replace(/\bVIII\b/g, '8');
+    s = s.replace(/\bVII\b/g, '7');
+    s = s.replace(/\bVI\b/g, '6');
+    s = s.replace(/\bV\b/g, '5');
+    s = s.replace(/\bIV\b/g, '4');
+    s = s.replace(/\bIII\b/g, '3');
+    s = s.replace(/\bII\b/g, '2');
+    s = s.replace(/\bI\b/g, '1');
+
+    // Remove administrative terms that commonly differ in user inputs
+    s = s.replace(/\b(KOTA|KABUPATEN|KAB)\b/g, '');
+    return s.replace(/\s+/g, ' ').trim();
+}
+
+export function findSimilarSchool(inputName, schoolList) {
+    if (!inputName || !Array.isArray(schoolList) || schoolList.length === 0) return null;
+
+    const normInput = normalizeSchoolName(inputName);
+    if (!normInput) return null;
+
+    const getNumbers = (str) => (str.match(/\b\d+\b/g) || []).join(' ');
+    const getType = (str) => {
+        const m = str.match(/\b(SMK|SMA|MA|SMP|MTS|SD|MI|UNIVERSITAS|INSTITUT|POLITEKNIK|STMIK)\b/);
+        return m ? m[1] : '';
+    };
+
+    const inputNum = getNumbers(normInput);
+    const inputType = getType(normInput);
+
+    const stripStatus = (s) => s.replace(/\b(NEGERI|SWASTA)\b/g, '').replace(/\s+/g, ' ').trim();
+    const inputCore = stripStatus(normInput);
+
+    let bestMatch = null;
+    let highestScore = 0;
+
+    for (const school of schoolList) {
+        const targetName = school.nama || school.label || school.name || '';
+        const normTarget = normalizeSchoolName(targetName);
+        if (!normTarget) continue;
+
+        // 1. Direct match after acronym normalization (e.g. "SMKN 1 CIREBON" -> "SMK NEGERI 1 CIREBON")
+        if (normInput === normTarget) {
+            return school;
+        }
+
+        const targetNum = getNumbers(normTarget);
+        const targetType = getType(normTarget);
+
+        // Strict constraints: Type (SMA vs SMK) & Numbers (1 vs 2) MUST match if present
+        if (inputType && targetType && inputType !== targetType) {
+            continue;
+        }
+        if (inputNum !== targetNum) {
+            continue;
+        }
+
+        // 2. Core match (e.g., "SMK 1 CIREBON" vs "SMK NEGERI 1 CIREBON")
+        const targetCore = stripStatus(normTarget);
+        if (inputCore && inputCore === targetCore) {
+            return school;
+        }
+
+        // 3. Token similarity
+        const inputTokens = new Set(normInput.split(' ').filter(t => t.length > 1));
+        const targetTokens = new Set(normTarget.split(' ').filter(t => t.length > 1));
+
+        let intersection = 0;
+        for (const token of inputTokens) {
+            if (targetTokens.has(token)) intersection++;
+        }
+
+        const totalTokens = Math.max(inputTokens.size, targetTokens.size);
+        const score = totalTokens > 0 ? intersection / totalTokens : 0;
+
+        if (score >= 0.75 && score > highestScore) {
+            highestScore = score;
+            bestMatch = school;
+        }
+    }
+
+    return bestMatch;
+}
+
+export async function checkSchoolDuplicate({ manualName, schoolList, onUseExisting, onProceedManual }) {
+    if (!manualName || !manualName.trim()) return true;
+
+    const matched = findSimilarSchool(manualName, schoolList);
+    if (!matched) {
+        return true;
+    }
+
+    const matchedName = matched.nama || matched.label || matched.name || '';
+    const matchedWilayah = matched.wilayah || matched.sub || '';
+
+    const escapeHtml = (unsafe) => {
+        return String(unsafe || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const result = await Swal.fire({
+        title: 'Sekolah Serupa Ditemukan',
+        html: `
+            <div class="text-left text-xs sm:text-sm text-slate-600 space-y-3">
+                <p>Anda memasukkan: <strong class="text-slate-900 font-bold font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${escapeHtml(manualName)}</strong></p>
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p class="text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1">Sekolah Terdaftar di Database:</p>
+                    <p class="text-sm font-bold text-blue-950 font-mono">${escapeHtml(matchedName)}</p>
+                    ${matchedWilayah ? `<p class="text-[11px] text-blue-600 mt-1 font-medium">Wilayah: ${escapeHtml(matchedWilayah)}</p>` : ''}
+                </div>
+                <p class="text-slate-700 text-xs">Apakah sekolah yang Anda masukkan sama dengan sekolah terdaftar di atas?</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2563eb', // Blue-600
+        cancelButtonColor: '#64748b',  // Slate-500
+        confirmButtonText: '✓ Gunakan Sekolah yang Sudah Ada',
+        cancelButtonText: 'Bukan Sekolah yang Sama',
+        reverseButtons: true,
+        customClass: {
+            popup: 'rounded-2xl shadow-2xl p-6',
+            confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5',
+            cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+        }
+    });
+
+    if (result.isConfirmed) {
+        if (typeof onUseExisting === 'function') {
+            onUseExisting(matched);
+        }
+        return 'existing';
+    } else if (result.dismiss === Swal.DismissReason.cancel) {
+        if (typeof onProceedManual === 'function') {
+            onProceedManual();
+        }
+        return 'manual';
+    } else {
+        // User closed modal (e.g. clicked outside or Esc)
+        return false;
+    }
+}
+
+window.normalizeSchoolName = normalizeSchoolName;
+window.findSimilarSchool = findSimilarSchool;
+window.checkSchoolDuplicate = checkSchoolDuplicate;
+
+
+// ──────────────────────────────────────────────────────────────────
 // Web Audio API Notification Chime Synthesizer
 // ──────────────────────────────────────────────────────────────────
 let audioCtx = null;

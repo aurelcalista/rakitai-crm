@@ -181,6 +181,34 @@ class PaymentVerificationTest extends TestCase
         $response->assertSee($this->prospek->name);
     }
 
+    public function test_cs_verifikasi_displays_student_name_for_school_prospect()
+    {
+        $schoolProspect = Prospek::factory()->create([
+            'sales_id' => $this->sales->id,
+            'type'     => 'Sekolah',
+            'name'     => 'SMK 1 CIREBON',
+            'pic'      => 'Adinda Meilia',
+            'whatsapp' => '0895398505257',
+        ]);
+
+        $trx = Transaksi::factory()->create([
+            'prospek_id'        => $schoolProspect->id,
+            'user_id'           => $this->sales->id,
+            'jenis'             => 'Pembayaran Termin 1',
+            'payment_status'    => 'pending',
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $this->actingAs($this->cs);
+        $response = $this->get(route('cs.verifikasi.index'));
+        $response->assertOk();
+
+        // Must display the student/camaba name (Adinda Meilia)
+        $response->assertSee('Adinda Meilia');
+        // Must also display the school name
+        $response->assertSee('SMK 1 CIREBON');
+    }
+
     // ═══════════════════════════════════════════════════════
     // 10-12. CS bisa verify → Prospek jadi LUNAS
     // ═══════════════════════════════════════════════════════
@@ -765,5 +793,415 @@ class PaymentVerificationTest extends TestCase
         $this->assertEquals('verified', $trx->payment_status);
         $this->assertEquals($this->cs->id, $trx->verified_by);
     }
+
+    // ═══════════════════════════════════════════════════════
+    // 33. Filter Jurusan (Prodi) dan Kelas (Reguler/Karyawan) serta penyesuaian angka Card
+    // ═══════════════════════════════════════════════════════
+    public function test_cs_can_filter_verifikasi_by_prodi_and_kelas_and_cards_adjust()
+    {
+        $this->actingAs($this->cs);
+
+        $prodiTI = \App\Models\Prodi::firstOrCreate(
+            ['nama' => 'Teknik Informatika'],
+            ['kode' => 'TI', 'status' => 'Aktif', 'jenjang' => 'S1', 'fakultas' => 'FTI']
+        );
+        $prodiSI = \App\Models\Prodi::firstOrCreate(
+            ['nama' => 'Sistem Informasi'],
+            ['kode' => 'SI', 'status' => 'Aktif', 'jenjang' => 'S1', 'fakultas' => 'FTI']
+        );
+
+        // Prospek 1: TI, Karyawan
+        $prospek1 = \App\Models\Prospek::factory()->create([
+            'name'        => 'Mhs TI Karyawan',
+            'prodi_id'    => $prodiTI->id,
+            'kelas'       => 'Karyawan',
+            'wilayah_id'  => $this->cs->wilayah_id,
+        ]);
+        $trx1 = Transaksi::factory()->create([
+            'prospek_id'     => $prospek1->id,
+            'payment_status' => 'pending',
+            'nominal'        => 500000,
+        ]);
+
+        // Prospek 2: TI, Reguler
+        $prospek2 = \App\Models\Prospek::factory()->create([
+            'name'        => 'Mhs TI Reguler',
+            'prodi_id'    => $prodiTI->id,
+            'kelas'       => 'Reguler',
+            'wilayah_id'  => $this->cs->wilayah_id,
+        ]);
+        $trx2 = Transaksi::factory()->create([
+            'prospek_id'     => $prospek2->id,
+            'payment_status' => 'pending',
+            'nominal'        => 750000,
+        ]);
+
+        // Prospek 3: SI, Karyawan
+        $prospek3 = \App\Models\Prospek::factory()->create([
+            'name'        => 'Mhs SI Karyawan',
+            'prodi_id'    => $prodiSI->id,
+            'kelas'       => 'Karyawan',
+            'wilayah_id'  => $this->cs->wilayah_id,
+        ]);
+        $trx3 = Transaksi::factory()->create([
+            'prospek_id'     => $prospek3->id,
+            'payment_status' => 'pending',
+            'nominal'        => 1000000,
+        ]);
+
+        // 1. Filter Jurusan Teknik Informatika saja
+        $responseTI = $this->get(route('cs.verifikasi.index', ['tab' => 'pending', 'prodi_id' => $prodiTI->id]));
+        $responseTI->assertOk();
+        $responseTI->assertSee('Mhs TI Karyawan');
+        $responseTI->assertSee('Mhs TI Reguler');
+        $responseTI->assertDontSee('Mhs SI Karyawan');
+        // Total pending pada card harus 2
+        $this->assertEquals(2, $responseTI->viewData('totalPending'));
+
+        // 2. Filter Kelas Karyawan saja
+        $responseKaryawan = $this->get(route('cs.verifikasi.index', ['tab' => 'pending', 'kelas' => 'Karyawan']));
+        $responseKaryawan->assertOk();
+        $responseKaryawan->assertSee('Mhs TI Karyawan');
+        $responseKaryawan->assertSee('Mhs SI Karyawan');
+        $responseKaryawan->assertDontSee('Mhs TI Reguler');
+        // Total pending pada card harus 2
+        $this->assertEquals(2, $responseKaryawan->viewData('totalPending'));
+
+        // 3. Filter Kombinasi: Jurusan TI DAN Kelas Karyawan
+        $responseCombo = $this->get(route('cs.verifikasi.index', [
+            'tab'      => 'pending',
+            'prodi_id' => $prodiTI->id,
+            'kelas'    => 'Karyawan',
+        ]));
+        $responseCombo->assertOk();
+        $responseCombo->assertSee('Mhs TI Karyawan');
+        $responseCombo->assertDontSee('Mhs TI Reguler');
+        $responseCombo->assertDontSee('Mhs SI Karyawan');
+        // Card totalPending menyesuaikan menjadi tepat 1
+        $this->assertEquals(1, $responseCombo->viewData('totalPending'));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 34. Transaksi pending dari Sales muncul di SEMUA CS (tanpa sekat wilayah)
+    // ═══════════════════════════════════════════════════════
+    public function test_pending_transaction_from_sales_appears_to_all_cs_regardless_of_wilayah()
+    {
+        $wil1 = \App\Models\Wilayah::create([
+            'kode'   => 'W01',
+            'nama'   => 'Wilayah 1',
+            'level'  => 'Kota/Kabupaten',
+            'status' => 'Aktif',
+        ]);
+        $wil2 = \App\Models\Wilayah::create([
+            'kode'   => 'W02',
+            'nama'   => 'Wilayah 2',
+            'level'  => 'Kota/Kabupaten',
+            'status' => 'Aktif',
+        ]);
+
+        // CS 1 wilayah 1, CS 2 wilayah 2, CS 3 tanpa wilayah (wilayah_id null)
+        $csWilayah1 = User::factory()->create(['role' => 'CS', 'wilayah_id' => $wil1->id]);
+        $csWilayah2 = User::factory()->create(['role' => 'CS', 'wilayah_id' => $wil2->id]);
+        $csGlobal   = User::factory()->create(['role' => 'CS', 'wilayah_id' => null]);
+
+        // Sales di wilayah 2 membuat prospek di wilayah 2
+        $salesWilayah2 = User::factory()->create(['role' => 'Sales', 'wilayah_id' => $wil2->id]);
+        $prospekWilayah2 = \App\Models\Prospek::factory()->create([
+            'sales_id'   => $salesWilayah2->id,
+            'wilayah_id' => $wil2->id,
+            'name'       => 'Siswa SMK Cirebon',
+        ]);
+
+        // Sales input transaksi pembayaran komponen Pendaftaran & Perlengkapan
+        $this->actingAs($salesWilayah2);
+        $resStore = $this->post(route('prospek.transaksi', $prospekWilayah2->id), [
+            'kategori'          => 'DP Perlengkapan',
+            'jenis_items'       => ['Pendaftaran', 'Perlengkapan'],
+            'nominal_items'     => [
+                'Pendaftaran'  => 250000,
+                'Perlengkapan' => 350000,
+            ],
+            'tanggal'           => now()->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+        $resStore->assertRedirect();
+
+        // Cek bahwa transaksi berstatus pending tersimpan
+        $this->assertDatabaseHas('transaksis', [
+            'prospek_id'     => $prospekWilayah2->id,
+            'jenis'          => 'Pendaftaran',
+            'payment_status' => 'pending',
+        ]);
+        $this->assertDatabaseHas('transaksis', [
+            'prospek_id'     => $prospekWilayah2->id,
+            'jenis'          => 'Perlengkapan',
+            'payment_status' => 'pending',
+        ]);
+
+        // 1. CS Wilayah 1 (berbeda wilayah dengan Sales & Prospek) HARUS BISA MELIHAT
+        $this->actingAs($csWilayah1);
+        $responseCS1 = $this->get(route('cs.verifikasi.index'));
+        $responseCS1->assertOk();
+        $responseCS1->assertSee('Siswa SMK Cirebon');
+        $responseCS1->assertSee('Pendaftaran');
+        $responseCS1->assertSee('Perlengkapan');
+        $this->assertGreaterThanOrEqual(2, $responseCS1->viewData('totalPending'));
+
+        // Dashboard CS Wilayah 1 juga menampilkan widget pending pembayaran
+        $dashCS1 = $this->get(route('dashboard.cs'));
+        $dashCS1->assertOk();
+        $dashCS1->assertSee('Siswa SMK Cirebon');
+        $dashCS1->assertSee('Pendaftaran');
+
+        // 2. CS Wilayah 2 HARUS BISA MELIHAT
+        $this->actingAs($csWilayah2);
+        $responseCS2 = $this->get(route('cs.verifikasi.index'));
+        $responseCS2->assertOk();
+        $responseCS2->assertSee('Siswa SMK Cirebon');
+
+        // 3. CS Global (wilayah_id null) HARUS BISA MELIHAT
+        $this->actingAs($csGlobal);
+        $responseCSGlobal = $this->get(route('cs.verifikasi.index'));
+        $responseCSGlobal->assertOk();
+        $responseCSGlobal->assertSee('Siswa SMK Cirebon');
+
+        // 4. CS Wilayah 1 bisa memverifikasi salah satu transaksi
+        $this->actingAs($csWilayah1);
+        $trxPendaftaran = Transaksi::where('prospek_id', $prospekWilayah2->id)->where('jenis', 'Pendaftaran')->first();
+        $resVerify = $this->post(route('cs.verifikasi.verify', $trxPendaftaran->id));
+        $resVerify->assertRedirect();
+
+        $trxPendaftaran->refresh();
+        $this->assertEquals('verified', $trxPendaftaran->payment_status);
+        $this->assertEquals($csWilayah1->id, $trxPendaftaran->verified_by);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 35. Validasi backend mencegah pengajuan ulang atas transaksi yang sudah lunas/verified
+    // ═══════════════════════════════════════════════════════
+    public function test_backend_prevents_duplicate_submission_for_already_verified_transaction()
+    {
+        // 1. Prospek Adinda sudah bayar Pendaftaran dan sudah diverifikasi
+        $adinda = Prospek::factory()->create([
+            'sales_id' => $this->sales->id,
+            'status'   => 'FORMULIR',
+            'name'     => 'Adinda Putri',
+        ]);
+
+        Transaksi::create([
+            'prospek_id'     => $adinda->id,
+            'user_id'        => $this->sales->id,
+            'jenis'          => 'Pendaftaran',
+            'kategori'       => 'DP Daftar',
+            'nominal'        => 500000,
+            'tanggal'        => now()->toDateString(),
+            'payment_status' => Transaksi::STATUS_VERIFIED,
+            'verified_by'    => $this->cs->id,
+            'verified_at'    => now(),
+        ]);
+
+        $this->actingAs($this->sales);
+
+        // 2. Sales mencoba mengajukan Pendaftaran lagi -> HARUS DITOLAK
+        $responseDuplicate = $this->post(route('prospek.transaksi', $adinda->id), [
+            'kategori'          => 'DP Daftar',
+            'jenis_items'       => ['Pendaftaran'],
+            'nominal_items'     => ['Pendaftaran' => 250000],
+            'tanggal'           => now()->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $responseDuplicate->assertRedirect();
+        $responseDuplicate->assertSessionHasErrors('jenis_items');
+
+        // Pastikan tidak ada transaksi pendaftaran kedua yang tersimpan
+        $countPendaftaran = Transaksi::where('prospek_id', $adinda->id)->where('jenis', 'Pendaftaran')->count();
+        $this->assertEquals(1, $countPendaftaran);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 36. Komponen belum lunas bisa diajukan & verifikasi hanya menampilkan item transaksi terkait
+    // ═══════════════════════════════════════════════════════
+    public function test_unpaid_component_can_be_submitted_and_verification_displays_only_submitted_item()
+    {
+        $adinda = Prospek::factory()->create([
+            'sales_id' => $this->sales->id,
+            'status'   => 'FORMULIR',
+            'name'     => 'Adinda Putri',
+        ]);
+
+        // Pendaftaran sudah verified
+        Transaksi::create([
+            'prospek_id'     => $adinda->id,
+            'user_id'        => $this->sales->id,
+            'jenis'          => 'Pendaftaran',
+            'kategori'       => 'DP Daftar',
+            'nominal'        => 500000,
+            'tanggal'        => now()->toDateString(),
+            'payment_status' => Transaksi::STATUS_VERIFIED,
+            'verified_by'    => $this->cs->id,
+            'verified_at'    => now(),
+        ]);
+
+        $this->actingAs($this->sales);
+
+        // Sales mengajukan pembayaran Perlengkapan Rp 750.000
+        $responsePerlengkapan = $this->post(route('prospek.transaksi', $adinda->id), [
+            'kategori'          => 'DP Perlengkapan',
+            'jenis_items'       => ['Perlengkapan'],
+            'nominal_items'     => ['Perlengkapan' => 750000],
+            'tanggal'           => now()->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+        ]);
+
+        $responsePerlengkapan->assertRedirect();
+        $responsePerlengkapan->assertSessionHasNoErrors();
+
+        $trxPerlengkapan = Transaksi::where('prospek_id', $adinda->id)->where('jenis', 'Perlengkapan')->first();
+        $this->assertNotNull($trxPerlengkapan);
+        $this->assertEquals(750000, $trxPerlengkapan->nominal);
+        $this->assertEquals('pending', $trxPerlengkapan->payment_status);
+
+        // Halaman detail prospek menampilkan indikator lunas untuk Pendaftaran
+        $resShow = $this->get(route('prospek.show', $adinda->id));
+        $resShow->assertOk();
+        $resShow->assertSee('Pendaftaran');
+        $resShow->assertSee('LUNAS');
+
+        // CS membuka antrean verifikasi
+        $this->actingAs($this->cs);
+        $resPending = $this->get(route('cs.verifikasi.index', ['tab' => 'pending']));
+        $resPending->assertOk();
+        $resPending->assertSee('Adinda Putri');
+        $resPending->assertSee('Perlengkapan');
+        $resPending->assertSee('750.000');
+
+        // Verifikasi transaksi perlengkapan
+        $resVerify = $this->post(route('cs.verifikasi.verify', $trxPerlengkapan->id));
+        $resVerify->assertRedirect();
+
+        // Riwayat Verifikasi menampilkan transaksi Perlengkapan yang sudah disetujui
+        $resRiwayat = $this->get(route('cs.verifikasi.index', ['tab' => 'riwayat']));
+        $resRiwayat->assertOk();
+        $resRiwayat->assertSee('Adinda Putri');
+        $resRiwayat->assertSee('Perlengkapan');
+        $resRiwayat->assertSee('750.000');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 37. Riwayat Verifikasi mengelompokkan transaksi dari pengajuan yang sama, menjumlahkan nominal otomatis, dan menampilkan rincian transparan
+    // ═══════════════════════════════════════════════════════
+    public function test_riwayat_verifikasi_groups_transactions_of_same_submission_and_sums_nominal()
+    {
+        $sales = $this->sales;
+        $cs = $this->cs;
+
+        // Prospek 1: Fajar Pratama
+        $fajar = Prospek::factory()->create([
+            'sales_id' => $sales->id,
+            'name'     => 'Fajar Pratama',
+            'status'   => 'LUNAS',
+        ]);
+
+        $batchTime = now()->subHours(2);
+        $todayDate = now()->toDateString();
+
+        // Batch pengajuan yang sama: Pendaftaran Rp 250.000 & Perlengkapan Rp 350.000
+        $trxFajar1 = Transaksi::create([
+            'prospek_id'        => $fajar->id,
+            'user_id'           => $sales->id,
+            'jenis'             => 'Pendaftaran',
+            'kategori'          => 'DP Perlengkapan',
+            'nominal'           => 250000,
+            'tanggal'           => $todayDate,
+            'metode_pembayaran' => 'bank_transfer',
+            'payment_status'    => Transaksi::STATUS_VERIFIED,
+            'verified_by'       => $cs->id,
+            'verified_at'       => $batchTime,
+            'created_at'        => $batchTime,
+            'updated_at'        => $batchTime,
+        ]);
+
+        $trxFajar2 = Transaksi::create([
+            'prospek_id'        => $fajar->id,
+            'user_id'           => $sales->id,
+            'jenis'             => 'Perlengkapan',
+            'kategori'          => 'DP Perlengkapan',
+            'nominal'           => 350000,
+            'tanggal'           => $todayDate,
+            'metode_pembayaran' => 'bank_transfer',
+            'payment_status'    => Transaksi::STATUS_VERIFIED,
+            'verified_by'       => $cs->id,
+            'verified_at'       => $batchTime,
+            'created_at'        => $batchTime->copy()->addSecond(),
+            'updated_at'        => $batchTime,
+        ]);
+
+        // Prospek 2: Sisca Lestari (tidak boleh dicampur dengan Fajar)
+        $sisca = Prospek::factory()->create([
+            'sales_id' => $sales->id,
+            'name'     => 'Sisca Lestari',
+            'status'   => 'FORMULIR',
+        ]);
+
+        $trxSisca = Transaksi::create([
+            'prospek_id'        => $sisca->id,
+            'user_id'           => $sales->id,
+            'jenis'             => 'Pendaftaran',
+            'kategori'          => 'DP Daftar',
+            'nominal'           => 250000,
+            'tanggal'           => $todayDate,
+            'metode_pembayaran' => 'bank_transfer',
+            'payment_status'    => Transaksi::STATUS_VERIFIED,
+            'verified_by'       => $cs->id,
+            'verified_at'       => $batchTime,
+            'created_at'        => $batchTime,
+            'updated_at'        => $batchTime,
+        ]);
+
+        // Transaksi Fajar dari periode berbeda (2 bulan kemudian: UKT Rp 3.000.000)
+        // Tidak boleh digabungkan dengan pengajuan Pendaftaran + Perlengkapan
+        $trxFajarPeriodeLain = Transaksi::create([
+            'prospek_id'        => $fajar->id,
+            'user_id'           => $sales->id,
+            'jenis'             => 'UKT',
+            'kategori'          => 'Lunas',
+            'nominal'           => 3000000,
+            'tanggal'           => now()->subMonths(2)->toDateString(),
+            'metode_pembayaran' => 'bank_transfer',
+            'payment_status'    => Transaksi::STATUS_VERIFIED,
+            'verified_by'       => $cs->id,
+            'verified_at'       => now()->subMonths(2),
+            'created_at'        => now()->subMonths(2),
+            'updated_at'        => now()->subMonths(2),
+        ]);
+
+        // Akses menu Riwayat Verifikasi oleh CS
+        $this->actingAs($cs);
+        $response = $this->get(route('cs.verifikasi.index', ['tab' => 'riwayat']));
+        $response->assertOk();
+
+        // 1. Fajar Pratama tampil
+        $response->assertSee('Fajar Pratama');
+
+        // 2. Transaksi Pendaftaran & Perlengkapan ada dalam rincian
+        $response->assertSee('Pendaftaran');
+        $response->assertSee('Perlengkapan');
+        $response->assertSee('250.000');
+        $response->assertSee('350.000');
+
+        // 3. Nominal otomatis dijumlahkan: Rp 250.000 + Rp 350.000 = Rp 600.000
+        $response->assertSee('600.000');
+        $response->assertSee('2 Item Digabung');
+
+        // 4. Prospek Sisca Lestari tetap berdiri sendiri
+        $response->assertSee('Sisca Lestari');
+
+        // 5. Transaksi periode lain UKT Rp 3.000.000 tetap tercatat secara terpisah
+        $response->assertSee('3.000.000');
+        $response->assertSee('UKT');
+    }
 }
+
+
 

@@ -52,7 +52,7 @@
         {{-- Summary Metric Cards --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {{-- Pending --}}
-            <a href="{{ route('cs.verifikasi.index', ['tab' => 'pending']) }}"
+            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'pending', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                class="p-4 rounded-2xl border transition duration-150 {{ $activeTab === 'pending' ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-400/20' : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs' }}">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold text-slate-600">Menunggu</span>
@@ -68,7 +68,7 @@
             </a>
 
             {{-- Verified --}}
-            <a href="{{ route('cs.verifikasi.index', ['tab' => 'riwayat', 'status' => 'verified']) }}"
+            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'status' => 'verified', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                class="p-4 rounded-2xl border transition duration-150 {{ $activeTab === 'riwayat' && $statusFilter === 'verified' ? 'bg-emerald-50/50 border-emerald-300 ring-2 ring-emerald-400/20' : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs' }}">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold text-slate-600">Disetujui</span>
@@ -84,7 +84,7 @@
             </a>
 
             {{-- Rejected --}}
-            <a href="{{ route('cs.verifikasi.index', ['tab' => 'riwayat', 'status' => 'rejected']) }}"
+            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'status' => 'rejected', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                class="p-4 rounded-2xl border transition duration-150 {{ $activeTab === 'riwayat' && $statusFilter === 'rejected' ? 'bg-rose-50/50 border-rose-300 ring-2 ring-rose-400/20' : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs' }}">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold text-slate-600">Ditolak</span>
@@ -144,7 +144,7 @@
             <div class="border-b border-slate-100 px-5 pt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50">
                 <div class="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
                     {{-- Tab 1: Menunggu --}}
-                    <a href="{{ route('cs.verifikasi.index', ['tab' => 'pending']) }}"
+                    <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'pending', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition {{ $activeTab === 'pending' ? 'bg-white text-slate-900 border border-slate-200 shadow-xs' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70' }}">
                         <span>Menunggu Verifikasi</span>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $activeTab === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700' }}">
@@ -153,7 +153,7 @@
                     </a>
 
                     {{-- Tab 2: Riwayat Verifikasi --}}
-                    <a href="{{ route('cs.verifikasi.index', ['tab' => 'riwayat']) }}"
+                    <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition {{ $activeTab === 'riwayat' ? 'bg-white text-slate-900 border border-slate-200 shadow-xs' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70' }}">
                         <span>Riwayat Verifikasi</span>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $activeTab === 'riwayat' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700' }}">
@@ -166,15 +166,15 @@
                 @if($activeTab === 'riwayat')
                     <div class="flex items-center gap-1.5 pb-2 sm:pb-0 text-xs">
                         <span class="text-[11px] font-semibold text-slate-400 mr-1">Filter:</span>
-                        <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'q' => $search, 'kategori' => $kategoriFilter])) }}"
+                        <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                            class="px-2.5 py-1 rounded-lg font-medium text-[11px] transition {{ empty($statusFilter) ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                             Semua
                         </a>
-                        <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'status' => 'verified', 'q' => $search, 'kategori' => $kategoriFilter])) }}"
+                        <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'status' => 'verified', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                            class="px-2.5 py-1 rounded-lg font-medium text-[11px] transition {{ $statusFilter === 'verified' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' }}">
                             Disetujui ({{ $totalVerified }})
                         </a>
-                        <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'status' => 'rejected', 'q' => $search, 'kategori' => $kategoriFilter])) }}"
+                        <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => 'riwayat', 'status' => 'rejected', 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}"
                            class="px-2.5 py-1 rounded-lg font-medium text-[11px] transition {{ $statusFilter === 'rejected' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100' }}">
                             Ditolak ({{ $totalRejected }})
                         </a>
@@ -182,14 +182,14 @@
                 @endif
             </div>
 
-            {{-- Search Bar (di kedua tab atau tab riwayat) --}}
-            <div class="p-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <form action="{{ route('cs.verifikasi.index') }}" method="GET" class="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:max-w-xl">
+            {{-- Search & Filter Bar --}}
+            <div class="p-4 border-b border-slate-100 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <form action="{{ route('cs.verifikasi.index') }}" method="GET" class="flex flex-wrap items-center gap-2 w-full lg:max-w-4xl">
                     <input type="hidden" name="tab" value="{{ $activeTab }}">
                     @if($statusFilter)
                         <input type="hidden" name="status" value="{{ $statusFilter }}">
                     @endif
-                    <div class="relative w-full">
+                    <div class="relative min-w-[200px] flex-1">
                         <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
@@ -197,6 +197,25 @@
                                placeholder="Cari camaba, sales, catatan, atau alasan..."
                                class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
                     </div>
+
+                    {{-- Filter Jurusan / Prodi --}}
+                    <select name="prodi_id" onchange="this.form.submit()"
+                            class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shrink-0 cursor-pointer max-w-[190px]">
+                        <option value="">Semua Jurusan</option>
+                        @foreach($prodis as $p)
+                            <option value="{{ $p->id }}" {{ (string)$prodiFilter === (string)$p->id ? 'selected' : '' }}>
+                                {{ $p->nama }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    {{-- Filter Kelas --}}
+                    <select name="kelas" onchange="this.form.submit()"
+                            class="px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shrink-0 cursor-pointer">
+                        <option value="">Semua Kelas</option>
+                        <option value="Reguler" {{ $kelasFilter === 'Reguler' ? 'selected' : '' }}>Reguler</option>
+                        <option value="Karyawan" {{ $kelasFilter === 'Karyawan' ? 'selected' : '' }}>Karyawan</option>
+                    </select>
 
                     {{-- Filter Kategori --}}
                     <select name="kategori" onchange="this.form.submit()"
@@ -210,18 +229,57 @@
                     <button type="submit" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl transition shrink-0 cursor-pointer">
                         Cari
                     </button>
-                    @if($search || $kategoriFilter)
+                    @if($search || $kategoriFilter || $prodiFilter || $kelasFilter)
                         <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => $activeTab, 'status' => $statusFilter])) }}"
-                           class="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 font-semibold shrink-0">
+                           class="px-2.5 py-1.5 text-xs text-rose-600 hover:text-rose-700 font-semibold shrink-0 inline-flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             Reset
                         </a>
                     @endif
                 </form>
 
-                <div class="text-xs text-slate-500">
+                <div class="text-xs text-slate-500 shrink-0">
                     Menampilkan <span class="font-bold text-slate-800">{{ $transaksis->total() }}</span> transaksi
                 </div>
             </div>
+
+            {{-- Filter Status Active Badges --}}
+            @if($prodiFilter || $kelasFilter || $kategoriFilter || $search)
+                @php
+                    $activeProdi = $prodiFilter ? $prodis->firstWhere('id', $prodiFilter) : null;
+                @endphp
+                <div class="px-5 py-2.5 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center gap-2 text-xs">
+                    <span class="text-slate-400 font-semibold text-[11px]">Filter Aktif:</span>
+                    @if($activeProdi)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-semibold">
+                            <span>Jurusan: <strong>{{ $activeProdi->nama }}</strong></span>
+                            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => $activeTab, 'status' => $statusFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}" class="text-indigo-400 hover:text-indigo-700 font-black ml-0.5" title="Hapus filter jurusan">×</a>
+                        </span>
+                    @endif
+                    @if($kelasFilter)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-semibold">
+                            <span>Kelas: <strong>{{ $kelasFilter }}</strong></span>
+                            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => $activeTab, 'status' => $statusFilter, 'prodi_id' => $prodiFilter, 'kategori' => $kategoriFilter, 'q' => $search])) }}" class="text-purple-400 hover:text-purple-700 font-black ml-0.5" title="Hapus filter kelas">×</a>
+                        </span>
+                    @endif
+                    @if($kategoriFilter)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-semibold">
+                            <span>Kategori: <strong>{{ $kategoriFilter }}</strong></span>
+                            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => $activeTab, 'status' => $statusFilter, 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'q' => $search])) }}" class="text-blue-400 hover:text-blue-700 font-black ml-0.5" title="Hapus filter kategori">×</a>
+                        </span>
+                    @endif
+                    @if($search)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-800 text-[11px] font-semibold">
+                            <span>Cari: "<strong>{{ $search }}</strong>"</span>
+                            <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => $activeTab, 'status' => $statusFilter, 'prodi_id' => $prodiFilter, 'kelas' => $kelasFilter, 'kategori' => $kategoriFilter])) }}" class="text-slate-500 hover:text-slate-800 font-black ml-0.5" title="Hapus pencarian">×</a>
+                        </span>
+                    @endif
+                    <a href="{{ route('cs.verifikasi.index', array_filter(['tab' => $activeTab, 'status' => $statusFilter])) }}" class="text-[11px] text-rose-600 hover:underline font-semibold ml-auto flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Reset Filter
+                    </a>
+                </div>
+            @endif
 
             {{-- ═════════════════════════════════════════════════════════════ --}}
             {{-- TAB 1: DAFTAR MENUNGGU VERIFIKASI                           --}}
@@ -269,6 +327,11 @@
                                             'tunai'           => ['label' => 'Kasir / Tunai', 'color' => 'bg-slate-50 text-slate-700 border-slate-200'],
                                         ];
                                         $m = $metodeIcons[$trx->metode_pembayaran] ?? ['label' => $trx->metode_pembayaran ?: 'Transfer Bank', 'color' => 'bg-slate-50 text-slate-600 border-slate-200'];
+                                        $prodiNama = $trx->prospek?->prodi?->nama ?? $trx->prospek?->prodi_lainnya;
+                                        $kelasNama = $trx->prospek?->kelas ?? 'Reguler';
+                                        $prospek = $trx->prospek;
+                                        $camabaName = $prospek ? $prospek->camaba_name : ('Prospek #' . $trx->prospek_id);
+                                        $sekolahNama = $prospek ? $prospek->sekolah_nama : '-';
 
                                         $trxJson = [
                                             'id'               => $trx->id,
@@ -281,12 +344,13 @@
                                             'status'           => $trx->payment_status,
                                             'notes'            => $trx->notes,
                                             'prospek_id'       => $trx->prospek_id,
-                                            'prospek_name'     => $trx->prospek?->name ?? 'Calon Mahasiswa',
-                                            'prospek_pic'      => $trx->prospek?->pic ?? '-',
-                                            'prospek_whatsapp' => $trx->prospek?->whatsapp ?? '-',
-                                            'prospek_school'   => $trx->prospek?->sekolah?->nama ?? $trx->prospek?->perusahaan?->nama ?? '-',
-                                            'prospek_prodi'    => $trx->prospek?->prodi?->nama ?? '-',
-                                            'sales_name'       => $trx->user?->name ?? ($trx->prospek?->sales?->name ?? '-'),
+                                            'prospek_name'     => $camabaName,
+                                            'prospek_pic'      => $prospek?->pic ?? '-',
+                                            'prospek_whatsapp' => $prospek?->whatsapp ?? '-',
+                                            'prospek_school'   => $sekolahNama,
+                                            'prospek_prodi'    => $prodiNama ?: '-',
+                                            'prospek_kelas'    => $kelasNama,
+                                            'sales_name'       => $trx->user?->name ?? ($prospek?->sales?->name ?? '-'),
                                             'verifier_name'    => $trx->verifier?->name ?? null,
                                             'verified_at'      => $trx->verified_at ? $trx->verified_at->format('d/m/Y H:i') : null,
                                             'rejecter_name'    => $trx->rejecter?->name ?? null,
@@ -298,61 +362,46 @@
                                     <tr class="hover:bg-slate-50/50 transition">
                                         {{-- Prospek --}}
                                         <td class="px-4 py-4">
-                                            <a href="{{ route('prospek.show', $trx->prospek_id) }}" class="font-bold text-slate-900 hover:text-blue-600 block text-xs">
-                                                {{ $trx->prospek?->name ?? 'Prospek #' . $trx->prospek_id }}
+                                            <a href="{{ route('prospek.show', $trx->prospek_id) }}" class="font-bold text-slate-900 hover:text-blue-600 block text-xs" title="Lihat detail prospek">
+                                                {{ $camabaName }}
                                             </a>
                                             <div class="flex items-center gap-1.5 mt-0.5">
-                                                <span class="text-slate-400 text-[10px]">{{ $trx->prospek?->type ?? 'Individu' }}</span>
-                                                @if($trx->prospek?->whatsapp)
-                                                    <span class="text-[10px] text-slate-400">• {{ $trx->prospek->whatsapp }}</span>
+                                                @if($sekolahNama && $sekolahNama !== '-')
+                                                    <span class="text-slate-500 font-medium text-[10px] truncate max-w-[170px]" title="{{ $sekolahNama }}">{{ $sekolahNama }}</span>
+                                                @else
+                                                    <span class="text-slate-400 text-[10px]">{{ $prospek?->type ?? 'Individu' }}</span>
+                                                @endif
+                                                @if($prospek?->whatsapp)
+                                                    <span class="text-[10px] text-slate-400">• {{ $prospek->whatsapp }}</span>
                                                 @endif
                                             </div>
-                                            @if($trx->prospek?->cs)
-                                                <div class="mt-1">
-                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-50 text-teal-800 border border-teal-200">
+                                            <div class="flex flex-wrap items-center gap-1 mt-1.5">
+                                                @if($prodiNama)
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                                                        {{ $prodiNama }}
+                                                    </span>
+                                                @endif
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-semibold {{ $kelasNama === 'Karyawan' ? 'bg-amber-50 text-amber-800 border border-amber-200/80 font-bold' : 'bg-slate-100 text-slate-600 border border-slate-200/80' }}">
+                                                    Kelas {{ $kelasNama }}
+                                                </span>
+                                                @if($trx->prospek?->cs)
+                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-teal-50 text-teal-800 border border-teal-200">
                                                         CS: {{ $trx->prospek->cs->name }}
                                                     </span>
-                                                </div>
-                                            @endif
+                                                @endif
+                                            </div>
                                         </td>
                                         {{-- Sales --}}
                                         <td class="px-4 py-4">
                                             <span class="font-medium text-slate-800">{{ $trx->user?->name ?? $trx->prospek?->sales?->name ?? '-' }}</span>
                                         </td>
-                                        {{-- Jenis Transaksi --}}
-                                        <td class="px-4 py-4">
-                                            @php
-                                                $checklist = $trx->getComponentsChecklist();
-                                            @endphp
-                                            <div class="flex flex-wrap gap-1 max-w-[210px]">
-                                                @foreach($checklist as $comp)
-                                                    @if($comp['is_checked'])
-                                                        @if($comp['status'] === 'verified')
-                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-emerald-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Sudah Dibayar ({{ $comp['nominal_formatted'] }})">
-                                                                <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                                                <span>{{ $comp['short'] }}</span>
-                                                            </span>
-                                                        @elseif($comp['status'] === 'pending')
-                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-amber-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Menunggu CS ({{ $comp['nominal_formatted'] }})">
-                                                                <svg class="w-2.5 h-2.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3"/></svg>
-                                                                <span>{{ $comp['short'] }}</span>
-                                                            </span>
-                                                        @else
-                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-rose-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Ditolak">
-                                                                <svg class="w-2.5 h-2.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                                <span>{{ $comp['short'] }}</span>
-                                                            </span>
-                                                        @endif
-                                                    @else
-                                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-slate-50 text-slate-400 border border-slate-200/60 opacity-60" title="{{ $comp['label'] }}: Belum Ada / Belum Bayar">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"></span>
-                                                            <span>{{ $comp['short'] }}</span>
-                                                        </span>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                            <div class="mt-1 text-[10px] text-slate-400">
-                                                Item: <span class="font-bold text-slate-700">{{ $trx->jenis }}</span>
+                                        {{-- Jenis Transaksi yang Diajukan --}}
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                                                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span>{{ $trx->jenis }}</span>
                                             </div>
                                         </td>
                                         {{-- Kategori --}}
@@ -398,7 +447,7 @@
 
                                                 {{-- Tombol Verifikasi --}}
                                                 <form action="{{ route('cs.verifikasi.verify', $trx->id) }}" method="POST"
-                                                      onsubmit="event.preventDefault(); confirmVerifyPayment(this, '{{ addslashes($trx->prospek?->name ?? 'Calon Mahasiswa') }}', '{{ number_format($trx->nominal, 0, ',', '.') }}');">
+                                                      onsubmit="event.preventDefault(); confirmVerifyPayment(this, '{{ addslashes($camabaName) }}', '{{ number_format($trx->nominal, 0, ',', '.') }}');">
                                                     @csrf
                                                     <button type="submit"
                                                         class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition flex items-center gap-1 cursor-pointer">
@@ -409,7 +458,7 @@
 
                                                 {{-- Tombol Tolak --}}
                                                 <button type="button"
-                                                    @click="openRejectModal({{ $trx->id }}, {{ json_encode($trx->prospek?->name ?? 'Calon Mahasiswa') }}, {{ json_encode(number_format($trx->nominal, 0, ',', '.')) }})"
+                                                    @click="openRejectModal({{ $trx->id }}, {{ json_encode($camabaName) }}, {{ json_encode(number_format($trx->nominal, 0, ',', '.')) }})"
                                                     class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
                                                     <svg class="w-3 h-3 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                                                     <span>Tolak</span>
@@ -454,99 +503,196 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                @foreach($transaksis as $trx)
+                                @php
+                                    $groups = [];
+                                    foreach ($transaksis as $trx) {
+                                        $matchedIndex = null;
+                                        foreach ($groups as $index => $group) {
+                                            $firstTrx = $group['transactions'][0];
+
+                                            // 1. Harus prospek yang sama (jangan campur transaksi user berbeda)
+                                            $sameProspek = ($trx->prospek_id === $firstTrx->prospek_id);
+
+                                            // 2. Status verifikasi sama (verified vs rejected tidak boleh dicampur)
+                                            $sameStatus = ($trx->payment_status === $firstTrx->payment_status);
+
+                                            // 3. Tanggal transaksi sama (pengajuan pada tanggal yang sama)
+                                            $date1 = $trx->tanggal ? $trx->tanggal->format('Y-m-d') : ($trx->created_at ? $trx->created_at->format('Y-m-d') : null);
+                                            $date2 = $firstTrx->tanggal ? $firstTrx->tanggal->format('Y-m-d') : ($firstTrx->created_at ? $firstTrx->created_at->format('Y-m-d') : null);
+                                            $sameTanggal = ($date1 === $date2);
+
+                                            // 4. Metode pembayaran sama
+                                            $sameMetode = ($trx->metode_pembayaran === $firstTrx->metode_pembayaran);
+
+                                            // 5. Waktu pengajuan dalam batch yang sama (perbedaan created_at <= 5 menit)
+                                            $time1 = $trx->created_at ? $trx->created_at->timestamp : 0;
+                                            $time2 = $firstTrx->created_at ? $firstTrx->created_at->timestamp : 0;
+                                            $sameBatch = (abs($time1 - $time2) <= 300);
+
+                                            if ($sameProspek && $sameStatus && $sameTanggal && $sameMetode && $sameBatch) {
+                                                $matchedIndex = $index;
+                                                break;
+                                            }
+                                        }
+
+                                        if ($matchedIndex !== null) {
+                                            $groups[$matchedIndex]['transactions'][] = $trx;
+                                            $groups[$matchedIndex]['total_nominal'] += (float)$trx->nominal;
+                                            $groups[$matchedIndex]['items'][] = [
+                                                'id'                => $trx->id,
+                                                'jenis'             => $trx->jenis,
+                                                'kategori'          => $trx->kategori,
+                                                'nominal'           => (float)$trx->nominal,
+                                                'nominal_formatted' => number_format((float)$trx->nominal, 0, ',', '.'),
+                                            ];
+                                        } else {
+                                            $groups[] = [
+                                                'primary_trx'   => $trx,
+                                                'transactions'  => [$trx],
+                                                'total_nominal' => (float)$trx->nominal,
+                                                'items'         => [
+                                                    [
+                                                        'id'                => $trx->id,
+                                                        'jenis'             => $trx->jenis,
+                                                        'kategori'          => $trx->kategori,
+                                                        'nominal'           => (float)$trx->nominal,
+                                                        'nominal_formatted' => number_format((float)$trx->nominal, 0, ',', '.'),
+                                                    ]
+                                                ],
+                                            ];
+                                        }
+                                    }
+                                @endphp
+
+                                @foreach($groups as $group)
                                     @php
-                                        $cleanWa = preg_replace('/[^0-9]/', '', $trx->prospek->whatsapp ?? '');
+                                        $primaryTrx = $group['primary_trx'];
+                                        $prospek = $primaryTrx->prospek;
+                                        $camabaName = $prospek ? $prospek->camaba_name : ('Prospek #' . $primaryTrx->prospek_id);
+                                        $sekolahNama = $prospek ? $prospek->sekolah_nama : '-';
+
+                                        $cleanWa = preg_replace('/[^0-9]/', '', $prospek->whatsapp ?? '');
                                         if (str_starts_with($cleanWa, '0')) {
                                             $cleanWa = '62' . substr($cleanWa, 1);
                                         }
-                                        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$trx->metode_pembayaran] ?? ($trx->metode_pembayaran ?: 'Transfer Bank');
+                                        $metodeLabel = \App\Models\Transaksi::METODE_PEMBAYARAN[$primaryTrx->metode_pembayaran] ?? ($primaryTrx->metode_pembayaran ?: 'Transfer Bank');
+                                        $prodiNama = $prospek?->prodi?->nama ?? $prospek?->prodi_lainnya;
+                                        $kelasNama = $prospek?->kelas ?? 'Reguler';
+
+                                        $groupCategories = collect($group['transactions'])->pluck('kategori')->filter()->unique()->values();
+                                        $allNotes = collect($group['transactions'])->pluck('notes')->filter()->unique()->implode(' | ');
+                                        $allRejections = collect($group['transactions'])->pluck('rejection_reason')->filter()->unique()->implode(' | ');
+                                        $allJenis = collect($group['transactions'])->pluck('jenis')->filter()->unique()->implode(', ');
+
                                         $trxJson = [
-                                            'id'               => $trx->id,
-                                            'tanggal'          => $trx->tanggal ? $trx->tanggal->format('d/m/Y') : ($trx->created_at ? $trx->created_at->format('d/m/Y') : '-'),
-                                            'waktu'            => $trx->created_at ? $trx->created_at->format('H:i') : '',
-                                            'jenis'            => $trx->jenis,
-                                            'kategori'         => $trx->kategori ?? '-',
-                                            'nominal'          => number_format((float)$trx->nominal, 0, ',', '.'),
+                                            'id'               => count($group['transactions']) > 1
+                                                                    ? collect($group['transactions'])->pluck('id')->implode(', #')
+                                                                    : $primaryTrx->id,
+                                            'tanggal'          => $primaryTrx->tanggal ? $primaryTrx->tanggal->format('d/m/Y') : ($primaryTrx->created_at ? $primaryTrx->created_at->format('d/m/Y') : '-'),
+                                            'waktu'            => $primaryTrx->created_at ? $primaryTrx->created_at->format('H:i') : '',
+                                            'jenis'            => $allJenis,
+                                            'kategori'         => $groupCategories->implode(', ') ?: '-',
+                                            'nominal'          => number_format((float)$group['total_nominal'], 0, ',', '.'),
                                             'metode'           => $metodeLabel,
-                                            'status'           => $trx->payment_status,
-                                            'notes'            => $trx->notes,
-                                            'prospek_id'       => $trx->prospek_id,
-                                            'prospek_name'     => $trx->prospek?->name ?? 'Calon Mahasiswa',
-                                            'prospek_pic'      => $trx->prospek?->pic ?? '-',
-                                            'prospek_whatsapp' => $trx->prospek?->whatsapp ?? '-',
-                                            'prospek_school'   => $trx->prospek?->sekolah?->nama ?? $trx->prospek?->perusahaan?->nama ?? '-',
-                                            'prospek_prodi'    => $trx->prospek?->prodi?->nama ?? '-',
-                                            'sales_name'       => $trx->user?->name ?? ($trx->prospek?->sales?->name ?? '-'),
-                                            'verifier_name'    => $trx->verifier?->name ?? null,
-                                            'verified_at'      => $trx->verified_at ? $trx->verified_at->format('d/m/Y H:i') : null,
-                                            'rejecter_name'    => $trx->rejecter?->name ?? null,
-                                            'rejected_at'      => $trx->rejected_at ? $trx->rejected_at->format('d/m/Y H:i') : null,
-                                            'rejection_reason' => $trx->rejection_reason ?? null,
-                                            'checklist'        => $trx->getChecklistArrayForJson(),
+                                            'status'           => $primaryTrx->payment_status,
+                                            'notes'            => $allNotes ?: null,
+                                            'prospek_id'       => $primaryTrx->prospek_id,
+                                            'prospek_name'     => $camabaName,
+                                            'prospek_pic'      => $prospek?->pic ?? '-',
+                                            'prospek_whatsapp' => $prospek?->whatsapp ?? '-',
+                                            'prospek_school'   => $sekolahNama,
+                                            'prospek_prodi'    => $prodiNama ?: '-',
+                                            'prospek_kelas'    => $kelasNama,
+                                            'sales_name'       => $primaryTrx->user?->name ?? ($prospek?->sales?->name ?? '-'),
+                                            'verifier_name'    => $primaryTrx->verifier?->name ?? null,
+                                            'verified_at'      => $primaryTrx->verified_at ? $primaryTrx->verified_at->format('d/m/Y H:i') : null,
+                                            'rejecter_name'    => $primaryTrx->rejecter?->name ?? null,
+                                            'rejected_at'      => $primaryTrx->rejected_at ? $primaryTrx->rejected_at->format('d/m/Y H:i') : null,
+                                            'rejection_reason' => $allRejections ?: null,
+                                            'checklist'        => $primaryTrx->getChecklistArrayForJson(),
+                                            'items'            => $group['items'],
                                         ];
                                     @endphp
                                     <tr class="hover:bg-slate-50/50 transition">
                                         {{-- Prospek --}}
                                         <td class="px-4 py-3.5">
-                                            <a href="{{ route('prospek.show', $trx->prospek_id) }}" class="font-bold text-slate-900 hover:text-blue-600 block text-xs">
-                                                {{ $trx->prospek?->name ?? 'Prospek #' . $trx->prospek_id }}
+                                            <a href="{{ route('prospek.show', $primaryTrx->prospek_id) }}" class="font-bold text-slate-900 hover:text-blue-600 block text-xs" title="Lihat detail prospek">
+                                                {{ $camabaName }}
                                             </a>
-                                            <span class="text-slate-400 text-[10px]">{{ $trx->prospek?->type ?? 'Individu' }}</span>
+                                            <div class="flex items-center gap-1.5 mt-0.5">
+                                                @if($sekolahNama && $sekolahNama !== '-')
+                                                    <span class="text-slate-500 font-medium text-[10px] truncate max-w-[170px]" title="{{ $sekolahNama }}">{{ $sekolahNama }}</span>
+                                                @else
+                                                    <span class="text-slate-400 text-[10px]">{{ $prospek?->type ?? 'Individu' }}</span>
+                                                @endif
+                                                @if($prospek?->whatsapp)
+                                                    <span class="text-[10px] text-slate-400">• {{ $prospek->whatsapp }}</span>
+                                                @endif
+                                            </div>
+                                            <div class="flex flex-wrap items-center gap-1 mt-1.5">
+                                                @if($prodiNama)
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                                                        {{ $prodiNama }}
+                                                    </span>
+                                                @endif
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-semibold {{ $kelasNama === 'Karyawan' ? 'bg-amber-50 text-amber-800 border border-amber-200/80 font-bold' : 'bg-slate-100 text-slate-600 border border-slate-200/80' }}">
+                                                    Kelas {{ $kelasNama }}
+                                                </span>
+                                                @if(count($group['items']) > 1)
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                        {{ count($group['items']) }} Item Digabung
+                                                    </span>
+                                                @endif
+                                            </div>
                                         </td>
                                         {{-- Sales --}}
-                                        <td class="px-4 py-3.5">
-                                            <span class="font-medium text-slate-800">{{ $trx->user?->name ?? $trx->prospek?->sales?->name ?? '-' }}</span>
+                                        <td class="px-4 py-3.5 whitespace-nowrap">
+                                            <span class="font-medium text-slate-800">{{ $primaryTrx->user?->name ?? $primaryTrx->prospek?->sales?->name ?? '-' }}</span>
                                         </td>
-                                        {{-- Jenis Transaksi (Checklist Komponen) --}}
+                                        {{-- Jenis Transaksi yang Diajukan (Rincian Transparan Per Komponen) --}}
                                         <td class="px-4 py-3.5">
-                                            @php
-                                                $checklist = $trx->getComponentsChecklist();
-                                            @endphp
-                                            <div class="flex flex-wrap gap-1 max-w-[210px]">
-                                                @foreach($checklist as $comp)
-                                                    @if($comp['is_checked'])
-                                                        @if($comp['status'] === 'verified')
-                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-emerald-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Sudah Dibayar ({{ $comp['nominal_formatted'] }})">
-                                                                <svg class="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                                                <span>{{ $comp['short'] }}</span>
-                                                            </span>
-                                                        @elseif($comp['status'] === 'pending')
-                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-amber-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Menunggu CS ({{ $comp['nominal_formatted'] }})">
-                                                                <svg class="w-2.5 h-2.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3"/></svg>
-                                                                <span>{{ $comp['short'] }}</span>
-                                                            </span>
-                                                        @else
-                                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80 shadow-2xs {{ $comp['is_current'] ? 'ring-1 ring-rose-500 font-extrabold' : '' }}" title="{{ $comp['label'] }}: Ditolak">
-                                                                <svg class="w-2.5 h-2.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                                <span>{{ $comp['short'] }}</span>
-                                                            </span>
-                                                        @endif
-                                                    @else
-                                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-medium bg-slate-50 text-slate-400 border border-slate-200/60 opacity-60" title="{{ $comp['label'] }}: Belum Ada / Belum Bayar">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"></span>
-                                                            <span>{{ $comp['short'] }}</span>
+                                            <div class="flex flex-col gap-1.5 min-w-[170px]">
+                                                @foreach($group['items'] as $item)
+                                                    <div class="inline-flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg text-xs font-bold {{ $primaryTrx->payment_status === 'verified' ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-rose-50 text-rose-900 border border-rose-200' }}">
+                                                        <div class="flex items-center gap-1.5 truncate">
+                                                            @if($primaryTrx->payment_status === 'verified')
+                                                                <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                            @else
+                                                                <svg class="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                            @endif
+                                                            <span class="truncate">{{ $item['jenis'] }}</span>
+                                                        </div>
+                                                        <span class="text-[11px] font-bold text-slate-700 shrink-0">
+                                                            Rp {{ $item['nominal_formatted'] }}
                                                         </span>
-                                                    @endif
+                                                    </div>
                                                 @endforeach
-                                            </div>
-                                            <div class="mt-1 text-[10px] text-slate-400">
-                                                Item: <span class="font-bold text-slate-700">{{ $trx->jenis }}</span>
                                             </div>
                                         </td>
                                         {{-- Kategori --}}
                                         <td class="px-4 py-3.5 whitespace-nowrap">
-                                            @if($trx->kategori)
-                                                <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                                    {{ $trx->kategori }}
-                                                </span>
+                                            @if($groupCategories->isNotEmpty())
+                                                <div class="flex flex-col gap-1">
+                                                    @foreach($groupCategories as $kat)
+                                                        <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 inline-block w-fit">
+                                                            {{ $kat }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
                                             @else
                                                 <span class="text-slate-400 text-[10px]">-</span>
                                             @endif
                                         </td>
-                                        {{-- Nominal --}}
-                                        <td class="px-4 py-3.5 text-right font-black text-slate-900 text-xs">
-                                            Rp {{ number_format($trx->nominal, 0, ',', '.') }}
+                                        {{-- Nominal (Total Akumulasi) --}}
+                                        <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                                            <div class="font-black text-slate-900 text-xs">
+                                                Rp {{ number_format($group['total_nominal'], 0, ',', '.') }}
+                                            </div>
+                                            @if(count($group['items']) > 1)
+                                                <div class="text-[10px] text-blue-600 font-semibold mt-0.5">
+                                                    Total ({{ count($group['items']) }} Item)
+                                                </div>
+                                            @endif
                                         </td>
                                         {{-- Metode --}}
                                         <td class="px-4 py-3.5 whitespace-nowrap">
@@ -554,12 +700,12 @@
                                         </td>
                                         {{-- Status Badge --}}
                                         <td class="px-4 py-3.5 text-center whitespace-nowrap">
-                                            @if($trx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED)
+                                            @if($primaryTrx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED)
                                                 <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] inline-flex items-center gap-1 border border-emerald-200">
                                                     <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                                     <span>Disetujui</span>
                                                 </span>
-                                            @elseif($trx->payment_status === \App\Models\Transaksi::STATUS_REJECTED)
+                                            @elseif($primaryTrx->payment_status === \App\Models\Transaksi::STATUS_REJECTED)
                                                 <span class="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px] inline-flex items-center gap-1 border border-rose-200">
                                                     <svg class="w-3 h-3 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                                                     <span>Ditolak</span>
@@ -572,14 +718,14 @@
                                         </td>
                                         {{-- Diproses Oleh --}}
                                         <td class="px-4 py-3.5 whitespace-nowrap">
-                                            @if($trx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED)
+                                            @if($primaryTrx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED)
                                                 <div class="font-semibold text-slate-800 text-[11px]">
-                                                    {{ $trx->verifier?->name ?? 'CS Staff' }}
+                                                    {{ $primaryTrx->verifier?->name ?? 'CS Staff' }}
                                                 </div>
                                                 <span class="text-[9px] text-emerald-600 font-bold">Verifikator</span>
-                                            @elseif($trx->payment_status === \App\Models\Transaksi::STATUS_REJECTED)
+                                            @elseif($primaryTrx->payment_status === \App\Models\Transaksi::STATUS_REJECTED)
                                                 <div class="font-semibold text-slate-800 text-[11px]">
-                                                    {{ $trx->rejecter?->name ?? 'CS Staff' }}
+                                                    {{ $primaryTrx->rejecter?->name ?? 'CS Staff' }}
                                                 </div>
                                                 <span class="text-[9px] text-rose-600 font-bold">Menolak</span>
                                             @else
@@ -588,23 +734,23 @@
                                         </td>
                                         {{-- Waktu Proses --}}
                                         <td class="px-4 py-3.5 text-slate-600 text-[11px] whitespace-nowrap">
-                                            @if($trx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED && $trx->verified_at)
-                                                {{ $trx->verified_at->format('d/m/Y H:i') }}
-                                            @elseif($trx->payment_status === \App\Models\Transaksi::STATUS_REJECTED && $trx->rejected_at)
-                                                {{ $trx->rejected_at->format('d/m/Y H:i') }}
+                                            @if($primaryTrx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED && $primaryTrx->verified_at)
+                                                {{ $primaryTrx->verified_at->format('d/m/Y H:i') }}
+                                            @elseif($primaryTrx->payment_status === \App\Models\Transaksi::STATUS_REJECTED && $primaryTrx->rejected_at)
+                                                {{ $primaryTrx->rejected_at->format('d/m/Y H:i') }}
                                             @else
-                                                {{ $trx->updated_at?->format('d/m/Y H:i') ?? '-' }}
+                                                {{ $primaryTrx->updated_at?->format('d/m/Y H:i') ?? '-' }}
                                             @endif
                                         </td>
                                         {{-- Catatan / Alasan --}}
                                         <td class="px-4 py-3.5">
-                                            @if($trx->rejection_reason)
+                                            @if($allRejections)
                                                 <div class="text-[10px] text-rose-700 bg-rose-50 p-1.5 rounded-lg border border-rose-100 font-medium max-w-xs leading-tight">
-                                                    <span class="font-bold">Alasan tolak:</span> {{ $trx->rejection_reason }}
+                                                    <span class="font-bold">Alasan tolak:</span> {{ $allRejections }}
                                                 </div>
-                                            @elseif($trx->notes)
-                                                <div class="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100 font-medium max-w-xs truncate">
-                                                    {{ $trx->notes }}
+                                            @elseif($allNotes)
+                                                <div class="text-[10px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100 font-medium max-w-xs truncate" title="{{ $allNotes }}">
+                                                    {{ $allNotes }}
                                                 </div>
                                             @else
                                                 <span class="text-slate-400">-</span>
@@ -667,7 +813,7 @@
                                     <div class="text-sm font-extrabold" x-text="selectedTrx.status === 'verified' ? 'Diverifikasi CS (Sah / Lunas)' : (selectedTrx.status === 'pending' ? 'Menunggu Verifikasi CS' : 'Ditolak CS')"></div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-75">Nominal Transaksi Ini</div>
+                                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-75" x-text="selectedTrx.items && selectedTrx.items.length > 1 ? 'Total Nominal Gabungan' : 'Nominal Transaksi Ini'"></div>
                                     <div class="text-base font-extrabold" x-text="'Rp ' + selectedTrx.nominal"></div>
                                 </div>
                             </div>
@@ -685,16 +831,22 @@
                                         <span class="font-bold text-slate-800" x-text="selectedTrx.prospek_name"></span>
                                     </div>
                                     <div>
+                                        <span class="text-slate-400 block text-[10px]">Asal Sekolah / Mitra:</span>
+                                        <span class="text-slate-700 font-semibold" x-text="selectedTrx.prospek_school"></span>
+                                    </div>
+                                    <div>
                                         <span class="text-slate-400 block text-[10px]">PIC / Kontak:</span>
                                         <span class="font-semibold text-slate-700" x-text="selectedTrx.prospek_pic"></span>
                                     </div>
                                     <div>
-                                        <span class="text-slate-400 block text-[10px]">Asal Sekolah / Mitra:</span>
-                                        <span class="text-slate-700" x-text="selectedTrx.prospek_school"></span>
+                                        <span class="text-slate-400 block text-[10px]">Program Studi:</span>
+                                        <span class="text-slate-800 font-semibold text-indigo-700" x-text="selectedTrx.prospek_prodi"></span>
                                     </div>
                                     <div>
-                                        <span class="text-slate-400 block text-[10px]">Program Studi:</span>
-                                        <span class="text-slate-700" x-text="selectedTrx.prospek_prodi"></span>
+                                        <span class="text-slate-400 block text-[10px]">Kelas:</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold"
+                                              :class="selectedTrx.prospek_kelas === 'Karyawan' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-200 text-slate-800'"
+                                              x-text="'Kelas ' + (selectedTrx.prospek_kelas || 'Reguler')"></span>
                                     </div>
                                 </div>
                             </div>
@@ -702,44 +854,54 @@
                             <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-3">
                                 <div class="flex items-center justify-between">
                                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detail Pembayaran & Komponen</div>
-                                    <span class="text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md font-bold border border-purple-100" x-text="'Item Transaksi Ini: ' + selectedTrx.jenis"></span>
+                                    <span class="text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md font-bold border border-purple-100" x-text="selectedTrx.items && selectedTrx.items.length > 1 ? (selectedTrx.items.length + ' Item Transaksi Digabung') : ('Item: ' + selectedTrx.jenis)"></span>
                                 </div>
 
-                                {{-- Checklist 5 Komponen Transaksi --}}
-                                <div>
-                                    <div class="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                                        <span>Status Komponen Tagihan Calon Mahasiswa:</span>
-                                        <span class="text-[10px] text-slate-400 font-normal">Dicentang vs Belum Bayar</span>
-                                    </div>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <template x-for="item in (selectedTrx.checklist || [])" :key="item.key">
-                                            <div class="p-2.5 rounded-xl border flex items-center justify-between transition"
-                                                 :class="item.is_checked ? (item.status === 'verified' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : (item.status === 'pending' ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-rose-50/70 border-rose-200 text-rose-900')) : 'bg-white border-slate-200/70 text-slate-400 opacity-70'">
-                                                <div class="flex items-center gap-2">
-                                                    <template x-if="item.is_checked && item.status === 'verified'">
-                                                        <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
-                                                    </template>
-                                                    <template x-if="item.is_checked && item.status === 'pending'">
-                                                        <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">⏳</span>
-                                                    </template>
-                                                    <template x-if="item.is_checked && item.status === 'rejected'">
-                                                        <span class="w-5 h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-xs shrink-0">✗</span>
-                                                    </template>
-                                                    <template x-if="!item.is_checked">
-                                                        <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center font-bold text-xs shrink-0">○</span>
-                                                    </template>
+                                {{-- Rincian Multi-Item (Jika transaksi gabungan) --}}
+                                <template x-if="selectedTrx.items && selectedTrx.items.length > 1">
+                                    <div class="space-y-2">
+                                        <template x-for="(item, idx) in selectedTrx.items" :key="item.id || idx">
+                                            <div class="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
+                                                <div class="flex items-center gap-2.5">
+                                                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs border border-blue-200 shrink-0">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                                    </div>
                                                     <div>
-                                                        <div class="text-xs font-bold leading-tight" x-text="item.label" :class="item.is_current ? 'text-blue-700 underline decoration-blue-400 underline-offset-2' : ''"></div>
-                                                        <div class="text-[10px] font-medium" :class="item.is_checked ? 'opacity-85' : 'text-slate-400'" x-text="item.is_checked ? (item.status_label + (item.is_current ? ' (Transaksi Ini)' : '')) : 'Belum Bayar / Belum Dicentang'"></div>
+                                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Komponen:</div>
+                                                        <div class="text-xs font-bold text-slate-900" x-text="item.jenis"></div>
                                                     </div>
                                                 </div>
                                                 <div class="text-right">
-                                                    <span class="text-xs font-extrabold" x-text="item.nominal_formatted"></span>
+                                                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Nominal:</div>
+                                                    <div class="text-xs font-black text-emerald-700" x-text="'Rp ' + (item.nominal_formatted || item.nominal)"></div>
                                                 </div>
                                             </div>
                                         </template>
+                                        <div class="p-2.5 bg-blue-50/80 rounded-xl border border-blue-200 flex items-center justify-between text-xs">
+                                            <span class="font-bold text-blue-900" x-text="'Total Keseluruhan (' + selectedTrx.items.length + ' Item):'"></span>
+                                            <span class="font-black text-blue-900" x-text="'Rp ' + selectedTrx.nominal"></span>
+                                        </div>
                                     </div>
-                                </div>
+                                </template>
+
+                                {{-- Rincian Single Item --}}
+                                <template x-if="!selectedTrx.items || selectedTrx.items.length <= 1">
+                                    <div class="p-3.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs border border-blue-200">
+                                                <svg class="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                            </div>
+                                            <div>
+                                                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Komponen Transaksi:</div>
+                                                <div class="text-sm font-extrabold text-slate-900" x-text="selectedTrx.jenis"></div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Nominal Pengajuan:</div>
+                                            <div class="text-sm font-black text-emerald-700" x-text="'Rp ' + selectedTrx.nominal"></div>
+                                        </div>
+                                    </div>
+                                </template>
 
                                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
                                     <div>

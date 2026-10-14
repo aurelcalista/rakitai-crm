@@ -172,7 +172,7 @@
                     </div>
 
                     <!-- Sekolah Selector (jika Sekolah) -->
-                    <div x-show="prospectType === 'Sekolah'" x-cloak x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                    <div x-show="prospectType === 'Sekolah'" x-cloak x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-2">
                         <div class="flex items-center justify-between mb-1.5 h-5">
                             <template x-if="!modeManualSekolah">
                                 <div class="flex items-center justify-between w-full">
@@ -237,7 +237,7 @@
                                         type="text" 
                                         name="sekolah_manual" 
                                         value="{{ old('sekolah_manual') }}"
-                                        placeholder="Contoh: SMAN 1 Cirebon" 
+                                        placeholder="Contoh: SMK NEGERI 1 CIREBON" 
                                         class="w-full text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                                     >
                                 </div>
