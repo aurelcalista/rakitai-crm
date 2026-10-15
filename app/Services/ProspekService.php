@@ -25,24 +25,27 @@ class ProspekService
             ? $prospek->transaksis
             : ($prospek->exists ? $prospek->transaksis()->get() : collect());
 
-        $hasFormulir = $transaksis->contains('jenis', 'Beli Formulir');
+        $hasFormulir = $transaksis->contains('jenis', 'Beli Formulir') || $transaksis->contains('jenis', 'Pendaftaran');
 
-        // Pembayaran Termin 1 HARUS berstatus verified
-        $hasVerifiedTermin1 = $transaksis
-            ->where('jenis', 'Pembayaran Termin 1')
-            ->where('payment_status', Transaksi::STATUS_VERIFIED)
+        // Pembayaran Termin 1 / Komponen lain yang berstatus verified
+        $hasVerifiedPayment = $transaksis
+            ->filter(function ($t) {
+                $status = strtolower($t->payment_status ?? Transaksi::STATUS_VERIFIED);
+                $isMainPayment = in_array($t->jenis, ['Pembayaran Termin 1', 'DP/Konversi', 'UKT', 'Perlengkapan'])
+                    || ($t->kategori === Transaksi::KATEGORI_LUNAS);
+                return $isMainPayment && $status === Transaksi::STATUS_VERIFIED;
+            })
             ->isNotEmpty();
 
-        return $hasFormulir && $hasVerifiedTermin1;
+        return ($hasFormulir && $hasVerifiedPayment) || $transaksis->where('payment_status', Transaksi::STATUS_VERIFIED)->where('kategori', Transaksi::KATEGORI_LUNAS)->isNotEmpty();
     }
 
     /**
-     * Cek apakah ada transaksi Termin 1 yang masih pending verifikasi.
+     * Cek apakah ada transaksi yang masih pending verifikasi.
      */
     public static function hasPendingVerification(Prospek $prospek): bool
     {
         return $prospek->transaksis()
-            ->where('jenis', 'Pembayaran Termin 1')
             ->where('payment_status', Transaksi::STATUS_PENDING)
             ->exists();
     }

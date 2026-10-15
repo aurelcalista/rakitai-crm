@@ -7,15 +7,43 @@
 
     <div class="space-y-6" x-data="{
         searchQuery: '',
+        selectedScope: '{{ request('scope', 'all') }}',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedSales: 'all',
         currentPage: 1,
         perPage: 25,
+        authUserId: {{ auth()->id() ?? 0 }},
+        userRole: '{{ strtolower(auth()->user()->role ?? '') }}',
         prospectsList: {{ json_encode($prospects) }},
         modalReassign: false,
         reassignTarget: null,
         openReassign(p) { this.reassignTarget = p; this.modalReassign = true; },
+
+        isOwnProspect(p) {
+            if (p.is_own === true) return true;
+            if (!this.authUserId) return false;
+            return Boolean(p.sales_id == this.authUserId || p.owner_id == this.authUserId || p.takeover_by_id == this.authUserId);
+        },
+        isOtherProspect(p) {
+            if (this.isOwnProspect(p)) return false;
+            return Boolean(p.is_other === true || p.sales_id || p.takeover_by_id || (p.owner_id && p.owner_id !== '-'));
+        },
+        isPresensiSiswa(p) {
+            return Boolean(p.is_presensi === true || (p.source && p.source.toLowerCase().includes('presensi')));
+        },
+        updateUrlScope(scope) {
+            this.selectedScope = scope;
+            try {
+                const url = new URL(window.location.href);
+                if (scope === 'all') {
+                    url.searchParams.delete('scope');
+                } else {
+                    url.searchParams.set('scope', scope);
+                }
+                window.history.replaceState({}, '', url.toString());
+            } catch(e) {}
+        },
 
         get filteredProspects() {
             return this.prospectsList.filter(p => {
@@ -28,7 +56,16 @@
                 const matchType   = this.selectedType   === 'all' || p.type   === this.selectedType;
                 const matchSales  = this.selectedSales  === 'all' || String(p.sales_id) === String(this.selectedSales);
 
-                return matchSearch && matchStatus && matchType && matchSales;
+                let matchScope = true;
+                if (this.selectedScope === 'own') {
+                    matchScope = this.isOwnProspect(p);
+                } else if (this.selectedScope === 'others') {
+                    matchScope = this.isOtherProspect(p);
+                } else if (this.selectedScope === 'presensi') {
+                    matchScope = this.isPresensiSiswa(p);
+                }
+
+                return matchSearch && matchStatus && matchType && matchSales && matchScope;
             });
         },
         get paginatedProspects() {
@@ -38,7 +75,7 @@
         get totalPages() {
             return Math.ceil(this.filteredProspects.length / this.perPage) || 1;
         }
-    }" x-effect="searchQuery; selectedStatus; selectedType; selectedSales; currentPage = 1" @keydown.escape.window="modalReassign = false">
+    }" x-effect="searchQuery; selectedStatus; selectedType; selectedSales; selectedScope; currentPage = 1" @keydown.escape.window="modalReassign = false">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -64,6 +101,54 @@
 
         <!-- Search & Filter Controls -->
         <form method="GET" action="{{ route('spv.prospek.index') }}" class="crm-card bg-white p-4 sm:p-5 space-y-4">
+            
+            <!-- Multirole Scope Filter Tabs: Semua Prospek, Prospek Saya, Prospek User Lain, Presensi Siswa -->
+            <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60 flex-wrap">
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('all')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Semua Prospek</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'all' ? 'bg-slate-100 text-slate-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('own')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'own' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Prospek Saya</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'own' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isOwnProspect(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('others')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'others' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Prospek User Lain</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'others' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isOtherProspect(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('presensi')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'presensi' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Presensi Siswa</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'presensi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isPresensiSiswa(p)).length"></span>
+                </button>
+            </div>
             <!-- Search Bar -->
             <div class="relative">
                 <input 
@@ -213,6 +298,9 @@
                                         </a>
                                     </template>
                                     <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                        <template x-if="p.is_presensi">
+                                            <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">Presensi Siswa</span>
+                                        </template>
                                         <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold" x-text="p.sekolah_nama || p.type"></span>
                                         <template x-if="p.prodi_nama && p.prodi_nama !== '-'">
                                              <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200" x-text="p.prodi_nama + ' (' + p.kelas + ')'"></span>

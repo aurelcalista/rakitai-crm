@@ -24,10 +24,24 @@ class Transaksi extends Model
     const STATUS_VERIFIED = 'verified';
     const STATUS_REJECTED = 'rejected';
 
+    // Kategori transaksi (Requirement J)
+    const KATEGORI_DP_DAFTAR       = 'DP Daftar';
+    const KATEGORI_DP_PERLENGKAPAN = 'DP Perlengkapan';
+    const KATEGORI_LUNAS           = 'Lunas';
+    const KATEGORI_KELUAR          = 'Keluar';
+
+    const KATEGORI_LIST = [
+        self::KATEGORI_DP_DAFTAR,
+        self::KATEGORI_DP_PERLENGKAPAN,
+        self::KATEGORI_LUNAS,
+        self::KATEGORI_KELUAR,
+    ];
+
     protected $fillable = [
         'prospek_id',
         'user_id',
         'jenis',
+        'kategori',
         'nominal',
         'tanggal',
         'notes',
@@ -65,8 +79,7 @@ class Transaksi extends Model
                 $spv = $sales?->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
                 $cs = $prospek->cs ?? ($prospek->cs_id ? \App\Models\User::find($prospek->cs_id) : null);
 
-                $isPembayaranTermin1 = $transaksi->jenis === 'Pembayaran Termin 1';
-                $isNeedVerification  = $isPembayaranTermin1 && $transaksi->payment_status === self::STATUS_PENDING;
+                $isNeedVerification  = $transaksi->payment_status === self::STATUS_PENDING;
 
                 // 1. Notifikasi ke Sales (hanya jika yang input bukan Sales pemilik)
                 if ($sales && (!$auth || $auth->id !== $sales->id)) {
@@ -99,10 +112,14 @@ class Transaksi extends Model
                     ));
                 }
 
-                // 3. Notifikasi ke CS — kirim ke CS penanggung jawab atau seluruh CS
-                $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->when($prospek->wilayah_id, fn($q) => $q->where('wilayah_id', $prospek->wilayah_id))->get();
-                if ($csList->isEmpty()) {
-                    $csList = \App\Models\User::where('role', 'CS')->get();
+                // 3. Notifikasi ke CS — seluruh CS aktif menerima notifikasi antrean verifikasi pembayaran
+                if ($isNeedVerification) {
+                    $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
+                    if ($csList->isEmpty()) {
+                        $csList = \App\Models\User::where('role', 'CS')->get();
+                    }
+                } else {
+                    $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->get();
                 }
 
                 $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? ($transaksi->metode_pembayaran ?: 'Transfer Bank / Online');
@@ -141,9 +158,7 @@ class Transaksi extends Model
      */
     public function needsVerification(): bool
     {
-        return $this->jenis === 'Pembayaran Termin 1'
-            && $this->metode_pembayaran !== null
-            && $this->payment_status === self::STATUS_PENDING;
+        return $this->payment_status === self::STATUS_PENDING;
     }
 
     /**
@@ -182,5 +197,119 @@ class Transaksi extends Model
     public function rejecter()
     {
         return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    /**
+     * Mengembalikan checklist seluruh 5 komponen jenis transaksi untuk prospek ini:
+     * Pendaftaran, Perlengkapan, Gedung, DP/Konversi, UKT.
+     * Mengindikasikan komponen mana yang sudah dicentang/dibayar dan mana yang belum.
+     *
+     * @return array
+     */
+    public function getComponentsChecklist(): array
+    {
+        $allTrx = $this->prospek 
+            ? ($this->prospek->relationLoaded('transaksis') ? $this->prospek->transaksis : $this->prospek->transaksis()->get())
+            : collect([$this]);
+
+        $definitions = [
+            'Pendaftaran' => [
+                'key'      => 'Pendaftaran',
+                'label'    => 'Pendaftaran / Formulir',
+                'short'    => 'Daftar',
+                'aliases'  => ['Pendaftaran', 'Beli Formulir'],
+            ],
+            'Perlengkapan' => [
+                'key'      => 'Perlengkapan',
+                'label'    => 'Perlengkapan',
+                'short'    => 'Perlengkapan',
+                'aliases'  => ['Perlengkapan'],
+            ],
+            'Gedung' => [
+                'key'      => 'Gedung',
+                'label'    => 'Gedung (Sarpras)',
+                'short'    => 'Gedung',
+                'aliases'  => ['Gedung'],
+            ],
+            'DP/Konversi' => [
+                'key'      => 'DP/Konversi',
+                'label'    => 'DP / Konversi',
+                'short'    => 'DP/Konv',
+                'aliases'  => ['DP/Konversi', 'DP', 'Pembayaran Termin 1'],
+            ],
+            'UKT' => [
+                'key'      => 'UKT',
+                'label'    => 'UKT / Semester',
+                'short'    => 'UKT',
+                'aliases'  => ['UKT'],
+            ],
+        ];
+
+        $results = [];
+        foreach ($definitions as $k => $def) {
+            $matched = $allTrx->first(function ($t) use ($def) {
+                return in_array($t->jenis, $def['aliases']);
+            });
+
+            // Khusus Gedung: di UCIC biaya gedung selalu FREE (Rp 0, bukan tunggakan).
+            // Selalu dianggap sah / diverifikasi (status green/ijo) dan tidak boleh merah/ditolak.
+            if ($k === 'Gedung') {
+                $results[$k] = [
+                    'key'               => $k,
+                    'label'             => $def['label'],
+                    'short'             => $def['short'],
+                    'is_checked'        => true,
+                    'status'            => self::STATUS_VERIFIED,
+                    'status_label'      => 'FREE (Rp 0)',
+                    'nominal'           => 0,
+                    'nominal_formatted' => 'FREE (Rp 0)',
+                    'is_current'        => $matched ? ($matched->id === $this->id) : false,
+                    'is_free'           => true,
+                    'transaction_id'    => $matched?->id,
+                ];
+                continue;
+            }
+
+            if ($matched) {
+                $status = $matched->payment_status ?: self::STATUS_VERIFIED;
+                $results[$k] = [
+                    'key'               => $k,
+                    'label'             => $def['label'],
+                    'short'             => $def['short'],
+                    'is_checked'        => true,
+                    'status'            => $status,
+                    'status_label'      => $status === self::STATUS_VERIFIED ? 'Diverifikasi' : ($status === self::STATUS_PENDING ? 'Menunggu CS' : 'Ditolak CS'),
+                    'nominal'           => (float) $matched->nominal,
+                    'nominal_formatted' => 'Rp ' . number_format((float) $matched->nominal, 0, ',', '.'),
+                    'is_current'        => $matched->id === $this->id,
+                    'is_free'           => false,
+                    'transaction_id'    => $matched->id,
+                ];
+            } else {
+                $results[$k] = [
+                    'key'               => $k,
+                    'label'             => $def['label'],
+                    'short'             => $def['short'],
+                    'is_checked'        => false,
+                    'status'            => 'unpaid',
+                    'status_label'      => 'Belum Ada',
+                    'nominal'           => 0,
+                    'nominal_formatted' => '-',
+                    'is_current'        => false,
+                    'is_free'           => false,
+                    'transaction_id'    => null,
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Konversi checklist ke bentuk array numerik sederhana untuk JSON modal Alpine.js.
+     */
+    public function getChecklistArrayForJson(): array
+    {
+        return array_values($this->getComponentsChecklist());
     }
 }

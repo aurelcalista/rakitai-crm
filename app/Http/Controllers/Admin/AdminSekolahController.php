@@ -13,13 +13,23 @@ class AdminSekolahController extends Controller
 {
     public function index(): View
     {
-        $sekolahs = Sekolah::with(['kategori', 'wilayah'])->withCount('kunjungans')->latest()->get();
+        $sekolahs = Sekolah::with(['kategori', 'wilayah.parent'])->withCount('kunjungans')->latest()->get();
         $sekolahs = $sekolahs->map(function ($s) {
             $s->kategori_nama = $s->kategori ? $s->kategori->nama : '-';
-            $s->wilayah_nama  = $s->wilayah  ? $s->wilayah->nama  : '-';
+            
+            if ($s->wilayah) {
+                $s->wilayah_nama = $s->wilayah->parent ? $s->wilayah->parent->nama : $s->wilayah->nama;
+                $s->wilayah_parent_id = $s->wilayah->parent_id ?: $s->wilayah->id;
+            } else {
+                $s->wilayah_nama = '-';
+                $s->wilayah_parent_id = null;
+            }
+
             $s->jumlah_kunjungan = $s->kunjungans_count;
             $s->pic           = $s->pic_name    ?? '-';
-            $s->kecamatan     = $s->kecamatan   ?? '-';
+            $s->kecamatan     = ($s->kecamatan && $s->kecamatan !== '-') 
+                ? $s->kecamatan 
+                : ($s->wilayah && $s->wilayah->parent ? $s->wilayah->nama : '-');
             $s->telepon       = $s->telepon      ?? '-';
             $s->email         = $s->email        ?? '-';
             $s->website       = $s->website      ?? '-';

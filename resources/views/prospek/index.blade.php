@@ -14,8 +14,8 @@
         <x-empty-state 
             title="Belum ada prospek ditemukan" 
             description="Tidak ada data prospek yang sesuai dengan kriteria filter pencarian Anda."
-            :actionLabel="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'Tambah Prospek Baru' : null"
-            :actionClick="in_array(auth()->user()->role ?? '', ['Sales', 'CS']) ? 'modalTambahProspek = true' : null"
+            :actionLabel="in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']) ? 'Tambah Prospek Baru' : null"
+            :actionClick="in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']) ? 'modalTambahProspek = true' : null"
         />
     </div>
 
@@ -25,26 +25,86 @@
 
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         searchQuery: '',
+        selectedScope: '{{ request('scope', 'all') }}',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedTakeover: 'all',
+        selectedGelombang: 'all',
         currentPage: 1,
         perPage: 25,
+        authUserId: {{ auth()->id() ?? 0 }},
+        userRole: '{{ strtolower(auth()->user()->role ?? '') }}',
         prospectsList: {{ json_encode($prospects) }},
+        modalPresensiManual: {{ old('form_type') === 'presensi_manual' ? 'true' : 'false' }},
         
+        isOwnProspect(p) {
+            if (p.is_own === true) return true;
+            if (!this.authUserId) return false;
+            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
+                return Boolean(p.cs_id == this.authUserId || p.owner_id == this.authUserId || p.takeover_by_id == this.authUserId);
+            }
+            return Boolean(p.sales_id == this.authUserId || p.owner_id == this.authUserId || p.takeover_by_id == this.authUserId);
+        },
+        isOtherProspect(p) {
+            if (this.isOwnProspect(p)) return false;
+            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
+                const hasOtherCs = Boolean((p.cs_id && p.cs_id != this.authUserId) || (p.owner_id && p.owner_id != this.authUserId && p.cs_name && p.cs_name !== '-') || (p.takeover_by_id && p.takeover_by_id != this.authUserId));
+                return Boolean(p.is_other === true || hasOtherCs);
+            }
+            const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-') || p.takeover_by_id);
+            return Boolean(p.is_other === true || hasSalesOwner);
+        },
+        isPresensiSiswa(p) {
+            return Boolean(p.is_presensi === true || (p.source && p.source.toLowerCase().includes('presensi')));
+        },
+        updateUrlScope(scope) {
+            this.selectedScope = scope;
+            try {
+                const url = new URL(window.location.href);
+                if (scope === 'all') {
+                    url.searchParams.delete('scope');
+                } else {
+                    url.searchParams.set('scope', scope);
+                }
+                window.history.replaceState({}, '', url.toString());
+            } catch(e) {}
+        },
         get filteredProspects() {
             return this.prospectsList.filter(p => {
-                const matchSearch = !this.searchQuery || 
-                    p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
-                    p.pic.toLowerCase().includes(this.searchQuery.toLowerCase());
+                const q = this.searchQuery.toLowerCase().trim();
+                const matchSearch = !q || 
+                    (p.name && p.name.toLowerCase().includes(q)) || 
+                    (p.no_registrasi && p.no_registrasi.toLowerCase().includes(q)) ||
+                    (p.gelombang && p.gelombang.toLowerCase().includes(q)) ||
+                    (p.pic && p.pic.toLowerCase().includes(q)) ||
+                    (p.whatsapp && p.whatsapp.includes(q)) ||
+                    (p.sekolah_name && p.sekolah_name.toLowerCase().includes(q)) ||
+                    (p.wilayah_name && p.wilayah_name.toLowerCase().includes(q)) ||
+                    (p.sales_name && p.sales_name.toLowerCase().includes(q)) ||
+                    (p.cs_name && p.cs_name.toLowerCase().includes(q)) ||
+                    (p.takeover_cs && p.takeover_cs.toLowerCase().includes(q)) ||
+                    (p.sekolah_name && p.sekolah_name.toLowerCase().includes(q)) ||
+                    (p.owner && p.owner.toLowerCase().includes(q));
                 
                 const matchStatus = this.selectedStatus === 'all' || p.status === this.selectedStatus;
                 const matchType = this.selectedType === 'all' || p.type === this.selectedType;
+                const matchGelombang = this.selectedGelombang === 'all' || p.gelombang === this.selectedGelombang;
                 const matchTakeover = this.selectedTakeover === 'all' || 
-                    (this.selectedTakeover === 'sales' && p.active_takeover.includes('Sales')) ||
-                    (this.selectedTakeover === 'cs' && p.active_takeover.includes('CS'));
+                    (this.selectedTakeover === 'sales' && p.active_takeover && p.active_takeover.includes('Sales')) ||
+                    (this.selectedTakeover === 'cs' && p.active_takeover && p.active_takeover.includes('CS')) ||
+                    (this.selectedTakeover === 'taken' && p.status_takeover === 'Sudah Di-takeover') ||
+                    (this.selectedTakeover === 'untaken' && p.status_takeover === 'Belum Di-takeover');
+
+                let matchScope = true;
+                if (this.selectedScope === 'own') {
+                    matchScope = this.isOwnProspect(p);
+                } else if (this.selectedScope === 'others') {
+                    matchScope = this.isOtherProspect(p);
+                } else if (this.selectedScope === 'presensi') {
+                    matchScope = this.isPresensiSiswa(p);
+                }
                 
-                return matchSearch && matchStatus && matchType && matchTakeover;
+                return matchSearch && matchStatus && matchType && matchTakeover && matchGelombang && matchScope;
             });
         },
         get paginatedProspects() {
@@ -53,8 +113,18 @@
         },
         get totalPages() {
             return Math.ceil(this.filteredProspects.length / this.perPage) || 1;
+        },
+        getProspectUrl(prospect) {
+            const role = '{{ strtolower(auth()->user()->role ?? '') }}';
+            if (role === 'sales') {
+                return '/sales/prospek/' + prospect.id;
+            }
+            if (role === 'spv') {
+                return '/spv/prospek/' + prospect.id;
+            }
+            return '/prospek/' + prospect.id;
         }
-    }" x-effect="searchQuery; selectedStatus; selectedType; selectedTakeover; currentPage = 1">
+    }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -62,8 +132,20 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Prospek</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data calon mahasiswa, sekolah mitra, dan instansi inbound UCIC.</p>
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
-            <div>
+            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
+            <div class="flex flex-wrap items-center gap-2">
+                @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
+                <button 
+                    type="button" 
+                    @click="modalPresensiManual = true"
+                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Tambah Presensi Siswa</span>
+                </button>
+                @endif
                 <button 
                     type="button" 
                     @click="modalTambahProspek = true"
@@ -78,15 +160,178 @@
             @endif
         </div>
 
+        {{-- Prospect Activity Metrics & Period Filter (CS & Sales) --}}
+        @php
+            $userRoleLower = strtolower(auth()->user()->role ?? '');
+            $metricsData = $userRoleLower === 'sales' ? ($salesMetrics ?? null) : ($csMetrics ?? null);
+            $showMetrics = isset($metricsData) && in_array($userRoleLower, ['sales', 'cs', 'admin']);
+            $metricsTitle = $userRoleLower === 'sales' ? 'Aktivitas & Metrik Prospek Sales' : 'Aktivitas & Metrik Prospek CS';
+        @endphp
+        @if($showMetrics)
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <span>{{ $metricsTitle }}</span>
+                        @if(!empty($metricsData['start_date']) || !empty($metricsData['end_date']))
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                                Periode: {{ $metricsData['start_date'] ?? 'Awal' }} s/d {{ $metricsData['end_date'] ?? 'Kini' }}
+                            </span>
+                        @endif
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Pantau produktivitas penanganan dan interaksi prospek berdasarkan rentang periode.</p>
+                </div>
+                {{-- Date Filter Form --}}
+                <form method="GET" action="{{ url()->current() }}" class="flex flex-wrap items-center gap-2 text-xs">
+                    @if(request()->filled('status'))
+                        <input type="hidden" name="status" value="{{ request('status') }}">
+                    @endif
+                    @if(request()->filled('q'))
+                        <input type="hidden" name="q" value="{{ request('q') }}">
+                    @endif
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500">Dari:</label>
+                        <input type="date" name="start_date" value="{{ $metricsData['start_date'] ?? '' }}"
+                               class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-[11px] font-semibold text-slate-500">Sampai:</label>
+                        <input type="date" name="end_date" value="{{ $metricsData['end_date'] ?? '' }}"
+                               class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-700 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    </div>
+                    <button type="submit" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold transition cursor-pointer text-xs">
+                        Filter
+                    </button>
+                    @if(!empty($metricsData['start_date']) || !empty($metricsData['end_date']))
+                        <a href="{{ url()->current() }}" class="px-2.5 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 font-semibold transition text-xs">
+                            Reset
+                        </a>
+                    @endif
+                </form>
+            </div>
+
+            {{-- 4 Metric Cards --}}
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {{-- 1. Diinput --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Prospek Diinput</span>
+                        <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-900">{{ $metricsData['diinput'] }}</span>
+                        <span class="text-[11px] text-slate-500">prospek</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Dibuat dalam periode</p>
+                </div>
+
+                {{-- 2. Dihubungi / Prospek Aktif --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">{{ $userRoleLower === 'sales' ? 'Prospek Aktif' : 'Prospek Dihubungi' }}</span>
+                        <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-900">{{ $metricsData['dihubungi'] }}</span>
+                        <span class="text-[11px] text-slate-500">prospek unik</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ $userRoleLower === 'sales' ? 'Memiliki histori interaksi' : 'Histori kontak tercatat' }}</p>
+                </div>
+
+                {{-- 3. Di-Follow-up --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Di-Follow-up</span>
+                        <span class="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-900">{{ $metricsData['follow_up'] }}</span>
+                        <span class="text-[11px] text-slate-500">prospek unik</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Tercatat follow-up</p>
+                </div>
+
+                {{-- 4. Hot Prospect --}}
+                <div class="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-600">Hot Prospect</span>
+                        <span class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/></svg>
+                        </span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-rose-900">{{ $metricsData['hot_prospect'] }}</span>
+                        <span class="text-[11px] text-rose-700">prospek</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Status/transisi HOT</p>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Search & Filter Controls -->
         <div class="crm-card bg-white p-4 sm:p-5 space-y-4">
+            
+            <!-- Multirole Scope Filter Tabs: Semua Prospek, Prospek Saya, Prospek User Lain, Presensi Siswa -->
+            <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60 flex-wrap">
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('all')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Semua Prospek</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'all' ? 'bg-slate-100 text-slate-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('own')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'own' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Prospek Saya</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'own' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isOwnProspect(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('others')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'others' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span x-text="userRole.toLowerCase() === 'cs' ? 'Prospek CS Lain' : (userRole.toLowerCase() === 'sales' ? 'Follow-Up Sales Lain' : 'Prospek User Lain')"></span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'others' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isOtherProspect(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('presensi')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'presensi' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Presensi Siswa</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'presensi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isPresensiSiswa(p)).length"></span>
+                </button>
+            </div>
             
             <!-- Big Search Bar -->
             <div class="relative">
                 <input 
                     type="text" 
                     x-model="searchQuery"
-                    placeholder="Cari nama sekolah, instansi, kontak PIC, atau nomor telepon..." 
+                    placeholder="Cari no registrasi, nama siswa, instansi, kontak PIC, telepon, gelombang, sales, CS..." 
                     class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs sm:text-sm transition bg-slate-50/50 focus:bg-white"
                 >
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -212,11 +457,18 @@
                     <option value="Individu">Individu</option>
                 </select>
 
+                <!-- Gelombang Filter -->
+                <select x-model="selectedGelombang" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                    <option value="all">Semua Gelombang</option>
+                    @foreach($gelombangList ?? [] as $gel)
+                        <option value="{{ $gel->nama }}">{{ $gel->nama }}</option>
+                    @endforeach
+                </select>
 
                 <!-- Reset Filter Button -->
                 <button 
                     type="button" 
-                    @click="selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
+                    @click="selectedScope = 'all'; selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; selectedGelombang = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
                     class="ml-auto text-slate-400 hover:text-slate-600 font-medium px-2 py-1"
                 >
                     Reset Filter
@@ -241,12 +493,13 @@
                     <thead>
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
                             <th class="py-3.5 px-3 w-10 text-center">No</th>
-                            <th class="py-3.5 px-4">Nama Prospek</th>
-                            <th class="py-3.5 px-3">Tipe</th>
+                            <th class="py-3.5 px-4">Nama Siswa / PIC</th>
+                            <th class="py-3.5 px-3">Asal Sekolah / Wilayah</th>
+                            <th class="py-3.5 px-3">Kelas Kuliah</th>
                             <th class="py-3.5 px-3">WhatsApp</th>
                             <th class="py-3.5 px-3">Status Pipeline</th>
-                            <th class="py-3.5 px-3">Takeover Aktif</th>
-                            <th class="py-3.5 px-3">Owner</th>
+                            <th class="py-3.5 px-3">Status Takeover</th>
+                            <th class="py-3.5 px-3">Owner Awal</th>
                             <th class="py-3.5 px-3">Aktivitas</th>
                             <th class="py-3.5 px-4 text-right">Aksi</th>
                         </tr>
@@ -256,13 +509,37 @@
                             <tr class="hover:bg-slate-50/80 transition">
                                 <td class="py-4 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-4 px-4 font-semibold text-slate-900">
-                                    <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
+                                    <a :href="getProspectUrl(prospect)" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
+                                    <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                                        <template x-if="prospect.no_registrasi">
+                                            <span class="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-2xs" title="No. Registrasi">
+                                                <svg class="w-3 h-3 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                                                <span x-text="prospect.no_registrasi"></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="prospect.gelombang">
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 shadow-2xs" title="Gelombang Pendaftaran">
+                                                <svg class="w-3 h-3 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                                <span x-text="prospect.gelombang"></span>
+                                            </span>
+                                        </template>
+                                        <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.is_presensi">
+                                            <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 text-[9px]">Presensi Siswa</span>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="py-4 px-3">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium" x-text="prospect.type"></span>
-                                    <div class="text-[10px] text-slate-500 mt-1 font-semibold" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
-                                    <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
+                                    <div class="font-semibold text-slate-800 text-[11px] mt-1" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
+                                    <div class="text-[10px] text-slate-400 font-medium mt-0.5" x-show="prospect.wilayah_name" x-text="prospect.wilayah_name"></div>
+                                    <div class="text-[10px] text-slate-500 font-medium" x-show="prospect.asal_kelas && prospect.asal_kelas !== '-'" x-text="'Kelas: ' + prospect.asal_kelas"></div>
                                     <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
+                                    <div class="text-[10px] text-teal-600 font-semibold" x-show="(prospect.cs_name && prospect.cs_name !== '-') || (prospect.takeover_cs && prospect.takeover_cs !== '-')" x-text="'CS: ' + ((prospect.cs_name && prospect.cs_name !== '-') ? prospect.cs_name : prospect.takeover_cs)"></div>
+                                </td>
+                                <td class="py-4 px-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border"
+                                          :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                          x-text="prospect.kelas || 'Reguler'"></span>
                                 </td>
                                 <td class="py-4 px-3">
                                     <a :href="'https://wa.me/' + prospect.whatsapp.replace(/[^0-9]/g, '')" target="_blank" class="text-[11px] text-emerald-600 hover:text-emerald-700 flex items-center gap-1 font-medium">
@@ -275,24 +552,42 @@
                                 </td>
                                 <td class="py-4 px-3">
                                     <span 
-                                        :class="prospect.active_takeover.includes('CS') ? 'bg-teal-50 text-teal-800 border-teal-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                        :class="prospect.status_takeover === 'Sudah Di-takeover' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-200'"
                                         class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold border"
-                                        x-text="prospect.active_takeover"
+                                        x-text="prospect.status_takeover || 'Belum Di-takeover'"
                                     ></span>
+                                    <div class="text-[10px] text-slate-500 font-medium mt-0.5" x-show="prospect.takeover_by_name" x-text="'Oleh: ' + prospect.takeover_by_name"></div>
+                                    <div class="text-[9px] text-slate-400 mt-0.2" x-show="prospect.takeover_at" x-text="prospect.takeover_at"></div>
                                 </td>
-                                <td class="py-4 px-3 text-slate-600 font-medium" x-text="prospect.owner"></td>
+                                <td class="py-4 px-3 text-slate-600 font-medium">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span x-text="prospect.owner || 'Sistem'"></span>
+                                        <span x-show="!prospect.owner_id || prospect.owner === 'Sistem'" class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Sistem</span>
+                                        <span x-show="isOtherProspect(prospect)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" :title="userRole.toLowerCase() === 'cs' ? 'Prospek milik CS lain' : 'Prospek milik Sales lain'" x-text="userRole.toLowerCase() === 'cs' ? 'CS Lain' : 'Sales Lain'"></span>
+                                    </div>
+                                </td>
                                 <td class="py-4 px-3 text-slate-500 text-[11px]" x-text="prospect.last_activity"></td>
                                 <td class="py-4 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
+                                        <template x-if="prospect.is_presensi && prospect.status_takeover !== 'Sudah Di-takeover'">
+                                            <a 
+                                                :href="getProspectUrl(prospect)"
+                                                class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-2xs whitespace-nowrap"
+                                                title="Takeover Prospek Ini"
+                                            >
+                                                Takeover
+                                            </a>
+                                        </template>
                                         <button 
                                             @click="selectedProspect = prospect; modalFollowUp = true"
-                                            class="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer"
-                                            title="Follow Up"
+                                            :class="isOtherProspect(prospect) ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+                                            class="p-1.5 rounded-lg transition cursor-pointer"
+                                            :title="isOtherProspect(prospect) ? (userRole.toLowerCase() === 'cs' ? 'Bantu Follow Up CS Lain' : 'Bantu Follow Up') : 'Follow Up'"
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                         </button>
                                         <a 
-                                            :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id"
+                                            :href="getProspectUrl(prospect)"
                                             class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
                                             title="Lihat Detail"
                                         >
@@ -314,17 +609,37 @@
                             <div class="flex items-center gap-2.5">
                                 <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0" x-text="((prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name).substring(0, 2).toUpperCase()"></div>
                                 <div>
-                                    <a :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/prospek/' + prospect.id" class="font-bold text-xs text-slate-900 block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
+                                    <a :href="getProspectUrl(prospect)" class="font-bold text-xs text-slate-900 block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
                                     <span class="text-[11px] text-slate-500 block" x-text="prospect.type"></span>
-                                    <span class="text-[10px] text-slate-400 block font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></span>
-                                    <span class="text-[10px] text-slate-400 block font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></span>
+                                    <div class="text-[10px] text-slate-500 font-semibold mt-0.5" x-show="prospect.sekolah_name && prospect.sekolah_name !== '-'" x-text="prospect.sekolah_name"></div>
+                                    <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.wilayah_name" x-text="prospect.wilayah_name"></div>
+                                    <div class="text-[10px] text-slate-500 font-semibold" x-show="prospect.sales_name && prospect.sales_name !== '-'" x-text="'Sales: ' + prospect.sales_name"></div>
+                                    <div class="text-[10px] text-teal-600 font-semibold" x-show="(prospect.cs_name && prospect.cs_name !== '-') || (prospect.takeover_cs && prospect.takeover_cs !== '-')" x-text="'CS: ' + ((prospect.cs_name && prospect.cs_name !== '-') ? prospect.cs_name : prospect.takeover_cs)"></div>
+                                    <div class="text-[10px] text-slate-400" x-show="prospect.owner" x-text="'Owner: ' + (prospect.owner || 'Sistem')"></div>
+                                    <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                                        <template x-if="prospect.no_registrasi">
+                                            <span class="font-mono text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="prospect.no_registrasi"></span>
+                                        </template>
+                                        <template x-if="prospect.gelombang">
+                                            <span class="text-[9px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200" x-text="prospect.gelombang"></span>
+                                        </template>
+                                        <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border"
+                                              :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                              x-text="'Kelas ' + (prospect.kelas || 'Reguler')"></span>
+                                        <span class="px-1.5 py-0.5 rounded-md text-[9px] font-semibold border"
+                                              :class="prospect.status_takeover === 'Sudah Di-takeover' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'"
+                                              x-text="prospect.status_takeover || 'Belum Di-takeover'"></span>
+                                    </div>
                                 </div>
                             </div>
-                            <span 
-                                :class="'badge-' + prospect.status.toLowerCase().replace(/ /g, '-')"
-                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
-                                x-text="prospect.status"
-                            ></span>
+                            <div class="flex flex-col items-end gap-1">
+                                <span 
+                                    :class="'badge-' + prospect.status.toLowerCase().replace(/ /g, '-')"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
+                                    x-text="prospect.status"
+                                ></span>
+                                <span x-show="isOtherProspect(prospect)" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200" :title="userRole.toLowerCase() === 'cs' ? 'Prospek milik CS lain' : 'Prospek milik Sales lain'" x-text="userRole.toLowerCase() === 'cs' ? 'CS Lain' : 'Sales Lain'"></span>
+                            </div>
                         </div>
 
                         <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-xs space-y-1">
@@ -338,9 +653,10 @@
                         <div class="flex items-center gap-2 pt-1">
                             <button 
                                 @click="selectedProspect = prospect; modalFollowUp = true"
-                                class="flex-1 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 text-xs font-semibold text-center"
+                                :class="isOtherProspect(prospect) ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200/80'"
+                                class="flex-1 py-2 rounded-xl border text-xs font-semibold text-center"
+                                x-text="isOtherProspect(prospect) ? 'Bantu Follow Up' : 'Follow Up'"
                             >
-                                Follow Up
                             </button>
                             <button 
                                 @click="selectedProspect = prospect; modalUpdateStatus = true"
@@ -349,7 +665,7 @@
                                 Status
                             </button>
                             <a 
-                                :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : '' }}/prospek/' + prospect.id"
+                                :href="getProspectUrl(prospect)"
                                 class="py-2 px-3 rounded-xl bg-blue-600 text-white text-xs font-semibold shadow-xs"
                             >
                                 Detail
@@ -361,6 +677,320 @@
             <x-table-pagination total="filteredProspects.length" page="currentPage" perPage="perPage" totalPages="totalPages" color="blue" />
         </div>
 
+        <!-- MODAL: TAMBAH PRESENSI SISWA MANUAL (LANGSUNG) -->
+        <div 
+            x-show="modalPresensiManual" 
+            x-cloak 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            role="dialog" 
+            aria-modal="true"
+        >
+            <div class="flex items-end sm:items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+                <!-- Backdrop -->
+                <div 
+                    x-show="modalPresensiManual" 
+                    x-transition:enter="ease-out duration-300"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="ease-in duration-200"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                    class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" 
+                    @click="modalPresensiManual = false"
+                ></div>
+
+                <!-- Dialog Box -->
+                <div 
+                    x-show="modalPresensiManual" 
+                    x-transition:enter="ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave="ease-in duration-200"
+                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    class="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto border border-slate-100"
+                    x-data="{
+                        manualSchool: {{ old('sekolah_manual') ? 'true' : 'false' }},
+                        manualSchoolName: '{{ addslashes(old('sekolah_manual', '')) }}',
+                        selectedProdi: '{{ old('prodi_id', '') }}',
+                        isSubmitting: false,
+                        sekolahsList: {{ json_encode(collect($sekolahs ?? [])->map(fn($s) => [
+                            'id' => is_object($s) ? $s->id : ($s['id'] ?? ''),
+                            'nama' => is_object($s) ? $s->nama : ($s['nama'] ?? ($s['label'] ?? '')),
+                            'wilayah' => is_object($s) ? ($s->wilayah ? $s->wilayah->nama : '') : ($s['wilayah'] ?? ($s['sub'] ?? ''))
+                        ])) }},
+                        async submitPresensi(e) {
+                            if (this.manualSchool && this.manualSchoolName.trim()) {
+                                const result = await window.checkSchoolDuplicate({
+                                    manualName: this.manualSchoolName,
+                                    schoolList: this.sekolahsList,
+                                    onUseExisting: (matched) => {
+                                        this.manualSchool = false;
+                                        this.manualSchoolName = '';
+                                        window.dispatchEvent(new CustomEvent('select-item', {
+                                            detail: { name: 'sekolah_id', value: String(matched.id), label: matched.nama }
+                                        }));
+                                    }
+                                });
+                                if (result === false) {
+                                    this.isSubmitting = false;
+                                    return;
+                                }
+                            }
+                            this.isSubmitting = true;
+                            e.target.submit();
+                        }
+                    }"
+                    x-on:switch-manual.window="if ($event.detail.name === 'sekolah_id') { manualSchool = true; manualSchoolName = $event.detail.search; }"
+                >
+                    <!-- Header -->
+                    <div class="flex items-start justify-between pb-4 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base sm:text-lg font-bold text-slate-900">Tambah Presensi Siswa (Langsung)</h3>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Presensi Siswa</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">Catat kehadiran siswa/calon mahasiswa yang hadir langsung di counter CS atau event.</p>
+                            </div>
+                        </div>
+                        <button @click="modalPresensiManual = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <!-- Validation Error Alert -->
+                    @if ($errors->any() && old('form_type') === 'presensi_manual')
+                        <div class="mt-4 bg-rose-50 border border-rose-200 text-rose-800 p-3.5 rounded-xl text-xs space-y-1">
+                            <div class="font-bold flex items-center gap-1.5 text-rose-900">
+                                <svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <span>Gagal Menyimpan Presensi:</span>
+                            </div>
+                            <ul class="list-disc pl-5 space-y-0.5 font-medium">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <!-- Form -->
+                    <form action="{{ route('prospek.presensi-manual') }}" method="POST" @submit.prevent="submitPresensi($event)" class="mt-4 space-y-4">
+                        @csrf
+                        <input type="hidden" name="form_type" value="presensi_manual">
+
+                        <!-- 1. Nama Lengkap Siswa -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Siswa <span class="text-rose-500">*</span></label>
+                            <input 
+                                type="text" 
+                                name="nama" 
+                                value="{{ old('form_type') === 'presensi_manual' ? old('nama') : '' }}" 
+                                required 
+                                placeholder="Contoh: Muhammad Rizki Fauzi"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                            >
+                        </div>
+
+                        <!-- No. Registrasi & Gelombang -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. Registrasi <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                                <input 
+                                    type="text" 
+                                    name="no_registrasi" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('no_registrasi') : '' }}" 
+                                    placeholder="Contoh: PMB-UCIC-895-1789183710" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition font-mono"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Gelombang <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                                <select 
+                                    name="gelombang" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+                                >
+                                    <option value="">-- Pilih Gelombang --</option>
+                                    @foreach($gelombangList ?? [] as $gel)
+                                        <option value="{{ $gel->nama }}" {{ (old('form_type') === 'presensi_manual' && old('gelombang') == $gel->nama) ? 'selected' : '' }}>
+                                            {{ $gel->nama }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 2. Asal Sekolah Selector (Master + Manual Toggle) -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-700">Asal Sekolah <span class="text-rose-500">*</span></label>
+                                <button 
+                                    type="button" 
+                                    @click="manualSchool = !manualSchool" 
+                                    class="text-[11px] text-emerald-600 hover:text-emerald-800 font-semibold cursor-pointer underline decoration-emerald-300"
+                                >
+                                    <span x-show="!manualSchool">+ Sekolah belum ada di list? Ketik manual</span>
+                                    <span x-show="manualSchool">&larr; Pilih dari Master Sekolah</span>
+                                </button>
+                            </div>
+
+                            <!-- Dropdown Master Sekolah -->
+                            <div x-show="!manualSchool">
+                                <x-searchable-select 
+                                    name="sekolah_id" 
+                                    :options="$sekolahs ?? []" 
+                                    placeholder="-- Ketik untuk mencari Sekolah... --" 
+                                    :value="old('form_type') === 'presensi_manual' ? old('sekolah_id') : ''" 
+                                />
+                            </div>
+
+                            <!-- Manual Input Sekolah -->
+                            <div x-show="manualSchool" style="display: none;">
+                                <input 
+                                    type="text" 
+                                    name="sekolah_manual" 
+                                    x-model="manualSchoolName"
+                                    placeholder="Contoh: SMK NEGERI 1 CIREBON" 
+                                    autocomplete="off"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                                <p class="text-[10px] text-slate-400 mt-1">Jika sekolah belum terdaftar di database, masukkan nama lengkap dan detail sesuai nama resminya. Sekolah baru otomatis dibuat di Master Sekolah.</p>
+                            </div>
+                        </div>
+
+                        <!-- 3. Asal Kelas / Jurusan -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Kelas / Jurusan di Sekolah <span class="text-rose-500">*</span></label>
+                            <input 
+                                type="text" 
+                                name="asal_kelas" 
+                                value="{{ old('form_type') === 'presensi_manual' ? old('asal_kelas') : '' }}" 
+                                required 
+                                placeholder="Contoh: 12 RPL 1 / 12 MIPA 2" 
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                            >
+                        </div>
+
+                        <!-- 4. Nomor Kontak (WhatsApp Siswa & Ortu) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp Siswa <span class="text-rose-500">*</span></label>
+                                <input 
+                                    type="tel" 
+                                    name="no_whatsapp" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('no_whatsapp') : '' }}" 
+                                    required 
+                                    placeholder="Contoh: 081234567890" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp Orang Tua <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                                <input 
+                                    type="tel" 
+                                    name="wa_ortu" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('wa_ortu') : '' }}" 
+                                    placeholder="Contoh: 081298765432" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- 5. Pilihan Program Studi -->
+                        @php
+                            $prodisList = isset($prodis) && count($prodis) ? $prodis : \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+                        @endphp
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Pilihan Program Studi <span class="text-rose-500">*</span></label>
+                            <select 
+                                name="prodi_id" 
+                                x-model="selectedProdi" 
+                                required 
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+                            >
+                                <option value="">-- Pilih Program Studi yang Diminati --</option>
+                                @foreach($prodisList as $prodi)
+                                    <option value="{{ $prodi->id }}" {{ (old('form_type') === 'presensi_manual' && old('prodi_id') == $prodi->id) ? 'selected' : '' }}>
+                                        {{ $prodi->jenjang }} {{ $prodi->nama }}
+                                    </option>
+                                @endforeach
+                                <option value="lainnya" {{ (old('form_type') === 'presensi_manual' && old('prodi_id') === 'lainnya') ? 'selected' : '' }}>Lainnya / Belum Memilih</option>
+                            </select>
+
+                            <!-- Input Prodi Lainnya -->
+                            <div x-show="selectedProdi === 'lainnya'" x-transition class="mt-2" style="display: none;">
+                                <input 
+                                    type="text" 
+                                    name="prodi_lainnya" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('prodi_lainnya') : '' }}" 
+                                    :required="selectedProdi === 'lainnya'" 
+                                    placeholder="Sebutkan program studi atau peminatan..." 
+                                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- 6. Pilihan Tipe Kelas -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Tipe Kelas Kampus <span class="text-rose-500">*</span></label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-bold text-center transition bg-slate-50 border-slate-200 text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-300">
+                                    <input type="radio" name="kelas" value="Reguler" required class="mr-2 text-emerald-600 focus:ring-emerald-500" {{ (old('form_type') === 'presensi_manual' ? old('kelas', 'Reguler') : 'Reguler') === 'Reguler' ? 'checked' : '' }}>
+                                    <span>Reguler (Pagi)</span>
+                                </label>
+                                <label class="flex items-center justify-center p-2.5 rounded-xl border cursor-pointer text-xs font-bold text-center transition bg-slate-50 border-slate-200 text-slate-700 hover:bg-emerald-50/50 hover:border-emerald-300">
+                                    <input type="radio" name="kelas" value="Karyawan" required class="mr-2 text-emerald-600 focus:ring-emerald-500" {{ (old('form_type') === 'presensi_manual' && old('kelas') === 'Karyawan') ? 'checked' : '' }}>
+                                    <span>Karyawan (Sore/Malam)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 7. Catatan Khusus Presensi (Opsional) -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Catatan Tambahan <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                            <textarea 
+                                name="notes" 
+                                rows="2" 
+                                placeholder="Contoh: Datang langsung ke kampus bersama orang tua, berminat beasiswa KIP / Prestasi..." 
+                                class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                            >{{ old('form_type') === 'presensi_manual' ? old('notes') : '' }}</textarea>
+                        </div>
+
+                        <!-- Footer Buttons -->
+                        <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+                            <button 
+                                type="button" 
+                                @click="modalPresensiManual = false" 
+                                class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                type="submit" 
+                                :disabled="isSubmitting" 
+                                class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <svg x-show="!isSubmitting" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <svg x-show="isSubmitting" x-cloak class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span x-text="isSubmitting ? 'Menyimpan...' : 'Simpan Presensi Siswa'"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </x-app-layout>
+

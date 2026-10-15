@@ -137,6 +137,30 @@ class UserSeeder extends Seeder
                 'phone'      => '081711223399',
                 'wilayah_id' => $wilayahId,
             ],
+            // 15. admin.meifie@cic.ac.id ( role admin )
+            [
+                'name'       => 'Bu Meifie',
+                'email'      => 'admin.meifie@cic.ac.id',
+                'role'       => 'Admin',
+                'phone'      => '081711223399',
+                'wilayah_id' => null,
+            ],
+            // 16. admin.afif@cic.ac.id ( role admin )
+            [
+                'name'       => 'Pak Afif',
+                'email'      => 'admin.afif@cic.ac.id',
+                'role'       => 'Admin',
+                'phone'      => '081299887711',
+                'wilayah_id' => null,
+            ],
+            // 17. analyst@cic.ac.id ( role data analyst )
+            [
+                'name'       => 'Data Analyst',
+                'email'      => 'analyst@cic.ac.id',
+                'role'       => 'Data Analyst',
+                'phone'      => '081299887766',
+                'wilayah_id' => null,
+            ],
         ];
 
         $createdUsers = [];

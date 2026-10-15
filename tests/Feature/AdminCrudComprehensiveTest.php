@@ -111,6 +111,42 @@ class AdminCrudComprehensiveTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
     }
 
+    /** 1b. Data Analyst User CRUD by Admin */
+    public function test_admin_can_create_and_update_data_analyst_user()
+    {
+        // CREATE Data Analyst
+        $response = $this->actingAs($this->admin)->post(route('admin.users.store'), [
+            'name' => 'Data Analyst User Test',
+            'email' => 'data.analyst.crud@cic.ac.id',
+            'phone' => '081234567899',
+            'role' => 'Data Analyst',
+            'status' => 'Aktif',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', ['email' => 'data.analyst.crud@cic.ac.id', 'role' => 'Data Analyst']);
+
+        $analyst = User::where('email', 'data.analyst.crud@cic.ac.id')->first();
+        $this->assertNotNull($analyst->kode);
+        $this->assertStringContainsString('D', $analyst->kode);
+
+        // UPDATE Data Analyst
+        $updateResponse = $this->actingAs($this->admin)->put(route('admin.users.update', $analyst->id), [
+            'name' => 'Data Analyst Diperbarui',
+            'email' => 'data.analyst.crud@cic.ac.id',
+            'phone' => '081299990000',
+            'role' => 'Data Analyst',
+            'status' => 'Aktif',
+        ]);
+        $updateResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', [
+            'id' => $analyst->id,
+            'name' => 'Data Analyst Diperbarui',
+            'role' => 'Data Analyst',
+        ]);
+    }
+
     /** 2. Sekolah CRUD */
     public function test_admin_can_create_update_toggle_and_delete_sekolah()
     {

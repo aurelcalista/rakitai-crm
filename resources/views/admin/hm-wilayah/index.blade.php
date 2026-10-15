@@ -115,8 +115,13 @@
                             <div class="text-[10px] uppercase font-bold tracking-wider {{ $w->assigned_hm ? 'text-purple-700' : 'text-amber-800' }}">
                                 Head Marketing (HM) Penanggung Jawab
                             </div>
-                            <div class="text-xs font-extrabold text-slate-900 mt-0.5">
-                                {{ $w->assigned_hm ? $w->assigned_hm->name : '⚠️ Belum Ada HM' }}
+                            <div class="text-xs font-extrabold text-slate-900 mt-0.5 flex items-center gap-1.5">
+                                @if($w->assigned_hm)
+                                    <span>{{ $w->assigned_hm->name }}</span>
+                                @else
+                                    <svg class="w-3.5 h-3.5 text-amber-600 inline-block shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span class="text-amber-800">Belum Ada HM</span>
+                                @endif
                             </div>
                             @if($w->assigned_hm)
                                 <div class="text-[10px] text-slate-500">{{ $w->assigned_hm->email }}</div>

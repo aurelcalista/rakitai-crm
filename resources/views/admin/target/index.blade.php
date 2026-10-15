@@ -214,7 +214,7 @@
                             <div class="flex items-end justify-between">
                                 <div>
                                     <div class="text-2xl font-extrabold text-slate-900" x-text="(t.realisasi_lunas || 0) + ' / ' + (t.target_lunas || 0)"></div>
-                                    <div class="text-[11px] mt-0.5" x-text="(t.kekurangan_lunas > 0 ? 'Kurang: ' + t.kekurangan_lunas : 'Tercapai ✓')" :class="t.kekurangan_lunas > 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-semibold'"></div>
+                                    <div class="text-[11px] mt-0.5" x-text="(t.kekurangan_lunas > 0 ? 'Kurang: ' + t.kekurangan_lunas : 'Tercapai')" :class="t.kekurangan_lunas > 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-semibold'"></div>
                                 </div>
                             </div>
                             <div class="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
@@ -230,7 +230,7 @@
                             <div class="flex items-end justify-between">
                                 <div>
                                     <div class="text-2xl font-extrabold text-slate-900" x-text="t.realisasi_kontak + ' / ' + t.target_kontak"></div>
-                                    <div class="text-[11px] mt-0.5" x-text="t.kekurangan_kontak > 0 ? 'Kurang: ' + t.kekurangan_kontak : 'Tercapai ✓'" :class="t.kekurangan_kontak > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
+                                    <div class="text-[11px] mt-0.5" x-text="t.kekurangan_kontak > 0 ? 'Kurang: ' + t.kekurangan_kontak : 'Tercapai'" :class="t.kekurangan_kontak > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
                                 </div>
                                 <div class="text-right">
                                     <div class="text-[11px] text-slate-400">Akumulasi</div>
@@ -253,7 +253,7 @@
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <div class="text-2xl font-extrabold text-slate-900" x-text="t.realisasi_menghubungi + ' / ' + t.target_menghubungi"></div>
-                                        <div class="text-[11px] mt-0.5" x-text="t.kekurangan_menghubungi > 0 ? 'Kurang: ' + t.kekurangan_menghubungi : 'Tercapai ✓'" :class="t.kekurangan_menghubungi > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
+                                        <div class="text-[11px] mt-0.5" x-text="t.kekurangan_menghubungi > 0 ? 'Kurang: ' + t.kekurangan_menghubungi : 'Tercapai'" :class="t.kekurangan_menghubungi > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
                                     </div>
                                     <div class="text-right">
                                         <div class="text-[11px] text-slate-400">Akumulasi</div>
@@ -275,7 +275,7 @@
                             <div class="flex items-end justify-between">
                                 <div>
                                     <div class="text-2xl font-extrabold text-slate-900" x-text="t.realisasi_followup + ' / ' + t.target_followup"></div>
-                                    <div class="text-[11px] mt-0.5" x-text="t.kekurangan_followup > 0 ? 'Kurang: ' + t.kekurangan_followup : 'Tercapai ✓'" :class="t.kekurangan_followup > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
+                                    <div class="text-[11px] mt-0.5" x-text="t.kekurangan_followup > 0 ? 'Kurang: ' + t.kekurangan_followup : 'Tercapai'" :class="t.kekurangan_followup > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-semibold'"></div>
                                 </div>
                                 <div class="text-right">
                                     <div class="text-[11px] text-slate-400">Akumulasi</div>
@@ -304,7 +304,7 @@
                                 </div>
                                 <div class="pt-2 border-t border-slate-200 text-[11px]"
                                     :class="(t.kekurangan_kontak > 0 || t.kekurangan_followup > 0) ? 'text-amber-700' : 'text-emerald-600'">
-                                    <span x-text="(t.kekurangan_kontak > 0 || t.kekurangan_followup > 0) ? '⚠ Termasuk akumulasi kekurangan' : '✓ Target normal, tidak ada carry-over'"></span>
+                                    <span x-text="(t.kekurangan_kontak > 0 || t.kekurangan_followup > 0) ? 'Termasuk akumulasi kekurangan' : 'Target normal, tidak ada carry-over'"></span>
                                 </div>
                             </div>
                         </div>
@@ -338,8 +338,9 @@
 
                         <!-- Warning jika Wilayah belum ada SPV -->
                         <template x-if="addForm.wilayah_id && availableSpvs.length === 0">
-                            <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
-                                ⚠️ Wilayah ini belum memiliki SPV aktif. Silakan tugaskan SPV di menu Wilayah terlebih dahulu.
+                            <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
+                                <svg class="w-4 h-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <span>Wilayah ini belum memiliki SPV aktif. Silakan tugaskan SPV di menu Wilayah terlebih dahulu.</span>
                             </div>
                         </template>
 

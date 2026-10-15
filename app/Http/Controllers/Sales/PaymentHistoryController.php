@@ -25,6 +25,7 @@ class PaymentHistoryController extends Controller
             'prospek.perusahaan',
             'prospek.prodi',
             'prospek.sales',
+            'prospek.transaksis',
             'user',
             'verifier',
             'rejecter'
@@ -75,6 +76,11 @@ class PaymentHistoryController extends Controller
         // Filter: Metode Pembayaran
         if ($request->filled('metode') && $request->metode !== 'all') {
             $query->where('metode_pembayaran', $request->metode);
+        }
+
+        // Filter: Kategori Transaksi (Requirement M)
+        if ($request->filled('kategori') && $request->kategori !== 'all') {
+            $query->where('kategori', $request->kategori);
         }
 
         // Filter: Pencarian Universal (Nama Prospek, PIC, WhatsApp, Catatan, Ref ID)

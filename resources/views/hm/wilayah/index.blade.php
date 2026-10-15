@@ -153,8 +153,9 @@
                                 <span class="text-slate-400 text-xs italic">Belum ada kecamatan turunan yang terdaftar.</span>
                             @endforelse
                         </div>
-                        <p class="text-[10px] text-slate-400 pt-0.5">
-                            ℹ️ HM bertanggung jawab pada level Kota/Kabupaten dan menunjuk SPV penanggung jawab. Pembagian target dan penugasan Sales/CS per kecamatan dilakukan oleh SPV.
+                        <p class="text-[10px] text-slate-400 pt-0.5 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>HM bertanggung jawab pada level Kota/Kabupaten dan menunjuk SPV penanggung jawab. Pembagian target dan penugasan Sales/CS per kecamatan dilakukan oleh SPV.</span>
                         </p>
                     </div>
 
@@ -179,7 +180,10 @@
                         <div class="flex items-center justify-between">
                             <span class="text-[10px] uppercase font-bold text-purple-700 tracking-wider">Target Wilayah (HM &rarr; SPV)</span>
                             @if($targetWil && $targetWil->is_locked)
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🔒 DIKUNCI HM</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                                    <svg class="w-3 h-3 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                    DIKUNCI HM
+                                </span>
                             @endif
                         </div>
 
@@ -229,21 +233,23 @@
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Pilih SPV Penanggung Jawab *</label>
                                 @if($spvCandidates->isEmpty())
-                                    <div class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
-                                        ⚠️ Belum ada user dengan role SPV terdaftar di sistem. Mohon buat user SPV di Master User Admin.
+                                    <div class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        <span>Belum ada user dengan role SPV terdaftar di sistem. Mohon buat user SPV di Master User Admin.</span>
                                     </div>
                                 @else
                                     <select name="spv_id" x-model="spvForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
                                         <option value="">-- Pilih SPV --</option>
                                         @foreach($spvCandidates as $cand)
-                                            <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
+                                             <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
                                         @endforeach
                                     </select>
                                     <template x-if="spvForm.spv_id">
-                                        <div class="mt-1 text-[11px] text-purple-700 font-semibold flex items-center gap-1">
-                                            <span>📧 Email SPV:</span>
-                                            <span class="font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="spvList.find(c => c.id === String(spvForm.spv_id))?.email || '-'"></span>
-                                        </div>
+                                         <div class="mt-1 text-[11px] text-purple-700 font-semibold flex items-center gap-1.5">
+                                             <svg class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                             <span>Email SPV:</span>
+                                             <span class="font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="spvList.find(c => c.id === String(spvForm.spv_id))?.email || '-'"></span>
+                                         </div>
                                     </template>
                                 @endif
                             </div>
@@ -275,21 +281,23 @@
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">SPV Penanggung Jawab *</label>
                                 @if($spvCandidates->isEmpty())
-                                    <div class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
-                                        ⚠️ Belum ada user dengan role SPV terdaftar di sistem. Mohon buat user SPV di Master User Admin.
+                                    <div class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        <span>Belum ada user dengan role SPV terdaftar di sistem. Mohon buat user SPV di Master User Admin.</span>
                                     </div>
                                 @else
                                     <select name="spv_id" x-model="targetForm.spv_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white">
                                         <option value="">-- Pilih SPV --</option>
                                         @foreach($spvCandidates as $cand)
-                                            <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
+                                             <option value="{{ $cand->id }}">{{ $cand->name }} ({{ $cand->email }})</option>
                                         @endforeach
                                     </select>
                                     <template x-if="targetForm.spv_id">
-                                        <div class="mt-1 text-[11px] text-purple-700 font-semibold flex items-center gap-1">
-                                            <span>📧 Email SPV:</span>
-                                            <span class="font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="spvList.find(c => c.id === String(targetForm.spv_id))?.email || '-'"></span>
-                                        </div>
+                                         <div class="mt-1 text-[11px] text-purple-700 font-semibold flex items-center gap-1.5">
+                                             <svg class="w-3.5 h-3.5 text-purple-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                             <span>Email SPV:</span>
+                                             <span class="font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="spvList.find(c => c.id === String(targetForm.spv_id))?.email || '-'"></span>
+                                         </div>
                                     </template>
                                 @endif
                             </div>

@@ -103,8 +103,9 @@
                                 </td>
                                 <td class="py-4 px-5 text-right">
                                     @if($ta->status === 'Aktif')
-                                        <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                                            ✓ Sedang Aktif
+                                        <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            <span>Sedang Aktif</span>
                                         </span>
                                     @else
                                         <form action="{{ route('admin.tahun-akademik.activate', $ta) }}" method="POST" class="inline">

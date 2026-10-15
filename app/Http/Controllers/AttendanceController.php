@@ -9,7 +9,7 @@ class AttendanceController extends Controller
     public function index(\Illuminate\Http\Request $request)
     {
         $user = auth()->user();
-        if (!in_array($user->role, ['SPV', 'HM', 'Admin'])) {
+        if (!in_array($user->role, ['SPV', 'HM'])) {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
 
@@ -169,7 +169,7 @@ class AttendanceController extends Controller
     public function create()
     {
         $user = auth()->user();
-        if (!in_array($user->role, ['Sales', 'CS', 'EO', 'SPV'])) {
+        if (in_array(strtolower($user->role), ['admin', 'hm']) || !in_array(strtolower($user->role), ['sales', 'cs', 'eo', 'spv'])) {
             abort(403, 'Role Anda tidak memiliki fitur input absensi.');
         }
 
@@ -188,7 +188,7 @@ class AttendanceController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        if (!in_array($user->role, ['Sales', 'CS', 'EO', 'SPV'])) {
+        if (in_array(strtolower($user->role), ['admin', 'hm']) || !in_array(strtolower($user->role), ['sales', 'cs', 'eo', 'spv'])) {
             abort(403, 'Role Anda tidak memiliki fitur input absensi.');
         }
 
@@ -249,7 +249,7 @@ class AttendanceController extends Controller
     public function show($id)
     {
         $user = auth()->user();
-        if (!in_array($user->role, ['SPV', 'HM', 'Admin'])) {
+        if (!in_array($user->role, ['SPV', 'HM'])) {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
 

@@ -53,56 +53,137 @@ class TargetAchievementService
     {
         $now = Carbon::now();
         $periode = strtolower(trim($periode));
-        if ($periode === 'hari_ini' || $periode === 'daily')
+        if ($periode === 'hari_ini' || $periode === 'daily' || $periode === 'hari-ini') {
             $periode = self::PERIODE_HARIAN;
+        } elseif ($periode === 'minggu_ini' || $periode === 'weekly' || $periode === 'minggu-ini') {
+            $periode = self::PERIODE_MINGGUAN;
+        } elseif ($periode === 'bulan_ini' || $periode === 'monthly' || $periode === 'bulan-ini') {
+            $periode = self::PERIODE_BULANAN;
+        } elseif ($periode === 'tahun_ini' || $periode === 'yearly' || $periode === 'tahun-ini') {
+            $periode = self::PERIODE_TAHUNAN;
+        }
 
-        switch ($periode) {
-            case self::PERIODE_HARIAN:
-                $start = $now->copy()->startOfDay();
-                $end = $now->copy()->endOfDay();
-                $sisaHari = 1;
-                $totalHari = 1;
-                $label = 'Hari Ini (' . $now->translatedFormat('d M Y') . ')';
-                $isRealtime = false;
-                break;
+        $monthMap = [
+            'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4, 'mei' => 5, 'jun' => 6,
+            'jul' => 7, 'agu' => 8, 'sep' => 9, 'okt' => 10, 'nov' => 11, 'des' => 12
+        ];
 
-            case self::PERIODE_MINGGUAN:
-                $start = $now->copy()->startOfWeek();
-                $end = $now->copy()->endOfWeek();
-                $totalHari = 7;
+        if (array_key_exists($periode, $monthMap)) {
+            $m = $monthMap[$periode];
+            $targetMonth = Carbon::create($now->year, $m, 1);
+            $start = $targetMonth->copy()->startOfMonth();
+            $end = $targetMonth->copy()->endOfMonth();
+            $totalHari = $targetMonth->daysInMonth;
+            if ($now->month == $m) {
                 $sisaHari = max(1, (int) $now->diffInDays($end) + 1);
-                $label = 'Minggu Ini (' . $start->format('d M') . ' - ' . $end->format('d M Y') . ')';
-                $isRealtime = false;
-                break;
+            } elseif ($now->month > $m) {
+                $sisaHari = 0;
+            } else {
+                $sisaHari = $totalHari;
+            }
+            $label = 'Bulan ' . $targetMonth->locale('id')->isoFormat('MMMM YYYY');
+            $isRealtime = false;
+        } elseif ($periode === 'kemarin') {
+            $yest = $now->copy()->subDay();
+            $start = $yest->copy()->startOfDay();
+            $end = $yest->copy()->endOfDay();
+            $sisaHari = 0;
+            $totalHari = 1;
+            $label = 'Kemarin (' . $yest->locale('id')->isoFormat('D MMMM YYYY') . ')';
+            $isRealtime = false;
+        } elseif ($periode === 'minggu-lalu') {
+            $lastWeek = $now->copy()->subWeek();
+            $start = $lastWeek->copy()->startOfWeek();
+            $end = $lastWeek->copy()->endOfWeek();
+            $totalHari = 7;
+            $sisaHari = 0;
+            $label = 'Minggu Lalu (' . $start->format('d M') . ' - ' . $end->format('d M Y') . ')';
+            $isRealtime = false;
+        } elseif ($periode === 'bulan-lalu') {
+            $lastMonth = $now->copy()->subMonth();
+            $start = $lastMonth->copy()->startOfMonth();
+            $end = $lastMonth->copy()->endOfMonth();
+            $totalHari = $lastMonth->daysInMonth;
+            $sisaHari = 0;
+            $label = 'Bulan Lalu (' . $lastMonth->locale('id')->isoFormat('MMMM YYYY') . ')';
+            $isRealtime = false;
+        } elseif ($periode === 'tahun-lalu') {
+            $ly = $now->year - 1;
+            $start = Carbon::create($ly, 1, 1)->startOfDay();
+            $end = Carbon::create($ly, 12, 31)->endOfDay();
+            $totalHari = (int) $start->diffInDays($end) + 1;
+            $sisaHari = 0;
+            $label = 'Tahun ' . $ly . ' (Tahun Lalu)';
+            $isRealtime = false;
+        } elseif (str_starts_with($periode, 'ta-')) {
+            $startYear = $now->year;
+            $endYear = $now->year + 1;
+            if (preg_match('/ta-(\d{4})-(\d{4})/', $periode, $matches)) {
+                $startYear = (int)$matches[1];
+                $endYear = (int)$matches[2];
+            }
+            $start = Carbon::create($startYear, 7, 1)->startOfDay();
+            $end = Carbon::create($endYear, 6, 30)->endOfDay();
+            $totalHari = (int) $start->diffInDays($end) + 1;
+            $sisaHari = max(0, (int) $now->diffInDays($end));
+            $label = 'Tahun Akademik ' . ($tahunAkademik ?: $this->getActiveTa());
+            $isRealtime = false;
+        } elseif ($periode === 'semua') {
+            $start = Carbon::create(2020, 1, 1)->startOfDay();
+            $end = $now->copy()->endOfDay();
+            $totalHari = (int) $start->diffInDays($end) + 1;
+            $sisaHari = 0;
+            $label = 'Semua Periode (Semua Waktu)';
+            $isRealtime = false;
+        } else {
+            switch ($periode) {
+                case self::PERIODE_HARIAN:
+                    $start = $now->copy()->startOfDay();
+                    $end = $now->copy()->endOfDay();
+                    $sisaHari = 1;
+                    $totalHari = 1;
+                    $label = 'Hari Ini (' . $now->locale('id')->isoFormat('D MMMM YYYY') . ')';
+                    $isRealtime = false;
+                    break;
 
-            case self::PERIODE_TAHUNAN:
-                $start = Carbon::create($now->year, 1, 1)->startOfDay();
-                $end = Carbon::create($now->year, 12, 31)->endOfDay();
-                $totalHari = (int) $start->diffInDays($end) + 1;
-                $sisaHari = max(1, (int) $now->diffInDays($end));
-                $label = 'Tahunan (' . ($tahunAkademik ?: $this->getActiveTa()) . ')';
-                $isRealtime = false;
-                break;
+                case self::PERIODE_MINGGUAN:
+                    $start = $now->copy()->startOfWeek();
+                    $end = $now->copy()->endOfWeek();
+                    $totalHari = 7;
+                    $sisaHari = max(1, (int) $now->diffInDays($end) + 1);
+                    $label = 'Minggu Ini (' . $start->format('d M') . ' - ' . $end->format('d M Y') . ')';
+                    $isRealtime = false;
+                    break;
 
-            case self::PERIODE_REALTIME:
-                $start = $now->copy()->startOfDay();
-                $end = $now->copy();
-                $sisaHari = 1;
-                $totalHari = 1;
-                $label = 'Realtime (' . $now->format('d M Y, H:i:s') . ')';
-                $isRealtime = true;
-                break;
+                case self::PERIODE_TAHUNAN:
+                    $start = Carbon::create($now->year, 1, 1)->startOfDay();
+                    $end = Carbon::create($now->year, 12, 31)->endOfDay();
+                    $totalHari = (int) $start->diffInDays($end) + 1;
+                    $sisaHari = max(1, (int) $now->diffInDays($end));
+                    $label = 'Tahun ' . $now->year . ' (Tahun Ini)';
+                    $isRealtime = false;
+                    break;
 
-            case self::PERIODE_BULANAN:
-            default:
-                $periode = self::PERIODE_BULANAN;
-                $start = $now->copy()->startOfMonth();
-                $end = $now->copy()->endOfMonth();
-                $totalHari = $now->daysInMonth;
-                $sisaHari = max(1, (int) $now->diffInDays($end) + 1);
-                $label = 'Bulan Ini (' . $now->translatedFormat('F Y') . ')';
-                $isRealtime = false;
-                break;
+                case self::PERIODE_REALTIME:
+                    $start = $now->copy()->startOfDay();
+                    $end = $now->copy();
+                    $sisaHari = 1;
+                    $totalHari = 1;
+                    $label = 'Realtime (' . $now->format('d M Y, H:i:s') . ')';
+                    $isRealtime = true;
+                    break;
+
+                case self::PERIODE_BULANAN:
+                default:
+                    $periode = self::PERIODE_BULANAN;
+                    $start = $now->copy()->startOfMonth();
+                    $end = $now->copy()->endOfMonth();
+                    $totalHari = $now->daysInMonth;
+                    $sisaHari = max(1, (int) $now->diffInDays($end) + 1);
+                    $label = 'Bulan Ini (' . $now->locale('id')->isoFormat('MMMM YYYY') . ')';
+                    $isRealtime = false;
+                    break;
+            }
         }
 
         return [
@@ -269,18 +350,21 @@ class TargetAchievementService
         $tFollowup = $this->prorateTarget($target ? $target->target_followup : 0, $period, $target?->tipe_periode);
         $tKunjungan = $this->prorateTarget($target ? $target->target_kunjungan : 0, $period, $target?->tipe_periode);
 
+        $isCs = strtolower($sales->role) === 'cs';
+        $userField = $isCs ? 'cs_id' : 'sales_id';
+
         // Realisasi Aktual
-        $pLunas = Prospek::where('sales_id', $sales->id)
+        $pLunas = Prospek::where($userField, $sales->id)
             ->where('status', 'LUNAS')
             ->whereBetween('updated_at', [$start, $end])
             ->count();
 
-        $pFormulir = Prospek::where('sales_id', $sales->id)
+        $pFormulir = Prospek::where($userField, $sales->id)
             ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
             ->whereBetween('updated_at', [$start, $end])
             ->count();
 
-        $pKontak = Prospek::where('sales_id', $sales->id)
+        $pKontak = Prospek::where($userField, $sales->id)
             ->whereBetween('created_at', [$start, $end])
             ->count();
 
@@ -296,17 +380,17 @@ class TargetAchievementService
         $activeTa = TahunAkademik::getAktif();
         $taId = $activeTa?->id;
 
-        $akLunas = Prospek::where('sales_id', $sales->id)
+        $akLunas = Prospek::where($userField, $sales->id)
             ->where('status', 'LUNAS')
             ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
             ->count();
 
-        $akFormulir = Prospek::where('sales_id', $sales->id)
+        $akFormulir = Prospek::where($userField, $sales->id)
             ->whereIn('status', ['FORMULIR', 'BERKAS', 'LUNAS'])
             ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
             ->count();
 
-        $akKontak = Prospek::where('sales_id', $sales->id)
+        $akKontak = Prospek::where($userField, $sales->id)
             ->when($taId, fn($q) => $q->where('academic_year_id', $taId))
             ->count();
 
@@ -806,7 +890,7 @@ class TargetAchievementService
      * Hitung proration target sesuai periode (Harian = Base/25, Mingguan = Base/4, Tahunan = Base*12, dsb).
      * Mampu menangani target harian, mingguan, bulanan, maupun tahunan secara dinamis.
      */
-    private function prorateTarget(int $baseValue, array $period, ?string $targetTipePeriode = 'Bulanan'): int
+    public function prorateTarget(int $baseValue, array $period, ?string $targetTipePeriode = 'Bulanan'): int
     {
         if ($baseValue <= 0)
             return 0;
@@ -823,12 +907,17 @@ class TargetAchievementService
         };
 
         // Convert monthlyBase to requested viewPeriod
-        return match ($viewPeriod) {
-            self::PERIODE_HARIAN, self::PERIODE_REALTIME => max(1, (int) round($monthlyBase / 25)),
-            self::PERIODE_MINGGUAN => max(1, (int) round($monthlyBase / 4)),
-            self::PERIODE_TAHUNAN => (int) ($monthlyBase * 12),
-            default => $monthlyBase,  // 'bulanan'
-        };
+        if (in_array($viewPeriod, [self::PERIODE_HARIAN, self::PERIODE_REALTIME, 'hari-ini', 'kemarin'])) {
+            return max(1, (int) round($monthlyBase / 25));
+        }
+        if (in_array($viewPeriod, [self::PERIODE_MINGGUAN, 'minggu-ini', 'minggu-lalu'])) {
+            return max(1, (int) round($monthlyBase / 4));
+        }
+        if (in_array($viewPeriod, [self::PERIODE_TAHUNAN, 'tahun-ini', 'tahun-lalu', 'semua']) || str_starts_with($viewPeriod, 'ta-')) {
+            return (int) ($monthlyBase * 12);
+        }
+
+        return $monthlyBase; // monthly / single months (jan, feb, sep, etc.)
     }
 
     /**

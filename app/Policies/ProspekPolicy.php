@@ -8,63 +8,13 @@ use App\Models\User;
 class ProspekPolicy
 {
     /**
-     * Helper: check if HM has authority over the prospect's Wilayah.
-     */
-    private function isHmAuthorized(User $user, Prospek $prospek): bool
-    {
-        if (is_null($user->wilayah_id)) {
-            return true; // HM without specific wilayah restriction has global view
-        }
-
-        if ($prospek->wilayah_id && $prospek->wilayah_id === $user->wilayah_id) {
-            return true;
-        }
-
-        $hmMemberIds = $user->hmMemberIds();
-        return in_array($prospek->sales_id, $hmMemberIds)
-            || in_array($prospek->owner_id, $hmMemberIds);
-    }
-
-    /**
-     * Helper: check if SPV has authority over the prospect (via team membership).
-     */
-    private function isSpvAuthorized(User $user, Prospek $prospek): bool
-    {
-        $teamIds = $user->teamMemberIds();
-
-        return ($prospek->sales_id && in_array($prospek->sales_id, $teamIds))
-            || ($prospek->owner_id && in_array($prospek->owner_id, $teamIds))
-            || ($prospek->cs_id && in_array($prospek->cs_id, $teamIds));
-    }
-
-    /**
      * View a prospect.
-     * Admin: global
-     * HM: scoped to HM's Wilayah
-     * SPV: scoped to team members under SPV
-     * Sales: only handled, owned, or cs-assigned prospects
-     * CS: only assigned prospects or unassigned FORMULIR handover prospects in same Wilayah
+     * Semua pengguna internal yang login berwenang melihat detail prospek atau kontak user lain
+     * tanpa pembatasan akses (tidak ada 403 Forbidden).
      */
     public function view(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        return match ($role) {
-            'sales' => $prospek->sales_id === $user->id
-                    || $prospek->owner_id === $user->id
-                    || $prospek->cs_id === $user->id,
-
-            'cs'    => $prospek->cs_id === $user->id
-                    || (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id)),
-
-            'spv'   => $this->isSpvAuthorized($user, $prospek),
-
-            'hm'    => $this->isHmAuthorized($user, $prospek),
-
-            'admin' => true,
-
-            default => false,
-        };
+        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm', 'eo', 'data analyst']);
     }
 
     /**
@@ -72,148 +22,81 @@ class ProspekPolicy
      */
     public function create(User $user): bool
     {
-        return in_array(strtolower($user->role), ['sales', 'cs', 'spv', 'hm', 'admin']);
+        return in_array(strtolower($user->role), ['sales', 'cs', 'spv', 'hm', 'admin', 'eo']);
     }
 
     /**
      * Update prospect data fields.
+     * Pengguna dapat mengedit data prospek tanpa pembatasan akses.
      */
     public function update(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') {
-            return true;
-        }
-
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        return $prospek->isActiveHandler($user) || $prospek->owner_id === $user->id;
+        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm', 'eo']);
     }
 
     /**
      * Perform a follow-up on a prospect.
+     * Pengguna dapat mencatat follow-up pada prospek milik user lain tanpa pembatasan akses.
      */
     public function followUp(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') {
-            return true;
-        }
-
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || (is_null($prospek->cs_id) && in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id));
-        }
-
-        if ($role === 'sales') {
-            return $prospek->sales_id === $user->id || $prospek->owner_id === $user->id;
-        }
-
-        return false;
+        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm', 'eo']);
     }
 
     /**
      * Update pipeline status.
+     * Pengguna dapat memperbarui status pipeline prospek tanpa pembatasan akses.
      */
     public function updateStatus(User $user, Prospek $prospek): bool
     {
-        return $this->followUp($user, $prospek);
+        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm', 'eo']);
     }
 
     /**
      * Takeover / Assignment.
+     * Prospek yang belum diambil alih dapat di-takeover oleh Sales, CS, SPV, HM, atau Admin.
      */
     public function takeover(User $user, Prospek $prospek): bool
     {
+        // Prospek yang sudah diambil alih tidak dapat di-takeover ulang
+        if ($prospek->status_takeover === 'Sudah Di-takeover' || !is_null($prospek->takeover_by_id)) {
+            return false;
+        }
+
         $role = strtolower($user->role);
 
-        if ($role === 'admin') {
+        if (in_array($role, ['admin', 'sales', 'spv', 'hm'])) {
             return true;
         }
 
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        if ($role === 'sales') {
-            return $prospek->isActiveHandler($user) && is_null($prospek->cs_id);
-        }
-        
         if ($role === 'cs') {
-            return in_array($prospek->status, ['FORMULIR', 'BERKAS', 'LUNAS']) && (!$user->wilayah_id || !$prospek->wilayah_id || $prospek->wilayah_id === $user->wilayah_id);
+            // CS wilayah scope untuk presensi siswa jika wilayah sudah ditentukan
+            if (($prospek->source === Prospek::SOURCE_PRESENSI_SISWA || $prospek->source === 'Presensi Siswa')
+                && $user->wilayah_id && $prospek->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
+                return false;
+            }
+            return true;
         }
 
         return false;
     }
 
     /**
-     * Input manual transaction (Beli Formulir & Pembayaran Termin 1) / Closing.
+     * Input manual transaction (Beli Formulir & Pembayaran Termin 1 / Closing).
+     * Semua pengguna internal yang login berwenang menginput transaksi pada prospek atau kontak user lain
+     * tanpa pembatasan akses (bebas input transaksi).
      */
     public function transaction(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') {
-            return true;
-        }
-
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        return $prospek->sales_id === $user->id 
-            || $prospek->owner_id === $user->id 
-            || $prospek->cs_id === $user->id
-            || $prospek->isActiveHandler($user);
+        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm', 'eo']);
     }
 
     /**
-     * Re-allocate prospect between sales in the team.
+     * Re-allocate prospect between team members.
      */
     public function reallocate(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') {
-            return true;
-        }
-
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        if ($role === 'cs') {
-            return $prospek->cs_id === $user->id || is_null($prospek->sales_id);
-        }
-
-        return false;
+        return in_array(strtolower($user->role), ['admin', 'spv', 'hm', 'cs', 'sales']);
     }
 
     /**
@@ -221,21 +104,7 @@ class ProspekPolicy
      */
     public function markLost(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') {
-            return true;
-        }
-
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        return $prospek->isActiveHandler($user);
+        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm']);
     }
 
     /**
@@ -243,20 +112,6 @@ class ProspekPolicy
      */
     public function delete(User $user, Prospek $prospek): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') {
-            return true;
-        }
-
-        if ($role === 'hm') {
-            return $this->isHmAuthorized($user, $prospek);
-        }
-
-        if ($role === 'spv') {
-            return $this->isSpvAuthorized($user, $prospek);
-        }
-
-        return false;
+        return in_array(strtolower($user->role), ['admin', 'spv', 'hm']);
     }
 }

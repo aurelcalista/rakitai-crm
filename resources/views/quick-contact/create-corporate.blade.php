@@ -53,14 +53,36 @@
                     </div>
 
                     <!-- Corporate Selector -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Perusahaan / PT <span class="text-rose-500">*</span></label>
-                        <x-searchable-select 
-                            name="perusahaan_id" 
-                            :options="$perusahaans" 
-                            placeholder="-- Ketik untuk mencari Perusahaan... --" 
-                            :value="old('perusahaan_id')" 
-                        />
+                    <div x-data="{ manualCorp: {{ old('perusahaan_manual') ? 'true' : 'false' }}, manualCorpName: '{{ addslashes(old('perusahaan_manual', '')) }}' }"
+                         x-on:switch-manual.window="if ($event.detail.name === 'perusahaan_id') { manualCorp = true; manualCorpName = $event.detail.search; }"
+                         class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm font-bold text-slate-700">Nama Perusahaan / PT <span class="text-rose-500">*</span></label>
+                            <button type="button"
+                                    @click="manualCorp = !manualCorp"
+                                    class="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer">
+                                <span x-show="!manualCorp">+ Perusahaan belum terdaftar? Ketik Manual</span>
+                                <span x-show="manualCorp">&larr; Pilih dari Master Perusahaan</span>
+                            </button>
+                        </div>
+
+                        <div x-show="!manualCorp">
+                            <x-searchable-select 
+                                name="perusahaan_id" 
+                                :options="$perusahaans" 
+                                placeholder="-- Ketik untuk mencari Perusahaan... --" 
+                                :value="old('perusahaan_id')" 
+                            />
+                        </div>
+
+                        <div x-show="manualCorp" style="display: none;">
+                            <input type="text"
+                                   name="perusahaan_manual"
+                                   x-model="manualCorpName"
+                                   placeholder="Contoh: PT MAJU SUKSES MANDIRI"
+                                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                            <p class="text-[11px] text-slate-400 mt-1">Jika perusahaan belum terdaftar, ketik nama lengkap resmi instansi/perusahaan.</p>
+                        </div>
                     </div>
 
 

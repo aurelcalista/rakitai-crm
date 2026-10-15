@@ -24,11 +24,12 @@ class PerformanceController extends Controller
     {
         $user = auth()->user();
 
-        // Ambil list sales dalam tim
-        // Dalam konteks Sales, mungkin hanya bisa melihat dirinya sendiri atau timnya.
-        // Asumsi: Semua sales ditampilkan untuk leaderboard, atau hanya data pribadi + agregat tim.
-        // Kita tampilkan semua sales untuk leaderboard seperti di mockup.
-        
+        $selectedPeriode = $request->get('periode', 'bulan-ini');
+        $periodInfo = $this->targetAchievementService->resolvePeriod($selectedPeriode, $request->get('ta'));
+        $start = $periodInfo['start'];
+        $end = $periodInfo['end'];
+        $isSemua = $selectedPeriode === 'semua';
+
         $salesUsers = \App\Models\User::where('role', 'Sales')->get();
         $team = [];
 
@@ -36,57 +37,73 @@ class PerformanceController extends Controller
         $totalRealisasi = 0;
 
         foreach ($salesUsers as $s) {
-            $stats = $this->targetService->getStats($s);
             $activeTarget = $this->targetService->getActiveTarget($s);
-            // Use target_lunas as the closing target metric (target_closing does not exist in DB)
-            $targetLunas = $activeTarget ? (int)$activeTarget->target_lunas : 0;
-            if ($targetLunas <= 0 && $activeTarget) {
-                $targetLunas = (int)$activeTarget->target_kontak;
+            $rawTarget = $activeTarget ? (int)$activeTarget->target_lunas : 0;
+            if ($rawTarget <= 0 && $activeTarget) {
+                $rawTarget = (int)$activeTarget->target_kontak;
+            }
+            $targetLunas = $this->targetAchievementService->prorateTarget($rawTarget, $periodInfo, $activeTarget?->tipe_periode);
+
+            $prospekQuery = Prospek::where('sales_id', $s->id);
+            if (!$isSemua) {
+                $totalProspek = (clone $prospekQuery)->whereBetween('created_at', [$start, $end])->count();
+                $closing = (clone $prospekQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$start, $end])->count();
+                $lost = (clone $prospekQuery)->where('status', 'DINGIN')->whereBetween('updated_at', [$start, $end])->count();
+                $followUp = \App\Models\FollowUp::where('user_id', $s->id)->whereBetween('tanggal', [$start, $end])->count();
+            } else {
+                $totalProspek = (clone $prospekQuery)->count();
+                $closing = (clone $prospekQuery)->where('status', 'LUNAS')->count();
+                $lost = (clone $prospekQuery)->where('status', 'DINGIN')->count();
+                $followUp = \App\Models\FollowUp::where('user_id', $s->id)->count();
             }
 
-            $achievement = $targetLunas > 0 ? min(100, round(($stats['realisasi_closing'] / $targetLunas) * 100)) : 0;
+            $achievement = $targetLunas > 0 ? min(100, round(($closing / $targetLunas) * 100)) : ($closing > 0 ? 100 : 0);
 
             $team[] = [
                 'name'        => $s->name,
                 'role'        => $s->role,
                 'target'      => $targetLunas,
-                'prospects'   => $stats['total_prospek'],
-                'follow_up'   => $stats['follow_up'],
-                'closing'     => $stats['realisasi_closing'],
-                'lost'        => $stats['lost'],
+                'prospects'   => $totalProspek,
+                'follow_up'   => $followUp,
+                'closing'     => $closing,
+                'lost'        => $lost,
                 'achievement' => $achievement,
                 'avatar'      => strtoupper(substr($s->name, 0, 2)),
-                'status'      => ($targetLunas > 0 && $stats['realisasi_closing'] >= $targetLunas) ? 'Target Achieved' : 'On Progress'
+                'status'      => ($targetLunas > 0 && $closing >= $targetLunas) ? 'Target Achieved' : ($achievement >= 40 ? 'On Track' : 'Progres Berjalan')
             ];
 
             $totalTarget    += $targetLunas;
-            $totalRealisasi += $stats['realisasi_closing'];
+            $totalRealisasi += $closing;
         }
 
-
+        $breakdownQuery = \App\Models\Prospek::where('status', 'LUNAS');
+        if (!$isSemua) {
+            $breakdownQuery->whereBetween('updated_at', [$start, $end]);
+        }
         $breakdown = [
-            'Sekolah' => \App\Models\Prospek::where('type', 'Sekolah')->where('status', 'LUNAS')->count(),
-            'Corporate' => \App\Models\Prospek::where('type', 'Corporate')->where('status', 'LUNAS')->count(),
-            'Individu' => \App\Models\Prospek::where('type', 'Individu')->where('status', 'LUNAS')->count(),
+            'Sekolah'   => (clone $breakdownQuery)->where('type', 'Sekolah')->count(),
+            'Corporate' => (clone $breakdownQuery)->where('type', 'Corporate')->count(),
+            'Individu'  => (clone $breakdownQuery)->where('type', 'Individu')->count(),
         ];
 
         $summary = [
-            'target'      => $totalTarget,
-            'realisasi'   => $totalRealisasi,
-            'achievement' => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100) : 0,
-            'sisa_target' => max(0, $totalTarget - $totalRealisasi),
-            'breakdown'   => $breakdown,
-            'periode_label' => \Carbon\Carbon::now()->locale('id')->isoFormat('MMMM YYYY'),
+            'target'        => $totalTarget,
+            'realisasi'     => $totalRealisasi,
+            'achievement'   => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100) : ($totalRealisasi > 0 ? 100 : 0),
+            'sisa_target'   => max(0, $totalTarget - $totalRealisasi),
+            'breakdown'     => $breakdown,
+            'periode_label' => $periodInfo['label'],
         ];
 
         // Data Dashboard Target & Pencapaian Berjenjang (PRD Bab 6.2)
         $targetAchievementData = $this->targetAchievementService->getDashboardTargetData(
             $user,
-            $request->get('periode', 'bulanan'),
+            $selectedPeriode,
             null,
             $request->get('ta')
         );
+        $ta = $this->targetAchievementService->getActiveTa();
 
-        return view('performa.index', compact('team', 'summary', 'targetAchievementData'));
+        return view('performa.index', compact('team', 'summary', 'targetAchievementData', 'selectedPeriode', 'ta'));
     }
 }

@@ -11,7 +11,7 @@
             $schoolOptions[] = [
                 'value' => 'prospek_' . $p->id,
                 'label' => $p->name,
-                'sub' => '📋 Prospek • Status: ' . $p->status . ($p->pic ? ' • PIC: ' . $p->pic : ''),
+                'sub' => 'Prospek • Status: ' . $p->status . ($p->pic ? ' • PIC: ' . $p->pic : ''),
             ];
         }
     }
@@ -31,7 +31,7 @@
             $perusahaanOptions[] = [
                 'value' => (string)$p->id,
                 'label' => $p->nama,
-                'sub' => '🏢 Database Perusahaan' . ($p->kota ? ' • ' . $p->kota : ($p->alamat ? ' • ' . $p->alamat : '')),
+                'sub' => 'Database Perusahaan' . ($p->kota ? ' • ' . $p->kota : ($p->alamat ? ' • ' . $p->alamat : '')),
             ];
         }
     }
@@ -43,7 +43,7 @@
         {{-- ─── Page Header ─────────────────────────────────────────────────── --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div class="flex items-center gap-3">
-                <a href="{{ route('sales.kunjungan.index') }}" class="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition">
+                <a href="{{ auth()->user()->role === 'Sales' && Route::has('sales.kunjungan.index') ? route('sales.kunjungan.index') : route('kunjungan.index') }}" class="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 </a>
                 <div>
@@ -78,7 +78,7 @@
 
         {{-- ─── MAIN FORM ───────────────────────────────────────────────────── --}}
         <form
-            action="{{ route('sales.kunjungan.store') }}"
+            action="{{ auth()->user()->role === 'Sales' && Route::has('sales.kunjungan.store') ? route('sales.kunjungan.store') : (Route::has('kunjungan.store') ? route('kunjungan.store') : route('sales.kunjungan.store')) }}"
             method="POST"
             enctype="multipart/form-data"
             x-data="{
@@ -316,7 +316,7 @@
                                                 name="sekolah_manual" 
                                                 x-model="sekolah_manual" 
                                                 @input="nama_institusi = $event.target.value"
-                                                placeholder="Ketik nama sekolah manual (misal: SMAN 1 Cirebon)..." 
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
                                                 class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
                                             >
                                         </div>
@@ -627,18 +627,38 @@
                         </h3>
 
                         <div
-                            @click="$refs.fotoInput.click()"
-                            class="relative w-full h-48 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition group"
+                            class="relative w-full rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden transition group"
+                            :class="fotoPreview ? 'border-blue-400 bg-white p-2' : 'h-52 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30'"
+                            @click="!fotoPreview && $refs.fotoInput.click()"
                         >
                             <template x-if="!fotoPreview">
-                                <div class="flex flex-col items-center justify-center h-full gap-2 text-slate-400 group-hover:text-blue-500 transition">
-                                    <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                    <p class="text-xs font-semibold">Klik untuk upload foto</p>
-                                    <p class="text-[11px]">JPG, PNG, WEBP — Max 5MB</p>
+                                <div class="flex flex-col items-center justify-center h-full gap-2 text-slate-400 group-hover:text-blue-500 transition py-8">
+                                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    </div>
+                                    <p class="text-xs font-bold text-slate-700">Pilih / Ambil Foto Dokumentasi</p>
+                                    <p class="text-[11px] text-slate-400">JPG, PNG, WEBP — Maks. 5MB</p>
                                 </div>
                             </template>
                             <template x-if="fotoPreview">
-                                <img :src="fotoPreview" class="w-full h-full object-cover">
+                                <div class="relative w-full rounded-xl overflow-hidden">
+                                    <img :src="fotoPreview" class="w-full h-56 object-cover rounded-xl border border-slate-200">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3">
+                                        <span class="text-white text-xs font-semibold drop-shadow-sm flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            Foto Terpilih
+                                        </span>
+                                        <div class="flex items-center gap-2">
+                                            <button type="button" @click.stop="$refs.fotoInput.click()" class="px-2.5 py-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-700 text-xs font-bold shadow-xs transition flex items-center gap-1 cursor-pointer">
+                                                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                                Ganti
+                                            </button>
+                                            <button type="button" @click.stop="fotoPreview = null; $refs.fotoInput.value = ''" class="p-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white shadow-xs transition cursor-pointer" title="Hapus Foto">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </template>
                         </div>
 
@@ -683,7 +703,7 @@
                             <span x-text="{
                                 idle: 'Tangkap Lokasi GPS',
                                 loading: 'Mendeteksi lokasi...',
-                                ok: '✓ Lokasi Berhasil Ditangkap',
+                                ok: 'Lokasi Berhasil Ditangkap',
                                 error: 'Gagal — Coba Lagi'
                             }[geoStatus]"></span>
                         </button>

@@ -45,7 +45,10 @@ class AppServiceProvider extends ServiceProvider
                 if ($role !== 'eo') {
                     // Scope prospek count by role
                     if ($role === 'sales') {
-                        $prospekCount = \App\Models\Prospek::where('sales_id', $user->id)->count();
+                        $prospekCount = \App\Models\Prospek::where(function($q) use ($user) {
+                            $q->where('sales_id', $user->id)
+                              ->orWhere('owner_id', $user->id);
+                        })->count();
                     } elseif ($role === 'cs') {
                         $prospekCount = \App\Models\Prospek::where('cs_id', $user->id)->count();
                     } elseif ($role === 'spv') {
@@ -74,7 +77,13 @@ class AppServiceProvider extends ServiceProvider
 
                     // Scope follow-up by role
                     if ($role === 'sales') {
-                        $followUpQuery->where('user_id', $user->id);
+                        $followUpQuery->where(function($q) use ($user) {
+                            $q->where('user_id', $user->id)
+                              ->orWhereHas('prospek', function($pq) use ($user) {
+                                  $pq->where('sales_id', $user->id)
+                                     ->orWhere('owner_id', $user->id);
+                              });
+                        });
                     } elseif ($role === 'cs') {
                         $followUpQuery->whereHas('prospek', function($q) use ($user) {
                             $q->where('cs_id', $user->id);

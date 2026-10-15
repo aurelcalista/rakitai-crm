@@ -33,8 +33,13 @@ class VisitController extends Controller
             ->orderBy('tanggal', 'desc');
 
         // Optional filter by type
-        if ($request->filled('jenis') && in_array($request->jenis, ['Sekolah', 'Perusahaan'])) {
-            $query->where('jenis', $request->jenis);
+        if ($request->filled('jenis')) {
+            $jenis = ucfirst(strtolower($request->jenis));
+            if (in_array($jenis, ['Corporate', 'Perusahaan'])) {
+                $query->whereIn('jenis', ['Perusahaan', 'Corporate']);
+            } elseif ($jenis === 'Sekolah') {
+                $query->where('jenis', 'Sekolah');
+            }
         }
 
         $visits = $query->get()->map(fn ($k) => $this->formatKunjungan($k))->toArray();
@@ -387,7 +392,6 @@ class VisitController extends Controller
                 'whatsapp'     => $validated['pic_whatsapp'] ?? '-',
                 'status'       => 'BARU',
                 'stage_number' => 1,
-                'potential'    => $validated['jenis'] === 'Sekolah' ? $request->input('potensi_mahasiswa') : ($request->input('potensi_s1') . ' ' . $request->input('potensi_csr')),
                 'notes'        => 'Kunjungan ' . $nomor,
                 'source'       => 'Kunjungan Langsung',
                 'sales_id'     => $user->id,
@@ -406,7 +410,11 @@ class VisitController extends Controller
             ]);
         }
 
-        return redirect()->route('sales.kunjungan.index')
+        $redirectRoute = auth()->user()->role === 'Sales' && \Illuminate\Support\Facades\Route::has('sales.kunjungan.index')
+            ? 'sales.kunjungan.index'
+            : 'kunjungan.index';
+
+        return redirect()->route($redirectRoute)
             ->with('success', 'Kunjungan berhasil disimpan!');
     }
 

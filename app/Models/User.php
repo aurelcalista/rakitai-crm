@@ -36,6 +36,8 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $appends = ['avatar_url', 'initials'];
+
     public function getJabatanAttribute($value): string
     {
         return $value ?: ($this->role ?? 'Staff');
@@ -76,13 +78,14 @@ class User extends Authenticatable
         $prefixYM = $ym ?: date('ym');
 
         $roleLetter = match (strtolower($role)) {
-            'cs'    => 'C',
-            'sales' => 'S',
-            'spv'   => 'V',
-            'hm'    => 'H',
-            'admin' => 'A',
-            'eo'    => 'E',
-            default => strtoupper(substr($role, 0, 1)),
+            'cs'           => 'C',
+            'sales'        => 'S',
+            'spv'          => 'V',
+            'hm'           => 'H',
+            'admin'        => 'A',
+            'eo'           => 'E',
+            'data analyst' => 'D',
+            default        => strtoupper(substr($role, 0, 1)),
         };
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($prefixYM, $roleLetter, $role) {
@@ -108,11 +111,28 @@ class User extends Authenticatable
     }
 
     /**
-     * Get avatar public URL if set.
+     * Get avatar public URL if set and valid.
      */
     public function getAvatarUrlAttribute(): ?string
     {
-        return $this->avatar ? asset('storage/' . $this->avatar) : null;
+        if (empty($this->avatar)) {
+            return null;
+        }
+
+        // If avatar string is just initials or invalid short string
+        if (strlen($this->avatar) <= 4 && !str_contains($this->avatar, '.')) {
+            return null;
+        }
+
+        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://')) {
+            return $this->avatar;
+        }
+
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($this->avatar)) {
+            return asset('storage/' . $this->avatar);
+        }
+
+        return null;
     }
 
     /**
@@ -121,7 +141,13 @@ class User extends Authenticatable
     public function getInitialsAttribute(): string
     {
         $words = array_values(array_filter(explode(' ', trim($this->name))));
-        return strtoupper(substr($words[0] ?? 'A', 0, 1) . (isset($words[1]) ? substr($words[1], 0, 1) : ''));
+        if (empty($words)) {
+            return 'U';
+        }
+        if (count($words) === 1) {
+            return strtoupper(substr($words[0], 0, 2));
+        }
+        return strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
     }
 
     /**
@@ -371,8 +397,8 @@ class User extends Authenticatable
      */
     public function isWithinWilayahScope(Wilayah|int|null $mainWilayah): bool
     {
-        if (strtolower($this->role) === 'admin') {
-            return true; // Admin HAS GLOBAL ACCESS
+        if (in_array(strtolower($this->role), ['admin', 'data analyst'])) {
+            return true; // Admin and Data Analyst HAVE GLOBAL ACCESS
         }
 
         if (!$mainWilayah) {

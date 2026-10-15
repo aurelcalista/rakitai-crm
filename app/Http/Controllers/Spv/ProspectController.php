@@ -31,11 +31,43 @@ class ProspectController extends Controller
         $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'latestFollowUp'])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
-              ->orWhereIn('cs_id', $teamMemberIds);
+              ->orWhereIn('cs_id', $teamMemberIds)
+              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
             if ($user->wilayah_id) {
                 $q->orWhere('wilayah_id', $user->wilayah_id);
             }
         });
+
+        // Filter tab scope: all, own, others, presensi
+        if ($request->filled('scope')) {
+            if ($request->scope === 'own') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('sales_id', $user->id)
+                      ->orWhere('owner_id', $user->id)
+                      ->orWhere('takeover_by_id', $user->id);
+                });
+            } elseif ($request->scope === 'others') {
+                $query->where(function ($q) use ($user) {
+                    $q->where(function ($sub) use ($user) {
+                        $sub->whereNull('sales_id')->orWhere('sales_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('owner_id')->orWhere('owner_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) use ($user) {
+                        $sub->whereNull('takeover_by_id')->orWhere('takeover_by_id', '!=', $user->id);
+                    })
+                    ->where(function ($sub) {
+                        $sub->whereNotNull('sales_id')
+                           ->orWhereNotNull('takeover_by_id')
+                           ->orWhereHas('sales')
+                           ->orWhereHas('owner');
+                    });
+                });
+            } elseif ($request->scope === 'presensi') {
+                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+            }
+        }
 
         // Filter by Sales handler
         if ($request->filled('sales_id') && $request->sales_id !== 'all') {
@@ -151,10 +183,13 @@ class ProspectController extends Controller
         // 10 Opsi Baku Dropdown Sumber Informasi (PRD Bab 8.1.1)
         $sources = Prospek::SOURCES;
 
+        $gelombangList = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('id')->get();
+
         return view('spv.prospek.create', compact(
             'sekolahs',
             'perusahaans',
             'prodis',
+            'gelombangList',
             'wilayahs',
             'wilayahsData',
             'statuses',
@@ -173,6 +208,8 @@ class ProspectController extends Controller
         $validated = $request->validate([
             'tanggal_masuk' => 'nullable|date',
             'name'          => 'nullable|string|max:255',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang'     => 'nullable|string|max:100',
             'type'          => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
@@ -205,13 +242,26 @@ class ProspectController extends Controller
             if (!empty($request->sekolah_manual)) {
                 $manualName = trim($request->sekolah_manual);
                 if ($manualName !== '') {
-                    $sekolah = Sekolah::firstOrCreate(
-                        ['nama' => $manualName],
-                        [
-                            'kode' => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
-                            'status' => 'Aktif'
-                        ]
-                    );
+                    $sekolah = Sekolah::where('nama', $manualName)->first();
+                    if (!$sekolah) {
+                        $kecVal = $request->input('sekolah_kecamatan');
+                        $kecName = $kecVal;
+                        if (is_numeric($kecVal)) {
+                            $wKec = Wilayah::find($kecVal);
+                            $kecName = $wKec?->nama;
+                        }
+
+                        $sekolah = Sekolah::create([
+                            'kode'        => 'SCH-' . strtoupper(\Illuminate\Support\Str::random(6)),
+                            'nama'        => $manualName,
+                            'kategori_id' => $request->input('sekolah_kategori_id') ?: null,
+                            'wilayah_id'  => $request->input('sekolah_wilayah_id') ?: null,
+                            'kecamatan'   => $kecName ?: '-',
+                            'telepon'     => $request->input('sekolah_telepon') ?: null,
+                            'status'      => 'Aktif',
+                            'sales_id'    => $salesId ?? null,
+                        ]);
+                    }
                     $validated['sekolah_id'] = $sekolah->id;
                     $name = $sekolah->nama;
                 }
@@ -336,6 +386,8 @@ class ProspectController extends Controller
 
             $prospek = Prospek::create([
                 'name'               => $name,
+                'no_registrasi'      => $validated['no_registrasi'] ?? null,
+                'gelombang'          => $validated['gelombang'] ?? null,
                 'type'               => $validated['type'],
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,
@@ -384,7 +436,7 @@ class ProspectController extends Controller
     {
         Gate::authorize('view', $prospek);
 
-        $prospek->load(['sales', 'cs', 'owner', 'prodi', 'sekolah', 'wilayah', 'followUps' => function ($q) {
+        $prospek->load(['sales', 'cs', 'owner', 'takeoverBy', 'prodi', 'sekolah.wilayah', 'wilayah', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -403,10 +455,14 @@ class ProspectController extends Controller
         $prospect = $this->formatProspekDetail($prospek);
         $transaksis = $prospek->transaksis()->with(['user', 'verifier', 'rejecter'])->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get();
         $lostReasons = Prospek::LOST_REASONS;
-        $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS ?? ['WhatsApp', 'Telepon', 'Kunjungan Langsung', 'Email', 'Zoom/GMeet'];
+        $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
+        $prospekModel = $prospek;
+        $followUps = $prospek->followUps;
 
         return view('spv.prospek.show', compact(
             'prospect',
+            'prospekModel',
+            'followUps',
             'transaksis',
             'allStages',
             'lostReasons',
@@ -713,12 +769,19 @@ class ProspectController extends Controller
             'sales_id'       => $p->sales_id,
             'sekolah_id'     => $p->sekolah_id,
             'wilayah_id'     => $p->wilayah_id,
-            'sekolah_nama'   => $p->sekolah ? $p->sekolah->nama : null,
-            'wilayah_nama'   => $p->wilayah ? $p->wilayah->nama : null,
+            'sekolah_nama'   => $p->sekolah?->nama ?? ($p->sekolah_manual ?: ($p->name !== $p->pic ? $p->name : null)),
+            'wilayah_nama'   => $p->sekolah?->wilayah?->nama ?? ($p->wilayah?->nama ?? 'Belum Diisi'),
             'takeover_sales' => $p->sales ? $p->sales->name : null,
             'takeover_cs'    => $p->cs ? $p->cs->name : null,
             'active_takeover' => $p->activeHandlerLabel(),
             'owner'          => $p->owner ? $p->owner->name : 'Sistem',
+            'status_takeover' => $p->status_takeover ?: ($p->takeover_by_id ? 'Sudah Di-takeover' : 'Belum Di-takeover'),
+            'takeover_by_name' => $p->takeoverBy?->name ?? null,
+            'takeover_by_role' => $p->takeoverBy?->role ?? null,
+            'takeover_at'    => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
+            'is_presensi'    => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
+            'is_own'          => (bool) (auth()->id() && ($p->sales_id == auth()->id() || $p->owner_id == auth()->id() || $p->takeover_by_id == auth()->id())),
+            'is_other'        => (bool) (auth()->id() && !($p->sales_id == auth()->id() || $p->owner_id == auth()->id() || $p->takeover_by_id == auth()->id()) && (!is_null($p->sales_id) || !is_null($p->takeover_by_id) || !is_null($p->cs_id))),
             'last_activity'  => $p->updated_at->diffForHumans(),
             'potential'      => $p->potential ?? '-',
             'prodi_id'       => $p->prodi_id,
@@ -753,25 +816,33 @@ class ProspectController extends Controller
         $base['timeline'] = $p->timelines->map(function ($t) {
             $timeObj = $t->time ?? $t->created_at;
             return [
-                'time'   => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
-                'title'  => $t->title,
-                'notes'  => $t->notes,
-                'status' => $t->status_after,
-                'user'   => $t->user ? $t->user->name : 'Sistem',
-                'role'   => $t->user ? $t->user->role : 'System',
+                'id'            => $t->id,
+                'user_id'       => $t->user_id,
+                'time'          => $timeObj ? $timeObj->format('d M Y, H:i') : '-',
+                'title'         => $t->title,
+                'notes'         => $t->notes,
+                'status_before' => $t->status_before,
+                'status'        => $t->status_after,
+                'user'          => $t->user ? $t->user->name : 'Sistem',
+                'role'          => $t->user ? $t->user->role : 'System',
             ];
         })->toArray();
 
-        $base['follow_ups'] = $p->followUps->map(function ($f) {
+        $base['follow_ups'] = $p->followUps->map(function ($f) use ($p) {
+            $isHelper = (bool) ($f->user_id && $f->user_id != $p->sales_id && $f->user_id != $p->owner_id);
             return [
-                'tanggal'      => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
-                'metode'       => $f->metode ?? '-',
-                'hasil'        => $f->hasil ?? '-',
-                'catatan'      => $f->catatan ?? '-',
+                'id'             => $f->id,
+                'user_id'        => $f->user_id,
+                'user'           => $f->user ? $f->user->name : 'Sistem',
+                'role'           => $f->user ? $f->user->role : 'Sales',
+                'is_helper'      => $isHelper,
+                'tanggal'        => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
+                'metode'         => $f->metode ?? '-',
+                'hasil'          => $f->hasil ?? '-',
+                'catatan'        => $f->catatan ?? '-',
                 'next_follow_up' => $f->next_follow_up
                     ? \Carbon\Carbon::parse($f->next_follow_up)->format('d M Y, H:i')
                     : '-',
-                'user'         => $f->user ? $f->user->name : 'Sistem',
             ];
         })->toArray();
 

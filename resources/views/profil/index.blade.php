@@ -50,7 +50,7 @@
             <div class="relative group shrink-0">
                 <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 via-blue-600 to-indigo-600 text-white font-bold text-2xl flex items-center justify-center shadow-md overflow-hidden ring-4 ring-slate-100">
                     <template x-if="photoPreview">
-                        <img :src="photoPreview" alt="{{ $user['name'] }}" class="w-full h-full object-cover">
+                        <img :src="photoPreview" alt="{{ $user['name'] }}" class="w-full h-full object-cover" x-on:error="photoPreview = null">
                     </template>
                     <template x-if="!photoPreview">
                         <span>{{ $user['avatar'] }}</span>
@@ -182,7 +182,7 @@
                 <div class="p-4 sm:p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
                     <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 via-blue-600 to-indigo-600 text-white font-bold text-2xl flex items-center justify-center shadow-xs shrink-0 overflow-hidden border border-slate-200 ring-2 ring-white">
                         <template x-if="photoPreview">
-                            <img :src="photoPreview" alt="Preview Foto" class="w-full h-full object-cover">
+                            <img :src="photoPreview" alt="Preview Foto" class="w-full h-full object-cover" x-on:error="photoPreview = null">
                         </template>
                         <template x-if="!photoPreview">
                             <span>{{ $user['avatar'] }}</span>

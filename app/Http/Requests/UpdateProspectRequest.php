@@ -14,6 +14,10 @@ class UpdateProspectRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        $prospek = $this->route('prospek');
+        if ($prospek instanceof Prospek) {
+            return $this->user() ? $this->user()->can('update', $prospek) : false;
+        }
         return true;
     }
 
@@ -26,6 +30,8 @@ class UpdateProspectRequest extends FormRequest
     {
         return [
             'name'     => 'nullable|string|max:255',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang'     => 'nullable|string|max:100',
             'type'     => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
@@ -36,8 +42,6 @@ class UpdateProspectRequest extends FormRequest
             'pic_phone'=> 'nullable|string|max:20',
             'whatsapp' => 'required|string|max:20',
             'status'   => 'required|string|max:255',
-            'potential'=> 'nullable|string|max:500',
-            'ai_training' => 'nullable|string|max:255',
             'notes'    => [
                 'nullable',
                 'string',
@@ -68,10 +72,25 @@ class UpdateProspectRequest extends FormRequest
                     }
                 }
             ],
-            'prodi_id' => 'nullable|string',
+            'prodi_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'lainnya' || $value === null || $value === '') {
+                        return;
+                    }
+                    if (!\App\Models\Prodi::where('id', $value)->exists()) {
+                        $fail('The selected prodi id is invalid.');
+                    }
+                }
+            ],
             'prodi_lainnya' => 'nullable|string',
-            'wa_ortu'  => 'nullable|string|max:20',
+            'wa_ortu'  => 'nullable|string|max:255',
             'asal_kelas' => 'nullable|string|max:100',
+            'kelas' => 'nullable|in:Reguler,Karyawan',
+            'sekolah_kategori_id' => 'nullable|exists:master_data,id',
+            'sekolah_wilayah_id' => 'nullable|exists:wilayahs,id',
+            'sekolah_kecamatan' => 'nullable|string|max:100',
+            'sekolah_telepon' => 'nullable|string|max:50',
         ];
     }
 

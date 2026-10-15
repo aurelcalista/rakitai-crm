@@ -33,7 +33,41 @@
 
         <div class="w-full max-w-xl mx-auto">
             <div class="bg-white py-8 px-5 shadow-2xl shadow-blue-500/10 rounded-3xl sm:rounded-[2rem] sm:px-10 border border-slate-100">
-                <form action="{{ route('kontak-cepat.store') }}" method="POST" @submit="isLoading = true" class="space-y-6" x-data="{ prospectType: 'Sekolah' }">
+                <form action="{{ route('kontak-cepat.store') }}" method="POST"
+                      x-data="{
+                          prospectType: 'Sekolah',
+                          manualSchool: {{ old('sekolah_manual') ? 'true' : 'false' }},
+                          manualSchoolName: '{{ addslashes(old('sekolah_manual', '')) }}',
+                          sekolahsList: {{ json_encode($sekolahs->map(fn($s) => [
+                              'id' => $s->id,
+                              'nama' => $s->nama,
+                              'wilayah' => $s->wilayah ? $s->wilayah->nama : ''
+                          ])) }},
+                          async handleSubmit(e) {
+                              if (this.manualSchool && this.manualSchoolName.trim()) {
+                                  const result = await window.checkSchoolDuplicate({
+                                      manualName: this.manualSchoolName,
+                                      schoolList: this.sekolahsList,
+                                      onUseExisting: (matched) => {
+                                          this.manualSchool = false;
+                                          this.manualSchoolName = '';
+                                          window.dispatchEvent(new CustomEvent('select-item', {
+                                              detail: { name: 'sekolah_id', value: String(matched.id), label: matched.nama }
+                                          }));
+                                      }
+                                  });
+                                  if (result === false) {
+                                      this.isLoading = false;
+                                      return;
+                                  }
+                              }
+                              this.isLoading = true;
+                              e.target.submit();
+                          }
+                      }"
+                      @submit.prevent="handleSubmit($event)"
+                      x-on:switch-manual.window="if ($event.detail.name === 'sekolah_id') { manualSchool = true; manualSchoolName = $event.detail.search; }"
+                      class="space-y-6">
                     @csrf
                     
                     @if ($errors->any())
@@ -55,14 +89,34 @@
                     </div>
 
                     <!-- Sekolah Selector -->
-                    <div class="space-y-1">
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
-                        <x-searchable-select 
-                            name="sekolah_id" 
-                            :options="$sekolahs" 
-                            placeholder="-- Ketik untuk mencari Sekolah... --" 
-                            :value="old('sekolah_id')" 
-                        />
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm font-bold text-slate-700">Nama Sekolah <span class="text-rose-500">*</span></label>
+                            <button type="button"
+                                    @click="manualSchool = !manualSchool"
+                                    class="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer">
+                                <span x-show="!manualSchool">+ Sekolah belum terdaftar? Ketik Manual</span>
+                                <span x-show="manualSchool">&larr; Pilih dari Master Sekolah</span>
+                            </button>
+                        </div>
+
+                        <div x-show="!manualSchool">
+                            <x-searchable-select
+                                name="sekolah_id"
+                                :options="$sekolahs"
+                                placeholder="-- Ketik untuk mencari Sekolah... --"
+                                :value="old('sekolah_id')"
+                            />
+                        </div>
+
+                        <div x-show="manualSchool" style="display: none;">
+                            <input type="text"
+                                   name="sekolah_manual"
+                                   x-model="manualSchoolName"
+                                   placeholder="Contoh: SMK NEGERI 1 CIREBON"
+                                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                            <p class="text-[11px] text-slate-400 mt-1">Jika sekolah Anda belum terdaftar di database, ketik nama sekolah secara lengkap.</p>
+                        </div>
                     </div>
 
                     <!-- Kelas / Tingkat -->

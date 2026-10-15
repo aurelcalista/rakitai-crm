@@ -124,8 +124,9 @@
                             <div class="absolute top-3 left-3 flex items-center gap-1.5">
                                 <span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-900/80 backdrop-blur-md text-white border border-white/20" x-text="visit.type"></span>
                                 <template x-if="visit.is_outside_radius || visit.status_verifikasi === 'Perlu Verifikasi'">
-                                    <span class="px-2 py-1 rounded-md text-[10px] font-extrabold bg-amber-500 text-white shadow-xs animate-bounce">
-                                        ⚠️ Perlu Verifikasi
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-extrabold bg-amber-500 text-white shadow-xs animate-bounce">
+                                        <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        <span>Perlu Verifikasi</span>
                                     </span>
                                 </template>
                             </div>
@@ -326,7 +327,7 @@
                                             </div>
                                             <div>
                                                 <span class="text-slate-500">Workshop AI:</span>
-                                                <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? '✓ Bersedia' : 'Belum Bersedia'"></p>
+                                                <p class="font-bold" :class="selectedVisit.kesediaan_training_ai ? 'text-emerald-600' : 'text-slate-600'" x-text="selectedVisit.kesediaan_training_ai ? 'Bersedia' : 'Belum Bersedia'"></p>
                                             </div>
                                             <template x-if="selectedVisit.detail_potensi_mahasiswa && selectedVisit.detail_potensi_mahasiswa !== '-'">
                                                 <div class="col-span-2">

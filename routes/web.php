@@ -51,20 +51,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/wilayah/{city}/kecamatan', [\App\Http\Controllers\WilayahController::class, 'getKecamatanByKota'])->name('wilayah.kecamatan');
     Route::get('/kecamatan/{district}/sekolah', [\App\Http\Controllers\WilayahController::class, 'getSekolahByKecamatan'])->name('kecamatan.sekolah');
 
+    Route::get('/potensi-wilayah', [\App\Http\Controllers\PotensiWilayahController::class, 'index'])->name('potensi-wilayah.index');
+    Route::get('/infografis',      [\App\Http\Controllers\InfografisController::class, 'index'])->name('infografis.index');
+
     // Unified role dashboard dispatcher
     Route::get('/dashboard', function () {
         $role = strtolower(auth()->user()->role ?? 'sales');
+        if (in_array($role, ['data analyst', 'data-analyst', 'analyst'])) {
+            return redirect()->route('dashboard.data-analyst');
+        }
         return redirect()->route('dashboard.' . $role);
     })->name('dashboard');
 
     // Role-specific dashboard entry points
     Route::prefix('dashboard')->group(function () {
-        Route::get('/sales', [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
-        Route::get('/cs',    [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
-        Route::get('/spv',   [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
-        Route::get('/hm',    [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
-        Route::get('/admin', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
-        Route::get('/eo',    [\App\Http\Controllers\Eo\DashboardController::class, 'index'])->name('dashboard.eo');
+        Route::get('/sales',        [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
+        Route::get('/cs',           [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
+        Route::get('/spv',          [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
+        Route::get('/hm',           [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
+        Route::get('/admin',        [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
+        Route::get('/eo',           [\App\Http\Controllers\Eo\DashboardController::class, 'index'])->name('dashboard.eo');
+        Route::get('/data-analyst', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard.data-analyst');
+        Route::get('/data analyst', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard.data analyst');
     });
 
     // ──────────────────────────────────────────────────────────────
@@ -202,6 +210,21 @@ Route::middleware('auth')->group(function () {
         });
 
     // ──────────────────────────────────────────────────────────────
+    // Data Analyst Role Routes — prefix: /analyst, name: analyst.*
+    // Protected by role:Data Analyst,Admin middleware
+    // Read-only cross-region, cross-team access + Excel export
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware('role:Data Analyst,Admin')
+        ->prefix('analyst')
+        ->name('analyst.')
+        ->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard');
+            Route::get('/prospek',   [\App\Http\Controllers\Analyst\DataAnalystController::class, 'prospek'])->name('prospek.index');
+            Route::get('/laporan',   [\App\Http\Controllers\CrmController::class, 'laporanIndex'])->name('laporan.index');
+            Route::get('/export',    [\App\Http\Controllers\Analyst\DataAnalystController::class, 'exportExcel'])->name('export');
+        });
+
+    // ──────────────────────────────────────────────────────────────
     // Admin Panel Modules — prefix: /admin, name: admin.*
     // Protected by role:Admin middleware
     // ──────────────────────────────────────────────────────────────
@@ -222,7 +245,9 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('kunjungan',   \App\Http\Controllers\Admin\AdminKunjunganController::class, $except);
         Route::post('master-data/update-weights', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'updateWeights'])->name('master-data.update-weights');
-        Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except)->parameters(['master-data' => 'masterData']);
+        Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except)->parameters([
+            'master-data' => 'master_data'
+        ]);
         Route::resource('wilayah',     \App\Http\Controllers\Admin\AdminWilayahController::class, $except);
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
@@ -271,12 +296,17 @@ Route::middleware('auth')->group(function () {
     // ──────────────────────────────────────────────────────────────
     Route::middleware(['role:Admin,HM,SPV,CS,Sales,EO'])->group(function () {
         // Attendance Routes
-        Route::get('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');
-        Route::post('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'store'])->name('attendance.store');
-        Route::get('/absensi/kelola', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
-        Route::get('/absensi/kelola/{id}', [\App\Http\Controllers\AttendanceController::class, 'show'])->name('attendance.show');
+        Route::middleware(['role:Sales,CS,EO,SPV'])->group(function () {
+            Route::get('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');
+            Route::post('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'store'])->name('attendance.store');
+        });
+        Route::middleware(['role:HM,SPV'])->group(function () {
+            Route::get('/absensi/kelola', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('attendance.index');
+            Route::get('/absensi/kelola/{id}', [\App\Http\Controllers\AttendanceController::class, 'show'])->name('attendance.show');
+        });
         Route::get('/prospek',         [CrmController::class, 'prospekIndex'])->name('prospek.index');
         Route::post('/prospek',        [CrmController::class, 'prospekStore'])->name('prospek.store');
+        Route::post('/prospek/presensi-manual', [CrmController::class, 'prospekPresensiManual'])->name('prospek.presensi-manual');
         Route::get('/prospek/{id}',    [CrmController::class, 'prospekShow'])->name('prospek.show');
         Route::put('/prospek/{id}',    [CrmController::class, 'prospekUpdate'])->name('prospek.update');
         Route::delete('/prospek/{id}', [CrmController::class, 'prospekDestroy'])->name('prospek.destroy');
@@ -287,8 +317,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/prospek/{id}/realokasi', [CrmController::class, 'prospekRealokasi'])->name('prospek.realokasi');
         Route::get('/prospek/{id}/realokasi', fn($id) => redirect()->route('prospek.show', $id));
 
-        Route::get('/kunjungan',  [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
-        Route::post('/kunjungan', [CrmController::class, 'kunjunganStore'])->name('kunjungan.store');
+        Route::get('/kunjungan',         [CrmController::class, 'kunjunganIndex'])->name('kunjungan.index');
+        Route::get('/kunjungan/create',  [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
+        Route::post('/kunjungan',        [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
+        Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
 
         Route::get('/follow-up',  [CrmController::class, 'followUpIndex'])->name('follow-up.index');
         Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');
@@ -301,12 +333,9 @@ Route::middleware('auth')->group(function () {
         //   HM    → hm.wilayah.*   (HmWilayahController   — assign SPV + set target)
         // The old shared WilayahController is no longer exposed here.
 
-        Route::get('/potensi-wilayah', [\App\Http\Controllers\PotensiWilayahController::class, 'index'])->name('potensi-wilayah.index');
-
         // Performance & Reports
         Route::get('/target-performa', [CrmController::class, 'performaIndex'])->name('performa.index');
         Route::get('/laporan',         [CrmController::class, 'laporanIndex'])->name('laporan.index');
-        Route::get('/infografis',      [\App\Http\Controllers\InfografisController::class, 'index'])->name('infografis.index');
     });
 
     // ──────────────────────────────────────────────────────────────

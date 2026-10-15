@@ -143,7 +143,11 @@
                 <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 w-full sm:w-auto">
                     @foreach($periodOptions as $opt)
                         @php
-                            $isActive = $currentKey === $opt['key'];
+                            $isActive = $currentKey === $opt['key'] || 
+                                ($opt['key'] === 'harian' && in_array($currentKey, ['harian', 'hari-ini'])) ||
+                                ($opt['key'] === 'mingguan' && in_array($currentKey, ['mingguan', 'minggu-ini'])) ||
+                                ($opt['key'] === 'bulanan' && in_array($currentKey, ['bulanan', 'bulan-ini'])) ||
+                                ($opt['key'] === 'tahunan' && in_array($currentKey, ['tahunan', 'tahun-ini']));
                             $btnUrl = $actionUrl . '?periode=' . $opt['key'] . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '');
                         @endphp
                         <a href="{{ $btnUrl }}" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-center
@@ -202,9 +206,9 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
             <!-- 1. Tahunan -->
             <a href="{{ $actionUrl . '?periode=tahunan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
-               class="p-3 rounded-xl border transition relative {{ $currentKey === 'tahunan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+               class="p-3 rounded-xl border transition relative {{ in_array($currentKey, ['tahunan', 'tahun-ini']) ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    @if($currentKey === 'tahunan')
+                    @if(in_array($currentKey, ['tahunan', 'tahun-ini']))
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
                 </div>
@@ -214,9 +218,9 @@
 
             <!-- 2. Bulanan -->
             <a href="{{ $actionUrl . '?periode=bulanan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
-               class="p-3 rounded-xl border transition relative {{ $currentKey === 'bulanan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+               class="p-3 rounded-xl border transition relative {{ in_array($currentKey, ['bulanan', 'bulan-ini']) ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    @if($currentKey === 'bulanan')
+                    @if(in_array($currentKey, ['bulanan', 'bulan-ini']))
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
                 </div>
@@ -226,9 +230,9 @@
 
             <!-- 3. Mingguan -->
             <a href="{{ $actionUrl . '?periode=mingguan' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
-               class="p-3 rounded-xl border transition relative {{ $currentKey === 'mingguan' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+               class="p-3 rounded-xl border transition relative {{ in_array($currentKey, ['mingguan', 'minggu-ini']) ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    @if($currentKey === 'mingguan')
+                    @if(in_array($currentKey, ['mingguan', 'minggu-ini']))
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
                 </div>
@@ -238,9 +242,9 @@
 
             <!-- 4. Harian -->
             <a href="{{ $actionUrl . '?periode=harian' . (request('wilayah_id') ? '&wilayah_id=' . request('wilayah_id') : '') }}" 
-               class="p-3 rounded-xl border transition relative {{ $currentKey === 'harian' ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
+               class="p-3 rounded-xl border transition relative {{ in_array($currentKey, ['harian', 'hari-ini']) ? 'bg-indigo-600/40 border-indigo-400/80 ring-2 ring-indigo-400/40 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300' }}">
                 <div class="flex items-center justify-between">
-                    @if($currentKey === 'harian')
+                    @if(in_array($currentKey, ['harian', 'hari-ini']))
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     @endif
                 </div>

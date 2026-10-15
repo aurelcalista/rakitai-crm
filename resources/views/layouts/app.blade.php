@@ -99,10 +99,11 @@
     @php
         if (!isset($currentUser) && auth()->check()) {
             $u = auth()->user();
-            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer'];
+            $roleLabels = ['Admin' => 'Administrator', 'HM' => 'Head Marketing', 'SPV' => 'Supervisor', 'Sales' => 'Sales', 'CS' => 'Customer Service', 'EO' => 'Event Organizer', 'Data Analyst' => 'Data Analyst'];
             $currentUser = [
                 'name' => $u->name,
-                'avatar' => substr($u->name, 0, 2),
+                'avatar' => $u->initials,
+                'avatar_url' => $u->avatar_url,
                 'role' => $u->role,
                 'role_label' => $roleLabels[$u->role] ?? $u->role,
             ];
@@ -121,7 +122,24 @@
     modalTransaksi: false,
     modalTambahKunjungan: false,
     selectedProspect: { name: 'SMK Negeri 1 Cirebon', status: 'Interested', id: 1, owner: 'Aurel Calista' },
-    notificationOpen: false
+    notificationOpen: false,
+    canChangeProspectStatus(prospect) {
+        if (!prospect) return false;
+        if (typeof prospect.can_update_status !== 'undefined') {
+            return Boolean(prospect.can_update_status);
+        }
+        const role = '{{ strtolower(auth()->user()->role ?? 'sales') }}';
+        if (role === 'admin' || role === 'hm' || role === 'spv' || role === 'cs') {
+            return true;
+        }
+        if (role === 'sales') {
+            if (prospect.status && prospect.status.toUpperCase() === 'LUNAS') {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
 }
 "
 x-init="
@@ -276,13 +294,14 @@ x-init="
                     </div>
                 </div>
 
+                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm']))
                 <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
                 <!-- Section: ABSENSI -->
                 <div>
                     <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
-                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                        @if(!in_array(strtolower(auth()->user()->role), ['admin', 'hm']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             title="Input Absensi"
@@ -296,7 +315,7 @@ x-init="
                         </a>
                         @endif
 
-                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm']))
                         <a 
                             href="{{ route('attendance.index') }}" 
                             title="Kelola Absensi"
@@ -311,6 +330,7 @@ x-init="
                         @endif
                     </div>
                 </div>
+                @endif
 
                 @if($currentUser['role'] === 'EO')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
@@ -341,6 +361,18 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Jenis Event</span>
                             </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                title="Data Prospek ({{ $globalProspekCount ?? 0 }})"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prospek</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
                         </div>
                     </div>
                 @endif
@@ -363,6 +395,18 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                title="Data Prospek ({{ $globalProspekCount ?? 0 }})"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prospek</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-700 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             <a 
                                 href="{{ route('admin.work-calendar.index') }}" 
@@ -536,15 +580,64 @@ x-init="
                                 <span x-show="!sidebarCollapsed">Audit Logs</span>
                             </a>
                         </div>
+                @elseif(in_array(strtolower($currentUser['role']), ['data analyst', 'data-analyst']))
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: CRM INBOUND (Data Analyst) -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.prospek.index') }}" 
+                                title="Data Prospek ({{ $globalProspekCount ?? 0 }})"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.prospek.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Data Prospek</span>
+                                <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
+                            <a 
+                                href="{{ route('potensi-wilayah.index') }}" 
+                                title="Potensi Wilayah"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Potensi Wilayah</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                    <!-- Section: PERFORMANCE (Data Analyst) -->
+                    <div>
+                        <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Performance</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.laporan.index') }}" 
+                                title="Laporan"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Laporan</span>
+                            </a>
+                        </div>
                     </div>
                 @elseif($currentUser['role'] !== 'EO')
                     <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
                     <!-- Section: CRM CORE (Sales, CS, SPV, HM) -->
                     @php
-                        $prospekMenuTitle = 'Prospek';
-                        if ($userRole === 'sales') $prospekMenuTitle = 'Data Prospek';
-                        if ($userRole === 'cs') $prospekMenuTitle = 'Data Kontak';
+                        $prospekMenuTitle = 'Data Prospek';
                     @endphp
                     <div>
                         <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
@@ -562,19 +655,17 @@ x-init="
                                 <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             
-                            @if($currentUser['role'] !== 'CS')
-                                <a 
-                                    href="{{ route($routePrefix . 'kunjungan.index') }}" 
-                                    title="Kunjungan"
-                                    class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                    :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                                >
-                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                    </svg>
-                                    <span x-show="!sidebarCollapsed">Kunjungan</span>
-                                </a>
-                            @endif
+                            <a 
+                                href="{{ route($routePrefix . 'kunjungan.index') }}" 
+                                title="Kunjungan"
+                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'kunjungan.*') || request()->routeIs('kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'kunjungan.*') || request()->routeIs('kunjungan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span x-show="!sidebarCollapsed">Kunjungan</span>
+                            </a>
 
                             @if($userRole === 'sales')
                             <a 
@@ -627,7 +718,7 @@ x-init="
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Riwayat Pembayaran</span>
                             </a>
-                            @elseif($userRole !== 'spv')
+                            @else
                             <a 
                                 href="{{ route('follow-up.index') }}" 
                                 title="Follow Up ({{ $globalFollowUpTodayCount ?? 0 }} Hari Ini)"
@@ -645,7 +736,7 @@ x-init="
 
                             {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->count(); @endphp
                             <a 
                                 href="{{ route('cs.verifikasi.index') }}" 
                                 title="Verifikasi Pembayaran ({{ $pendingVerifikasiCount }} Menunggu)"
@@ -872,10 +963,9 @@ x-init="
                 <div class="flex items-center rounded-xl transition" :class="sidebarCollapsed ? 'flex-col justify-center gap-2 p-1' : 'gap-3 p-2 hover:bg-white'">
                     <a href="{{ route('profil.index') }}" title="{{ $currentUser['name'] }} ({{ $currentUser['role_label'] }})" class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs hover:ring-2 hover:ring-blue-500/30 transition overflow-hidden">
                         @if(!empty($currentUser['avatar_url']))
-                            <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover">
-                        @else
-                            {{ $currentUser['avatar'] }}
+                            <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
                         @endif
+                        <span @if(!empty($currentUser['avatar_url'])) style="display:none" @endif class="w-full h-full flex items-center justify-center font-bold text-xs">{{ $currentUser['avatar'] ?? 'U' }}</span>
                     </a>
                     <div x-show="!sidebarCollapsed" class="truncate flex-1 min-w-0">
                         <div class="text-xs font-bold text-slate-800 truncate">{{ $currentUser['name'] }}</div>
@@ -1108,10 +1198,9 @@ x-init="
                     <div class="flex items-center gap-3 pl-3 sm:pl-4 border-l border-slate-200/80">
                         <a href="{{ route('profil.index') }}" title="Lihat Profil" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs sm:text-sm shadow-xs hover:ring-2 hover:ring-blue-500/30 transition overflow-hidden">
                             @if(!empty($currentUser['avatar_url']))
-                                <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover">
-                            @else
-                                {{ $currentUser['avatar'] }}
+                                <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
                             @endif
+                            <span @if(!empty($currentUser['avatar_url'])) style="display:none" @endif class="w-full h-full flex items-center justify-center font-bold text-xs sm:text-sm">{{ $currentUser['avatar'] ?? 'U' }}</span>
                         </a>
                         <div class="hidden sm:block text-left">
                             <div class="text-xs font-bold text-slate-900 leading-snug">{{ $currentUser['name'] }}</div>
@@ -1305,11 +1394,12 @@ x-init="
                     </div>
                 </div>
 
+                @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm']))
                 <!-- SECTION: ABSENSI -->
                 <div x-show="matches('absensi kehadiran input absen kelola absen staf')">
                     <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kehadiran</div>
                     <div class="space-y-1">
-                        @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm', 'admin']))
+                        @if(!in_array(strtolower(auth()->user()->role), ['admin', 'hm']))
                         <a 
                             href="{{ route('attendance.create') }}" 
                             @click="mobileMenuOpen = false"
@@ -1324,7 +1414,7 @@ x-init="
                         </a>
                         @endif
 
-                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm', 'admin']))
+                        @if(in_array(strtolower(auth()->user()->role), ['spv', 'hm']))
                         <a 
                             href="{{ route('attendance.index') }}" 
                             @click="mobileMenuOpen = false"
@@ -1340,6 +1430,7 @@ x-init="
                         @endif
                     </div>
                 </div>
+                @endif
 
                 @if($currentUser['role'] === 'EO')
                     <!-- SECTION: EVENT ORGANIZER -->
@@ -1370,6 +1461,19 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Jenis Event</span>
                             </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kelola data prospek leads database pmb event peserta"
+                                x-show="matches('kelola data prospek leads database pmb event peserta')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Data Prospek</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
                         </div>
                     </div>
                 @endif
@@ -1390,6 +1494,19 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span class="flex-1">Kelola Pengguna</span>
+                            </a>
+                            <a 
+                                href="{{ route('prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="data prospek leads pmb database admin"
+                                x-show="matches('data prospek leads pmb database admin')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('prospek.*') ? 'bg-purple-50 text-purple-700 font-bold border border-purple-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('prospek.*') ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Data Prospek</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
                             <a 
                                 href="{{ route('admin.work-calendar.index') }}" 
@@ -1591,14 +1708,62 @@ x-init="
                                 </svg>
                                 <span class="flex-1">Log Aktivitas</span>
                             </a>
+                @elseif(in_array(strtolower($currentUser['role']), ['data analyst', 'data-analyst']))
+                    <!-- SECTION: CRM INBOUND (Data Analyst) -->
+                    <div x-show="matches('crm inbound prospek data prospek wilayah potensi wilayah')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.prospek.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="prospek data prospek leads database pmb"
+                                x-show="matches('prospek data prospek leads database pmb')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.prospek.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.prospek.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span class="flex-1">Data Prospek</span>
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
+                            </a>
+
+                            <a 
+                                href="{{ route('potensi-wilayah.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="potensi wilayah peta sebaran sekolah kota kabupaten"
+                                x-show="matches('potensi wilayah peta sebaran sekolah kota kabupaten')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('potensi-wilayah.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('potensi-wilayah.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="flex-1">Potensi Wilayah</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: PERFORMANCE (Data Analyst) -->
+                    <div x-show="matches('performance laporan report rekap konversi analisa')">
+                        <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Performance</div>
+                        <div class="space-y-1">
+                            <a 
+                                href="{{ route('analyst.laporan.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="laporan report rekap export unduh analisa"
+                                x-show="matches('laporan report rekap export unduh analisa')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('analyst.laporan.*') || request()->routeIs('laporan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span class="flex-1">Laporan</span>
+                            </a>
                         </div>
                     </div>
                 @elseif($currentUser['role'] !== 'EO')
                     <!-- SECTION: CRM INBOUND (Sales, CS, SPV, HM) -->
                     @php
-                        $prospekMobileTitle = 'Prospek';
-                        if ($userRole === 'sales') $prospekMobileTitle = 'Data Prospek';
-                        if ($userRole === 'cs') $prospekMobileTitle = 'Data Kontak';
+                        $prospekMobileTitle = 'Data Prospek';
                     @endphp
                     <div x-show="matches('crm inbound prospek kontak kunjungan follow up event pipeline verifikasi bayar pembayaran')">
                         <div class="px-3 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">CRM Inbound</div>
@@ -1617,20 +1782,18 @@ x-init="
                                 <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-600 font-medium">{{ $globalProspekCount ?? 0 }}</span>
                             </a>
 
-                            @if($currentUser['role'] !== 'CS')
-                                <a 
-                                    href="{{ route($routePrefix . 'kunjungan.index') }}" 
-                                    @click="mobileMenuOpen = false"
-                                    data-menu-keywords="kunjungan visit sekolah instansi audiensi"
-                                    x-show="matches('kunjungan visit sekolah instansi audiensi')"
-                                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                >
-                                    <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'kunjungan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                    </svg>
-                                    <span class="flex-1">Kunjungan</span>
-                                </a>
-                            @endif
+                            <a 
+                                href="{{ route($routePrefix . 'kunjungan.index') }}" 
+                                @click="mobileMenuOpen = false"
+                                data-menu-keywords="kunjungan visit sekolah instansi audiensi"
+                                x-show="matches('kunjungan visit sekolah instansi audiensi')"
+                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs($routePrefix . 'kunjungan.*') || request()->routeIs('kunjungan.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            >
+                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs($routePrefix . 'kunjungan.*') || request()->routeIs('kunjungan.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span class="flex-1">Kunjungan</span>
+                            </a>
 
                             @if($userRole === 'sales')
                                 <a 
@@ -1687,7 +1850,7 @@ x-init="
                                     </svg>
                                     <span class="flex-1">Riwayat Pembayaran</span>
                                 </a>
-                            @elseif($userRole !== 'spv')
+                            @else
                                 <a 
                                     href="{{ route('follow-up.index') }}" 
                                     @click="mobileMenuOpen = false"
@@ -1704,7 +1867,7 @@ x-init="
 
                             {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'pending')->count(); @endphp
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->count(); @endphp
                             <a 
                                 href="{{ route('cs.verifikasi.index') }}" 
                                 @click="mobileMenuOpen = false"
@@ -1964,10 +2127,9 @@ x-init="
                     <a href="{{ route('profil.index') }}" @click="mobileMenuOpen = false" class="flex items-center gap-2.5 min-w-0 flex-1">
                         <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-xs overflow-hidden">
                             @if(!empty($currentUser['avatar_url']))
-                                <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover">
-                            @else
-                                {{ $currentUser['avatar'] }}
+                                <img src="{{ $currentUser['avatar_url'] }}" alt="{{ $currentUser['name'] }}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
                             @endif
+                            <span @if(!empty($currentUser['avatar_url'])) style="display:none" @endif class="w-full h-full flex items-center justify-center font-bold text-xs">{{ $currentUser['avatar'] ?? 'U' }}</span>
                         </div>
                         <div class="min-w-0 flex-1 truncate">
                             <div class="text-xs font-bold text-slate-800 truncate">{{ $currentUser['name'] }}</div>
@@ -2036,9 +2198,9 @@ x-init="
                         </div>
                     @endif
 
-                    <!-- Section: INFORMASI PROSPEK -->
+                    <!-- Section: INFORMASI DASAR -->
                     <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">Informasi Prospek</h4>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md inline-block mb-3">1. Informasi Dasar</h4>
                         @php
                             $sekolahsList = \App\Models\Sekolah::getDynamicSchools();
                             $perusahaansList = \App\Models\Perusahaan::getDynamicPerusahaans();
@@ -2047,6 +2209,11 @@ x-init="
                                 $statusProspekList = $statusProspekList->filter(fn($item) => strtoupper($item->nama) !== 'LUNAS');
                             }
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+                            $gelombangList = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->get();
+                            $kategoriSekolahList = \App\Models\MasterData::where('type', 'kategori_sekolah')->where('status', 'Aktif')->get();
+                            $wilayahKabupatenList = \App\Models\Wilayah::whereNull('parent_id')->with(['children' => function($q) {
+                                $q->where('status', 'Aktif')->orderBy('nama');
+                            }])->orderBy('nama')->get();
                             $prodisList = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
                             $currentUser = auth()->user();
                             $canAssignSales = in_array($currentUser->role ?? '', ['SPV', 'Admin', 'Head Marketing']);
@@ -2062,21 +2229,24 @@ x-init="
                                 }
                             }
                         @endphp
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            @if($canAssignSales)
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Assign ke Sales *</label>
-                                    <select name="sales_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                        <option value="">-- Pilih Personil Sales --</option>
-                                        @foreach($salesAssignees as $sUser)
-                                            <option value="{{ $sUser->id }}">{{ $sUser->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            @else
-                                <input type="hidden" name="sales_id" value="{{ auth()->id() }}">
-                            @endif
 
+                        @if($canAssignSales)
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Assign ke Sales <span class="text-rose-500">*</span></label>
+                                <select name="sales_id" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Personil Sales --</option>
+                                    @foreach($salesAssignees as $sUser)
+                                        <option value="{{ $sUser->id }}">{{ $sUser->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @elseif(strtolower(auth()->user()->role ?? '') === 'sales')
+                            <input type="hidden" name="sales_id" value="{{ auth()->id() }}">
+                        @elseif(strtolower(auth()->user()->role ?? '') === 'cs')
+                            <input type="hidden" name="cs_id" value="{{ auth()->id() }}">
+                        @endif
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center">Tipe Prospek <span class="text-rose-500 ml-0.5">*</span></label>
                                 <select name="type" x-model="prospekType" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
@@ -2087,7 +2257,7 @@ x-init="
                             </div>
 
                             <!-- Input Sekolah (Search & Manual Mode) -->
-                            <div x-show="prospekType === 'Sekolah'" x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                            <div x-show="prospekType === 'Sekolah'" x-data="{ modeManualSekolah: false }" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-2">
                                 <div class="flex items-center justify-between mb-1.5 h-5">
                                     <template x-if="!modeManualSekolah">
                                         <div class="flex items-center justify-between w-full">
@@ -2130,25 +2300,82 @@ x-init="
                                     />
                                 </div>
 
-                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-1.5">
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
+                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-3 p-3.5 bg-slate-50/80 rounded-2xl border border-blue-200/60" x-data="{
+                                    manualWilayahId: '',
+                                    wilayahData: {{ json_encode($wilayahKabupatenList) }},
+                                    get kecamatanList() {
+                                        if (!this.manualWilayahId) return [];
+                                        const w = this.wilayahData.find(item => item.id == this.manualWilayahId);
+                                        return w ? (w.children || []) : [];
+                                    }
+                                }">
+                                    <!-- 1. Nama Sekolah -->
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-blue-500">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_manual" 
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
+                                                class="w-full text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                                            >
                                         </div>
-                                        <input 
-                                            type="text" 
-                                            name="sekolah_manual" 
-                                            placeholder="Ketik nama sekolah (misal: SMAN 1 Cirebon)..." 
-                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
-                                        >
                                     </div>
+
+                                    <!-- 2. Kategori Sekolah & Wilayah/Kota -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kategori Sekolah</label>
+                                            <select name="sekolah_kategori_id" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Kategori --</option>
+                                                @foreach($kategoriSekolahList as $kat)
+                                                    <option value="{{ $kat->id }}">{{ $kat->nama }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Wilayah / Kota</label>
+                                            <select name="sekolah_wilayah_id" x-model="manualWilayahId" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Wilayah / Kota --</option>
+                                                <template x-for="w in wilayahData" :key="w.id">
+                                                    <option :value="w.id" x-text="w.nama"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- 3. Kecamatan & Telepon Sekolah -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kecamatan</label>
+                                            <select name="sekolah_kecamatan" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Kecamatan --</option>
+                                                <template x-for="c in kecamatanList" :key="c.id">
+                                                    <option :value="c.nama" x-text="c.nama"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Telepon Sekolah</label>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_telepon" 
+                                                placeholder="Contoh: (0231) 201234" 
+                                                class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                                            >
+                                        </div>
+                                    </div>
+
                                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
                                         <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <span>Sekolah baru akan otomatis tersimpan ke master data.</span>
+                                        <span>Sekolah baru akan otomatis tersimpan ke Data Master Admin dan dapat dikelola langsung.</span>
                                     </div>
                                 </div>
                             </div>
@@ -2200,7 +2427,7 @@ x-init="
                                 <div x-show="modeManualCorp" style="display: none;" class="space-y-1.5">
                                     <div class="relative">
                                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <svg class="w-4 h-4 fill-none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                             </svg>
                                         </div>
@@ -2220,56 +2447,104 @@ x-init="
                                 </div>
                             </div>
 
-                            <div x-data="{ selectedProdi: '' }">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1.5 h-5 flex items-center justify-between">
-                                    <span>Program Studi Diminati</span>
-                                    <span class="text-[11px] text-slate-400 font-normal">Opsional</span>
-                                </label>
+                            <!-- Pilihan Kelas Kuliah (SPV Standard) -->
+                            <div class="space-y-1.5 bg-slate-50/70 p-3 rounded-xl border border-slate-200">
+                                <label class="block text-xs font-semibold text-slate-700">Pilihan Kelas Kuliah <span class="text-rose-500">*</span></label>
+                                <div class="grid grid-cols-2 gap-3 mt-1">
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition">
+                                        <input type="radio" name="kelas" value="Reguler" checked class="text-blue-600 focus:ring-blue-500">
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">Reguler</div>
+                                            <div class="text-[10px] text-slate-500">Pagi / Siang</div>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition">
+                                        <input type="radio" name="kelas" value="Karyawan" {{ old('kelas') === 'Karyawan' ? 'checked' : '' }} class="text-blue-600 focus:ring-blue-500">
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">Karyawan</div>
+                                            <div class="text-[10px] text-slate-500">Sore / Malam</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div x-data="{ selectedProdi: '{{ old('prodi_id', '') }}' }">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
                                 <select name="prodi_id" x-model="selectedProdi" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white mb-2">
                                     <option value="">-- Pilih Program Studi (Boleh Dikosongkan) --</option>
                                     @foreach($prodisList as $prd)
-                                        <option value="{{ $prd->id }}">{{ $prd->nama }} ({{ $prd->jenjang }})</option>
+                                        <option value="{{ $prd->id }}" {{ old('prodi_id') == $prd->id ? 'selected' : '' }}>{{ $prd->nama }} ({{ $prd->jenjang }})</option>
                                     @endforeach
-                                    <option value="lainnya">Lainnya</option>
+                                    <option value="lainnya" {{ old('prodi_id') === 'lainnya' || old('prodi_lainnya') ? 'selected' : '' }}>Lainnya</option>
                                 </select>
                                 <div x-show="selectedProdi === 'lainnya'" style="display: none;">
-                                    <input type="text" name="prodi_lainnya" placeholder="Ketik program studi pilihan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <input type="text" name="prodi_lainnya" value="{{ old('prodi_lainnya') }}" placeholder="Ketik program studi pilihan..." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal *</label>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pipeline *</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     @foreach($statusProspekList as $status)
-                                        <option value="{{ $status->nama }}" {{ in_array($status->nama, ['BARU', 'Baru', 'Interested']) ? 'selected' : '' }}>{{ $status->nama }}</option>
+                                        <option value="{{ $status->nama }}" {{ (old('status') ? old('status') == $status->nama : in_array($status->nama, ['BARU', 'Baru', 'Interested'])) ? 'selected' : '' }}>{{ $status->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div x-show="prospekType === 'Sekolah'">
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kelas / Tingkat Sekolah</label>
-                                <input type="text" name="asal_kelas" placeholder="Contoh: 12 RPL 1" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
-                            </div>
+
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
-                                <input type="text" name="pic" required placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Prospek <span class="text-rose-500">*</span></label>
+                                <input type="text" name="pic" required value="{{ old('pic') }}" placeholder="Contoh: Budi Santoso" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
+
+                            <div x-show="prospekType === 'Sekolah' || prospekType === 'Corporate'">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    <span x-text="prospekType === 'Corporate' ? 'Jabatan' : 'Kelas / Tingkat Sekolah'"></span>
+                                </label>
+                                <input type="text" name="asal_kelas" value="{{ old('asal_kelas') }}" :placeholder="prospekType === 'Corporate' ? 'Contoh: HR Manager' : 'Contoh: 12 RPL 1'" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp *</label>
-                                <input type="tel" name="whatsapp" required placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <input type="tel" name="whatsapp" required value="{{ old('whatsapp') }}" placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
+
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WA Orang Tua/Wali (Opsional)</label>
-                                <input type="tel" name="wa_ortu" placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    <span x-text="prospekType === 'Corporate' ? 'Nomor Perusahaan' : 'Nomor WA Orang Tua/Wali'"></span>
+                                    <span class="text-sm font-normal text-slate-500">(Opsional)</span>
+                                </label>
+                                <input type="tel" name="wa_ortu" value="{{ old('wa_ortu') }}" placeholder="Masukkan nomor .." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                             </div>
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>
                                 <select name="source" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Sumber --</option>
                                     @foreach($sumberProspekList as $sumber)
-                                        <option value="{{ $sumber->nama }}">{{ $sumber->nama }}</option>
+                                        <option value="{{ $sumber->nama }}" {{ old('source') == $sumber->nama ? 'selected' : '' }}>{{ $sumber->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    No. Registrasi <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <input type="text" name="no_registrasi" value="{{ old('no_registrasi') }}" placeholder="Contoh: PMB-UCIC-895-1789183710" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    Gelombang <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <select name="gelombang" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Gelombang --</option>
+                                    @foreach($gelombangList as $gel)
+                                        <option value="{{ $gel->nama }}" {{ old('gelombang') == $gel->nama ? 'selected' : '' }}>{{ $gel->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Prospek</label>
                                 @php
@@ -2278,7 +2553,7 @@ x-init="
                                 <select name="category" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Kategori --</option>
                                     @foreach($kategoriProspekList as $kategori)
-                                        <option value="{{ $kategori->nama }}">{{ $kategori->nama }}</option>
+                                        <option value="{{ $kategori->nama }}" {{ old('category') == $kategori->nama ? 'selected' : '' }}>{{ $kategori->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -2326,7 +2601,13 @@ x-init="
                     </button>
                 </div>
 
-                <form action="{{ route('follow-up.store') }}" method="POST" class="mt-4 space-y-4">
+                <form 
+                    action="{{ route('follow-up.store') }}" 
+                    method="POST" 
+                    class="mt-4 space-y-4"
+                    x-data="{ isSubmitting: false }"
+                    @submit="if (isSubmitting) { $event.preventDefault(); return false; } isSubmitting = true"
+                >
                     @csrf
                     <input type="hidden" name="prospek_id" :value="selectedProspect.id">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2364,23 +2645,51 @@ x-init="
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Update Status Prospek</label>
-                            @php
-                                $activeStagesFU = \App\Models\Prospek::getActiveStages();
-                                if (strtolower(auth()->user()->role ?? '') === 'sales') {
-                                    $activeStagesFU = array_filter($activeStagesFU, fn($s) => strtoupper($s) !== 'LUNAS');
-                                }
-                            @endphp
-                            <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
-                                @foreach($activeStagesFU as $stage)
-                                    <option value="{{ $stage }}" x-bind:selected="selectedProspect.status === '{{ $stage }}'">{{ $stage }}</option>
-                                @endforeach
-                            </select>
+                            <template x-if="canChangeProspectStatus(selectedProspect)">
+                                <div>
+                                    @php
+                                        $activeStagesFU = \App\Models\Prospek::getActiveStages();
+                                        if (strtolower(auth()->user()->role ?? '') === 'sales') {
+                                            $activeStagesFU = array_filter($activeStagesFU, fn($s) => strtoupper($s) !== 'LUNAS');
+                                        }
+                                    @endphp
+                                    <select name="status" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                        @foreach($activeStagesFU as $stage)
+                                            <option value="{{ $stage }}" x-bind:selected="selectedProspect.status === '{{ $stage }}'">{{ $stage }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </template>
+                            <template x-if="!canChangeProspectStatus(selectedProspect)">
+                                <div>
+                                    <input type="hidden" name="status" :value="selectedProspect.status">
+                                    <div class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium flex items-center justify-between">
+                                        <span class="font-bold text-slate-800" x-text="selectedProspect.status"></span>
+                                        <span class="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-semibold flex items-center gap-1">
+                                            <svg class="w-3 h-3 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            Terkunci
+                                        </span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1">Status prospek ini tidak dapat diperbarui (status final atau tidak memiliki izin).</p>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-                        <button type="button" @click="modalFollowUp = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
-                        <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs">Simpan Follow Up</button>
+                        <button type="button" @click="isSubmitting = false; modalFollowUp = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
+                        <button 
+                            type="submit" 
+                            :disabled="isSubmitting"
+                            :class="isSubmitting ? 'opacity-70 cursor-not-allowed' : ''"
+                            class="px-5 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <span x-show="!isSubmitting">Simpan Follow Up</span>
+                            <span x-show="isSubmitting" class="flex items-center gap-1.5" x-cloak>
+                                <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Menyimpan...
+                            </span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -2419,7 +2728,8 @@ x-init="
                         },
                         body: JSON.stringify({
                             prospek_id: selectedProspect.id,
-                            status: $event.target.status.value
+                            status: $event.target.status.value,
+                            notes: $event.target.notes ? $event.target.notes.value : ''
                         })
                     }).then(r => r.json()).then(data => {
                         if(data.success) {
@@ -2573,7 +2883,7 @@ x-init="
                                 (position) => {
                                     this.lat = position.coords.latitude;
                                     this.lng = position.coords.longitude;
-                                    this.geoStatus = 'Koordinat ditemukan ✓. Melacak alamat...';
+                                    this.geoStatus = 'Koordinat ditemukan. Melacak alamat...';
                                     
                                     // Reverse Geocoding via Nominatim
                                     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${this.lat}&lon=${this.lng}`)
@@ -2581,7 +2891,7 @@ x-init="
                                         .then(data => {
                                             if (data && data.display_name) {
                                                 this.geoAddress = data.display_name;
-                                                this.geoStatus = 'Alamat ditemukan ✓';
+                                                this.geoStatus = 'Alamat berhasil ditemukan.';
                                             } else {
                                                 this.geoStatus = 'Gagal melacak alamat detail, hanya koordinat yang disimpan.';
                                             }
@@ -2640,7 +2950,7 @@ x-init="
                             $modalSchoolOptions[] = [
                                 'value' => 'prospek_' . $p->id,
                                 'label' => $p->name,
-                                'sub'   => '📋 Prospek • Status: ' . $p->status . ($p->pic ? ' • PIC: ' . $p->pic : ''),
+                                'sub'   => 'Prospek • Status: ' . $p->status . ($p->pic ? ' • PIC: ' . $p->pic : ''),
                             ];
                         }
                         foreach(\App\Models\Sekolah::where('status', 'Aktif')->orderBy('nama')->get() as $sek) {
@@ -2656,7 +2966,7 @@ x-init="
                             $modalCorpOptions[] = [
                                 'value' => (string)$per->id,
                                 'label' => $per->nama,
-                                'sub'   => '🏢 Database Perusahaan' . ($per->kota ? ' • ' . $per->kota : ''),
+                                'sub'   => 'Database Perusahaan' . ($per->kota ? ' • ' . $per->kota : ''),
                             ];
                         }
                     @endphp
@@ -2794,7 +3104,7 @@ x-init="
                                             if(inp) { inp.value = $event.detail.search; inp.focus(); } 
                                         }); 
                                     }" 
-                                    class="space-y-1.5"
+                                    class="space-y-2"
                                 >
                                     <div class="flex items-center justify-between mb-1 h-5">
                                         <template x-if="!modeManualSekolah">
@@ -2850,7 +3160,7 @@ x-init="
                                                 name="sekolah_manual" 
                                                 x-model="sekolah_manual" 
                                                 @input="namaInstitusi = $event.target.value"
-                                                placeholder="Ketik nama sekolah manual (misal: SMAN 1 Cirebon)..." 
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
                                                 class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
                                             >
                                         </div>
@@ -3057,7 +3367,11 @@ x-init="
                             <span class="text-[11px] text-slate-400">Hanya foto (Tanpa GPS)</span>
                         </div>
 
-                        <div class="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-white rounded-xl p-4 text-center transition relative cursor-pointer" @click="document.getElementById('foto_upload').click()">
+                        <div 
+                            class="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-white rounded-xl transition relative"
+                            :class="photoPreview ? 'p-2 border-blue-400' : 'p-4 text-center cursor-pointer'"
+                            @click="!photoPreview && document.getElementById('foto_upload').click()"
+                        >
                             <!-- File input is always in DOM -->
                             <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @click.stop @change="
                                 const file = $event.target.files[0];
@@ -3069,23 +3383,36 @@ x-init="
                             ">
 
                             <div x-show="!photoPreview">
-                                <svg class="mx-auto h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2v12a2 2 0 002 2z" />
-                                </svg>
-                                <div class="mt-2 text-xs text-slate-600">
-                                    <span class="relative font-semibold text-blue-600 hover:text-blue-500">
-                                        Upload foto dokumentasi
-                                    </span>
-                                    <span class="text-slate-400 block mt-0.5">PNG, JPG hingga 10MB</span>
+                                <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
                                 </div>
+                                <div class="text-xs font-semibold text-blue-600 hover:text-blue-500">
+                                    Upload foto dokumentasi
+                                </div>
+                                <span class="text-slate-400 text-[11px] block mt-0.5">PNG, JPG, WEBP hingga 10MB</span>
                             </div>
 
                             <div x-show="photoPreview" x-cloak>
-                                <div class="relative inline-block">
-                                    <img :src="photoPreview" class="max-h-40 rounded-lg shadow-xs object-cover mx-auto" alt="Preview foto">
-                                    <button type="button" @click.stop="photoPreview = null; document.getElementById('foto_upload').value = ''" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-md hover:bg-rose-600 cursor-pointer">
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    </button>
+                                <div class="relative w-full rounded-lg overflow-hidden">
+                                    <img :src="photoPreview" class="w-full h-48 rounded-lg shadow-xs object-cover" alt="Preview foto">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-2.5">
+                                        <span class="text-white text-[11px] font-semibold flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            Foto Terpilih
+                                        </span>
+                                        <div class="flex items-center gap-1.5">
+                                            <button type="button" @click.stop="document.getElementById('foto_upload').click()" class="px-2.5 py-1 rounded-md bg-white/90 hover:bg-white text-slate-700 text-[11px] font-bold shadow-xs cursor-pointer flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                                Ganti
+                                            </button>
+                                            <button type="button" @click.stop="photoPreview = null; document.getElementById('foto_upload').value = ''" class="p-1 rounded-md bg-rose-500 hover:bg-rose-600 text-white shadow-xs cursor-pointer" title="Hapus Foto">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

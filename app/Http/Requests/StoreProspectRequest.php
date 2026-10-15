@@ -26,6 +26,8 @@ class StoreProspectRequest extends FormRequest
     {
         return [
             'name'     => 'nullable|string|max:255',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang'     => 'nullable|string|max:100',
             'type'     => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
@@ -66,10 +68,25 @@ class StoreProspectRequest extends FormRequest
                     }
                 }
             ],
-            'prodi_id' => 'nullable|string',
+            'prodi_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'lainnya' || $value === null || $value === '') {
+                        return;
+                    }
+                    if (!\App\Models\Prodi::where('id', $value)->exists()) {
+                        $fail('The selected prodi id is invalid.');
+                    }
+                }
+            ],
             'prodi_lainnya' => 'nullable|string',
-            'wa_ortu' => 'nullable|string|max:20',
+            'wa_ortu' => 'nullable|string|max:255',
             'asal_kelas' => 'nullable|string|max:100',
+            'kelas' => 'nullable|in:Reguler,Karyawan',
+            'sekolah_kategori_id' => 'nullable|exists:master_data,id',
+            'sekolah_wilayah_id' => 'nullable|exists:wilayahs,id',
+            'sekolah_kecamatan' => 'nullable|string|max:100',
+            'sekolah_telepon' => 'nullable|string|max:50',
         ];
     }
 

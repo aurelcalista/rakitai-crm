@@ -309,7 +309,7 @@ class HmCsController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($cs, $selectedAreaIds, $hmKotaId, $hm) {
+        return DB::transaction(function () use ($cs, $selectedAreaIds, $hmKotaIds, $hm) {
             $primaryAreaId = !empty($selectedAreaIds) ? $selectedAreaIds[0] : ($cs->wilayah_id ?: $hm->wilayah_id);
 
             $cs->update([

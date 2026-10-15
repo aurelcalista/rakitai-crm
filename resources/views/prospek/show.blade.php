@@ -3,12 +3,30 @@
     $pageSubtitle = $prospect['name'];
     $prospekModel = $prospekModel ?? \App\Models\Prospek::find($prospect['id']);
     $transaksis = $transaksis ?? ($prospekModel ? $prospekModel->transaksis()->with(['user', 'verifier', 'rejecter'])->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get() : collect());
-    $pendingList = $transaksis->where('payment_status', 'pending');
-    $hasPendingTrx = $pendingList->isNotEmpty();
-    $hasVerifiedTermin1 = $transaksis->where('jenis', 'Pembayaran Termin 1')->where('payment_status', 'verified')->isNotEmpty();
-    $hasVerifiedFormulir = $transaksis->where('jenis', 'Beli Formulir')->where('payment_status', 'verified')->isNotEmpty();
-    $totalPaid = $transaksis->where('payment_status', 'verified')->sum('nominal');
-    $totalPending = $transaksis->where('payment_status', 'pending')->sum('nominal');
+    $pendingList = $pendingList ?? $transaksis->where('payment_status', 'pending');
+    $hasPendingTrx = $hasPendingTrx ?? $pendingList->isNotEmpty();
+    $hasVerifiedTermin1 = $hasVerifiedTermin1 ?? $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Pembayaran Termin 1', 'DP/Konversi', 'UKT', 'Perlengkapan']) || $t->kategori === 'Lunas')->isNotEmpty();
+    $hasVerifiedFormulir = $hasVerifiedFormulir ?? $transaksis->where('payment_status', 'verified')->filter(fn($t) => in_array($t->jenis, ['Beli Formulir', 'Pendaftaran']) || $t->kategori === 'DP Daftar')->isNotEmpty();
+    $totalPaid = $totalPaid ?? $transaksis->where('payment_status', 'verified')->sum('nominal');
+    $totalPending = $totalPending ?? $transaksis->where('payment_status', 'pending')->sum('nominal');
+
+    $aliasesMap = [
+        'Pendaftaran'  => ['Pendaftaran', 'Beli Formulir'],
+        'Perlengkapan' => ['Perlengkapan'],
+        'Gedung'       => ['Gedung'],
+        'DP/Konversi'  => ['DP/Konversi', 'DP', 'Pembayaran Termin 1'],
+        'UKT'          => ['UKT'],
+    ];
+    $verifiedTypes = [];
+    $pendingTypes = [];
+    foreach ($aliasesMap as $key => $aliases) {
+        $verifiedTypes[$key] = $transaksis->contains(function ($t) use ($aliases) {
+            return in_array($t->jenis, $aliases) && $t->payment_status === \App\Models\Transaksi::STATUS_VERIFIED;
+        });
+        $pendingTypes[$key] = $transaksis->contains(function ($t) use ($aliases) {
+            return in_array($t->jenis, $aliases) && $t->payment_status === \App\Models\Transaksi::STATUS_PENDING;
+        });
+    }
 @endphp
 
 <x-app-layout :title="'Detail Prospek - ' . $prospect['name']">
@@ -20,8 +38,55 @@
         modalEditProspek: false,
         modalTransaksi: false,
         transaksiStep: 1,
-        selectedJenis: 'Pembayaran Termin 1',
-        nominalVal: 1500000,
+        kategoriVal: '{{ (!empty($verifiedTypes['Pendaftaran']) || !empty($pendingTypes['Pendaftaran'])) ? 'DP Perlengkapan' : 'DP Daftar' }}',
+        trxItems: {
+            'Pendaftaran': {
+                checked: {{ (!empty($verifiedTypes['Pendaftaran']) || !empty($pendingTypes['Pendaftaran'])) ? 'false' : 'true' }},
+                nominal: 250000,
+                is_paid: {{ !empty($verifiedTypes['Pendaftaran']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['Pendaftaran']) ? 'true' : 'false' }}
+            },
+            'Perlengkapan': {
+                checked: false,
+                nominal: 350000,
+                is_paid: {{ !empty($verifiedTypes['Perlengkapan']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['Perlengkapan']) ? 'true' : 'false' }}
+            },
+            'Gedung': {
+                checked: false,
+                nominal: 0,
+                is_paid: {{ !empty($verifiedTypes['Gedung']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['Gedung']) ? 'true' : 'false' }}
+            },
+            'DP/Konversi': {
+                checked: false,
+                nominal: 500000,
+                is_paid: {{ !empty($verifiedTypes['DP/Konversi']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['DP/Konversi']) ? 'true' : 'false' }}
+            },
+            'UKT': {
+                checked: false,
+                nominal: 1500000,
+                is_paid: {{ !empty($verifiedTypes['UKT']) ? 'true' : 'false' }},
+                is_pending: {{ !empty($pendingTypes['UKT']) ? 'true' : 'false' }}
+            }
+        },
+        get totalNominal() {
+            let sum = 0;
+            for (const key in this.trxItems) {
+                if (this.trxItems[key].checked && !this.trxItems[key].is_paid && !this.trxItems[key].is_pending) {
+                    sum += Number(this.trxItems[key].nominal || 0);
+                }
+            }
+            return sum;
+        },
+        get checkedJenisCount() {
+            let count = 0;
+            for (const key in this.trxItems) {
+                if (this.trxItems[key].checked && !this.trxItems[key].is_paid && !this.trxItems[key].is_pending) count++;
+            }
+            return count;
+        },
         tanggalVal: '{{ date('Y-m-d') }}',
         metodePembayaran: 'bank_transfer',
         selectedBankId: '{{ \App\Models\BankAccount::where('is_active', true)->value('id') ?? '' }}',
@@ -60,9 +125,22 @@
             if (!num) return '0';
             return new Intl.NumberFormat('id-ID').format(num);
         },
-        openModalTransaksi(jenis = 'Pembayaran Termin 1', nominal = 1500000) {
-            this.selectedJenis = jenis;
-            this.nominalVal = nominal;
+        openModalTransaksi(kategori = null, precheck = null) {
+            if (!kategori) {
+                kategori = (this.trxItems['Pendaftaran'].is_paid || this.trxItems['Pendaftaran'].is_pending) ? 'DP Perlengkapan' : 'DP Daftar';
+            }
+            if (!precheck) {
+                precheck = (this.trxItems['Pendaftaran'].is_paid || this.trxItems['Pendaftaran'].is_pending) ? 'Perlengkapan' : 'Pendaftaran';
+            }
+            this.kategoriVal = kategori;
+            for (const key in this.trxItems) {
+                if (this.trxItems[key].is_paid || this.trxItems[key].is_pending) {
+                    this.trxItems[key].checked = false;
+                } else {
+                    this.trxItems[key].checked = (key === precheck);
+                }
+                if (key === 'Gedung') this.trxItems[key].nominal = 0;
+            }
             this.transaksiStep = 1;
             this.modalTransaksi = true;
         },
@@ -157,7 +235,7 @@
                     @can('transaction', $prospekModel ?? null)
                     <button 
                         type="button" 
-                        @click="modalTransaksi = true"
+                        @click="openModalTransaksi()"
                         class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                     >
                         <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -177,17 +255,24 @@
                     @endcan
 
                     @can('takeover', $prospekModel ?? null)
-                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="{{ strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.' }}">
+                    <form action="{{ route(strtolower(auth()->user()->role) === 'sales' ? 'sales.prospek.takeover' : 'prospek.takeover', $prospect['id']) }}" method="POST" class="inline-block" data-confirm="{{ ($prospekModel->isPresensiSiswa() ? 'Yakin ingin melakukan takeover prospek Presensi Siswa ini?' : (strtolower(auth()->user()->role) === 'cs' ? 'Yakin ingin melakukan pro-active takeover prospek ini?' : 'Yakin ingin menyerahkan prospek ini ke CS? Penanganan selanjutnya akan dialihkan ke tim CS.')) }}">
                         @csrf
                         <button 
                             type="submit" 
                             class="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                            <span>{{ strtolower(auth()->user()->role) === 'cs' ? 'Takeover (Ambil Alih)' : 'Serahkan ke CS' }}</span>
+                            <span>{{ $prospekModel->isPresensiSiswa() ? 'Takeover Presensi Siswa' : (strtolower(auth()->user()->role) === 'cs' ? 'Takeover (Ambil Alih)' : 'Serahkan ke CS') }}</span>
                         </button>
                     </form>
                     @endcan
+
+                    @if($prospekModel->isPresensiSiswa() && ($prospekModel->status_takeover === 'Sudah Di-takeover' || $prospekModel->takeover_by_id))
+                    <div class="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        <span>Sudah Di-takeover: <strong>{{ $prospekModel->takeoverBy?->name ?? 'User #' . $prospekModel->takeover_by_id }}</strong> ({{ $prospekModel->takeoverBy?->role ?? 'Sales' }})</span>
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -257,6 +342,112 @@
                     
                     <div class="space-y-3.5 text-xs">
                         <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Owner Awal</span>
+                            <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                <p class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                    <span class="font-bold text-slate-800">{{ $prospekModel->owner?->name ?? 'Sistem' }}</span>
+                                </p>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {{ $prospekModel->owner_id ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200' }}">
+                                    {{ $prospekModel->owner_id ? 'Pemilik Awal' : 'Sistem' }}
+                                </span>
+                            </div>
+                            @if($prospekModel->sales_id && $prospekModel->sales)
+                                <div class="text-[11px] text-slate-600 mt-1 flex items-center gap-1 font-medium">
+                                    <span class="text-slate-400">Sales Penangan:</span>
+                                    <strong class="text-slate-800">{{ $prospekModel->sales->name }}</strong>
+                                </div>
+                            @endif
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">No. Registrasi</span>
+                            @if(!empty($prospect['no_registrasi']))
+                                <div class="mt-0.5 flex items-center gap-2">
+                                    <span class="font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200 text-xs">
+                                        {{ $prospect['no_registrasi'] }}
+                                    </span>
+                                </div>
+                            @else
+                                <p class="text-slate-400 italic mt-0.5 text-xs">Belum Diisi</p>
+                            @endif
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Gelombang Pendaftaran</span>
+                            @if(!empty($prospect['gelombang']))
+                                <div class="mt-0.5">
+                                    <span class="font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200 text-xs inline-flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                        {{ $prospect['gelombang'] }}
+                                    </span>
+                                </div>
+                            @else
+                                <p class="text-slate-400 italic mt-0.5 text-xs">Belum Diisi</p>
+                            @endif
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
+                            <div class="mt-0.5">
+                                @if($prospekModel->isPresensiSiswa())
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                        Presensi Siswa
+                                    </span>
+                                @else
+                                    <span class="font-medium text-slate-800">{{ $prospect['source'] ?? '-' }}</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Asal Sekolah & Wilayah</span>
+                            <p class="font-medium text-slate-800 mt-0.5">
+                                {{ $prospekModel->sekolah?->nama ?? ($prospekModel->sekolah_manual ?: ($prospect['sekolah_name'] ?? 'Belum Diisi')) }}
+                            </p>
+                            <p class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                                <span>Wilayah: <strong>{{ $prospekModel->sekolah?->wilayah?->nama ?? ($prospekModel->wilayah?->nama ?? ($prospect['wilayah_name'] ?? 'Belum Diisi')) }}</strong></span>
+                            </p>
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Status Takeover</span>
+                            <div class="mt-1">
+                                @if($prospekModel->status_takeover === 'Sudah Di-takeover' || $prospekModel->takeover_by_id)
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                        Sudah Di-takeover
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                        Belum Di-takeover
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        @if($prospekModel->takeover_by_id || $prospekModel->takeoverBy)
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pengambil Alih</span>
+                            <p class="font-bold text-slate-800 mt-0.5 text-xs flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                <span>{{ $prospekModel->takeoverBy?->name ?? 'User #' . $prospekModel->takeover_by_id }}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    {{ $prospekModel->takeoverBy?->role ?? 'Sales' }}
+                                </span>
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Waktu Takeover</span>
+                            <p class="font-medium text-slate-700 mt-0.5 text-xs">
+                                {{ $prospekModel->takeover_at ? $prospekModel->takeover_at->format('d M Y, H:i') : '-' }}
+                            </p>
+                        </div>
+                        @endif
+
+                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Status Pipeline</span>
                             <div class="mt-1">
                                 <x-status-badge :status="$prospect['status']" />
@@ -284,11 +475,6 @@
                             </div>
                         </div>
 
-                        <div>
-                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
-                            <p class="font-medium text-slate-800 mt-0.5">{{ $prospect['source'] ?? '-' }}</p>
-                        </div>
-
                         @if($prospekModel->asal_kelas)
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Kelas / Jabatan</span>
@@ -314,6 +500,23 @@
                         @endif
 
                         <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Pilihan Kelas Kuliah</span>
+                            <div class="mt-1">
+                                @if(($prospekModel->kelas ?? $prospect['kelas'] ?? 'Reguler') === 'Karyawan')
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1.5">
+                                        <span>Karyawan</span>
+                                        <span class="font-normal text-[10px] text-purple-500">(Kelas Sore / Malam)</span>
+                                    </span>
+                                @else
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1.5">
+                                        <span>Reguler</span>
+                                        <span class="font-normal text-[10px] text-blue-500">(Kelas Pagi / Siang)</span>
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Catatan Internal</span>
                             <p class="text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100">{{ $prospect['notes'] ?? '-' }}</p>
                         </div>
@@ -336,7 +539,7 @@
                         @can('transaction', $prospekModel ?? null)
                         <button 
                             type="button" 
-                            @click="openModalTransaksi('Pembayaran Termin 1', 1500000)"
+                            @click="openModalTransaksi()"
                             class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
                         >
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -407,11 +610,11 @@
                     @if(($transaksis ?? collect())->isEmpty())
                         <div class="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                             <p class="text-xs font-bold text-slate-700">Belum ada transaksi pembayaran</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Catat pembayaran Beli Formulir atau Termin 1 untuk memproses pipeline closing.</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Catat pembayaran formulir, perlengkapan, atau termin untuk memproses pipeline closing.</p>
                             @can('transaction', $prospekModel ?? null)
                             <button 
                                 type="button" 
-                                @click="openModalTransaksi('Beli Formulir', 250000)"
+                                @click="openModalTransaksi()"
                                 class="mt-3 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                                 <span>Input Transaksi Sekarang</span>
@@ -425,6 +628,7 @@
                                     <tr>
                                         <th class="px-3.5 py-2.5 text-left">Tanggal</th>
                                         <th class="px-3.5 py-2.5 text-left">Jenis Transaksi</th>
+                                        <th class="px-3.5 py-2.5 text-left">Kategori</th>
                                         <th class="px-3.5 py-2.5 text-right">Nominal</th>
                                         <th class="px-3.5 py-2.5 text-left">Metode Bayar</th>
                                         <th class="px-3.5 py-2.5 text-center">Status</th>
@@ -439,6 +643,15 @@
                                             </td>
                                             <td class="px-3.5 py-3 font-bold text-slate-800 whitespace-nowrap">
                                                 {{ $trx->jenis }}
+                                            </td>
+                                            <td class="px-3.5 py-3 whitespace-nowrap">
+                                                @if($trx->kategori)
+                                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                        {{ $trx->kategori }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-slate-400 text-[11px]">-</span>
+                                                @endif
                                             </td>
                                             <td class="px-3.5 py-3 text-right font-extrabold text-slate-900 whitespace-nowrap">
                                                 Rp {{ number_format($trx->nominal, 0, ',', '.') }}
@@ -500,6 +713,138 @@
                     @endif
                 </div>
 
+                <!-- KARTU RIWAYAT FOLLOW-UP -->
+                <div class="crm-card bg-white p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Riwayat Follow-Up</h3>
+                                @php
+                                    $fuCount = count($prospect['follow_ups'] ?? ($prospekModel && $prospekModel->relationLoaded('followUps') ? $prospekModel->followUps : []));
+                                @endphp
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800">
+                                    {{ $fuCount }} Aktivitas
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Catatan interaksi, pelaksana follow-up lintas Sales, dan komitmen jadwal berikutnya</p>
+                        </div>
+                        @can('followUp', $prospekModel)
+                        <button 
+                            type="button" 
+                            @click="selectedProspect = prospect; modalFollowUp = true"
+                            class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            <span>Catat Follow Up</span>
+                        </button>
+                        @endcan
+                    </div>
+
+                    @php
+                        $fuItems = $prospect['follow_ups'] ?? [];
+                        if (empty($fuItems) && $prospekModel && $prospekModel->relationLoaded('followUps')) {
+                            $fuItems = $prospekModel->followUps->map(function($f) use ($prospekModel) {
+                                return [
+                                    'id'             => $f->id,
+                                    'user_id'        => $f->user_id,
+                                    'user'           => $f->user?->name ?? 'Sistem',
+                                    'role'           => $f->user?->role ?? 'Sales',
+                                    'is_helper'      => (bool) ($f->user_id && $f->user_id != $prospekModel->sales_id && $f->user_id != $prospekModel->owner_id),
+                                    'tanggal'        => \Carbon\Carbon::parse($f->tanggal)->format('d M Y, H:i'),
+                                    'metode'         => $f->metode ?? '-',
+                                    'hasil'          => $f->hasil ?? '-',
+                                    'catatan'        => $f->catatan ?? '-',
+                                    'next_follow_up' => $f->next_follow_up ? \Carbon\Carbon::parse($f->next_follow_up)->format('d M Y, H:i') : '-',
+                                ];
+                            })->toArray();
+                        }
+                    @endphp
+
+                    @if(empty($fuItems))
+                        <div class="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            Belum ada riwayat follow-up yang dicatat untuk prospek ini.
+                        </div>
+                    @else
+                        <div class="space-y-3">
+                            @foreach($fuItems as $fu)
+                                <div class="p-4 rounded-xl border {{ !empty($fu['is_helper']) ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50/70 border-slate-200/80' }} transition space-y-2.5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <!-- Pelaksana Follow Up -->
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5 {{ !empty($fu['is_helper']) ? 'text-amber-600' : 'text-blue-600' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                                <span class="font-bold text-slate-900">{{ $fu['user'] ?? 'Sistem' }}</span>
+                                            </span>
+
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">
+                                                {{ $fu['role'] ?? 'Sales' }}
+                                            </span>
+
+                                            @if(!empty($fu['is_helper']))
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
+                                                    <svg class="w-3 h-3 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                                                    Bantuan Sales Lain
+                                                </span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300 inline-flex items-center gap-1">
+                                                    <svg class="w-3 h-3 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                    Pemilik Prospek
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <!-- Waktu Aktivitas -->
+                                        <div class="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span>{{ $fu['tanggal'] ?? '-' }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Metode, Hasil, dan Jadwal Berikutnya -->
+                                    <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                                        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-white border border-slate-200 text-slate-700 flex items-center gap-1">
+                                            @if(str_contains(strtolower($fu['metode'] ?? ''), 'whatsapp'))
+                                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            @elseif(str_contains(strtolower($fu['metode'] ?? ''), 'telepon'))
+                                                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            @elseif(str_contains(strtolower($fu['metode'] ?? ''), 'meeting'))
+                                                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                                            @else
+                                                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                                            @endif
+                                            Metode: {{ $fu['metode'] ?? '-' }}
+                                        </span>
+
+                                        <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white border border-slate-200 text-slate-800">
+                                            Hasil: <strong class="text-slate-900">{{ $fu['hasil'] ?? '-' }}</strong>
+                                        </span>
+
+                                        @if(!empty($fu['next_follow_up']) && $fu['next_follow_up'] !== '-')
+                                            <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 border border-blue-200 text-blue-800 flex items-center gap-1">
+                                                <svg class="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                                Next Follow Up: <strong>{{ $fu['next_follow_up'] }}</strong>
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Catatan Follow Up -->
+                                    @if(!empty($fu['catatan']) && $fu['catatan'] !== '-')
+                                        <div class="bg-white p-2.5 rounded-lg border border-slate-100 text-xs text-slate-700 leading-relaxed">
+                                            <span class="text-slate-400 font-semibold block text-[10px] uppercase">Catatan:</span>
+                                            {{ $fu['catatan'] }}
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
                 <!-- RIWAYAT AKTIVITAS & TIMELINE -->
                 <div class="crm-card bg-white p-6 space-y-5">
                     <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -507,12 +852,14 @@
                             <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Riwayat Aktivitas & Timeline</h3>
                             <p class="text-xs text-slate-500">Log lengkap interaksi, perubahan status, dan catatan tim</p>
                         </div>
+                        @can('followUp', $prospekModel)
                         <button 
                             @click="selectedProspect = prospect; modalFollowUp = true"
                             class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs transition cursor-pointer"
                         >
                             Tambah Catatan
                         </button>
+                        @endcan
                     </div>
 
                 <!-- Timeline Items -->
@@ -521,7 +868,7 @@
                         <div class="relative flex items-start gap-4">
                             <!-- Timeline Dot / Avatar -->
                             <div class="w-6 h-6 rounded-full bg-white border-2 {{ str_contains($item['title'], 'Re-alokasi') ? 'border-purple-600 text-purple-600' : 'border-blue-600 text-blue-600' }} font-bold flex items-center justify-center text-[10px] shrink-0 z-10">
-                                @if(str_contains($item['title'], 'Re-alokasi')) ⇄ @elseif($item['role'] === 'Sales') S @elseif($item['role'] === 'CS') C @else ✓ @endif
+                                @if(str_contains($item['title'], 'Re-alokasi')) <svg class="w-3 h-3 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg> @elseif($item['role'] === 'Sales') S @elseif($item['role'] === 'CS') C @else <svg class="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> @endif
                             </div>
 
                             <div class="flex-1 {{ str_contains($item['title'], 'Re-alokasi') ? 'bg-purple-50/60 border-purple-200' : 'bg-slate-50/70 border-slate-200/80' }} p-4 rounded-xl border space-y-1">
@@ -534,7 +881,35 @@
                                 </div>
                                 
                                 <p class="text-xs text-slate-600 pt-1 leading-relaxed">{{ $item['notes'] }}</p>
-                                <div class="text-[10px] text-slate-400 pt-1 font-medium">Oleh: {{ $item['user'] }}</div>
+
+                                @if(!empty($item['status_before']) && !empty($item['status']) && $item['status_before'] !== $item['status'])
+                                    <div class="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100/70 text-blue-900 border border-blue-200 mt-1">
+                                        <span>Perubahan Status:</span>
+                                        <span class="text-slate-500 line-through">{{ $item['status_before'] }}</span>
+                                        <span>→</span>
+                                        <span class="text-blue-700">{{ $item['status'] }}</span>
+                                    </div>
+                                @endif
+
+                                <div class="text-[10px] text-slate-500 pt-1 font-medium flex items-center gap-1.5 flex-wrap">
+                                    <span>Pelaksana Aktivitas:</span>
+                                    <strong class="text-slate-700">{{ $item['user'] }}</strong>
+                                    <span class="text-slate-400">({{ $item['role'] }})</span>
+                                    @php
+                                        $isTimelineHelper = false;
+                                        if ($prospekModel) {
+                                            $actorUserId = $item['user_id'] ?? null;
+                                            if ($actorUserId && $actorUserId != $prospekModel->sales_id && $actorUserId != $prospekModel->owner_id) {
+                                                $isTimelineHelper = true;
+                                            }
+                                        }
+                                    @endphp
+                                    @if($isTimelineHelper)
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                            Bantuan Sales Lain
+                                        </span>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     @endforeach
@@ -647,7 +1022,7 @@
                             </div>
 
                             <!-- Input Sekolah (Search & Manual Mode) -->
-                            <div x-show="prospekType === 'Sekolah'" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-1">
+                            <div x-show="prospekType === 'Sekolah'" x-on:switch-manual.stop="if ($event.detail.name === 'sekolah_id') { modeManualSekolah = true; $nextTick(function() { const inp = $el.querySelector('input[name=sekolah_manual]'); if(inp) { inp.value = $event.detail.search; inp.focus(); } }); }" class="space-y-2">
                                 <div class="flex items-center justify-between mb-1.5 h-5">
                                     <template x-if="!modeManualSekolah">
                                         <div class="flex items-center justify-between w-full">
@@ -691,26 +1066,83 @@
                                     />
                                 </div>
 
-                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-1.5">
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
-                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
+                                <div x-show="modeManualSekolah" style="display: none;" class="space-y-3 p-3.5 bg-slate-50/80 rounded-2xl border border-blue-200/60" x-data="{
+                                    manualWilayahId: '',
+                                    wilayahData: {{ json_encode($wilayahKabupatenList ?? []) }},
+                                    get kecamatanList() {
+                                        if (!this.manualWilayahId) return [];
+                                        const w = this.wilayahData.find(item => item.id == this.manualWilayahId);
+                                        return w ? (w.children || []) : [];
+                                    }
+                                }">
+                                    <!-- 1. Nama Sekolah -->
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_manual" 
+                                                value="{{ old('sekolah_manual', empty($prospect['sekolah_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
+                                                placeholder="Contoh: SMK NEGERI 1 CIREBON" 
+                                                class="w-full text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                                            >
                                         </div>
-                                        <input 
-                                            type="text" 
-                                            name="sekolah_manual" 
-                                            value="{{ old('sekolah_manual', empty($prospect['sekolah_id']) ? (($prospect['sekolah_name'] ?? '-') !== '-' ? $prospect['sekolah_name'] : ($prospect['name'] ?? '')) : '') }}"
-                                            placeholder="Ketik nama sekolah (misal: SMAN 1 Cirebon)..." 
-                                            class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/20 text-slate-800 font-medium placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition shadow-2xs"
-                                        >
                                     </div>
+
+                                    <!-- 2. Kategori Sekolah & Wilayah/Kota -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kategori Sekolah</label>
+                                            <select name="sekolah_kategori_id" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Kategori --</option>
+                                                @foreach($kategoriSekolahList ?? [] as $kat)
+                                                    <option value="{{ $kat->id }}">{{ $kat->nama }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Wilayah / Kota</label>
+                                            <select name="sekolah_wilayah_id" x-model="manualWilayahId" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Wilayah / Kota --</option>
+                                                <template x-for="w in wilayahData" :key="w.id">
+                                                    <option :value="w.id" x-text="w.nama"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- 3. Kecamatan & Telepon Sekolah -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kecamatan</label>
+                                            <select name="sekolah_kecamatan" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600">
+                                                <option value="">-- Pilih Kecamatan --</option>
+                                                <template x-for="c in kecamatanList" :key="c.id">
+                                                    <option :value="c.nama" x-text="c.nama"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-700 mb-1">Telepon Sekolah</label>
+                                            <input 
+                                                type="text" 
+                                                name="sekolah_telepon" 
+                                                placeholder="Contoh: (0231) 201234" 
+                                                class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                                            >
+                                        </div>
+                                    </div>
+
                                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/70 border border-amber-200/50 text-[10px] text-amber-800 font-medium">
                                         <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <span>Sekolah baru akan otomatis tersimpan ke master data.</span>
+                                        <span>Sekolah baru akan otomatis tersimpan ke Data Master Admin dan dapat dikelola langsung.</span>
                                     </div>
                                 </div>
                             </div>
@@ -785,6 +1217,27 @@
                             </div>
 
 
+                            <!-- Pilihan Kelas Kuliah (SPV Standard) -->
+                            <div class="space-y-1.5 bg-slate-50/70 p-3 rounded-xl border border-slate-200">
+                                <label class="block text-xs font-semibold text-slate-700">Pilihan Kelas Kuliah <span class="text-rose-500">*</span></label>
+                                <div class="grid grid-cols-2 gap-3 mt-1">
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition">
+                                        <input type="radio" name="kelas" value="Reguler" {{ ($prospect['kelas'] ?? 'Reguler') === 'Reguler' ? 'checked' : '' }} class="text-blue-600 focus:ring-blue-500">
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">Reguler</div>
+                                            <div class="text-[10px] text-slate-500">Pagi / Siang</div>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition">
+                                        <input type="radio" name="kelas" value="Karyawan" {{ ($prospect['kelas'] ?? '') === 'Karyawan' ? 'checked' : '' }} class="text-blue-600 focus:ring-blue-500">
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">Karyawan</div>
+                                            <div class="text-[10px] text-slate-500">Sore / Malam</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
                             <div x-data="{ selectedProdi: '{{ $prospect['prodi_id'] ?? (empty($prospect['prodi_id']) && !empty($prospect['prodi_lainnya']) ? 'lainnya' : '') }}' }">
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Program Studi Diminati</label>
                                 <select name="prodi_id" x-model="selectedProdi" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white mb-2">
@@ -840,6 +1293,25 @@
                                     <option value="">-- Pilih Sumber --</option>
                                     @foreach($sumberProspekList ?? [] as $sumber)
                                         <option value="{{ $sumber->nama }}" {{ ($prospect['source'] ?? '') == $sumber->nama ? 'selected' : '' }}>{{ $sumber->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    No. Registrasi <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <input type="text" name="no_registrasi" value="{{ $prospect['no_registrasi'] ?? '' }}" placeholder="Contoh: PMB-UCIC-895-1789183710" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition font-mono">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    Gelombang <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <select name="gelombang" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Gelombang --</option>
+                                    @foreach($gelombangList ?? [] as $gel)
+                                        <option value="{{ $gel->nama }}" {{ ($prospect['gelombang'] ?? '') == $gel->nama ? 'selected' : '' }}>{{ $gel->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -910,7 +1382,7 @@
                         </div>
                     </button>
 
-                    <button type="button" @click="if(nominalVal > 0) transaksiStep = 2" class="flex items-center gap-2 p-2 rounded-xl text-left transition" :class="transaksiStep === 2 ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 opacity-70'">
+                    <button type="button" @click="if(checkedJenisCount > 0) transaksiStep = 2" class="flex items-center gap-2 p-2 rounded-xl text-left transition" :class="transaksiStep === 2 ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 opacity-70'">
                         <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" :class="transaksiStep === 2 ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-slate-700'">2</span>
                         <div>
                             <div class="text-[11px] font-bold" :class="transaksiStep === 2 ? 'text-emerald-900' : 'text-slate-600'">Nomor Bayar & Kirim</div>
@@ -927,39 +1399,197 @@
                     {{-- ─────────────────────────────────────────────────── --}}
                     <div x-show="transaksiStep === 1" class="space-y-4">
 
-                        {{-- Quick Presets --}}
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" @click="selectedJenis = 'Beli Formulir'; nominalVal = 250000" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer" :class="selectedJenis === 'Beli Formulir' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                                Formulir (Rp 250.000)
-                            </button>
-                            <button type="button" @click="selectedJenis = 'Pembayaran Termin 1'; nominalVal = 1500000" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer" :class="selectedJenis === 'Pembayaran Termin 1' && nominalVal == 1500000 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                                Termin 1 (Rp 1.500.000)
-                            </button>
-                            <button type="button" @click="selectedJenis = 'Pembayaran Termin 1'; nominalVal = 3000000" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer" :class="selectedJenis === 'Pembayaran Termin 1' && nominalVal == 3000000 ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
-                                Termin 1 (Rp 3.000.000)
-                            </button>
-                        </div>
-
-                        {{-- Jenis Transaksi --}}
+                        {{-- Kategori Transaksi (Requirement J: Tepat 4 Pilihan Dropdown) --}}
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Transaksi <span class="text-rose-500">*</span></label>
-                            <select name="jenis" x-model="selectedJenis" required
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                Kategori Transaksi <span class="text-rose-500">*</span>
+                            </label>
+                            <select name="kategori" x-model="kategoriVal" required
                                 class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white font-medium">
-                                <option value="Beli Formulir">Beli Formulir</option>
-                                <option value="Pembayaran Termin 1">Pembayaran Termin 1 (Syarat Closing)</option>
+                                <option value="DP Daftar">DP Daftar</option>
+                                <option value="DP Perlengkapan">DP Perlengkapan</option>
+                                <option value="Lunas">Lunas</option>
+                                <option value="Keluar">Keluar</option>
                             </select>
+                            <div class="text-[10px] text-slate-400 mt-1">Pilih kategori transaksi yang relevan.</div>
                         </div>
 
-                        {{-- Nominal --}}
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nominal Transaksi (Rp) <span class="text-rose-500">*</span></label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-xs font-bold">Rp</span>
-                                <input type="number" name="nominal" x-model="nominalVal" required min="0" max="9999999999" step="1000" placeholder="1500000"
-                                    class="w-full text-xs sm:text-sm pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition font-bold text-slate-900 text-base">
+                        {{-- Multi-Pilihan Checkbox Jenis Transaksi (Requirement I: 5 Pilihan) --}}
+                        <div class="space-y-2">
+                            <label class="block text-xs font-semibold text-slate-700">
+                                Pilihan Jenis Transaksi <span class="text-rose-500">*</span>
+                                <span class="text-[11px] font-normal text-slate-500">(Bisa pilih lebih dari satu)</span>
+                            </label>
+                            
+                            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                <!-- 1. Pendaftaran -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Pendaftaran'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['Pendaftaran'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['Pendaftaran'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['Pendaftaran'].is_paid || trxItems['Pendaftaran'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="Pendaftaran" x-model="trxItems['Pendaftaran'].checked" :disabled="trxItems['Pendaftaran'].is_paid || trxItems['Pendaftaran'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>Pendaftaran</span>
+                                                    <template x-if="trxItems['Pendaftaran'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['Pendaftaran'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['Pendaftaran'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['Pendaftaran'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['Pendaftaran'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['Pendaftaran'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Biaya pendaftaran / formulir')">
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['Pendaftaran'].checked && !trxItems['Pendaftaran'].is_paid && !trxItems['Pendaftaran'].is_pending">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[Pendaftaran]" x-model="trxItems['Pendaftaran'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 2. Perlengkapan -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Perlengkapan'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['Perlengkapan'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['Perlengkapan'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['Perlengkapan'].is_paid || trxItems['Perlengkapan'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="Perlengkapan" x-model="trxItems['Perlengkapan'].checked" :disabled="trxItems['Perlengkapan'].is_paid || trxItems['Perlengkapan'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>Perlengkapan</span>
+                                                    <template x-if="trxItems['Perlengkapan'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['Perlengkapan'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['Perlengkapan'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['Perlengkapan'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['Perlengkapan'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['Perlengkapan'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Biaya jas almamater / atribut')">
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['Perlengkapan'].checked && !trxItems['Perlengkapan'].is_paid && !trxItems['Perlengkapan'].is_pending">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[Perlengkapan]" x-model="trxItems['Perlengkapan'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 3. Gedung (Default FREE / Rp 0) -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['Gedung'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['Gedung'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['Gedung'].checked ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'))">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['Gedung'].is_paid || trxItems['Gedung'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="Gedung" x-model="trxItems['Gedung'].checked" :disabled="trxItems['Gedung'].is_paid || trxItems['Gedung'].is_pending" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>Gedung</span>
+                                                    <template x-if="trxItems['Gedung'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS (FREE)</span>
+                                                    </template>
+                                                    <template x-if="trxItems['Gedung'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                    <template x-if="!trxItems['Gedung'].is_paid && !trxItems['Gedung'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700">DEFAULT FREE</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['Gedung'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['Gedung'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['Gedung'].is_paid ? 'Biaya gedung FREE telah tercatat & diverifikasi sah' : (trxItems['Gedung'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Default FREE (Rp 0, bukan tunggakan)')">
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['Gedung'].checked && !trxItems['Gedung'].is_paid && !trxItems['Gedung'].is_pending">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[Gedung]" x-model="trxItems['Gedung'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 4. DP/Konversi -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['DP/Konversi'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['DP/Konversi'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['DP/Konversi'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['DP/Konversi'].is_paid || trxItems['DP/Konversi'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="DP/Konversi" x-model="trxItems['DP/Konversi'].checked" :disabled="trxItems['DP/Konversi'].is_paid || trxItems['DP/Konversi'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>DP/Konversi</span>
+                                                    <template x-if="trxItems['DP/Konversi'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['DP/Konversi'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['DP/Konversi'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['DP/Konversi'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['DP/Konversi'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['DP/Konversi'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Down Payment / Mahasiswa Konversi')">
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['DP/Konversi'].checked && !trxItems['DP/Konversi'].is_paid && !trxItems['DP/Konversi'].is_pending">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[DP/Konversi]" x-model="trxItems['DP/Konversi'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- 5. UKT -->
+                                <div class="p-3 rounded-xl border transition" :class="trxItems['UKT'].is_paid ? 'border-emerald-200 bg-emerald-50/50' : (trxItems['UKT'].is_pending ? 'border-amber-200 bg-amber-50/50' : (trxItems['UKT'].checked ? 'border-blue-300 bg-blue-50/40' : 'border-slate-200 bg-white'))">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2.5 flex-1" :class="trxItems['UKT'].is_paid || trxItems['UKT'].is_pending ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'">
+                                            <input type="checkbox" name="jenis_items[]" value="UKT" x-model="trxItems['UKT'].checked" :disabled="trxItems['UKT'].is_paid || trxItems['UKT'].is_pending" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <div>
+                                                <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                    <span>UKT</span>
+                                                    <template x-if="trxItems['UKT'].is_paid">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300">✓ LUNAS</span>
+                                                    </template>
+                                                    <template x-if="trxItems['UKT'].is_pending">
+                                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">⏳ MENUNGGU CS</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-[10px]" :class="trxItems['UKT'].is_paid ? 'text-emerald-700 font-medium' : (trxItems['UKT'].is_pending ? 'text-amber-700 font-medium' : 'text-slate-500')"
+                                                     x-text="trxItems['UKT'].is_paid ? 'Sudah lunas & diverifikasi sah (tidak dapat diajukan lagi)' : (trxItems['UKT'].is_pending ? 'Sedang menunggu verifikasi CS' : 'Uang Kuliah Tunggal semester berjalan')">
+                                                </div>
+                                            </div>
+                                        </label>
+                                        <template x-if="trxItems['UKT'].checked && !trxItems['UKT'].is_paid && !trxItems['UKT'].is_pending">
+                                            <div class="w-36">
+                                                <div class="relative">
+                                                    <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400 text-[11px] font-bold">Rp</span>
+                                                    <input type="number" name="nominal_items[UKT]" x-model="trxItems['UKT'].nominal" min="0" step="1000" class="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20">
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-[11px] text-slate-500 mt-1 font-medium" x-show="nominalVal > 0">
-                                Terbilang: <span class="text-blue-700 font-bold" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+
+                            <!-- Hidden backward compatibility input for single nominal -->
+                            <input type="hidden" name="nominal" :value="totalNominal">
+                        </div>
+
+                        {{-- Total Pembayaran Ringkasan --}}
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                            <div class="text-xs font-bold text-slate-700">Total Nominal Pembayaran:</div>
+                            <div class="text-sm font-black text-emerald-700">
+                                Rp <span x-text="formatRupiah(totalNominal)"></span>
                             </div>
                         </div>
 
@@ -1016,7 +1646,7 @@
                                 class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition cursor-pointer">
                                 Batal
                             </button>
-                            <button type="button" @click="if(!nominalVal || nominalVal <= 0) { alert('Harap isi nominal transaksi.'); return; } transaksiStep = 2"
+                            <button type="button" @click="if(checkedJenisCount === 0) { alert('Harap pilih minimal satu jenis transaksi.'); return; } transaksiStep = 2"
                                 class="px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
                                 <span>Lihat Nomor Pembayaran & Lanjut</span>
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -1057,8 +1687,13 @@
                                     </div>
 
                                     <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-500 font-medium">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="kategoriVal"></span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-xs">
                                         <span class="text-slate-500 font-medium">Total Transfer:</span>
-                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(totalNominal)"></span>
                                     </div>
                                 </div>
 
@@ -1093,8 +1728,13 @@
                                     </div>
 
                                     <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-500 font-medium">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="kategoriVal"></span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-xs">
                                         <span class="text-slate-500 font-medium">Total Bayar:</span>
-                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(totalNominal)"></span>
                                     </div>
                                 </div>
                                 <p class="text-[10px] text-blue-800">Kode bayar VA dapat langsung dibayarkan melalui ATM / M-Banking calon mahasiswa.</p>
@@ -1126,8 +1766,13 @@
                                     </div>
 
                                     <div class="flex items-center justify-between text-xs">
+                                        <span class="text-slate-500 font-medium">Kategori Transaksi:</span>
+                                        <span class="font-bold text-indigo-700" x-text="kategoriVal"></span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between text-xs">
                                         <span class="text-slate-500 font-medium">Total Nominal:</span>
-                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(nominalVal)"></span>
+                                        <span class="font-extrabold text-emerald-700" x-text="'Rp ' + formatRupiah(totalNominal)"></span>
                                     </div>
                                 </div>
                             </div>
@@ -1140,7 +1785,8 @@
                                     <span>Pembayaran Kasir Kampus UCIC</span>
                                 </div>
                                 <p class="text-xs text-slate-700">Pembayaran tunai langsung di Kasir Keuangan PMB Kampus UCIC (Jl. Kesambi No. 202, Cirebon).</p>
-                                <div class="text-xs font-bold text-emerald-800">Total: <span x-text="'Rp ' + formatRupiah(nominalVal)"></span></div>
+                                <div class="text-xs font-bold text-slate-800">Kategori: <span class="text-indigo-700 font-extrabold" x-text="kategoriVal"></span></div>
+                                <div class="text-xs font-bold text-emerald-800">Total: <span x-text="'Rp ' + formatRupiah(totalNominal)"></span></div>
                             </div>
                         </template>
 
@@ -1153,12 +1799,24 @@
                                 class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition resize-none"></textarea>
                         </div>
 
-                        {{-- Alert CS Verification Flow --}}
-                        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                            <div class="text-[11px] leading-relaxed">
-                                Transaksi ini akan berstatus <strong>PENDING</strong> dan otomatis masuk ke antrean notifikasi <strong>CS</strong> untuk dicek dan disetujui. Target Closing akan masuk ke akun Anda setelah pembayaran diverifikasi oleh CS.
+                        {{-- Alert Verification Flow --}}
+                        @php
+                            $userRole = strtolower(auth()->user()->role ?? '');
+                            $isCsOrBackoffice = in_array($userRole, ['cs', 'admin', 'hm']);
+                        @endphp
+                        @if($isCsOrBackoffice)
+                            <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
+                                <div class="text-[11px] leading-relaxed">
+                                    Transaksi ini diinput oleh <strong>{{ auth()->user()->role }}</strong> dan akan <strong>LANGSUNG TERVERIFIKASI SAH</strong> serta langsung tercatat ke riwayat pembayaran.
+                                </div>
                             </div>
-                        </div>
+                        @else
+                            <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                                <div class="text-[11px] leading-relaxed">
+                                    Transaksi ini akan berstatus <strong>PENDING</strong> dan otomatis masuk ke antrean notifikasi <strong>CS</strong> untuk dicek dan disetujui. Target Closing akan masuk ke akun Anda setelah pembayaran diverifikasi oleh CS.
+                                </div>
+                            </div>
+                        @endif
 
                         {{-- Tombol Step 2 --}}
                         <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
@@ -1170,7 +1828,7 @@
                             <button type="submit"
                                 class="px-5 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                <span>Simpan & Kirim ke CS</span>
+                                <span>{{ $isCsOrBackoffice ? 'Simpan Transaksi (Verifikasi Langsung)' : 'Simpan & Kirim ke CS' }}</span>
                             </button>
                         </div>
 

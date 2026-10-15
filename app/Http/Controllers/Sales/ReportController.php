@@ -49,6 +49,7 @@ class ReportController extends Controller
                 'ai_training' => $p->ai_training ?? '-',
                 'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
                 'created_at' => $p->created_at ? $p->created_at->format('d M Y') : '-',
+                'created_at_raw' => $p->created_at ? $p->created_at->toIso8601String() : null,
                 'takeover_time' => $p->updated_at ? $p->updated_at->format('d M Y, H:i') : '-',
                 'last_contact' => $latestFollowUp && $latestFollowUp->tanggal ? \Carbon\Carbon::parse($latestFollowUp->tanggal)->format('d M Y, H:i') : '-',
                 'next_follow_up' => $latestFollowUp && $latestFollowUp->next_follow_up ? \Carbon\Carbon::parse($latestFollowUp->next_follow_up)->format('d M Y, H:i') : '-',

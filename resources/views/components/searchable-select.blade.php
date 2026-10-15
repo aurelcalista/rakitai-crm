@@ -128,6 +128,7 @@
     }" 
     class="relative w-full text-left"
     @click.away="open = false"
+    @select-item.window="if ($event.detail && $event.detail.name === '{{ $inputName }}') { selectedValue = String($event.detail.value); selectedLabel = $event.detail.label || ''; }"
 >
     <!-- Hidden input to submit with regular form -->
     <input 

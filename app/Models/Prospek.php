@@ -9,23 +9,35 @@ class Prospek extends Model
 {
     use HasFactory;
 
+    public const SOURCE_PRESENSI_SISWA = 'Presensi Siswa';
+
     protected $fillable = [
-        'name', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
+        'name', 'no_registrasi', 'gelombang', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
         'status', 'stage_number', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
         'sekolah_id', 'asal_kelas', 'perusahaan_id', 'prodi_id', 'prodi_lainnya',
         'lost_reason', 'lost_note',
         'follow_up_count', 'active_follow_up_count',
         'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',
+        'status_takeover', 'takeover_by_id', 'takeover_at',
     ];
 
     protected $casts = [
         'handover_at' => 'datetime',
+        'takeover_at' => 'datetime',
     ];
 
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            // Bersihkan nomor WhatsApp jika diinput dalam format link wa.me
+            if (!empty($prospek->wa_ortu) && preg_match('/wa\.me\/([0-9+]+)/i', $prospek->wa_ortu, $m)) {
+                $prospek->wa_ortu = preg_replace('/[^0-9]/', '', $m[1]);
+            }
+            if (!empty($prospek->whatsapp) && preg_match('/wa\.me\/([0-9+]+)/i', $prospek->whatsapp, $m)) {
+                $prospek->whatsapp = preg_replace('/[^0-9]/', '', $m[1]);
+            }
+
             // Keep the legacy string column in sync with the active TA when creating
             if (empty($prospek->tahun_akademik)) {
                 $aktivNama = \App\Services\AkademikService::getAktifNama();
@@ -40,16 +52,19 @@ class Prospek extends Model
                 }
             }
 
-            if (empty($prospek->sales_id)) {
-                if ($prospek->sekolah_id) {
-                    $sekolah = Sekolah::find($prospek->sekolah_id);
-                    if ($sekolah && $sekolah->sales_id) {
-                        $prospek->sales_id = $sekolah->sales_id;
-                    }
-                } elseif ($prospek->perusahaan_id) {
-                    $perusahaan = Perusahaan::find($prospek->perusahaan_id);
-                    if ($perusahaan && $perusahaan->sales_id) {
-                        $prospek->sales_id = $perusahaan->sales_id;
+            // Presensi Siswa murni dimiliki Sistem awal dan TIDAK boleh otomatis menugaskan Sales sekolah
+            if ($prospek->source !== self::SOURCE_PRESENSI_SISWA && $prospek->source !== 'Presensi Siswa') {
+                if (empty($prospek->sales_id)) {
+                    if ($prospek->sekolah_id) {
+                        $sekolah = Sekolah::find($prospek->sekolah_id);
+                        if ($sekolah && $sekolah->sales_id) {
+                            $prospek->sales_id = $sekolah->sales_id;
+                        }
+                    } elseif ($prospek->perusahaan_id) {
+                        $perusahaan = Perusahaan::find($prospek->perusahaan_id);
+                        if ($perusahaan && $perusahaan->sales_id) {
+                            $prospek->sales_id = $perusahaan->sales_id;
+                        }
                     }
                 }
             }
@@ -62,14 +77,26 @@ class Prospek extends Model
             }
 
             // Auto-handover to CS when status enters handover stages
-            if (in_array($prospek->status, ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])) {
+            if ($prospek->isHandoverStage()) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
-                    $cs = \App\Models\User::where('role', 'CS')
-                        ->where('status', 'Aktif')
-                        ->first();
-                        
+                    $cs = null;
+                    if ($prospek->wilayah_id) {
+                        $parentWilayahId = $prospek->wilayah?->parent_id ?: $prospek->wilayah_id;
+                        $cs = \App\Models\User::where('role', 'CS')
+                            ->where('status', 'Aktif')
+                            ->where(function ($q) use ($prospek, $parentWilayahId) {
+                                $q->where('wilayah_id', $prospek->wilayah_id)
+                                  ->orWhere('wilayah_id', $parentWilayahId)
+                                  ->orWhereHas('activeWilayahes', function ($wq) use ($prospek, $parentWilayahId) {
+                                      $wq->whereIn('wilayah_id', array_filter([$prospek->wilayah_id, $parentWilayahId]));
+                                  });
+                            })
+                            ->first();
+                    }
                     if (!$cs) {
-                        $cs = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->first();
+                        $cs = \App\Models\User::where('role', 'CS')
+                            ->where('status', 'Aktif')
+                            ->first();
                     }
                     
                     if ($cs) {
@@ -419,6 +446,7 @@ class Prospek extends Model
         'Acara Kampus',
         'MGBK/Miniclass',
         'Spanduk/Baliho',
+        'Presensi Siswa',
         'Lainnya',
     ];
 
@@ -500,6 +528,32 @@ class Prospek extends Model
     ];
 
     /**
+     * Dapatkan nama calon mahasiswa / prospek aktual (individu/siswa/pic).
+     * Jika tipe Sekolah dan PIC terisi, nama prospek aktual adalah PIC (nama siswa).
+     */
+    public function getCamabaNameAttribute(): string
+    {
+        if ($this->type === 'Sekolah' && !empty($this->pic) && $this->pic !== '-') {
+            return $this->pic;
+        }
+
+        if ($this->type === 'Corporate' && !empty($this->pic) && $this->pic !== '-') {
+            return $this->pic;
+        }
+
+        return $this->name ?? $this->pic ?? 'Calon Mahasiswa';
+    }
+
+    /**
+     * Dapatkan nama sekolah atau institusi asal.
+     */
+    public function getSekolahNamaAttribute(): string
+    {
+        return $this->sekolah?->nama 
+            ?? ($this->type === 'Sekolah' && !empty($this->name) && $this->name !== $this->pic ? $this->name : ($this->perusahaan?->nama ?? '-'));
+    }
+
+    /**
      * Check if the given user is the active Sales handler of this prospect.
      */
     public function isHandledBySales(\App\Models\User $user): bool
@@ -520,6 +574,10 @@ class Prospek extends Model
      */
     public function activeHandlerLabel(): string
     {
+        // If taken over via Presensi Siswa / takeover action
+        if ($this->takeover_by_id && $this->takeoverBy) {
+            return $this->takeoverBy->role . ' — ' . $this->takeoverBy->name;
+        }
         // If handed over to CS, CS is the active handler
         if ($this->cs_id && $this->cs) {
             return 'CS — ' . $this->cs->name;
@@ -535,10 +593,59 @@ class Prospek extends Model
      */
     public function isActiveHandler(\App\Models\User $user): bool
     {
+        if ($this->takeover_by_id) {
+            return $this->takeover_by_id === $user->id;
+        }
         if ($this->cs_id) {
             return $this->isHandledByCs($user);
         }
         return $this->isHandledBySales($user);
+    }
+
+    /**
+     * Check if the prospect originated from the student visit attendance form.
+     */
+    public function isPresensiSiswa(): bool
+    {
+        return $this->source === self::SOURCE_PRESENSI_SISWA || $this->source === 'Presensi Siswa';
+    }
+
+    /**
+     * Check if the prospect has entered the handover stage (Tahap 05 FORMULIR s.d 08 LUNAS).
+     */
+    public function isHandoverStage(): bool
+    {
+        $status = strtoupper(trim($this->status ?? ''));
+        $cleanStatus = trim(preg_replace('/^\d+[\s\-_.]*/', '', $status));
+
+        $nonHandoverStatuses = [
+            'BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK', 'HANGAT', 'PANAS', 'DINGIN', 'NO RESPON', 'CANCEL',
+            'PRESENTATION', 'LEAD IN', 'COLD LEAD', 'INTERESTED', 'FOLLOW UP 1', 'FOLLOW UP', 'WARM LEAD', 'HOT LEAD',
+            'NEGOSIASI', 'LOST', 'DITOLAK/BATAL', 'DITOLAK / BATAL'
+        ];
+
+        if (in_array($status, $nonHandoverStatuses) || in_array($cleanStatus, $nonHandoverStatuses)) {
+            return false;
+        }
+
+        $handoverStatuses = [
+            'FORMULIR',
+            'BERKAS',
+            'CLOSING',
+            'LUNAS',
+            'BELI FORMULIR',
+            'MENDAFTAR',
+            'LULUS TES',
+            'PEMBAYARAN TERMIN 1',
+            'CLOSING (LUNAS)',
+        ];
+
+        if (in_array($cleanStatus, $handoverStatuses) || in_array($status, $handoverStatuses)) {
+            return true;
+        }
+
+        $stageNumber = (int) $this->stage_number;
+        return $stageNumber >= 5 && $stageNumber <= 8;
     }
 
     public function wilayah()
@@ -574,6 +681,11 @@ class Prospek extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function takeoverBy()
+    {
+        return $this->belongsTo(User::class, 'takeover_by_id');
     }
 
     public function followUps()

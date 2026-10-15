@@ -17,8 +17,6 @@ class AdminUserController extends Controller
                 $user->kode = User::generateUserCode($user->role);
                 $user->save();
             }
-            $user->avatar_url = $user->avatar_url;
-            $user->avatar = $user->initials;
             $user->formatted_created_at = $user->created_at ? $user->created_at->format('d-m-Y') : '-';
             return $user;
         });
@@ -33,7 +31,7 @@ class AdminUserController extends Controller
 
         $allowedRoles = strtolower($authUser->role) === 'hm'
             ? 'SPV,CS,EO,Admin'
-            : 'Admin,HM,SPV,Sales,CS,EO';
+            : 'Admin,HM,SPV,Sales,CS,EO,Data Analyst';
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -75,7 +73,7 @@ class AdminUserController extends Controller
 
         $allowedRoles = strtolower($authUser->role) === 'hm'
             ? 'SPV,CS,EO,Admin'
-            : 'Admin,HM,SPV,Sales,CS,EO';
+            : 'Admin,HM,SPV,Sales,CS,EO,Data Analyst';
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
