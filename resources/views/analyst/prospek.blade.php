@@ -128,6 +128,17 @@
                         @endforeach
                     </select>
                 </div>
+                <!-- Gelombang -->
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Gelombang</label>
+                    <select name="gelombang" onchange="this.form.submit()" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500/20">
+                        <option value="all">Semua Gelombang</option>
+                        @foreach($gelombangOptions as $g)
+                            <option value="{{ $g->nama }}" {{ ($filters['gelombang'] ?? '') === $g->nama ? 'selected' : '' }}>{{ $g->nama }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <!-- Sales -->
                 <div>
                     <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Sales Handler</label>
@@ -173,12 +184,23 @@
                             <tr class="hover:bg-slate-50/60 transition">
                                 <td class="py-3 px-3.5 font-mono text-[11px] text-slate-400">#{{ $p->id }}</td>
                                 <td class="py-3 px-3.5">
-                                    <div class="font-bold text-slate-900">{{ $p->name }}</div>
-                                    @if($p->source === \App\Models\Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa')
-                                        <div class="mt-0.5"><span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9.5px] font-bold border border-emerald-200">Presensi Siswa</span></div>
-                                    @else
-                                        <div class="text-[10px] text-slate-400">{{ $p->source ?: 'Sumber tidak tercatat' }}</div>
+                                    <div class="font-bold text-slate-900">{{ ($p->pic && $p->pic !== '-') ? $p->pic : $p->name }}</div>
+                                    @if($p->pic && $p->pic !== '-' && $p->pic !== $p->name)
+                                        <div class="text-[10px] text-slate-400 font-normal">{{ $p->name }}</div>
                                     @endif
+                                    <div class="flex items-center gap-1 flex-wrap mt-0.5">
+                                        @if($p->no_registrasi)
+                                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[9.5px] font-mono font-bold border border-blue-200">No: {{ $p->no_registrasi }}</span>
+                                        @endif
+                                        @if($p->gelombang)
+                                            <span class="px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 text-[9.5px] font-semibold border border-teal-200">{{ $p->gelombang }}</span>
+                                        @endif
+                                        @if($p->source === \App\Models\Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa')
+                                            <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9.5px] font-bold border border-emerald-200">Presensi Siswa</span>
+                                        @else
+                                            <span class="text-[10px] text-slate-400">{{ $p->source ?: 'Sumber tidak tercatat' }}</span>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td class="py-3 px-3.5 font-mono text-slate-700">
                                     {{ $p->whatsapp ?: '-' }}

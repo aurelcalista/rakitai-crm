@@ -32,6 +32,8 @@ class ProspectController extends Controller
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
               ->orWhereIn('cs_id', $teamMemberIds)
+              // Prospek milik CS (cs_id terisi) juga tampil di SPV
+              ->orWhereNotNull('cs_id')
               ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
             if ($user->wilayah_id) {
                 $q->orWhere('wilayah_id', $user->wilayah_id);
@@ -803,6 +805,9 @@ class ProspectController extends Controller
             'metode_terakhir'=> $latestFollowUp ? ($latestFollowUp->metode ?? '-') : '-',
             'hasil_terakhir' => $latestFollowUp ? ($latestFollowUp->hasil ?? '-') : '-',
             'sla_status'     => $p->sla_status,
+            'no_registrasi'  => $p->no_registrasi ?? null,
+            'gelombang'      => $p->gelombang ?? null,
+            'owner_id'       => $p->owner_id,
         ];
     }
 

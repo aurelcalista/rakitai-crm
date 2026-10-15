@@ -150,6 +150,8 @@ class AnalystExportService
             'Nama CS',
             'Jumlah Follow-Up',
             'Status Lunas',
+            'No. Registrasi',
+            'Gelombang Pendaftaran',
             'Tanggal Dibuat',
             'Terakhir Diupdate'
         ];
@@ -158,7 +160,7 @@ class AnalystExportService
 
         $query = $this->buildProspekQuery($params);
         $row = 2;
-        $stringCols = [1, 3, 15]; // ID Prospek, No WhatsApp, Kode Sales
+        $stringCols = [1, 3, 15, 19]; // ID Prospek, No WhatsApp, Kode Sales, No. Registrasi
 
         $query->chunk(250, function ($prospeks) use ($sheet, &$row, $stringCols) {
             foreach ($prospeks as $p) {
@@ -181,6 +183,8 @@ class AnalystExportService
                     $p->cs?->name ?: '-',
                     (int) ($p->follow_up_count ?: 0),
                     $p->isMabaLunas() ? 'LUNAS RESMI' : ($p->status === 'LUNAS' ? 'LUNAS' : 'Belum Lunas'),
+                    $p->no_registrasi ?: '-',
+                    $p->gelombang ?: '-',
                     $p->created_at ? $p->created_at->format('Y-m-d H:i:s') : '-',
                     $p->updated_at ? $p->updated_at->format('Y-m-d H:i:s') : '-',
                 ];
@@ -1209,6 +1213,16 @@ class AnalystExportService
         // 8. Sales filter
         if (!empty($params['sales_id']) && $params['sales_id'] !== 'all') {
             $query->where('sales_id', $params['sales_id']);
+        }
+
+        // 9. Gelombang filter
+        if (!empty($params['gelombang']) && $params['gelombang'] !== 'all') {
+            $query->where('gelombang', $params['gelombang']);
+        }
+
+        // 10. No. Registrasi filter / search
+        if (!empty($params['no_registrasi'])) {
+            $query->where('no_registrasi', 'like', '%' . trim($params['no_registrasi']) . '%');
         }
 
         return $query;

@@ -1228,6 +1228,8 @@ class CrmController extends Controller
                               });
                           });
                       })
+                      // Prospek milik CS (cs_id terisi) juga bisa dilihat semua role
+                      ->orWhereNotNull('cs_id')
                       // Pengecualian akses lintas wilayah untuk Sales pada sumber Presensi Siswa
                       ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
                 });
@@ -1237,7 +1239,9 @@ class CrmController extends Controller
                     $q->whereIn('sales_id', $salesIds)
                       ->orWhereIn('owner_id', $salesIds)
                       ->orWhere('takeover_by_id', $user->id)
-                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
+                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA)
+                      // Prospek milik CS juga tampil di SPV
+                      ->orWhereNotNull('cs_id');
                     if ($user->wilayah_id) {
                         $q->orWhere('wilayah_id', $user->wilayah_id);
                     }
@@ -1290,7 +1294,9 @@ class CrmController extends Controller
                         
                         $query->where(function($q) use ($allSalesInScope, $user) {
                             $q->whereIn('sales_id', $allSalesInScope)
-                              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
+                              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA)
+                              // Prospek milik CS juga tampil di HM
+                              ->orWhereNotNull('cs_id');
                             if ($user->wilayah_id) {
                                 // Also include any prospects explicitly assigned to HM's wilayah
                                 $q->orWhere('wilayah_id', $user->wilayah_id);
