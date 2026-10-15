@@ -122,6 +122,11 @@ class AdminMasterDataController extends Controller
 
     public function update(Request $request, MasterData $masterData)
     {
+        if (!$masterData->exists) {
+            $id = $request->route('masterData') ?? $request->route('master_datum') ?? $request->route('master_data');
+            $masterData = $id instanceof MasterData ? $id : MasterData::findOrFail($id);
+        }
+
         $validated = $request->validate([
             'type' => 'required|string|max:50',
             'kode' => 'required|string|max:50|unique:master_data,kode,' . $masterData->id,
@@ -155,14 +160,24 @@ class AdminMasterDataController extends Controller
         return redirect()->back()->with('success', "Bobot Indikator Wilayah berhasil diperbarui! (Kontak: {$request->bobot_kontak}%, Closing: {$request->bobot_closing}%)");
     }
 
-    public function destroy(MasterData $masterData)
+    public function destroy(Request $request, MasterData $masterData)
     {
+        if (!$masterData->exists) {
+            $id = $request->route('masterData') ?? $request->route('master_datum') ?? $request->route('master_data');
+            $masterData = $id instanceof MasterData ? $id : MasterData::findOrFail($id);
+        }
+
         $masterData->delete();
         return redirect()->back()->with('success', 'Master data berhasil dihapus!');
     }
 
-    public function toggleStatus(MasterData $masterData)
+    public function toggleStatus(Request $request, MasterData $masterData)
     {
+        if (!$masterData->exists) {
+            $id = $request->route('masterData') ?? $request->route('master_datum') ?? $request->route('master_data');
+            $masterData = $id instanceof MasterData ? $id : MasterData::findOrFail($id);
+        }
+
         $masterData->update([
             'status' => $masterData->status === 'Aktif' ? 'Nonaktif' : 'Aktif'
         ]);

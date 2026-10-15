@@ -48,10 +48,10 @@ class AdminProdiController extends Controller
 
         $fakultas = trim($validated['fakultas']);
         if (!empty($fakultas)) {
-            \App\Models\MasterData::firstOrCreate([
-                'type' => 'fakultas',
-                'nama' => $fakultas,
-            ]);
+            \App\Models\MasterData::firstOrCreate(
+                ['type' => 'fakultas', 'nama' => $fakultas],
+                ['kode' => 'FAK-' . strtoupper(\Illuminate\Support\Str::slug($fakultas, '-')), 'status' => 'Aktif']
+            );
         }
 
         Prodi::create($validated);
@@ -79,10 +79,10 @@ class AdminProdiController extends Controller
 
         $fakultas = trim($validated['fakultas']);
         if (!empty($fakultas)) {
-            \App\Models\MasterData::firstOrCreate([
-                'type' => 'fakultas',
-                'nama' => $fakultas,
-            ]);
+            \App\Models\MasterData::firstOrCreate(
+                ['type' => 'fakultas', 'nama' => $fakultas],
+                ['kode' => 'FAK-' . strtoupper(\Illuminate\Support\Str::slug($fakultas, '-')), 'status' => 'Aktif']
+            );
         }
 
         $prodi->update($validated);

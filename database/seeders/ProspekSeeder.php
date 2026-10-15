@@ -176,7 +176,6 @@ class ProspekSeeder extends Seeder
                     'pic_phone'            => $sample['pic_phone'],
                     'whatsapp'             => $sample['whatsapp'],
                     'status'               => $sample['status'],
-                    'potential'            => $sample['potential'],
                     'source'               => $sample['source'],
                     'notes'                => $sample['notes'] ?? null,
                     'kelas'                => $sample['kelas'] ?? 'Reguler',

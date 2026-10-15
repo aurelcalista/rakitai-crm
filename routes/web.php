@@ -213,7 +213,7 @@ Route::middleware('auth')->group(function () {
         Route::post('sekolah/{sekolah}/toggle-status',         [\App\Http\Controllers\Admin\AdminSekolahController::class, 'toggleStatus'])->name('sekolah.toggle-status');
         Route::post('prodi/{prodi}/toggle-status',             [\App\Http\Controllers\Admin\AdminProdiController::class, 'toggleStatus'])->name('prodi.toggle-status');
         Route::post('perusahaan/{perusahaan}/toggle-status',   [\App\Http\Controllers\Admin\AdminPerusahaanController::class, 'toggleStatus'])->name('perusahaan.toggle-status');
-        Route::post('master-data/{master_data}/toggle-status', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'toggleStatus'])->name('master-data.toggle-status');
+        Route::post('master-data/{masterData}/toggle-status', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'toggleStatus'])->name('master-data.toggle-status');
 
         // Penugasan Wilayah HM (Admin Control)
         Route::get('hm-wilayah',                  [\App\Http\Controllers\Admin\AdminHmWilayahController::class, 'index'])->name('hm-wilayah.index');
@@ -222,7 +222,7 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('kunjungan',   \App\Http\Controllers\Admin\AdminKunjunganController::class, $except);
         Route::post('master-data/update-weights', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'updateWeights'])->name('master-data.update-weights');
-        Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except);
+        Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except)->parameters(['master-data' => 'masterData']);
         Route::resource('wilayah',     \App\Http\Controllers\Admin\AdminWilayahController::class, $except);
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
