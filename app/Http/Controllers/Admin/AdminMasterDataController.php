@@ -124,10 +124,13 @@ class AdminMasterDataController extends Controller
         return redirect()->back()->with('success', 'Master data berhasil ditambahkan!');
     }
 
-    public function update(Request $request, $masterData)
+    public function update(Request $request, $masterData = null)
     {
-        if (!($masterData instanceof MasterData)) {
-            $masterData = MasterData::findOrFail($masterData);
+        if (!($masterData instanceof MasterData) || !$masterData->exists) {
+            $id = ($masterData instanceof MasterData && $masterData->exists)
+                ? $masterData
+                : ($request->route('master_data') ?? $request->route('masterData') ?? $request->route('master_datum') ?? $masterData);
+            $masterData = $id instanceof MasterData ? $id : MasterData::findOrFail($id);
         }
 
         $validated = $request->validate([
@@ -172,19 +175,25 @@ class AdminMasterDataController extends Controller
         return redirect()->back()->with('success', "Bobot Indikator Wilayah berhasil diperbarui! (Kontak: {$request->bobot_kontak}%, Closing: {$request->bobot_closing}%)");
     }
 
-    public function destroy($masterData)
+    public function destroy(Request $request, $masterData = null)
     {
-        if (!($masterData instanceof MasterData)) {
-            $masterData = MasterData::findOrFail($masterData);
+        if (!($masterData instanceof MasterData) || !$masterData->exists) {
+            $id = ($masterData instanceof MasterData && $masterData->exists)
+                ? $masterData
+                : ($request->route('master_data') ?? $request->route('masterData') ?? $request->route('master_datum') ?? $masterData);
+            $masterData = $id instanceof MasterData ? $id : MasterData::findOrFail($id);
         }
         $masterData->delete();
         return redirect()->back()->with('success', 'Master data berhasil dihapus!');
     }
 
-    public function toggleStatus($masterData)
+    public function toggleStatus(Request $request, $masterData = null)
     {
-        if (!($masterData instanceof MasterData)) {
-            $masterData = MasterData::findOrFail($masterData);
+        if (!($masterData instanceof MasterData) || !$masterData->exists) {
+            $id = ($masterData instanceof MasterData && $masterData->exists)
+                ? $masterData
+                : ($request->route('master_data') ?? $request->route('masterData') ?? $request->route('master_datum') ?? $masterData);
+            $masterData = $id instanceof MasterData ? $id : MasterData::findOrFail($id);
         }
         $masterData->update([
             'status' => $masterData->status === 'Aktif' ? 'Nonaktif' : 'Aktif'

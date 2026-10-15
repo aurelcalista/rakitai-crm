@@ -128,7 +128,6 @@
                         @endforeach
                     </select>
                 </div>
-
                 <!-- Sales -->
                 <div>
                     <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Sales Handler</label>
