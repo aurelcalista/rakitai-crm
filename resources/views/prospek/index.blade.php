@@ -29,6 +29,7 @@
         selectedStatus: 'all',
         selectedType: 'all',
         selectedTakeover: 'all',
+        selectedGelombang: 'all',
         currentPage: 1,
         perPage: 25,
         authUserId: {{ auth()->id() ?? 0 }},
@@ -73,6 +74,8 @@
                 const q = this.searchQuery.toLowerCase().trim();
                 const matchSearch = !q || 
                     (p.name && p.name.toLowerCase().includes(q)) || 
+                    (p.no_registrasi && p.no_registrasi.toLowerCase().includes(q)) ||
+                    (p.gelombang && p.gelombang.toLowerCase().includes(q)) ||
                     (p.pic && p.pic.toLowerCase().includes(q)) ||
                     (p.whatsapp && p.whatsapp.includes(q)) ||
                     (p.sekolah_name && p.sekolah_name.toLowerCase().includes(q)) ||
@@ -85,6 +88,7 @@
                 
                 const matchStatus = this.selectedStatus === 'all' || p.status === this.selectedStatus;
                 const matchType = this.selectedType === 'all' || p.type === this.selectedType;
+                const matchGelombang = this.selectedGelombang === 'all' || p.gelombang === this.selectedGelombang;
                 const matchTakeover = this.selectedTakeover === 'all' || 
                     (this.selectedTakeover === 'sales' && p.active_takeover && p.active_takeover.includes('Sales')) ||
                     (this.selectedTakeover === 'cs' && p.active_takeover && p.active_takeover.includes('CS')) ||
@@ -100,7 +104,7 @@
                     matchScope = this.isPresensiSiswa(p);
                 }
                 
-                return matchSearch && matchStatus && matchType && matchTakeover && matchScope;
+                return matchSearch && matchStatus && matchType && matchTakeover && matchGelombang && matchScope;
             });
         },
         get paginatedProspects() {
@@ -120,7 +124,7 @@
             }
             return '/prospek/' + prospect.id;
         }
-    }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; currentPage = 1">
+    }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -327,7 +331,7 @@
                 <input 
                     type="text" 
                     x-model="searchQuery"
-                    placeholder="Cari nama sekolah, instansi, kontak PIC, nomor telepon, sales, atau CS..." 
+                    placeholder="Cari no registrasi, nama siswa, instansi, kontak PIC, telepon, gelombang, sales, CS..." 
                     class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs sm:text-sm transition bg-slate-50/50 focus:bg-white"
                 >
                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -453,11 +457,18 @@
                     <option value="Individu">Individu</option>
                 </select>
 
+                <!-- Gelombang Filter -->
+                <select x-model="selectedGelombang" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                    <option value="all">Semua Gelombang</option>
+                    @foreach($gelombangList ?? [] as $gel)
+                        <option value="{{ $gel->nama }}">{{ $gel->nama }}</option>
+                    @endforeach
+                </select>
 
                 <!-- Reset Filter Button -->
                 <button 
                     type="button" 
-                    @click="selectedScope = 'all'; selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
+                    @click="selectedScope = 'all'; selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; selectedGelombang = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
                     class="ml-auto text-slate-400 hover:text-slate-600 font-medium px-2 py-1"
                 >
                     Reset Filter
@@ -499,8 +510,22 @@
                                 <td class="py-4 px-3 text-center font-bold text-slate-400 text-xs" x-text="(currentPage - 1) * perPage + index + 1"></td>
                                 <td class="py-4 px-4 font-semibold text-slate-900">
                                     <a :href="getProspectUrl(prospect)" class="hover:text-blue-600 text-xs font-bold block" x-text="(prospect.pic && prospect.pic !== '-') ? prospect.pic : prospect.name"></a>
-                                    <div class="text-[10px] text-slate-400 font-medium mt-0.5" x-show="prospect.is_presensi">
-                                        <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 text-[9px]">Presensi Siswa</span>
+                                    <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                                        <template x-if="prospect.no_registrasi">
+                                            <span class="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 shadow-2xs" title="No. Registrasi">
+                                                <svg class="w-3 h-3 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                                                <span x-text="prospect.no_registrasi"></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="prospect.gelombang">
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 shadow-2xs" title="Gelombang Pendaftaran">
+                                                <svg class="w-3 h-3 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                                <span x-text="prospect.gelombang"></span>
+                                            </span>
+                                        </template>
+                                        <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.is_presensi">
+                                            <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 text-[9px]">Presensi Siswa</span>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="py-4 px-3">
@@ -592,6 +617,12 @@
                                     <div class="text-[10px] text-teal-600 font-semibold" x-show="(prospect.cs_name && prospect.cs_name !== '-') || (prospect.takeover_cs && prospect.takeover_cs !== '-')" x-text="'CS: ' + ((prospect.cs_name && prospect.cs_name !== '-') ? prospect.cs_name : prospect.takeover_cs)"></div>
                                     <div class="text-[10px] text-slate-400" x-show="prospect.owner" x-text="'Owner: ' + (prospect.owner || 'Sistem')"></div>
                                     <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                                        <template x-if="prospect.no_registrasi">
+                                            <span class="font-mono text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" x-text="prospect.no_registrasi"></span>
+                                        </template>
+                                        <template x-if="prospect.gelombang">
+                                            <span class="text-[9px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200" x-text="prospect.gelombang"></span>
+                                        </template>
                                         <span class="px-1.5 py-0.5 rounded-md text-[9px] font-bold border"
                                               :class="(prospect.kelas && prospect.kelas.toLowerCase().includes('karyawan')) ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
                                               x-text="'Kelas ' + (prospect.kelas || 'Reguler')"></span>
@@ -764,6 +795,34 @@
                                 placeholder="Contoh: Muhammad Rizki Fauzi"
                                 class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                             >
+                        </div>
+
+                        <!-- No. Registrasi & Gelombang -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. Registrasi <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                                <input 
+                                    type="text" 
+                                    name="no_registrasi" 
+                                    value="{{ old('form_type') === 'presensi_manual' ? old('no_registrasi') : '' }}" 
+                                    placeholder="Contoh: PMB-UCIC-895-1789183710" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition font-mono"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Gelombang <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                                <select 
+                                    name="gelombang" 
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+                                >
+                                    <option value="">-- Pilih Gelombang --</option>
+                                    @foreach($gelombangList ?? [] as $gel)
+                                        <option value="{{ $gel->nama }}" {{ (old('form_type') === 'presensi_manual' && old('gelombang') == $gel->nama) ? 'selected' : '' }}>
+                                            {{ $gel->nama }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
 
                         <!-- 2. Asal Sekolah Selector (Master + Manual Toggle) -->

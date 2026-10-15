@@ -20,6 +20,7 @@
             {key:'kategori_perusahaan', label:'Kategori Perusahaan'},
             {key:'program_studi', label:'Program Studi'},
             {key:'jenjang', label:'Jenjang'},
+            {key:'gelombang', label:'Gelombang PMB'},
         ]
     }">
 
@@ -50,6 +51,21 @@
                 </button>
             </div>
         </div>
+
+        <!-- Alert Validation Errors -->
+        @if ($errors->any())
+            <div class="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl text-xs space-y-1 shadow-xs">
+                <div class="flex items-center gap-2 font-bold text-rose-900">
+                    <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span>Terjadi Kesalahan Validasi:</span>
+                </div>
+                <ul class="list-disc pl-5 space-y-0.5 mt-1 font-medium">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <!-- Tabs Navigation -->
         <div class="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
@@ -207,6 +223,11 @@
             @include('admin.master-data._table', ['items' => $masterData['jenjang'], 'tabLabel' => 'Jenjang'])
         </div>
 
+        <!-- Tab Content: Gelombang PMB -->
+        <div x-show="activeTab === 'gelombang'" x-cloak class="crm-card bg-white overflow-hidden">
+            @include('admin.master-data._table', ['items' => $masterData['gelombang'], 'tabLabel' => 'Gelombang PMB'])
+        </div>
+
         <!-- MODAL TAMBAH TAHUN AKADEMIK -->
         <div x-show="modalAddTA" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
             <div class="flex items-center justify-center min-h-screen px-4">
@@ -303,28 +324,29 @@
                     <form :action="selectedItem ? '/admin/master-data/' + selectedItem.id : ''" method="POST" class="mt-4 space-y-3 text-xs">
                         @csrf
                         @method('PUT')
-                        <input type="hidden" name="type" :value="activeTab">
+                        <input type="hidden" name="type" :value="selectedItem ? selectedItem.type : activeTab">
                         <div>
-                            <label class="block font-semibold text-slate-700 mb-1">Kode</label>
-                            <input type="text" name="kode" :value="selectedItem ? selectedItem.kode : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                            <label class="block font-semibold text-slate-700 mb-1">Kode *</label>
+                            <input type="text" name="kode" required :value="selectedItem ? selectedItem.kode : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
                         <div>
-                            <label class="block font-semibold text-slate-700 mb-1">Nama</label>
-                            <input type="text" name="nama" :value="selectedItem ? selectedItem.nama : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                            <label class="block font-semibold text-slate-700 mb-1">Nama *</label>
+                            <input type="text" name="nama" required :value="selectedItem ? selectedItem.nama : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Deskripsi</label>
                             <textarea name="deskripsi" rows="2" :value="selectedItem ? selectedItem.deskripsi : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200 resize-none"></textarea>
                         </div>
                         <div>
-                            <label class="block font-semibold text-slate-700 mb-1">Status</label>
-                            <select name="status" :value="selectedItem ? selectedItem.status : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none">
-                                <option value="Aktif">Aktif</option><option value="Nonaktif">Nonaktif</option>
+                            <label class="block font-semibold text-slate-700 mb-1">Status *</label>
+                            <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-purple-200">
+                                <option value="Aktif" :selected="selectedItem && selectedItem.status === 'Aktif'">Aktif</option>
+                                <option value="Nonaktif" :selected="selectedItem && selectedItem.status === 'Nonaktif'">Nonaktif</option>
                             </select>
                         </div>
                         <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
                             <button type="button" @click="modalEdit = false" class="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">Batal</button>
-                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white">Simpan</button>
+                            <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold">Simpan Perubahan</button>
                         </div>
                     </form>
                 </div>

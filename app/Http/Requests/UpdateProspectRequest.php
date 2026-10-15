@@ -30,6 +30,8 @@ class UpdateProspectRequest extends FormRequest
     {
         return [
             'name'     => 'nullable|string|max:255',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang'     => 'nullable|string|max:100',
             'type'     => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',

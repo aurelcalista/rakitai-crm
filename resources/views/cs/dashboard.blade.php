@@ -290,7 +290,19 @@
                                         <a href="{{ route('prospek.show', $hp['id']) }}" class="font-bold text-slate-900 hover:text-blue-600 block text-xs">
                                             {{ $hp['name'] }}
                                         </a>
-                                        <span class="text-slate-400 text-[10px]">{{ $hp['type'] }}</span>
+                                        <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                            <span class="text-slate-400 text-[10px]">{{ $hp['type'] }}</span>
+                                            @if(!empty($hp['no_registrasi']))
+                                                <span class="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono text-[9px] font-bold border border-indigo-200">
+                                                    {{ $hp['no_registrasi'] }}
+                                                </span>
+                                            @endif
+                                            @if(!empty($hp['gelombang']))
+                                                <span class="px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[9px] font-semibold border border-cyan-200">
+                                                    {{ $hp['gelombang'] }}
+                                                </span>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3.5 text-slate-700 font-medium">
                                         {{ $hp['sales_name'] }}

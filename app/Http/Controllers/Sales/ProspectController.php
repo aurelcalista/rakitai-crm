@@ -287,6 +287,8 @@ class ProspectController extends Controller
 
             $prospek = Prospek::create([
                 'name'         => $name,
+                'no_registrasi'=> $validated['no_registrasi'] ?? null,
+                'gelombang'    => $validated['gelombang'] ?? null,
                 'type'         => $validated['type'],
                 'category'     => $validated['category'] ?? null,
                 'sekolah_id'   => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,

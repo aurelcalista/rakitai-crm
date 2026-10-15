@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MasterData;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminMasterDataController extends Controller
@@ -13,7 +14,7 @@ class AdminMasterDataController extends Controller
     {
         $types = [
             'status_prospek', 'status_followup', 'jenis_kunjungan', 
-            'kategori_prospek', 'sumber_prospek', 'kategori_sekolah', 'kategori_perusahaan', 'program_studi', 'jenjang'
+            'kategori_prospek', 'sumber_prospek', 'kategori_sekolah', 'kategori_perusahaan', 'program_studi', 'jenjang', 'gelombang'
         ];
         
         $masterData = [];
@@ -48,6 +49,9 @@ class AdminMasterDataController extends Controller
                             break;
                         case 'jenjang':
                             $count = \App\Models\Prodi::where('jenjang', $item->nama)->count();
+                            break;
+                        case 'gelombang':
+                            $count = \App\Models\Prospek::where('gelombang', $item->nama)->count();
                             break;
                         default:
                             $count = 0;
@@ -120,14 +124,27 @@ class AdminMasterDataController extends Controller
         return redirect()->back()->with('success', 'Master data berhasil ditambahkan!');
     }
 
-    public function update(Request $request, MasterData $masterData)
+    public function update(Request $request, $masterData)
     {
+        if (!($masterData instanceof MasterData)) {
+            $masterData = MasterData::findOrFail($masterData);
+        }
+
         $validated = $request->validate([
-            'type' => 'required|string|max:50',
-            'kode' => 'required|string|max:50|unique:master_data,kode,' . $masterData->id,
-            'nama' => 'required|string|max:255',
+            'type'      => 'required|string|max:50',
+            'kode'      => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('master_data', 'kode')->ignore($masterData->id),
+            ],
+            'nama'      => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'status' => 'required|in:Aktif,Nonaktif',
+            'status'    => 'required|in:Aktif,Nonaktif',
+        ], [
+            'kode.unique'   => 'Kode sudah digunakan oleh data master lain.',
+            'kode.required' => 'Kode wajib diisi.',
+            'nama.required' => 'Nama wajib diisi.',
         ]);
 
         $masterData->update($validated);
@@ -155,14 +172,20 @@ class AdminMasterDataController extends Controller
         return redirect()->back()->with('success', "Bobot Indikator Wilayah berhasil diperbarui! (Kontak: {$request->bobot_kontak}%, Closing: {$request->bobot_closing}%)");
     }
 
-    public function destroy(MasterData $masterData)
+    public function destroy($masterData)
     {
+        if (!($masterData instanceof MasterData)) {
+            $masterData = MasterData::findOrFail($masterData);
+        }
         $masterData->delete();
         return redirect()->back()->with('success', 'Master data berhasil dihapus!');
     }
 
-    public function toggleStatus(MasterData $masterData)
+    public function toggleStatus($masterData)
     {
+        if (!($masterData instanceof MasterData)) {
+            $masterData = MasterData::findOrFail($masterData);
+        }
         $masterData->update([
             'status' => $masterData->status === 'Aktif' ? 'Nonaktif' : 'Aktif'
         ]);

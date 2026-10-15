@@ -245,7 +245,9 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('kunjungan',   \App\Http\Controllers\Admin\AdminKunjunganController::class, $except);
         Route::post('master-data/update-weights', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'updateWeights'])->name('master-data.update-weights');
-        Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except);
+        Route::resource('master-data', \App\Http\Controllers\Admin\AdminMasterDataController::class, $except)->parameters([
+            'master-data' => 'master_data'
+        ]);
         Route::resource('wilayah',     \App\Http\Controllers\Admin\AdminWilayahController::class, $except);
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);

@@ -754,6 +754,8 @@ class CrmController extends Controller
                 return [
                     'id'                => $p->id,
                     'name'              => $p->name,
+                    'no_registrasi'     => $p->no_registrasi,
+                    'gelombang'         => $p->gelombang,
                     'type'              => $p->type,
                     'whatsapp'          => $p->whatsapp,
                     'sales_name'        => $p->sales?->name ?? 'Sales Lapangan',
@@ -1410,6 +1412,8 @@ class CrmController extends Controller
             return [
                 'id' => $p->id,
                 'name' => $p->name,
+                'no_registrasi' => $p->no_registrasi ?? '',
+                'gelombang' => $p->gelombang ?? '',
                 'type' => $p->type,
                 'kelas' => $p->kelas ?: 'Reguler',
                 'sekolah_name' => $p->type === 'Sekolah' ? $sekolahNama : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : ($p->name !== $p->pic ? $p->name : '-')) : '-'),
@@ -1496,6 +1500,7 @@ class CrmController extends Controller
         $perusahaans = \App\Models\Perusahaan::where('status', 'Aktif')->get();
         $statuses = \App\Models\Prospek::getActiveStages();
         $prodis = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $gelombangList = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('id')->get();
 
         $user = auth()->user();
         $isHm = $user && strtolower($user->role) === 'hm';
@@ -1667,13 +1672,15 @@ class CrmController extends Controller
             ];
         }
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics', 'salesMetrics', 'prodis'));
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics', 'salesMetrics', 'prodis', 'gelombangList'));
     }
 
     public function prospekStore(Request $request)
     {
         $request->validate([
             'name'          => 'nullable|string|max:255',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang'     => 'nullable|string|max:100',
             'type'          => 'required|string',
             'status'        => 'required|string',
             'pic'           => 'required|string',
@@ -1759,6 +1766,8 @@ class CrmController extends Controller
 
             $prospek = Prospek::create([
                 'name'               => $name,
+                'no_registrasi'      => $request->no_registrasi,
+                'gelombang'          => $request->gelombang,
                 'type'               => $request->type,
                 'status'             => $request->status,
                 'stage_number'       => $stageNumber,
@@ -1815,6 +1824,8 @@ class CrmController extends Controller
     {
         $validated = $request->validate([
             'nama'           => 'required|string|max:255',
+            'no_registrasi'  => 'nullable|string|max:100',
+            'gelombang'      => 'nullable|string|max:100',
             'sekolah_id'     => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
             'asal_kelas'     => 'required|string|max:100',
@@ -1880,6 +1891,8 @@ class CrmController extends Controller
 
         $prospek = Prospek::create([
             'name'             => $name,
+            'no_registrasi'    => $request->no_registrasi,
+            'gelombang'        => $request->gelombang,
             'whatsapp'         => $validated['no_whatsapp'],
             'wa_ortu'          => $validated['wa_ortu'] ?? null,
             'pic'              => $validated['nama'],
@@ -1954,6 +1967,8 @@ class CrmController extends Controller
         $prospect = [
             'id' => $prospectRaw->id,
             'name' => $prospectRaw->name,
+            'no_registrasi' => $prospectRaw->no_registrasi ?? '',
+            'gelombang' => $prospectRaw->gelombang ?? '',
             'type' => $prospectRaw->type,
             'sales_id' => $prospectRaw->sales_id,
             'owner_id' => $prospectRaw->owner_id,
@@ -2044,6 +2059,7 @@ class CrmController extends Controller
         $sekolahsList        = \App\Models\Sekolah::getDynamicSchools();
         $perusahaansList     = \App\Models\Perusahaan::getDynamicPerusahaans();
         $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $gelombangList       = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('id')->get();
         $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
         $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
         $kategoriSekolahList = \App\Models\MasterData::where('type', 'kategori_sekolah')->where('status', 'Aktif')->get();
@@ -2059,7 +2075,7 @@ class CrmController extends Controller
 
         return view('prospek.show', compact(
             'prospect', 'allStages', 'salesTeam', 'prospectRaw', 'prospekModel', 'transaksis', 'followUps',
-            'sekolahsList', 'perusahaansList', 'prodisList', 'sumberProspekList', 'kategoriProspekList',
+            'sekolahsList', 'perusahaansList', 'prodisList', 'gelombangList', 'sumberProspekList', 'kategoriProspekList',
             'kategoriSekolahList', 'wilayahKabupatenList',
             'lostReasons', 'metodeOptions', 'isHandler',
             'hasPendingTrx', 'pendingList', 'hasVerifiedTermin1', 'hasVerifiedFormulir', 'totalPaid', 'totalPending'
@@ -2073,6 +2089,8 @@ class CrmController extends Controller
         
         $validated = $request->validate([
             'status' => 'required|string',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang' => 'nullable|string|max:100',
             'type' => 'nullable|string',
             'name' => 'nullable|string',
             'pic' => 'nullable|string',

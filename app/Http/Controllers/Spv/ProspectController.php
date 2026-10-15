@@ -183,10 +183,13 @@ class ProspectController extends Controller
         // 10 Opsi Baku Dropdown Sumber Informasi (PRD Bab 8.1.1)
         $sources = Prospek::SOURCES;
 
+        $gelombangList = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('id')->get();
+
         return view('spv.prospek.create', compact(
             'sekolahs',
             'perusahaans',
             'prodis',
+            'gelombangList',
             'wilayahs',
             'wilayahsData',
             'statuses',
@@ -205,6 +208,8 @@ class ProspectController extends Controller
         $validated = $request->validate([
             'tanggal_masuk' => 'nullable|date',
             'name'          => 'nullable|string|max:255',
+            'no_registrasi' => 'nullable|string|max:100',
+            'gelombang'     => 'nullable|string|max:100',
             'type'          => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
@@ -381,6 +386,8 @@ class ProspectController extends Controller
 
             $prospek = Prospek::create([
                 'name'               => $name,
+                'no_registrasi'      => $validated['no_registrasi'] ?? null,
+                'gelombang'          => $validated['gelombang'] ?? null,
                 'type'               => $validated['type'],
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,

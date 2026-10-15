@@ -361,6 +361,33 @@
                         </div>
 
                         <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">No. Registrasi</span>
+                            @if(!empty($prospect['no_registrasi']))
+                                <div class="mt-0.5 flex items-center gap-2">
+                                    <span class="font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200 text-xs">
+                                        {{ $prospect['no_registrasi'] }}
+                                    </span>
+                                </div>
+                            @else
+                                <p class="text-slate-400 italic mt-0.5 text-xs">Belum Diisi</p>
+                            @endif
+                        </div>
+
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Gelombang Pendaftaran</span>
+                            @if(!empty($prospect['gelombang']))
+                                <div class="mt-0.5">
+                                    <span class="font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200 text-xs inline-flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                        {{ $prospect['gelombang'] }}
+                                    </span>
+                                </div>
+                            @else
+                                <p class="text-slate-400 italic mt-0.5 text-xs">Belum Diisi</p>
+                            @endif
+                        </div>
+
+                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
                             <div class="mt-0.5">
                                 @if($prospekModel->isPresensiSiswa())
@@ -1266,6 +1293,25 @@
                                     <option value="">-- Pilih Sumber --</option>
                                     @foreach($sumberProspekList ?? [] as $sumber)
                                         <option value="{{ $sumber->nama }}" {{ ($prospect['source'] ?? '') == $sumber->nama ? 'selected' : '' }}>{{ $sumber->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    No. Registrasi <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <input type="text" name="no_registrasi" value="{{ $prospect['no_registrasi'] ?? '' }}" placeholder="Contoh: PMB-UCIC-895-1789183710" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition font-mono">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    Gelombang <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <select name="gelombang" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Gelombang --</option>
+                                    @foreach($gelombangList ?? [] as $gel)
+                                        <option value="{{ $gel->nama }}" {{ ($prospect['gelombang'] ?? '') == $gel->nama ? 'selected' : '' }}>{{ $gel->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>

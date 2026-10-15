@@ -381,6 +381,28 @@
                             <p class="text-[10px] text-slate-400">Sistem otomatis memvalidasi duplikasi nomor HP & nama.</p>
                         </div>
                     </div>
+
+                    <!-- No. Registrasi & Gelombang PMB -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="block text-xs font-semibold text-slate-700">No. Registrasi (Opsional)</label>
+                            <input type="text" name="no_registrasi" value="{{ old('no_registrasi') }}" placeholder="Contoh: PMB-UCIC-895-1789183710" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-mono focus:ring-2 focus:ring-blue-500/20 focus:bg-white uppercase">
+                            <p class="text-[10px] text-slate-400">Nomor pendaftaran PMB prospek jika sudah terdaftar.</p>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="block text-xs font-semibold text-slate-700">Gelombang Pendaftaran</label>
+                            <select name="gelombang" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white">
+                                <option value="">-- Pilih Gelombang (Opsional) --</option>
+                                @foreach($gelombangList ?? [] as $g)
+                                    <option value="{{ $g->nama }}" {{ old('gelombang') == $g->nama ? 'selected' : '' }}>
+                                        {{ $g->nama }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="text-[10px] text-slate-400">Dikelola oleh Administrator melalui Data Master.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- SECTION 3: AKADEMIK (PRODI & KELAS) -->

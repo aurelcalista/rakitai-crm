@@ -2209,6 +2209,7 @@ x-init="
                                 $statusProspekList = $statusProspekList->filter(fn($item) => strtoupper($item->nama) !== 'LUNAS');
                             }
                             $sumberProspekList = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
+                            $gelombangList = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->get();
                             $kategoriSekolahList = \App\Models\MasterData::where('type', 'kategori_sekolah')->where('status', 'Aktif')->get();
                             $wilayahKabupatenList = \App\Models\Wilayah::whereNull('parent_id')->with(['children' => function($q) {
                                 $q->where('status', 'Aktif')->orderBy('nama');
@@ -2521,6 +2522,25 @@ x-init="
                                     <option value="">-- Pilih Sumber --</option>
                                     @foreach($sumberProspekList as $sumber)
                                         <option value="{{ $sumber->nama }}" {{ old('source') == $sumber->nama ? 'selected' : '' }}>{{ $sumber->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    No. Registrasi <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <input type="text" name="no_registrasi" value="{{ old('no_registrasi') }}" placeholder="Contoh: PMB-UCIC-895-1789183710" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    Gelombang <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <select name="gelombang" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Gelombang --</option>
+                                    @foreach($gelombangList as $gel)
+                                        <option value="{{ $gel->nama }}" {{ old('gelombang') == $gel->nama ? 'selected' : '' }}>{{ $gel->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
