@@ -33,7 +33,7 @@ class AdminUserController extends Controller
 
         $allowedRoles = strtolower($authUser->role) === 'hm'
             ? 'SPV,CS,EO,Admin'
-            : 'Admin,HM,SPV,Sales,CS,EO';
+            : 'Admin,HM,SPV,Sales,CS,EO,Data Analyst';
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -75,7 +75,7 @@ class AdminUserController extends Controller
 
         $allowedRoles = strtolower($authUser->role) === 'hm'
             ? 'SPV,CS,EO,Admin'
-            : 'Admin,HM,SPV,Sales,CS,EO';
+            : 'Admin,HM,SPV,Sales,CS,EO,Data Analyst';
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',

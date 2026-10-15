@@ -32,7 +32,7 @@ class EventPolicy
                     || $event->spvs()->where('users.wilayah_id', $user->wilayah_id)->exists()
                     || $event->sales()->where('users.wilayah_id', $user->wilayah_id)->exists(),
 
-            'admin' => true,
+            'admin', 'data analyst' => true,
 
             default => false,
         };

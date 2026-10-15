@@ -15,7 +15,7 @@ class PotensiWilayahController extends Controller
     public function index(Request $request): View
     {
         $user = auth()->user();
-        if (!in_array($user->role, ['Admin', 'HM', 'SPV', 'Sales', 'CS'])) {
+        if (!in_array($user->role, ['Admin', 'HM', 'SPV', 'Sales', 'CS', 'Data Analyst'])) {
             abort(403, 'Unauthorized action.');
         }
 

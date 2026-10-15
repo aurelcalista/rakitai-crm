@@ -21,21 +21,25 @@ class CrmController extends Controller
             $roleKey = strtolower($user->role ?? 'sales');
 
             $roleLabels = [
-                'admin' => 'Super Administrator',
-                'hm'    => 'Head Marketing',
-                'spv'   => 'Supervisor Marketing',
-                'cs'    => 'Customer Service',
-                'sales' => 'Sales Inbound',
-                'eo'    => 'Event Organizer',
+                'admin'        => 'Super Administrator',
+                'hm'           => 'Head Marketing',
+                'spv'          => 'Supervisor Marketing',
+                'cs'           => 'Customer Service',
+                'sales'        => 'Sales Inbound',
+                'eo'           => 'Event Organizer',
+                'data analyst' => 'Data Analyst PMB',
+                'data-analyst' => 'Data Analyst PMB',
             ];
 
             $roleNames = [
-                'admin' => 'Admin',
-                'hm'    => 'Head Marketing',
-                'spv'   => 'Supervisor',
-                'cs'    => 'CS',
-                'sales' => 'Sales',
-                'eo'    => 'EO',
+                'admin'        => 'Admin',
+                'hm'           => 'Head Marketing',
+                'spv'          => 'Supervisor',
+                'cs'           => 'CS',
+                'sales'        => 'Sales',
+                'eo'           => 'EO',
+                'data analyst' => 'Data Analyst',
+                'data-analyst' => 'Data Analyst',
             ];
 
             $name = $user->name;
@@ -56,6 +60,8 @@ class CrmController extends Controller
                     $wilayahNama = 'Wilayah Promosi & Event Kampus';
                 } elseif ($roleKey === 'spv') {
                     $wilayahNama = 'Wilayah Cirebon & Sekitarnya (Supervisi)';
+                } elseif (in_array($roleKey, ['data analyst', 'data-analyst'])) {
+                    $wilayahNama = 'Seluruh Wilayah CRM (Akses Analitik Lintas Wilayah)';
                 } else {
                     $wilayahNama = 'Wilayah Cirebon & Sekitarnya';
                 }
@@ -69,13 +75,17 @@ class CrmController extends Controller
                 'email'           => $user->email,
                 'phone'           => $user->phone ?? '081234567890',
                 'nik'             => '202408' . str_pad($user->id ?? 1, 3, '0', STR_PAD_LEFT),
-                'avatar'          => $avatar ?: 'AD',
+                'avatar'          => $avatar ?: 'DA',
                 'avatar_url'      => $user->avatar_url,
                 'wilayah'         => $wilayahNama,
-                'division'        => $roleKey === 'admin' 
-                    ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
-                    : 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia',
-                'dashboard_route' => 'dashboard.' . ($roleKey === 'spv' ? 'spv' : ($roleKey === 'hm' ? 'hm' : ($roleKey === 'eo' ? 'eo' : $roleKey))),
+                'division'        => in_array($roleKey, ['data analyst', 'data-analyst'])
+                    ? 'Unit Analisis Data & Intelijen PMB — Universitas Catur Insan Cendekia'
+                    : ($roleKey === 'admin' 
+                        ? 'Divisi Administrator & Pengelolaan Sistem — Universitas Catur Insan Cendekia' 
+                        : 'Divisi Marketing & Admisi Mahasiswa Baru — Universitas Catur Insan Cendekia'),
+                'dashboard_route' => in_array($roleKey, ['data analyst', 'data-analyst'])
+                    ? 'dashboard.data-analyst'
+                    : ('dashboard.' . ($roleKey === 'spv' ? 'spv' : ($roleKey === 'hm' ? 'hm' : ($roleKey === 'eo' ? 'eo' : $roleKey)))),
                 'user'            => $user,
             ];
         }

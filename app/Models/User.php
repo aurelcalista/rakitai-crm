@@ -76,13 +76,14 @@ class User extends Authenticatable
         $prefixYM = $ym ?: date('ym');
 
         $roleLetter = match (strtolower($role)) {
-            'cs'    => 'C',
-            'sales' => 'S',
-            'spv'   => 'V',
-            'hm'    => 'H',
-            'admin' => 'A',
-            'eo'    => 'E',
-            default => strtoupper(substr($role, 0, 1)),
+            'cs'           => 'C',
+            'sales'        => 'S',
+            'spv'          => 'V',
+            'hm'           => 'H',
+            'admin'        => 'A',
+            'eo'           => 'E',
+            'data analyst' => 'D',
+            default        => strtoupper(substr($role, 0, 1)),
         };
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($prefixYM, $roleLetter, $role) {
@@ -371,8 +372,8 @@ class User extends Authenticatable
      */
     public function isWithinWilayahScope(Wilayah|int|null $mainWilayah): bool
     {
-        if (strtolower($this->role) === 'admin') {
-            return true; // Admin HAS GLOBAL ACCESS
+        if (in_array(strtolower($this->role), ['admin', 'data analyst'])) {
+            return true; // Admin and Data Analyst HAVE GLOBAL ACCESS
         }
 
         if (!$mainWilayah) {
