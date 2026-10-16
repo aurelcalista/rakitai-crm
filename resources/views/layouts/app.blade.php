@@ -736,7 +736,7 @@ x-init="
 
                             {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->count(); @endphp
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->distinct('prospek_id')->count('prospek_id'); @endphp
                             <a 
                                 href="{{ route('cs.verifikasi.index') }}" 
                                 title="Verifikasi Pembayaran ({{ $pendingVerifikasiCount }} Menunggu)"
@@ -1867,7 +1867,7 @@ x-init="
 
                             {{-- Verifikasi Pembayaran untuk CS / Admin / HM --}}
                             @if(in_array($currentUser['role'], ['CS', 'Admin', 'HM']))
-                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->count(); @endphp
+                            @php $pendingVerifikasiCount = \App\Models\Transaksi::where('payment_status', \App\Models\Transaksi::STATUS_PENDING)->distinct('prospek_id')->count('prospek_id'); @endphp
                             <a 
                                 href="{{ route('cs.verifikasi.index') }}" 
                                 @click="mobileMenuOpen = false"

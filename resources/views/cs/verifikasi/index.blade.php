@@ -239,7 +239,7 @@
                 </form>
 
                 <div class="text-xs text-slate-500 shrink-0">
-                    Menampilkan <span class="font-bold text-slate-800">{{ $transaksis->total() }}</span> transaksi
+                    Menampilkan <span class="font-bold text-slate-800">{{ $totalCount ?? $transaksis->total() }}</span> transaksi
                 </div>
             </div>
 

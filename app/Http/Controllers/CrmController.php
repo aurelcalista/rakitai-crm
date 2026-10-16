@@ -726,7 +726,7 @@ class CrmController extends Controller
 
         $pendingPaymentsQuery->latest('tanggal');
 
-        $pendingPaymentCount = (clone $pendingPaymentsQuery)->count();
+        $pendingPaymentCount = (clone $pendingPaymentsQuery)->distinct('prospek_id')->count('prospek_id');
         $pendingPaymentSum   = (clone $pendingPaymentsQuery)->sum('nominal');
         $pendingPayments     = $pendingPaymentsQuery->limit(5)->get();
 
