@@ -355,7 +355,15 @@
 
         <!-- TABEL PER WILAYAH (HM DASHBOARD) -->
         @if(isset($targetAchievementData['territory_table']) && count($targetAchievementData['territory_table']) > 0)
-            <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <div class="crm-card bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 overflow-hidden"
+                 x-data="{
+                     currentPage: 1,
+                     perPage: 20,
+                     totalItems: {{ count($targetAchievementData['territory_table']) }},
+                     get totalPages() {
+                         return Math.ceil(this.totalItems / this.perPage) || 1;
+                     }
+                 }">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 border-slate-100">
                     <div>
                         <h3 class="text-base font-bold text-slate-900 tracking-tight">Tabel Breakdown Per Wilayah Teritori</h3>
@@ -380,9 +388,12 @@
                                 <th class="px-4 py-3 text-center">Status</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 crm-table-slide">
                             @foreach($targetAchievementData['territory_table'] as $row)
-                                <tr class="hover:bg-slate-50/80 transition">
+                                @php
+                                    $pageIndex = (int) floor($loop->index / 20) + 1;
+                                @endphp
+                                <tr x-show="currentPage === {{ $pageIndex }}" class="hover:bg-slate-50/80 transition crm-table-slide">
                                     <td class="px-3 py-3.5 text-center font-bold text-slate-400">{{ $loop->iteration }}</td>
                                     <td class="px-4 py-3.5 font-bold text-slate-900">
                                         {{ $row['wilayah_nama'] ?? $row['label'] }}
@@ -415,6 +426,16 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                <div class="-mx-6 -mb-6">
+                    <x-table-pagination
+                        total="totalItems"
+                        page="currentPage"
+                        perPage="perPage"
+                        totalPages="totalPages"
+                        color="purple"
+                    />
                 </div>
             </div>
         @endif

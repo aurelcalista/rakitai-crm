@@ -85,7 +85,94 @@ class VisitController extends Controller
             'catatan'           => ($kunjungan->catatan ? $kunjungan->catatan . "\n" : '') . '[Verifikasi SPV ' . $user->name . ' pada ' . now()->translatedFormat('d M Y H:i') . ': Laporan kunjungan telah diverifikasi valid]',
         ]);
 
+        $sales = $kunjungan->sales ?? ($kunjungan->sales_id ? \App\Models\User::find($kunjungan->sales_id) : null);
+        if ($sales && $sales->id !== $user->id) {
+            $sales->notify(new \App\Notifications\CrmActivityNotification(
+                title: 'Kunjungan Telah Diverifikasi',
+                message: "Laporan kunjungan Anda ke '" . ($kunjungan->nama_institusi ?? 'Institusi') . "' telah diverifikasi valid oleh SPV {$user->name}.",
+                type: 'success',
+                link: '/sales/kunjungan',
+                icon: '',
+                senderName: $user->name,
+                senderRole: 'SPV',
+                action: 'kunjungan_verified'
+            ));
+        }
+
         return redirect()->back()->with('success', 'Kunjungan ' . $kunjungan->nomor . ' berhasil diverifikasi oleh SPV.');
+    }
+
+    public function update(Request $request, Kunjungan $kunjungan)
+    {
+        $this->authorize('update', $kunjungan);
+
+        $validated = $request->validate([
+            'tanggal'                  => 'required|date',
+            'waktu'                    => 'nullable|string',
+            'nama_institusi'           => 'nullable|string|max:255',
+            'tujuan_kunjungan'         => 'nullable|string|max:255',
+            'pic_name'                 => 'nullable|string|max:255',
+            'pic_whatsapp'             => 'nullable|string|max:30',
+            'alamat'                   => 'nullable|string|max:500',
+            'catatan'                  => 'nullable|string|max:2000',
+            'hasil'                    => 'nullable|string|max:2000',
+            'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
+            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'potensi_mahasiswa'        => 'nullable|string|max:255',
+            'detail_potensi_mahasiswa' => 'nullable|string|max:500',
+            'kesediaan_training_ai'    => 'nullable|boolean',
+            'bidang_usaha'             => 'nullable|string|max:255',
+            'potensi_s1'               => 'nullable|string|max:255',
+            'potensi_s2'               => 'nullable|string|max:255',
+            'potensi_csr'              => 'nullable|string|max:255',
+            'dosen_pemateri'           => 'nullable|string|max:255',
+            'dosen_id'                 => 'nullable|exists:users,id',
+        ]);
+
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
+            if ($kunjungan->foto_path) {
+                Storage::disk('public')->delete($kunjungan->foto_path);
+            }
+            $validated['foto_path'] = $request->file('foto')->store('kunjungan', 'public');
+        }
+
+        if ($request->filled('nama_institusi')) {
+            $validated['tujuan_kunjungan'] = $request->nama_institusi;
+        } elseif ($request->filled('tujuan_kunjungan')) {
+            $validated['nama_institusi'] = $request->tujuan_kunjungan;
+        }
+
+        if ($request->filled('catatan') && !$request->filled('hasil')) {
+            $validated['hasil'] = $request->catatan;
+        } elseif ($request->filled('hasil') && !$request->filled('catatan')) {
+            $validated['catatan'] = $request->hasil;
+        }
+
+        if ($request->has('kesediaan_training_ai')) {
+            $validated['kesediaan_training_ai'] = $request->boolean('kesediaan_training_ai');
+        }
+
+        $kunjungan->update($validated);
+
+        return redirect()->back()->with('success', 'Data kunjungan tim berhasil diperbarui!');
+    }
+
+    public function destroy(Kunjungan $kunjungan)
+    {
+        $this->authorize('delete', $kunjungan);
+
+        if ($kunjungan->foto_path) {
+            Storage::disk('public')->delete($kunjungan->foto_path);
+        }
+
+        $kunjungan->delete();
+
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/kunjungan/' . $kunjungan->id)) {
+            return redirect()->route('spv.kunjungan.index')->with('success', 'Kunjungan berhasil dihapus.');
+        }
+
+        return redirect()->back()->with('success', 'Kunjungan berhasil dihapus.');
     }
 
     private function formatKunjungan(Kunjungan $k): array
@@ -120,7 +207,9 @@ class VisitController extends Controller
             'sales'             => $k->sales ? $k->sales->name : '-',
             'sales_id'          => $k->sales_id,
             'date'              => $k->tanggal ? Carbon::parse($k->tanggal)->format('d M Y') : '-',
+            'raw_date'          => $k->tanggal ? Carbon::parse($k->tanggal)->format('Y-m-d') : '',
             'time'              => $k->waktu ? Carbon::parse($k->waktu)->format('H:i') : '-',
+            'raw_time'          => $k->waktu ? Carbon::parse($k->waktu)->format('H:i') : '',
             'address'           => $k->alamat ?? '-',
             'lokasi_penugasan'  => $k->lokasi_penugasan ?? $k->alamat ?? '-',
             'potential'         => $potential,
@@ -138,6 +227,9 @@ class VisitController extends Controller
             'potensi_s1'        => $k->potensi_s1 ?? '-',
             'potensi_s2'        => $k->potensi_s2 ?? '-',
             'potensi_csr'       => $k->potensi_csr ?? '-',
+            'dosen'             => $k->dosen ? $k->dosen->name : ($k->dosen_pemateri ?? '-'),
+            'dosen_id'          => $k->dosen_id,
+            'dosen_pemateri'    => $k->dosen_pemateri,
             'created_at'        => $k->created_at ? $k->created_at->format('d M Y, H:i') : '-',
         ];
     }

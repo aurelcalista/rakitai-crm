@@ -112,6 +112,6 @@ class ProspekPolicy
      */
     public function delete(User $user, Prospek $prospek): bool
     {
-        return in_array(strtolower($user->role), ['admin', 'spv', 'hm']);
+        return in_array(strtolower($user->role), ['admin', 'spv', 'hm', 'sales', 'cs', 'eo']);
     }
 }

@@ -795,4 +795,23 @@ class ProspectController extends Controller
 
         return $base;
     }
+
+    /**
+     * Delete a prospect.
+     */
+    public function destroy(Prospek $prospek): RedirectResponse
+    {
+        $this->authorize('delete', $prospek);
+
+        $prospek->timelines()->delete();
+        $prospek->followUps()->delete();
+        $prospek->delete();
+
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/prospek/' . $prospek->id)) {
+            return redirect()->route('sales.prospek.index')->with('success', 'Data prospek berhasil dihapus!');
+        }
+
+        return redirect()->back()->with('success', 'Data prospek berhasil dihapus!');
+    }
 }

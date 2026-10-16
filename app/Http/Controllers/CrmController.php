@@ -479,19 +479,27 @@ class CrmController extends Controller
             'whatsapp'  => $k->pic_whatsapp ?? '-',
             'sales'     => $k->sales ? $k->sales->name : '-',
             'date'      => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
+            'raw_date'  => $k->tanggal ? \Carbon\Carbon::parse($k->tanggal)->format('Y-m-d') : '',
             'time'      => $k->waktu ?? '-',
+            'raw_time'  => $k->waktu ? \Carbon\Carbon::parse($k->waktu)->format('H:i') : '',
             'address'   => $k->alamat ?? '-',
             'potential' => $potential,
             'photo'     => $photoUrl,
             'notes'     => $k->catatan ?? $k->hasil ?? '-',
+            'status'    => $k->status ?? 'Selesai',
             // Type-specific details
+            'potensi_mahasiswa'     => $k->potensi_mahasiswa ?? $k->potensi_beasiswa ?? '-',
+            'detail_potensi_mahasiswa' => $k->detail_potensi_mahasiswa ?? $k->detail_beasiswa ?? '-',
             'potensi_beasiswa'      => $k->potensi_beasiswa ?? '-',
             'detail_beasiswa'       => $k->detail_beasiswa ?? '-',
-            'kesediaan_training_ai' => $k->kesediaan_training_ai,
+            'kesediaan_training_ai' => (bool) $k->kesediaan_training_ai,
             'bidang_usaha'          => $k->bidang_usaha ?? '-',
             'potensi_s1'            => $k->potensi_s1 ?? '-',
             'potensi_s2'            => $k->potensi_s2 ?? '-',
             'potensi_csr'           => $k->potensi_csr ?? '-',
+            'dosen'                 => $k->dosen ? $k->dosen->name : ($k->dosen_pemateri ?? '-'),
+            'dosen_id'              => $k->dosen_id,
+            'dosen_pemateri'        => $k->dosen_pemateri,
         ];
     }
 
@@ -2249,7 +2257,16 @@ class CrmController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('delete', $prospek);
         $prospek->delete();
         
-        return redirect()->route('prospek.index')->with('success', 'Prospek berhasil dihapus!');
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/prospek/' . $id)) {
+            $userRole = strtolower(auth()->user()->role ?? '');
+            $route = $userRole === 'sales' && \Illuminate\Support\Facades\Route::has('sales.prospek.index')
+                ? 'sales.prospek.index'
+                : ($userRole === 'spv' && \Illuminate\Support\Facades\Route::has('spv.prospek.index') ? 'spv.prospek.index' : 'prospek.index');
+            return redirect()->route($route)->with('success', 'Prospek berhasil dihapus!');
+        }
+
+        return redirect()->back()->with('success', 'Prospek berhasil dihapus!');
     }
 
     public function prospekTakeover(int $id)
@@ -2577,6 +2594,8 @@ class CrmController extends Controller
             'pic_whatsapp'   => 'required|string|max:20',
             'catatan'        => 'nullable|string|max:2000',
             'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'dosen_pemateri' => 'nullable|string|max:255',
+            'dosen_id'       => 'nullable|exists:users,id',
         ]);
 
         $fotoPath = null;
@@ -2621,6 +2640,9 @@ class CrmController extends Controller
             'foto_path'             => $fotoPath,
             'lat'                   => $request->input('lat'),
             'lng'                   => $request->input('lng'),
+            // Lecturer
+            'dosen_pemateri'        => $request->input('dosen_pemateri'),
+            'dosen_id'              => $request->input('dosen_id'),
             // School-specific
             'potensi_mahasiswa'       => $request->input('potensi_mahasiswa') ?? $request->input('potensi_beasiswa'),
             'detail_potensi_mahasiswa'=> $request->input('detail_potensi_mahasiswa') ?? $request->input('detail_beasiswa'),
@@ -2652,6 +2674,83 @@ class CrmController extends Controller
         }
 
         return redirect()->back()->with('success', 'Laporan kunjungan berhasil disimpan!');
+    }
+
+    public function kunjunganUpdate(Request $request, \App\Models\Kunjungan $kunjungan)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('update', $kunjungan);
+
+        $validated = $request->validate([
+            'tanggal'                  => 'required|date',
+            'waktu'                    => 'nullable|string',
+            'nama_institusi'           => 'nullable|string|max:255',
+            'tujuan_kunjungan'         => 'nullable|string|max:255',
+            'pic_name'                 => 'nullable|string|max:255',
+            'pic_whatsapp'             => 'nullable|string|max:30',
+            'alamat'                   => 'nullable|string|max:500',
+            'catatan'                  => 'nullable|string|max:2000',
+            'hasil'                    => 'nullable|string|max:2000',
+            'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
+            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'potensi_mahasiswa'        => 'nullable|string|max:255',
+            'detail_potensi_mahasiswa' => 'nullable|string|max:500',
+            'kesediaan_training_ai'    => 'nullable|boolean',
+            'bidang_usaha'             => 'nullable|string|max:255',
+            'potensi_s1'               => 'nullable|string|max:255',
+            'potensi_s2'               => 'nullable|string|max:255',
+            'potensi_csr'              => 'nullable|string|max:255',
+            'dosen_pemateri'           => 'nullable|string|max:255',
+            'dosen_id'                 => 'nullable|exists:users,id',
+        ]);
+
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
+            if ($kunjungan->foto_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($kunjungan->foto_path);
+            }
+            $validated['foto_path'] = $request->file('foto')->store('kunjungan', 'public');
+        }
+
+        if ($request->filled('nama_institusi')) {
+            $validated['tujuan_kunjungan'] = $request->nama_institusi;
+        } elseif ($request->filled('tujuan_kunjungan')) {
+            $validated['nama_institusi'] = $request->tujuan_kunjungan;
+        }
+
+        if ($request->filled('catatan') && !$request->filled('hasil')) {
+            $validated['hasil'] = $request->catatan;
+        } elseif ($request->filled('hasil') && !$request->filled('catatan')) {
+            $validated['catatan'] = $request->hasil;
+        }
+
+        if ($request->has('kesediaan_training_ai')) {
+            $validated['kesediaan_training_ai'] = $request->boolean('kesediaan_training_ai');
+        }
+
+        $kunjungan->update($validated);
+
+        return redirect()->back()->with('success', 'Data kunjungan berhasil diperbarui!');
+    }
+
+    public function kunjunganDestroy(\App\Models\Kunjungan $kunjungan)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('delete', $kunjungan);
+
+        if ($kunjungan->foto_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($kunjungan->foto_path);
+        }
+
+        $kunjungan->delete();
+
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/kunjungan/' . $kunjungan->id)) {
+            $userRole = strtolower(auth()->user()->role ?? '');
+            $route = $userRole === 'sales' && \Illuminate\Support\Facades\Route::has('sales.kunjungan.index')
+                ? 'sales.kunjungan.index'
+                : ($userRole === 'spv' && \Illuminate\Support\Facades\Route::has('spv.kunjungan.index') ? 'spv.kunjungan.index' : 'kunjungan.index');
+            return redirect()->route($route)->with('success', 'Kunjungan berhasil dihapus.');
+        }
+
+        return redirect()->back()->with('success', 'Kunjungan berhasil dihapus.');
     }
 
     /**

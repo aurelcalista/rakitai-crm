@@ -36,9 +36,11 @@ class VerifikasiController extends Controller
         $kategoriFilter = $request->query('kategori');
         $prodiFilter = $request->query('prodi_id');
         $kelasFilter = $request->query('kelas');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
 
-        // Helper closure untuk menerapkan filter yang konsisten (kategori, jurusan/prodi, kelas, pencarian)
-        $applyFilters = function ($q) use ($search, $kategoriFilter, $prodiFilter, $kelasFilter) {
+        // Helper closure untuk menerapkan filter yang konsisten (kategori, jurusan/prodi, kelas, tanggal, pencarian)
+        $applyFilters = function ($q) use ($search, $kategoriFilter, $prodiFilter, $kelasFilter, $startDate, $endDate) {
             if ($kategoriFilter && $kategoriFilter !== 'all') {
                 $q->where('kategori', $kategoriFilter);
             }
@@ -53,6 +55,14 @@ class VerifikasiController extends Controller
                 $q->whereHas('prospek', function ($p) use ($kelasFilter) {
                     $p->where('kelas', $kelasFilter);
                 });
+            }
+
+            if ($startDate) {
+                $q->whereDate('tanggal', '>=', $startDate);
+            }
+
+            if ($endDate) {
+                $q->whereDate('tanggal', '<=', $endDate);
             }
 
             if ($search) {
@@ -149,7 +159,9 @@ class VerifikasiController extends Controller
             'statusFilter',
             'kategoriFilter',
             'search',
-            'totalCount'
+            'totalCount',
+            'startDate',
+            'endDate'
         ));
     }
 

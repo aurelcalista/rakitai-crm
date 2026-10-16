@@ -92,6 +92,7 @@ Route::middleware('auth')->group(function () {
             Route::patch('/prospek/{prospek}/status', [\App\Http\Controllers\Sales\ProspectController::class, 'updateStatus'])->name('prospek.updateStatus');
             Route::patch('/prospek/{prospek}/lost',   [\App\Http\Controllers\Sales\ProspectController::class, 'markLost'])->name('prospek.markLost');
             Route::post('/prospek/{prospek}/takeover', [\App\Http\Controllers\Sales\ProspectController::class, 'takeover'])->name('prospek.takeover');
+            Route::delete('/prospek/{prospek}',       [\App\Http\Controllers\Sales\ProspectController::class, 'destroy'])->name('prospek.destroy');
 
             // Follow-up management
             Route::get('/follow-up',  [\App\Http\Controllers\Sales\FollowUpController::class, 'index'])->name('follow-up.index');
@@ -102,6 +103,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/kunjungan/create',         [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
             Route::post('/kunjungan',               [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
             Route::get('/kunjungan/{kunjungan}',    [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
+            Route::put('/kunjungan/{kunjungan}',    [\App\Http\Controllers\Sales\VisitController::class, 'update'])->name('kunjungan.update');
             Route::delete('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'destroy'])->name('kunjungan.destroy');
 
             // Events
@@ -147,6 +149,8 @@ Route::middleware('auth')->group(function () {
             // Team Visit Monitoring
             Route::get('/kunjungan',             [\App\Http\Controllers\Spv\VisitController::class, 'index'])->name('kunjungan.index');
             Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Spv\VisitController::class, 'show'])->name('kunjungan.show');
+            Route::put('/kunjungan/{kunjungan}', [\App\Http\Controllers\Spv\VisitController::class, 'update'])->name('kunjungan.update');
+            Route::delete('/kunjungan/{kunjungan}', [\App\Http\Controllers\Spv\VisitController::class, 'destroy'])->name('kunjungan.destroy');
 
             // Team Target & Performance
             Route::get('/target-performa', [\App\Http\Controllers\Spv\PerformanceController::class, 'index'])->name('performa.index');
@@ -321,6 +325,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/kunjungan/create',  [\App\Http\Controllers\Sales\VisitController::class, 'create'])->name('kunjungan.create');
         Route::post('/kunjungan',        [\App\Http\Controllers\Sales\VisitController::class, 'store'])->name('kunjungan.store');
         Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Sales\VisitController::class, 'show'])->name('kunjungan.show');
+        Route::put('/kunjungan/{kunjungan}', [CrmController::class, 'kunjunganUpdate'])->name('kunjungan.update');
+        Route::delete('/kunjungan/{kunjungan}', [CrmController::class, 'kunjunganDestroy'])->name('kunjungan.destroy');
 
         Route::get('/follow-up',  [CrmController::class, 'followUpIndex'])->name('follow-up.index');
         Route::post('/follow-up', [CrmController::class, 'followUpStore'])->name('follow-up.store');
@@ -356,6 +362,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/pengaturan',       [CrmController::class, 'pengaturanIndex'])->name('pengaturan.index');
     Route::post('/pengaturan/terima-kasih', [CrmController::class, 'updateTerimaKasihSettings'])->name('pengaturan.update-terima-kasih');
     Route::post('/pengaturan/terima-kasih-corporate', [CrmController::class, 'updateTerimaKasihCorporateSettings'])->name('pengaturan.update-terima-kasih-corporate');
+
+    // Unduh Spreadsheet (SPS) Data Routes (Semua Role sesuai kewenangan)
+    Route::get('/export/prospek',    [\App\Http\Controllers\ExportController::class, 'exportProspek'])->name('export.prospek');
+    Route::get('/export/kunjungan',  [\App\Http\Controllers\ExportController::class, 'exportKunjungan'])->name('export.kunjungan');
+    Route::get('/export/verifikasi', [\App\Http\Controllers\ExportController::class, 'exportVerifikasi'])->name('export.verifikasi');
+    Route::get('/export/pembayaran', [\App\Http\Controllers\ExportController::class, 'exportPembayaran'])->name('export.pembayaran');
 
     // Notifications (all roles)
     Route::get('/notifications/latest',         [NotificationController::class, 'getLatest'])->name('notifications.latest');

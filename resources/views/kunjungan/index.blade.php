@@ -24,23 +24,37 @@
     <!-- NORMAL DATA STATE -->
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         kunjunganFilter: 'all',
+        filterStartDate: '',
+        filterEndDate: '',
         visitsList: {{ json_encode($visits) }},
         selectedVisit: null,
         modalDetailVisit: false,
+        modalEditVisit: false,
+        editVisit: null,
         confirmDeleteModal: false,
         deleteVisitId: null,
         get filteredVisits() {
-            if (this.kunjunganFilter === 'all') return this.visitsList;
-            if (this.kunjunganFilter === 'corporate' || this.kunjunganFilter === 'perusahaan') {
-                return this.visitsList.filter(v => {
+            return this.visitsList.filter(v => {
+                let matchType = true;
+                if (this.kunjunganFilter === 'corporate' || this.kunjunganFilter === 'perusahaan') {
                     const t = (v.type || '').toLowerCase();
-                    return t === 'corporate' || t === 'perusahaan';
-                });
-            }
-            if (this.kunjunganFilter === 'sekolah') {
-                return this.visitsList.filter(v => (v.type || '').toLowerCase() === 'sekolah');
-            }
-            return this.visitsList.filter(v => (v.type || '').toLowerCase() === this.kunjunganFilter.toLowerCase());
+                    matchType = (t === 'corporate' || t === 'perusahaan');
+                } else if (this.kunjunganFilter === 'sekolah') {
+                    matchType = (v.type || '').toLowerCase() === 'sekolah';
+                } else if (this.kunjunganFilter !== 'all') {
+                    matchType = (v.type || '').toLowerCase() === this.kunjunganFilter.toLowerCase();
+                }
+
+                let matchDate = true;
+                if (this.filterStartDate && v.raw_date) {
+                    matchDate = matchDate && (v.raw_date >= this.filterStartDate);
+                }
+                if (this.filterEndDate && v.raw_date) {
+                    matchDate = matchDate && (v.raw_date <= this.filterEndDate);
+                }
+
+                return matchType && matchDate;
+            });
         }
     }">
 
@@ -50,29 +64,41 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kunjungan Sekolah & Corporate</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Dokumentasi hasil kunjungan lapangan, presentasi edu-fair, dan audiensi kemitraan.</p>
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
-            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                {{--
-                    ALUR 2: Kunjungan Mandiri (tidak terikat Event).
-                    event_id akan NULL — Sales/CS pilih instansi sendiri.
-                --}}
+            <div class="flex flex-wrap items-center gap-2">
+                {{-- Tombol Unduh Spreadsheet --}}
+                <a 
+                    :href="'{{ route('export.kunjungan') }}?' + new URLSearchParams(Object.fromEntries(Object.entries({
+                        jenis: kunjunganFilter !== 'all' ? (kunjunganFilter === 'sekolah' ? 'Sekolah' : 'Corporate') : '',
+                        start_date: filterStartDate || '',
+                        end_date: filterEndDate || ''
+                    }).filter(([_, v]) => v !== '' && v !== null && v !== undefined)))"
+                    target="_blank"
+                    class="inline-flex items-center gap-2 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-xs cursor-pointer"
+                    title="Unduh Spreadsheet Data Kunjungan (.xlsx)"
+                >
+                    <svg class="w-4 h-4 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Unduh Spreadsheet</span>
+                </a>
+
+                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS']))
                 <a
                     href="{{ auth()->user()->role === 'Sales' && Route::has('sales.kunjungan.create') ? route('sales.kunjungan.create') : route('kunjungan.create') }}"
                     id="btn-tambah-kunjungan"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                    Tambah Kunjungan
+                    <span>Tambah Kunjungan</span>
                 </a>
-                <p class="text-[11px] text-slate-400">Kunjungan tanpa Jadwal Event</p>
+                @endif
             </div>
-            @endif
         </div>
 
         <!-- Filter Bar -->
         <div class="crm-card bg-white p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div class="flex items-center gap-2">
-                <span class="text-slate-400 font-semibold uppercase text-[11px]">Filter Kategori:</span>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-slate-400 font-semibold uppercase text-[11px]">Filter:</span>
                 <button 
                     type="button" 
                     @click="kunjunganFilter = 'all'"
@@ -99,8 +125,31 @@
                 </button>
             </div>
 
-            <div class="text-slate-400 font-medium text-[11px]">
-                * Dokumentasi foto resmi tanpa tracking GPS/Lokasi
+            <!-- Filter By Date -->
+            <div class="flex items-center gap-2">
+                <span class="text-slate-400 font-semibold uppercase text-[11px]">Rentang Tanggal:</span>
+                <input 
+                    type="date" 
+                    x-model="filterStartDate" 
+                    title="Tanggal Mulai"
+                    class="px-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
+                >
+                <span class="text-slate-300">-</span>
+                <input 
+                    type="date" 
+                    x-model="filterEndDate" 
+                    title="Tanggal Selesai"
+                    class="px-2.5 py-1 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700"
+                >
+                <template x-if="filterStartDate || filterEndDate">
+                    <button 
+                        type="button" 
+                        @click="filterStartDate = ''; filterEndDate = ''" 
+                        class="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer px-1.5 py-0.5 rounded hover:bg-rose-50"
+                    >
+                        Reset
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -154,6 +203,12 @@
                                     <span class="text-slate-400">Potensi:</span>
                                     <span class="font-semibold text-slate-800" x-text="visit.potential"></span>
                                 </div>
+                                <template x-if="visit.dosen && visit.dosen !== '-'">
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-400">Dosen Pemateri:</span>
+                                        <span class="font-semibold text-indigo-600 truncate max-w-[150px]" x-text="visit.dosen"></span>
+                                    </div>
+                                </template>
                             </div>
 
                             <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-slate-600 italic leading-relaxed text-[11px]">
@@ -162,25 +217,44 @@
                         </div>
                     </div>
 
-                    <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-                        <span class="text-[11px] text-slate-400 font-medium" x-text="visit.time"></span>
-                        <div class="flex items-center gap-2">
-                            <a 
-                                :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : (auth()->user()->role === 'Admin' ? '/admin' : '')) }}/kunjungan/' + visit.id"
-                                class="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+                    <div class="p-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-text="visit.time"></span>
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                @click="editVisit = Object.assign({}, visit); modalEditVisit = true"
+                                class="w-7 h-7 rounded-lg flex items-center justify-center text-amber-600 hover:text-amber-700 hover:bg-amber-100/80 border border-amber-200/70 transition cursor-pointer"
+                                title="Edit Kunjungan"
                             >
-                                Detail Data &rarr;
-                            </a>
-                            @if(auth()->user()->role === 'Sales')
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
                             <button
                                 type="button"
                                 @click="confirmDeleteModal = true; deleteVisitId = visit.id"
-                                class="text-xs font-bold text-red-500 hover:text-red-700 cursor-pointer transition"
-                                title="Hapus kunjungan ini"
+                                class="w-7 h-7 rounded-lg flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-100/80 border border-rose-200/70 transition cursor-pointer"
+                                title="Hapus Kunjungan"
                             >
-                                Hapus
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
                             </button>
-                            @endif
+                            <a 
+                                :href="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : (auth()->user()->role === 'Admin' ? '/admin' : '')) }}/kunjungan/' + visit.id"
+                                class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg border border-transparent hover:border-blue-200 transition cursor-pointer"
+                                title="Lihat detail lengkap kunjungan"
+                            >
+                                <span>Detail Data</span>
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </a>
                         </div>
                     </div>
 
@@ -238,7 +312,7 @@
                         </button>
                         <!-- Form DELETE dengan CSRF -->
                         <form
-                            :action="'/sales/kunjungan/' + deleteVisitId"
+                            :action="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/kunjungan/' + deleteVisitId"
                             method="POST"
                             x-ref="deleteForm"
                         >
@@ -256,6 +330,143 @@
             </div>
         </div>
 
+
+        <!-- MODAL: EDIT KUNJUNGAN -->
+        <div 
+            x-show="modalEditVisit" 
+            class="fixed inset-0 z-50 overflow-y-auto" 
+            x-cloak
+            @keydown.escape.window="modalEditVisit = false; editVisit = null"
+        >
+            <div class="flex items-center justify-center min-h-screen px-4 py-8">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalEditVisit = false; editVisit = null"></div>
+
+                <div class="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 overflow-hidden">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </span>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Edit Laporan Kunjungan</h3>
+                                <p class="text-xs text-slate-500">Perbarui data laporan hasil kunjungan lapangan.</p>
+                            </div>
+                        </div>
+                        <button type="button" @click="modalEditVisit = false; editVisit = null" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <form 
+                        :action="'{{ auth()->user()->role === 'Sales' ? '/sales' : (auth()->user()->role === 'SPV' ? '/spv' : '') }}/kunjungan/' + (editVisit ? editVisit.id : '')" 
+                        method="POST" 
+                        enctype="multipart/form-data" 
+                        class="space-y-4 text-xs"
+                    >
+                        @csrf
+                        @method('PUT')
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Tanggal Kunjungan</label>
+                                <input type="date" name="tanggal" required :value="editVisit ? (editVisit.raw_date || '') : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Waktu (WIB)</label>
+                                <input type="time" name="waktu" :value="editVisit ? (editVisit.raw_time || editVisit.time || '') : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Nama Institusi / Tujuan</label>
+                            <input type="text" name="nama_institusi" required :value="editVisit ? editVisit.name : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Nama PIC</label>
+                                <input type="text" name="pic_name" :value="editVisit ? editVisit.pic : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">WhatsApp PIC</label>
+                                <input type="text" name="pic_whatsapp" :value="editVisit ? editVisit.whatsapp : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Alamat Institusi</label>
+                            <input type="text" name="alamat" :value="editVisit ? editVisit.address : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Dosen Pemateri / Narasumber</label>
+                            <input type="text" name="dosen_pemateri" :value="editVisit ? (editVisit.dosen_pemateri || (editVisit.dosen && editVisit.dosen !== '-' ? editVisit.dosen : '')) : ''" placeholder="Nama dosen pemateri atau pendamping..." class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <template x-if="editVisit && (editVisit.type === 'Sekolah')">
+                            <div class="space-y-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Potensi Mahasiswa</label>
+                                    <input type="text" name="potensi_mahasiswa" :value="editVisit.potensi_mahasiswa || editVisit.potential || ''" placeholder="Contoh: 50 Siswa Kelas XII" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Detail Potensi</label>
+                                    <input type="text" name="detail_potensi_mahasiswa" :value="editVisit.detail_potensi_mahasiswa || ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="editVisit && (editVisit.type === 'Perusahaan' || editVisit.type === 'Corporate')">
+                            <div class="space-y-3 p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Bidang Usaha</label>
+                                    <input type="text" name="bidang_usaha" :value="editVisit.bidang_usaha || ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="block font-semibold text-slate-700 mb-1">Potensi S1</label>
+                                        <input type="text" name="potensi_s1" :value="editVisit.potensi_s1 || ''" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block font-semibold text-slate-700 mb-1">Potensi S2</label>
+                                        <input type="text" name="potensi_s2" :value="editVisit.potensi_s2 || ''" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block font-semibold text-slate-700 mb-1">CSR</label>
+                                        <input type="text" name="potensi_csr" :value="editVisit.potensi_csr || ''" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Catatan & Hasil Kunjungan</label>
+                            <textarea name="catatan" rows="3" :value="editVisit ? editVisit.notes : ''" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 items-center">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Status Kunjungan</label>
+                                <select name="status" :value="editVisit ? editVisit.status : 'Selesai'" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                    <option value="Selesai">Selesai</option>
+                                    <option value="Proses">Proses</option>
+                                    <option value="Menunggu">Menunggu</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Ganti Foto (Opsional)</label>
+                                <input type="file" name="foto" accept="image/*" class="w-full text-[11px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                            <button type="button" @click="modalEditVisit = false; editVisit = null" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer">Batal</button>
+                            <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer shadow-xs">Simpan Perubahan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <!-- MODAL: DETAIL LAPORAN KUNJUNGAN (COMPACT & SLEEK) -->
         <div 
@@ -371,6 +582,25 @@
                                             :class="selectedVisit.event_id ? 'text-indigo-800' : 'text-slate-500 italic'"
                                             x-text="selectedVisit.event_name || 'Kunjungan Mandiri'"></p>
                                     </div>
+
+                                    <!-- Dosen Pemateri -->
+                                    <template x-if="selectedVisit.dosen && selectedVisit.dosen !== '-'">
+                                        <div class="col-span-2 p-2.5 bg-indigo-50/70 rounded-xl border border-indigo-100 flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                                    </svg>
+                                                </span>
+                                                <div>
+                                                    <p class="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider">Dosen Pemateri</p>
+                                                    <p class="text-xs font-bold text-indigo-900" x-text="selectedVisit.dosen"></p>
+                                                </div>
+                                            </div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 text-indigo-700">Pemateri / Narasumber</span>
+                                        </div>
+                                    </template>
 
                                 </div>
 

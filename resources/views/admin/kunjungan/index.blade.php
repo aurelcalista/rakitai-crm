@@ -12,17 +12,26 @@
         filterJenis: 'all',
         filterStatus: 'all',
         filterSales: 'all',
+        startDate: '',
+        endDate: '',
         currentPage: 1,
         perPage: 25,
         kunjungan: {{ json_encode($kunjungan) }},
         get filtered() {
             return this.kunjungan.filter(k => {
                 const q = this.searchQuery.toLowerCase();
-                const matchQ = !q || k.id.toLowerCase().includes(q) || k.nama_tempat.toLowerCase().includes(q) || k.sales.toLowerCase().includes(q);
-                const matchJ = this.filterJenis === 'all' || k.jenis.toLowerCase() === this.filterJenis.toLowerCase();
-                const matchS = this.filterStatus === 'all' || k.status.toLowerCase() === this.filterStatus.toLowerCase();
+                const matchQ = !q || String(k.id).toLowerCase().includes(q) || (k.nomor && k.nomor.toLowerCase().includes(q)) || (k.nama_tempat && k.nama_tempat.toLowerCase().includes(q)) || (k.sales && k.sales.toLowerCase().includes(q));
+                const matchJ = this.filterJenis === 'all' || (k.jenis && k.jenis.toLowerCase() === this.filterJenis.toLowerCase());
+                const matchS = this.filterStatus === 'all' || (k.status && k.status.toLowerCase() === this.filterStatus.toLowerCase());
                 const matchSales = this.filterSales === 'all' || k.sales === this.filterSales;
-                return matchQ && matchJ && matchS && matchSales;
+                let matchDate = true;
+                if (this.startDate && k.tanggal_raw) {
+                    matchDate = matchDate && (k.tanggal_raw >= this.startDate);
+                }
+                if (this.endDate && k.tanggal_raw) {
+                    matchDate = matchDate && (k.tanggal_raw <= this.endDate);
+                }
+                return matchQ && matchJ && matchS && matchSales && matchDate;
             });
         },
         get paginated() {
@@ -32,7 +41,7 @@
         get totalPages() {
             return Math.ceil(this.filtered.length / this.perPage) || 1;
         }
-    }" x-effect="searchQuery; filterJenis; filterStatus; filterSales; currentPage = 1">
+    }" x-effect="searchQuery; filterJenis; filterStatus; filterSales; startDate; endDate; currentPage = 1">
 
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -40,7 +49,19 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Kelola Kunjungan</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan pengelolaan seluruh data kunjungan Sales ke sekolah & perusahaan.</p>
             </div>
-            <div class="flex items-center gap-2 text-xs font-semibold">
+            <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                {{-- Tombol Unduh Spreadsheet --}}
+                <a 
+                    :href="'{{ route('export.kunjungan') }}' + (startDate || endDate || filterSales !== 'all' || filterJenis !== 'all' ? '?' + new URLSearchParams({start_date: startDate || '', end_date: endDate || '', sales_id: filterSales !== 'all' ? filterSales : '', jenis: filterJenis !== 'all' ? filterJenis : ''}).toString() : '')"
+                    target="_blank"
+                    class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    title="Unduh Spreadsheet Data Kunjungan (.xlsx)"
+                >
+                    <svg class="w-4 h-4 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Unduh Spreadsheet</span>
+                </a>
                 <span class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200">{{ count($kunjungan) }} Total Kunjungan</span>
             </div>
         </div>
@@ -61,7 +82,7 @@
                 <select x-model="filterJenis" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-40">
                     <option value="all">Semua Jenis</option>
                     <option value="sekolah">Sekolah</option>
-                    <option value="korporasi">Korporasi</option>
+                    <option value="perusahaan">Perusahaan</option>
                 </select>
                 <select x-model="filterStatus" class="text-xs px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none sm:w-36">
                     <option value="all">Semua Status</option>
@@ -70,7 +91,20 @@
                     <option value="menunggu">Menunggu</option>
                 </select>
             </div>
-            <div class="text-[11px] text-slate-400">Menampilkan <span class="font-bold text-slate-700" x-text="filtered.length"></span> kunjungan</div>
+            
+            <!-- Date Filter Row -->
+            <div class="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-slate-100">
+                <div class="flex items-center gap-1.5 text-xs w-full sm:w-auto">
+                    <span class="text-slate-400 font-semibold uppercase text-[11px] whitespace-nowrap">Rentang Tanggal:</span>
+                    <input type="date" x-model="startDate" title="Tanggal Mulai" class="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200">
+                    <span class="text-slate-300">-</span>
+                    <input type="date" x-model="endDate" title="Tanggal Selesai" class="text-xs px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200">
+                    <template x-if="startDate || endDate">
+                        <button type="button" @click="startDate = ''; endDate = ''" class="text-xs text-rose-600 hover:text-rose-700 font-semibold px-1 cursor-pointer">Reset</button>
+                    </template>
+                </div>
+                <div class="text-[11px] text-slate-400 sm:ml-auto">Menampilkan <span class="font-bold text-slate-700" x-text="filtered.length"></span> kunjungan</div>
+            </div>
         </div>
 
         <!-- Table -->
@@ -204,6 +238,15 @@
                                 <p class="font-bold text-slate-800" x-text="selectedKjg.pic"></p>
                                 <p class="text-slate-500 mt-0.5" x-text="selectedKjg.pic_phone"></p>
                             </div>
+                            <template x-if="selectedKjg.dosen_pemateri && selectedKjg.dosen_pemateri !== '-'">
+                                <div class="p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-between">
+                                    <div>
+                                        <p class="text-indigo-600 font-semibold mb-0.5">Dosen Pemateri / Narasumber</p>
+                                        <p class="font-bold text-indigo-900" x-text="selectedKjg.dosen_pemateri"></p>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 text-indigo-700">Narasumber</span>
+                                </div>
+                            </template>
                             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
                                 <p class="text-slate-400 mb-0.5">Tujuan Kunjungan</p>
                                 <p class="text-slate-800" x-text="selectedKjg.tujuan"></p>
@@ -256,7 +299,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Tanggal</label>
-                                <input type="date" name="tanggal" required :value="selectedKjg ? new Date(selectedKjg.tanggal).toISOString().split('T')[0] : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                                <input type="date" name="tanggal" required :value="selectedKjg ? (selectedKjg.tanggal_raw || '') : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">Jenis Kunjungan</label>
@@ -269,6 +312,10 @@
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Nama Sekolah / Perusahaan (Hanya Baca)</label>
                             <input type="text" disabled :value="selectedKjg ? selectedKjg.nama_tempat : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Dosen Pemateri / Narasumber</label>
+                            <input type="text" name="dosen_pemateri" :value="selectedKjg ? (selectedKjg.dosen_pemateri_raw || (selectedKjg.dosen_pemateri !== '-' ? selectedKjg.dosen_pemateri : '')) : ''" placeholder="Nama dosen pemateri atau narasumber..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
                         </div>
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Tujuan Kunjungan</label>

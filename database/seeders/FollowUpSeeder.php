@@ -6,36 +6,34 @@ use App\Models\FollowUp;
 use App\Models\Prospek;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class FollowUpSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     * Menyisakan 1 data follow up sampel.
+     */
     public function run(): void
     {
-        $prospeks = Prospek::all();
-        if ($prospeks->isEmpty()) return;
+        Schema::disableForeignKeyConstraints();
+        FollowUp::truncate();
+        Schema::enableForeignKeyConstraints();
 
-        $methods = FollowUp::METODE_OPTIONS;
+        $prospek = Prospek::first();
+        if (!$prospek) return;
 
-        foreach ($prospeks as $prospek) {
-            $user = $prospek->sales ?? User::where('role', 'Sales')->first();
-            if (!$user) continue;
+        $user = $prospek->sales ?? User::where('role', 'Sales')->first();
+        if (!$user) return;
 
-            // Create 1-3 follow up logs per prospect
-            $count = rand(1, 3);
-            for ($i = 0; $i < $count; $i++) {
-                $method = $methods[array_rand($methods)];
-                $date = now()->subDays(rand(1, 14));
-
-                FollowUp::create([
-                    'prospek_id'     => $prospek->id,
-                    'user_id'        => $user->id,
-                    'metode'         => $method,
-                    'tanggal'        => $date,
-                    'catatan'        => "Follow-up via {$method} membahas rincian program studi & kurikulum AI UCIC.",
-                    'hasil'          => "Prospek merespon positif dan berminat mengikuti sesi presentasi.",
-                    'next_follow_up' => $date->copy()->addDays(rand(3, 7)),
-                ]);
-            }
-        }
+        FollowUp::create([
+            'prospek_id'     => $prospek->id,
+            'user_id'        => $user->id,
+            'metode'         => 'WhatsApp',
+            'tanggal'        => now()->subDays(2),
+            'catatan'        => 'Follow-up via WhatsApp membahas rincian program beasiswa & kurikulum AI UCIC.',
+            'hasil'          => 'Prospek sangat antusias dan telah menyelesaikan proses pendaftaran.',
+            'next_follow_up' => now()->addDays(5),
+        ]);
     }
 }

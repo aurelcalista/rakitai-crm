@@ -19,6 +19,9 @@
         modalReassign: false,
         reassignTarget: null,
         openReassign(p) { this.reassignTarget = p; this.modalReassign = true; },
+        modalDeleteProspek: false,
+        deleteProspectTarget: null,
+        openDeleteProspectModal(p) { this.deleteProspectTarget = p; this.modalDeleteProspek = true; },
 
         isOwnProspect(p) {
             if (p.is_own === true) return true;
@@ -86,7 +89,26 @@
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Monitoring dan evaluasi seluruh database prospek anggota tim Sales di bawah wilayah Anda.</p>
             </div>
-            <div class="shrink-0">
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a 
+                    :href="'{{ route('export.prospek') }}?' + new URLSearchParams(Object.fromEntries(Object.entries({
+                        scope: selectedScope,
+                        status: selectedStatus !== 'all' ? selectedStatus : '',
+                        type: selectedType !== 'all' ? selectedType : '',
+                        sales_id: selectedSales !== 'all' ? selectedSales : '',
+                        search: searchQuery || '',
+                        start_date: '{{ request('start_date', '') }}',
+                        end_date: '{{ request('end_date', '') }}'
+                    }).filter(([_, v]) => v !== '' && v !== null && v !== undefined)))"
+                    target="_blank"
+                    class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer"
+                    title="Unduh Spreadsheet Data Prospek Tim (.xlsx)"
+                >
+                    <svg class="w-4 h-4 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Unduh Spreadsheet</span>
+                </a>
                 <a 
                     href="{{ route('spv.prospek.create') }}"
                     class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition whitespace-nowrap shrink-0 cursor-pointer"
@@ -395,6 +417,14 @@
                                         <a :href="'/spv/prospek/' + p.id" class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition" title="Lihat Detail">
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                         </a>
+                                        <button
+                                            type="button"
+                                            @click="openDeleteProspectModal(p)"
+                                            class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition cursor-pointer"
+                                            title="Hapus Prospek"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -514,7 +544,52 @@
                 </template>
             </div>
         </div>
-        <!-- ── END MODAL ── -->
+        <!-- ── END MODAL REALOKASI ── -->
+
+        <!-- ── MODAL KONFIRMASI HAPUS PROSPEK ── -->
+        <div
+            x-show="modalDeleteProspek"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+        >
+            <div
+                class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 p-6 text-center"
+                @click.away="modalDeleteProspek = false"
+                @keydown.escape.window="modalDeleteProspek = false"
+            >
+                <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 mb-2">Hapus Data Prospek?</h3>
+                <p class="text-sm text-slate-500 mb-6">
+                    Yakin ingin menghapus prospek <strong class="text-slate-800" x-text="deleteProspectTarget ? (deleteProspectTarget.pic || deleteProspectTarget.name) : ''"></strong>? Seluruh histori timeline dan data follow-up terkait juga akan dihapus.
+                </p>
+                <div class="flex items-center gap-3 justify-center">
+                    <button
+                        type="button"
+                        @click="modalDeleteProspek = false"
+                        class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition cursor-pointer"
+                    >
+                        Batal
+                    </button>
+                    <form
+                        :action="'/spv/prospek/' + (deleteProspectTarget ? deleteProspectTarget.id : '')"
+                        method="POST"
+                    >
+                        @csrf
+                        @method('DELETE')
+                        <button
+                            type="submit"
+                            class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition cursor-pointer shadow-xs"
+                        >
+                            Ya, Hapus
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
     </div>
 

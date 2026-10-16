@@ -5,7 +5,7 @@
 
 <x-app-layout :title="'Detail Kunjungan - ' . $visit['name']">
 
-    <div class="max-w-4xl mx-auto space-y-6">
+    <div class="max-w-4xl mx-auto space-y-6" x-data="{ modalEdit: false, confirmDelete: false }">
 
         <!-- Back Button & Breadcrumbs -->
         <div class="flex items-center gap-2 text-xs font-semibold text-slate-500">
@@ -47,14 +47,32 @@
                         <div class="text-xs font-bold text-slate-800">{{ $visit['date'] }}</div>
                         <div class="text-[11px] text-slate-400">Pukul: {{ $visit['time'] }} WIB</div>
                     </div>
-                    @if($visit['is_outside_radius'] || $visit['status_verifikasi'] === 'Perlu Verifikasi')
-                        <form action="{{ route('spv.kunjungan.verifikasi', $visit['id']) }}" method="POST">
-                            @csrf
-                            <button type="submit" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
-                                Verifikasi Kunjungan Ini (SPV)
-                            </button>
-                        </form>
-                    @endif
+                    <div class="flex items-center gap-2">
+                        @if($visit['is_outside_radius'] || $visit['status_verifikasi'] === 'Perlu Verifikasi')
+                            <form action="{{ route('spv.kunjungan.verifikasi', $visit['id']) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                                    Verifikasi Kunjungan Ini (SPV)
+                                </button>
+                            </form>
+                        @endif
+                        <button 
+                            type="button" 
+                            @click="modalEdit = true" 
+                            class="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <span>Edit</span>
+                        </button>
+                        <button 
+                            type="button" 
+                            @click="confirmDelete = true" 
+                            class="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <svg class="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <span>Hapus</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -79,6 +97,29 @@
                     <div>
                         <span class="text-slate-400 block font-semibold text-[10px] uppercase">Alamat / Lokasi</span>
                         <p class="font-medium text-slate-700 mt-0.5">{{ $visit['address'] }}</p>
+                    </div>
+
+                    <div>
+                        <span class="text-slate-400 block font-semibold text-[10px] uppercase">Dosen Pemateri</span>
+                        @if(!empty($visit['dosen_pemateri']) && $visit['dosen_pemateri'] !== '-')
+                            <p class="font-bold text-purple-700 mt-0.5 inline-flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                                </svg>
+                                <span>{{ $visit['dosen_pemateri'] }}</span>
+                            </p>
+                        @elseif(!empty($visit['dosen']) && $visit['dosen'] !== '-')
+                            <p class="font-bold text-purple-700 mt-0.5 inline-flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                                </svg>
+                                <span>{{ $visit['dosen'] }}</span>
+                            </p>
+                        @else
+                            <p class="font-medium text-slate-400 mt-0.5 italic">Tidak ada penugasan dosen pemateri</p>
+                        @endif
                     </div>
                 </div>
 
@@ -155,6 +196,178 @@
                 </div>
             @endif
 
+        </div>
+
+        <!-- MODAL EDIT KUNJUNGAN -->
+        <div 
+            x-show="modalEdit" 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            x-cloak
+            @keydown.escape.window="modalEdit = false"
+        >
+            <div class="flex items-center justify-center min-h-screen px-4 py-8">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalEdit = false"></div>
+
+                <div class="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                        <h3 class="text-base font-bold text-slate-900">Edit Data Kunjungan</h3>
+                        <button type="button" @click="modalEdit = false" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <form 
+                        action="{{ route('spv.kunjungan.update', $visit['id']) }}" 
+                        method="POST" 
+                        enctype="multipart/form-data" 
+                        class="space-y-4 text-xs"
+                    >
+                        @csrf
+                        @method('PUT')
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Tanggal Kunjungan</label>
+                                <input type="date" name="tanggal" required value="{{ $visit['raw_date'] ?? '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Waktu (WIB)</label>
+                                <input type="time" name="waktu" value="{{ $visit['raw_time'] ?? $visit['time'] ?? '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Nama Institusi / Tujuan</label>
+                            <input type="text" name="nama_institusi" required value="{{ $visit['name'] }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Nama PIC</label>
+                                <input type="text" name="pic_name" value="{{ $visit['pic'] !== '-' ? $visit['pic'] : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">WhatsApp PIC</label>
+                                <input type="text" name="pic_whatsapp" value="{{ $visit['whatsapp'] !== '-' ? $visit['whatsapp'] : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Alamat Institusi</label>
+                            <input type="text" name="alamat" value="{{ $visit['address'] !== '-' ? $visit['address'] : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Nama Dosen / Pemateri <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                            <input type="text" name="dosen_pemateri" value="{{ $visit['dosen_pemateri'] ?? ($visit['dosen'] !== '-' ? $visit['dosen'] : '') }}" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                            <p class="text-[11px] text-slate-400 mt-1">Tambahkan nama dosen pemateri / narasumber jika saat awal input belum tercatat.</p>
+                        </div>
+
+                        @if($visit['type'] === 'Sekolah')
+                            <div class="space-y-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Potensi Mahasiswa</label>
+                                    <input type="text" name="potensi_mahasiswa" value="{{ $visit['potensi_mahasiswa'] !== '-' ? $visit['potensi_mahasiswa'] : '' }}" placeholder="Contoh: 50 Siswa Kelas XII" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Detail Potensi</label>
+                                    <input type="text" name="detail_potensi_mahasiswa" value="{{ $visit['detail_potensi_mahasiswa'] !== '-' ? $visit['detail_potensi_mahasiswa'] : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                </div>
+                            </div>
+                        @else
+                            <div class="space-y-3 p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                                <div>
+                                    <label class="block font-semibold text-slate-700 mb-1">Bidang Usaha</label>
+                                    <input type="text" name="bidang_usaha" value="{{ $visit['bidang_usaha'] !== '-' ? $visit['bidang_usaha'] : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="block font-semibold text-slate-700 mb-1">Potensi S1</label>
+                                        <input type="text" name="potensi_s1" value="{{ $visit['potensi_s1'] !== '-' ? $visit['potensi_s1'] : '' }}" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block font-semibold text-slate-700 mb-1">Potensi S2</label>
+                                        <input type="text" name="potensi_s2" value="{{ $visit['potensi_s2'] !== '-' ? $visit['potensi_s2'] : '' }}" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block font-semibold text-slate-700 mb-1">CSR</label>
+                                        <input type="text" name="potensi_csr" value="{{ $visit['potensi_csr'] !== '-' ? $visit['potensi_csr'] : '' }}" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Catatan & Hasil Kunjungan</label>
+                            <textarea name="catatan" rows="3" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none">{{ $visit['notes'] !== '-' ? $visit['notes'] : '' }}</textarea>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 items-center">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Status Kunjungan</label>
+                                <select name="status" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                                    <option value="Selesai" {{ ($visit['status'] ?? '') === 'Selesai' ? 'selected' : '' }}>Selesai</option>
+                                    <option value="Proses" {{ ($visit['status'] ?? '') === 'Proses' ? 'selected' : '' }}>Proses</option>
+                                    <option value="Menunggu" {{ ($visit['status'] ?? '') === 'Menunggu' ? 'selected' : '' }}>Menunggu</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Ganti Foto (Opsional)</label>
+                                <input type="file" name="foto" accept="image/*" class="w-full text-[11px] text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                            <button type="button" @click="modalEdit = false" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer">Batal</button>
+                            <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer shadow-xs">Simpan Perubahan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL KONFIRMASI HAPUS -->
+        <div 
+            x-show="confirmDelete" 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            x-cloak
+            @keydown.escape.window="confirmDelete = false"
+        >
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="confirmDelete = false"></div>
+
+                <div class="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center">
+                    <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 mb-2">Hapus Kunjungan Ini?</h3>
+                    <p class="text-sm text-slate-500 mb-6">Data kunjungan ini akan dihapus secara permanen dan tidak dapat dikembalikan.</p>
+                    <div class="flex items-center gap-3 justify-center">
+                        <button
+                            type="button"
+                            @click="confirmDelete = false"
+                            class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition cursor-pointer"
+                        >
+                            Batal
+                        </button>
+                        <form
+                            action="{{ route('spv.kunjungan.destroy', $visit['id']) }}"
+                            method="POST"
+                        >
+                            @csrf
+                            @method('DELETE')
+                            <button
+                                type="submit"
+                                class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition cursor-pointer shadow-xs"
+                            >
+                                Ya, Hapus
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>

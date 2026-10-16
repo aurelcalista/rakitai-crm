@@ -66,6 +66,84 @@ class Kunjungan extends Model
                 \Illuminate\Support\Facades\Log::warning('Error sending kunjungan notification: ' . $e->getMessage());
             }
         });
+
+        static::updated(function ($kunjungan) {
+            try {
+                $auth = auth()->user();
+                $actorName = $auth ? "{$auth->name}" : 'Sistem';
+                $sales = $kunjungan->sales ?? \App\Models\User::find($kunjungan->sales_id);
+                $spv = $sales?->supervisor;
+                $instName = $kunjungan->nama_institusi ?? $kunjungan->sekolah?->nama ?? $kunjungan->perusahaan?->nama ?? 'Institusi';
+
+                // Jika diupdate oleh Sales, SPV diberitahu
+                if ($spv && (!$auth || $auth->id !== $spv->id)) {
+                    $spv->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "Laporan Kunjungan Diperbarui",
+                        message: "{$actorName} telah memperbarui data kunjungan ke {$instName}.",
+                        type: 'info',
+                        link: '/spv/kunjungan',
+                        icon: '',
+                        senderName: $actorName,
+                        senderRole: $auth?->role ?? 'Sales',
+                        action: 'kunjungan_updated'
+                    ));
+                }
+
+                // Jika diupdate oleh SPV/Admin, Sales diberitahu
+                if ($sales && $auth && $auth->id !== (int)$sales->id) {
+                    $sales->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "Kunjungan Diperbarui",
+                        message: "{$actorName} telah memperbarui data kunjungan Anda ke {$instName}.",
+                        type: 'info',
+                        link: '/kunjungan',
+                        icon: '',
+                        senderName: $actorName,
+                        senderRole: $auth?->role ?? 'Staff',
+                        action: 'kunjungan_updated_by_other'
+                    ));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending kunjungan updated notification: ' . $e->getMessage());
+            }
+        });
+
+        static::deleted(function ($kunjungan) {
+            try {
+                $auth = auth()->user();
+                $actorName = $auth ? "{$auth->name}" : 'Sistem';
+                $sales = $kunjungan->sales ?? \App\Models\User::find($kunjungan->sales_id);
+                $spv = $sales?->supervisor;
+                $instName = $kunjungan->nama_institusi ?? $kunjungan->sekolah?->nama ?? $kunjungan->perusahaan?->nama ?? 'Institusi';
+
+                if ($spv && (!$auth || $auth->id !== $spv->id)) {
+                    $spv->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "Laporan Kunjungan Dihapus",
+                        message: "{$actorName} telah menghapus laporan kunjungan ke {$instName}.",
+                        type: 'danger',
+                        link: '/spv/kunjungan',
+                        icon: '',
+                        senderName: $actorName,
+                        senderRole: $auth?->role ?? 'Staff',
+                        action: 'kunjungan_deleted'
+                    ));
+                }
+
+                if ($sales && $auth && $auth->id !== (int)$sales->id) {
+                    $sales->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "Kunjungan Dihapus",
+                        message: "{$actorName} telah menghapus kunjungan Anda ke {$instName}.",
+                        type: 'warning',
+                        link: '/kunjungan',
+                        icon: '',
+                        senderName: $actorName,
+                        senderRole: $auth?->role ?? 'Staff',
+                        action: 'kunjungan_deleted_sales'
+                    ));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending kunjungan deleted notification: ' . $e->getMessage());
+            }
+        });
     }
 
     /**
