@@ -53,7 +53,7 @@
                         <th class="px-5 py-4 w-12 text-center">No</th>
                         <th class="px-5 py-4">Event</th>
                         <th class="px-5 py-4">Waktu & Lokasi</th>
-                        <th class="px-5 py-4">SPV Ditugaskan</th>
+                        <th class="px-5 py-4">Anggota Ditugaskan</th>
                         <th class="px-5 py-4">Status</th>
                         <th class="px-5 py-4 text-center">Aksi</th>
                     </tr>
@@ -73,13 +73,14 @@
                             </td>
                             <td class="px-5 py-4">
                                 <div class="flex flex-wrap gap-1">
-                                    @foreach($event->spvs as $spv)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                            {{ $spv->name }}
+                                    @foreach($event->spvs as $member)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
+                                            {{ $member->name }}
                                         </span>
                                     @endforeach
                                     @if($event->spvs->isEmpty())
-                                        <span class="text-slate-400 italic text-xs">Belum ada SPV</span>
+                                        <span class="text-slate-400 italic text-xs">Belum ada anggota</span>
                                     @endif
                                 </div>
                             </td>
@@ -213,23 +214,7 @@
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
                         <input type="text" name="pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
                     </div>
-                    
-                    <!-- Multi-select SPV -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan SPV (Bisa lebih dari 1) <span class="text-rose-500">*</span></label>
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto">
-                            @foreach($spvs as $spv)
-                                <label class="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer transition">
-                                    <input type="checkbox" name="spvs[]" value="{{ $spv->id }}" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 bg-white shadow-sm w-4 h-4">
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-slate-800">{{ $spv->name }}</span>
-                                        <span class="text-[10px] text-slate-500">{{ $spv->wilayah ? $spv->wilayah->nama : 'Semua Wilayah' }}</span>
-                                    </div>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-                    
+
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Deskripsi</label>
                         <textarea name="deskripsi" rows="3" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Catatan tambahan acara..."></textarea>
@@ -330,19 +315,35 @@
                         <input type="text" name="pic_whatsapp" :value="selectedEvent?.pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
                     </div>
                     
-                    <!-- Multi-select SPV -->
+                    <!-- Multi-select Anggota Tim (edit) -->
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan SPV <span class="text-rose-500">*</span></label>
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto">
-                            @foreach($spvs as $spv)
-                                <label class="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer transition">
-                                    <input type="checkbox" name="spvs[]" value="{{ $spv->id }}" :checked="selectedEvent?.spv_ids?.includes({{ $spv->id }})" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 bg-white shadow-sm w-4 h-4">
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-slate-800">{{ $spv->name }}</span>
-                                        <span class="text-[10px] text-slate-500">{{ $spv->wilayah ? $spv->wilayah->nama : 'Semua Wilayah' }}</span>
-                                    </div>
-                                </label>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan Anggota Tim <span class="text-rose-500">*</span></label>
+                        <p class="text-[11px] text-slate-500 mb-2">Pilih satu atau lebih anggota. Anggota yang sudah ditugaskan sebelumnya otomatis tercentang.</p>
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-100">
+                            @foreach($allUsers as $roleGroup => $usersInRole)
+                                <div class="px-3 py-1.5 bg-slate-100/70">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $roleGroup }}</span>
+                                </div>
+                                @foreach($usersInRole as $u)
+                                    <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-white cursor-pointer transition group">
+                                        <input type="checkbox" name="spvs[]" value="{{ $u->id }}"
+                                               :checked="selectedEvent?.spv_ids?.includes({{ $u->id }})"
+                                               class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white shadow-xs shrink-0">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+                                                {{ strtoupper(substr($u->name, 0, 1)) }}
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-slate-800 truncate">{{ $u->name }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ $u->role }}</div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                @endforeach
                             @endforeach
+                            @if($allUsers->isEmpty())
+                                <div class="px-4 py-4 text-sm text-slate-400 text-center italic">Tidak ada anggota tersedia.</div>
+                            @endif
                         </div>
                     </div>
                     
@@ -510,46 +511,27 @@
                         </div>
                     </template>
 
-                    <!-- Assignments (SPV and Sales) -->
+                    <!-- Assignments - Anggota Tim Ditugaskan -->
                     <div class="pt-4 border-t border-slate-200">
-                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tim Penugasan (SPV & Sales)</h4>
-                        
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Anggota Tim Ditugaskan</h4>
+
                         <template x-if="detailEvent.spvs && detailEvent.spvs.length > 0">
-                            <div class="space-y-4">
-                                <template x-for="spv in detailEvent.spvs" :key="spv.id">
-                                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                        <div class="flex items-center gap-3 mb-3 pb-3 border-b border-slate-200/60">
-                                            <div class="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs" x-text="spv.name.charAt(0).toUpperCase()"></div>
-                                            <div>
-                                                <div class="text-sm font-bold text-slate-900" x-text="spv.name"></div>
-                                                <div class="text-[11px] text-slate-500 font-medium" x-text="spv.wilayah ? `Wilayah: ${spv.wilayah.nama}` : 'Supervisor'"></div>
-                                            </div>
-                                        </div>
-                                        <div class="pl-2">
-                                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Sales Ditugaskan:</p>
-                                            <div class="flex flex-wrap gap-2">
-                                                <template x-for="sale in getSalesForSpv(spv.id)" :key="sale.id">
-                                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-800 shadow-xs">
-                                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                        <span x-text="sale.name"></span>
-                                                    </span>
-                                                </template>
-                                                <template x-if="getSalesForSpv(spv.id).length === 0">
-                                                    <span class="text-xs text-slate-400 italic">Belum ada sales ditugaskan oleh SPV ini</span>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="member in detailEvent.spvs" :key="member.id">
+                                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-800 shadow-xs">
+                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0" x-text="member.name.charAt(0).toUpperCase()"></span>
+                                        <span x-text="member.name"></span>
+                                    </span>
                                 </template>
                             </div>
                         </template>
-                        
+
                         <template x-if="!detailEvent.spvs || detailEvent.spvs.length === 0">
                             <div class="text-center p-6 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
                                 <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                <p class="text-sm font-medium text-slate-500">Belum ada SPV yang ditugaskan pada event ini.</p>
+                                <p class="text-sm font-medium text-slate-500">Belum ada anggota yang ditugaskan.</p>
                             </div>
                         </template>
                     </div>

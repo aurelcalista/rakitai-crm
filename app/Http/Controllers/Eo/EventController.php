@@ -48,14 +48,20 @@ class EventController extends Controller
             ->paginate(25);
 
         $eventTypes  = MasterData::where('type', 'jenis_event')->where('status', 'Aktif')->get();
-        $spvs        = User::whereIn('role', ['SPV', 'Supervisor Marketing', 'Supervisor'])->where('status', 'Aktif')->get();
+        // All active users (except this EO) grouped by role for the assignment checkboxes
+        $allUsers    = User::where('status', 'Aktif')
+                           ->where('id', '!=', $user->id)
+                           ->orderBy('role')
+                           ->orderBy('name')
+                           ->get()
+                           ->groupBy('role');
         $dosens      = User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $salesList   = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
 
-        return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'spvs', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
+        return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'allUsers', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
     }
 
     public function show($id)
@@ -82,7 +88,7 @@ class EventController extends Controller
             'waktu_mulai'    => 'required|date_format:H:i',
             'waktu_selesai'  => 'required|date_format:H:i|after:waktu_mulai',
             'lokasi'         => 'required|string|max:255',
-            'spvs'           => 'required|array|min:1',
+            'spvs'           => 'nullable|array',
             'spvs.*'         => 'exists:users,id',
             'sales'          => 'nullable|array',
             'sales.*'        => [
@@ -103,9 +109,8 @@ class EventController extends Controller
             'pic_name'       => 'nullable|string|max:255',
             'pic_whatsapp'   => 'nullable|string|max:20',
         ], [
-            'waktu_selesai.after' => 'Waktu selesai harus setelah waktu mulai.',
-            'spvs.required'       => 'Minimal satu SPV harus dipilih.',
-            'sales.*.exists'      => 'User yang ditugaskan harus ber-role Sales.',
+            'waktu_selesai.after'  => 'Waktu selesai harus setelah waktu mulai.',
+            'sales.*.exists'       => 'User yang ditugaskan tidak valid.',
         ]);
 
         // Check if event type is Training
@@ -147,7 +152,13 @@ class EventController extends Controller
                 'qr_code'         => Event::generateUniqueQrToken(),
             ]);
 
-            $event->spvs()->sync($request->spvs);
+            if (!empty($request->spvs)) {
+                $event->spvs()->sync($request->spvs);
+
+                // Trigger notification to SPVs
+                $spvUsers = User::whereIn('id', $request->spvs)->get();
+                \Illuminate\Support\Facades\Notification::send($spvUsers, new EventNotification($event, 'assigned_spv'));
+            }
 
             if (!empty($request->sales)) {
                 foreach ($request->sales as $salesId) {
@@ -168,10 +179,6 @@ class EventController extends Controller
                     }
                 }
             }
-
-            // Trigger notification to SPVs
-            $spvUsers = User::whereIn('id', $request->spvs)->get();
-            \Illuminate\Support\Facades\Notification::send($spvUsers, new EventNotification($event, 'assigned_spv'));
 
             // Notifikasi ke Head of Marketing (HM)
             $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
@@ -207,15 +214,10 @@ class EventController extends Controller
             'waktu_mulai'    => 'required|date_format:H:i',
             'waktu_selesai'  => 'required|date_format:H:i|after:waktu_mulai',
             'lokasi'         => 'required|string|max:255',
-            'spvs'           => 'required|array|min:1',
+            'spvs'           => 'nullable|array',
             'spvs.*'         => 'exists:users,id',
             'sales'          => 'nullable|array',
-            'sales.*'        => [
-                'required',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->where('role', 'Sales');
-                }),
-            ],
+            'sales.*'        => 'exists:users,id',
             'deskripsi'      => 'nullable|string',
             'dosen_id'       => 'nullable|exists:users,id',
             'dosen_pemateri' => 'nullable|string|max:255',
@@ -273,10 +275,11 @@ class EventController extends Controller
             ]);
 
             $oldSpvs = $event->spvs->pluck('id')->toArray();
-            $event->spvs()->sync($request->spvs);
+            $newSpvs = $request->spvs ?? [];
+            $event->spvs()->sync($newSpvs);
             
             // If SPV is removed, their sales assignments are removed.
-            $removedSpvs = array_diff($oldSpvs, $request->spvs);
+            $removedSpvs = array_diff($oldSpvs, $newSpvs);
             if (!empty($removedSpvs)) {
                 $removedSalesIds = DB::table('event_sales')
                                      ->where('event_id', $event->id)

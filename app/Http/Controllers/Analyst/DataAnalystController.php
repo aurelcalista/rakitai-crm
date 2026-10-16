@@ -57,7 +57,7 @@ class DataAnalystController extends Controller
         // Kontak Baru (Dibuat dalam periode filter)
         $kontakBaruQuery = clone $baseQuery;
         if (!empty($filters['from_date']) && !empty($filters['to_date'])) {
-            $kontakBaruCount = $kontakBaruQuery->whereBetween('created_at', [$filters['from_date'] . ' 00:00:00', $filters['to_date'] . ' 23:59:59'])->count();
+            $kontakBaruCount = $kontakBaruQuery->whereBetween('prospeks.created_at', [$filters['from_date'] . ' 00:00:00', $filters['to_date'] . ' 23:59:59'])->count();
         } else {
             $kontakBaruCount = (clone $baseQuery)->whereIn('status', ['BARU', 'KONTAK'])->count();
         }
@@ -361,7 +361,7 @@ class DataAnalystController extends Controller
         $segmentasiGelombang = (clone $baseQuery)
             ->whereNotNull('gelombang')
             ->where('gelombang', '!=', '')
-            ->selectRaw('gelombang, COUNT(id) as total')
+            ->selectRaw('gelombang, COUNT(prospeks.id) as total')
             ->groupBy('gelombang')
             ->orderByDesc('total')
             ->get();
@@ -582,7 +582,7 @@ class DataAnalystController extends Controller
             'status'         => $request->get('status'),
             'sales_id'       => $request->get('sales_id'),
             'search'         => $request->get('search'),
-            'periode_target' => $request->get('periode_target', 'bulanan'),
+            'periode_target' => $request->get('periode_target', $request->get('periode', 'bulanan')),
         ];
     }
 
@@ -617,25 +617,25 @@ class DataAnalystController extends Controller
         $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
 
         // 1. Hari Ini vs Kemarin
-        $kontakToday = (clone $scopedQuery)->whereBetween('created_at', [$todayStart, $todayEnd])->count();
-        $kontakYesterday = (clone $scopedQuery)->whereBetween('created_at', [$yesterdayStart, $yesterdayEnd])->count();
+        $kontakToday     = (clone $scopedQuery)->whereBetween('prospeks.created_at', [$todayStart, $todayEnd])->count();
+        $kontakYesterday = (clone $scopedQuery)->whereBetween('prospeks.created_at', [$yesterdayStart, $yesterdayEnd])->count();
 
-        $lunasToday = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$todayStart, $todayEnd])->count();
-        $lunasYesterday = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$yesterdayStart, $yesterdayEnd])->count();
+        $lunasToday     = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('prospeks.updated_at', [$todayStart, $todayEnd])->count();
+        $lunasYesterday = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('prospeks.updated_at', [$yesterdayStart, $yesterdayEnd])->count();
 
         // 2. Minggu Ini vs Minggu Kemarin
-        $kontakThisWeek = (clone $scopedQuery)->whereBetween('created_at', [$thisWeekStart, $thisWeekEnd])->count();
-        $kontakLastWeek = (clone $scopedQuery)->whereBetween('created_at', [$lastWeekStart, $lastWeekEnd])->count();
+        $kontakThisWeek = (clone $scopedQuery)->whereBetween('prospeks.created_at', [$thisWeekStart, $thisWeekEnd])->count();
+        $kontakLastWeek = (clone $scopedQuery)->whereBetween('prospeks.created_at', [$lastWeekStart, $lastWeekEnd])->count();
 
-        $lunasThisWeek = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$thisWeekStart, $thisWeekEnd])->count();
-        $lunasLastWeek = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$lastWeekStart, $lastWeekEnd])->count();
+        $lunasThisWeek = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('prospeks.updated_at', [$thisWeekStart, $thisWeekEnd])->count();
+        $lunasLastWeek = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('prospeks.updated_at', [$lastWeekStart, $lastWeekEnd])->count();
 
         // 3. Bulan Ini vs Bulan Kemarin
-        $kontakThisMonth = (clone $scopedQuery)->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
-        $kontakLastMonth = (clone $scopedQuery)->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])->count();
+        $kontakThisMonth = (clone $scopedQuery)->whereBetween('prospeks.created_at', [$thisMonthStart, $thisMonthEnd])->count();
+        $kontakLastMonth = (clone $scopedQuery)->whereBetween('prospeks.created_at', [$lastMonthStart, $lastMonthEnd])->count();
 
-        $lunasThisMonth = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$thisMonthStart, $thisMonthEnd])->count();
-        $lunasLastMonth = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$lastMonthStart, $lastMonthEnd])->count();
+        $lunasThisMonth = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('prospeks.updated_at', [$thisMonthStart, $thisMonthEnd])->count();
+        $lunasLastMonth = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('prospeks.updated_at', [$lastMonthStart, $lastMonthEnd])->count();
 
         return [
             'today' => [
@@ -690,11 +690,11 @@ class DataAnalystController extends Controller
             $dayStr = $current->toDateString();
             $trendLabels[] = $current->isoFormat('D MMM');
 
-            $kontakDay = (clone $baseQuery)->whereDate('created_at', $dayStr)->count();
+            $kontakDay  = (clone $baseQuery)->whereDate('prospeks.created_at', $dayStr)->count();
             $formulirDay = (clone $baseQuery)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])
-                ->whereDate('updated_at', $dayStr)->count();
+                ->whereDate('prospeks.updated_at', $dayStr)->count();
             $lunasDay = (clone $baseQuery)->where('status', 'LUNAS')
-                ->whereDate('updated_at', $dayStr)->count();
+                ->whereDate('prospeks.updated_at', $dayStr)->count();
 
             $trendKontak[] = $kontakDay;
             $trendFormulir[] = $formulirDay;

@@ -58,7 +58,17 @@ class AnalystExportService
      */
     public function export(string $type, array $filterParams = []): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        // Graceful fallback: if PhpSpreadsheet is unavailable (vendor not installed in production),
+        // stream a UTF-8 BOM CSV that Excel can open seamlessly without a fatal error.
+        if (!class_exists(Spreadsheet::class)) {
+            return $this->exportCsvFallback($type, $filterParams);
+        }
+
+        try {
+            $spreadsheet = new Spreadsheet();
+        } catch (\Throwable $e) {
+            return $this->exportCsvFallback($type, $filterParams);
+        }
         $spreadsheet->getProperties()
             ->setCreator('CRM Marketing & Sales Inbound UCIC')
             ->setLastModifiedBy('UCIC Data Analyst')
@@ -1152,22 +1162,24 @@ class AnalystExportService
 
     /**
      * Build base query for prospeks respecting all filters.
+     * All column references are qualified with 'prospeks.' to avoid SQL ambiguity
+     * when the caller later joins prodis, wilayahs, or other tables.
      */
     public function buildProspekQuery(array $params): Builder
     {
         $query = Prospek::with(['sales', 'cs', 'owner', 'prodi', 'wilayah', 'sekolah', 'perusahaan']);
 
-        // 1. Periode filter
+        // 1. Periode filter — qualify with table prefix to avoid ambiguity on joins
         if (!empty($params['from_date'])) {
-            $query->whereDate('created_at', '>=', $params['from_date']);
+            $query->whereDate('prospeks.created_at', '>=', $params['from_date']);
         }
         if (!empty($params['to_date'])) {
-            $query->whereDate('created_at', '<=', $params['to_date']);
+            $query->whereDate('prospeks.created_at', '<=', $params['to_date']);
         }
 
         // 2. Tahun Akademik filter
         if (!empty($params['ta']) && $params['ta'] !== 'all') {
-            $query->where('tahun_akademik', $params['ta']);
+            $query->where('prospeks.tahun_akademik', $params['ta']);
         }
 
         // 3. Wilayah filter (including descendants)
@@ -1175,56 +1187,106 @@ class AnalystExportService
             $wilayah = Wilayah::find($params['wilayah_id']);
             if ($wilayah) {
                 $descendantIds = array_merge([$wilayah->id], $wilayah->getDescendantIds());
-                $query->whereIn('wilayah_id', $descendantIds);
+                $query->whereIn('prospeks.wilayah_id', $descendantIds);
             } else {
-                $query->where('wilayah_id', $params['wilayah_id']);
+                $query->where('prospeks.wilayah_id', $params['wilayah_id']);
             }
         }
 
         // 4. Prodi filter
         if (!empty($params['prodi_id']) && $params['prodi_id'] !== 'all') {
-            $query->where('prodi_id', $params['prodi_id']);
+            $query->where('prospeks.prodi_id', $params['prodi_id']);
         }
 
         // 5. Kelas filter (Reguler / Karyawan)
         if (!empty($params['kelas']) && $params['kelas'] !== 'all') {
-            $query->where('kelas', $params['kelas']);
+            $query->where('prospeks.kelas', $params['kelas']);
         }
 
         // 6. Source filter
         if (!empty($params['source']) && $params['source'] !== 'all') {
-            $query->where('source', $params['source']);
+            $query->where('prospeks.source', $params['source']);
         }
 
         // 7. Status filter
         if (!empty($params['status']) && $params['status'] !== 'all') {
             $statusUpper = strtoupper($params['status']);
             if ($statusUpper === 'HANGAT') {
-                $query->whereIn('status', ['PROSPEK', 'HANGAT']);
+                $query->whereIn('prospeks.status', ['PROSPEK', 'HANGAT']);
             } elseif ($statusUpper === 'PANAS') {
-                $query->whereIn('status', ['HOT PROSPEK', 'PANAS']);
+                $query->whereIn('prospeks.status', ['HOT PROSPEK', 'PANAS']);
             } elseif ($statusUpper === 'DINGIN') {
-                $query->whereIn('status', ['DINGIN', 'NO RESPON']);
+                $query->whereIn('prospeks.status', ['DINGIN', 'NO RESPON']);
             } else {
-                $query->where('status', $params['status']);
+                $query->where('prospeks.status', $params['status']);
             }
         }
 
         // 8. Sales filter
         if (!empty($params['sales_id']) && $params['sales_id'] !== 'all') {
-            $query->where('sales_id', $params['sales_id']);
+            $query->where('prospeks.sales_id', $params['sales_id']);
         }
 
         // 9. Gelombang filter
         if (!empty($params['gelombang']) && $params['gelombang'] !== 'all') {
-            $query->where('gelombang', $params['gelombang']);
+            $query->where('prospeks.gelombang', $params['gelombang']);
         }
 
         // 10. No. Registrasi filter / search
         if (!empty($params['no_registrasi'])) {
-            $query->where('no_registrasi', 'like', '%' . trim($params['no_registrasi']) . '%');
+            $query->where('prospeks.no_registrasi', 'like', '%' . trim($params['no_registrasi']) . '%');
         }
 
         return $query;
+    }
+
+    /**
+     * CSV fallback export (UTF-8 BOM) when PhpSpreadsheet is unavailable.
+     * Excel recognises this BOM and opens it correctly without encoding issues.
+     */
+    protected function exportCsvFallback(string $type, array $filterParams = []): StreamedResponse
+    {
+        $filename = 'UCIC_CRM_Analyst_' . ucfirst(strtolower(trim($type))) . '_' . date('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($type, $filterParams) {
+            // UTF-8 BOM so Excel opens the file with correct encoding
+            echo "\xEF\xBB\xBF";
+            $out = fopen('php://output', 'w');
+
+            // Build a simple prospek query as default CSV dataset
+            $query = $this->buildProspekQuery($filterParams);
+            $prospeks = $query->with(['sales', 'prodi', 'wilayah'])->get();
+
+            // Header row
+            fputcsv($out, [
+                'No', 'Nama', 'WhatsApp', 'Status', 'Prodi', 'Wilayah',
+                'Sales', 'Sumber', 'Kelas', 'Gelombang', 'Tahun Akademik', 'Tanggal Masuk',
+            ]);
+
+            // Data rows
+            foreach ($prospeks as $idx => $p) {
+                fputcsv($out, [
+                    $idx + 1,
+                    $p->name ?? $p->nama ?? '-',
+                    $p->whatsapp ?? '-',
+                    $p->status ?? '-',
+                    $p->prodi->nama ?? '-',
+                    $p->wilayah->nama ?? '-',
+                    $p->sales->name ?? '-',
+                    $p->source ?? '-',
+                    $p->kelas ?? '-',
+                    $p->gelombang ?? '-',
+                    $p->tahun_akademik ?? '-',
+                    $p->created_at ? $p->created_at->format('Y-m-d H:i') : '-',
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control'       => 'no-cache, no-store',
+            'Pragma'              => 'no-cache',
+        ]);
     }
 }

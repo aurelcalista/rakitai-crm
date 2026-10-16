@@ -9,14 +9,21 @@
         </div>
         <div class="flex items-center gap-3">
             <select x-model="agendaFilter" class="text-xs sm:text-sm border-slate-200 rounded-xl bg-slate-50 text-slate-700 py-1.5 focus:ring-blue-500 focus:border-blue-500">
-                <option value="Semua">Semua Agenda</option>
+                <option value="Semua">Semua</option>
+                <option value="Agenda">Agenda Internal</option>
+                <option value="Event">Event EO</option>
                 <option value="Pribadi">Agenda Pribadi</option>
-                <option value="Tim">Agenda Tim</option>
             </select>
             <button @click="modalAddAgenda = true" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5">
                 <svg class="w-4 h-4 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                 <span>Tambah Agenda</span>
             </button>
+            <!-- Legend -->
+            <div class="hidden sm:flex items-center gap-3 text-[10px] font-semibold text-slate-500">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>Agenda</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>Event EO</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>Dibatalkan</span>
+            </div>
             <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <button @click="prevMonth()" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm text-slate-600">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
@@ -67,16 +74,24 @@
                             <div 
                                 @click="openEventDetails(evt)"
                                 class="flex flex-col gap-0.5 text-[10px] sm:text-xs p-1.5 sm:p-2 rounded-lg border cursor-pointer transition hover:opacity-80"
-                                :class="getEventColor(evt.status)"
+                                :class="getEventColor(evt)"
                                 :title="evt.title"
                             >
                                 <div class="font-bold truncate flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full shrink-0" :class="getEventDotColor(evt.status)"></span>
+                                    <span class="w-2 h-2 rounded-full shrink-0" :class="getEventDotColor(evt)"></span>
                                     <span class="truncate" x-text="evt.title"></span>
                                 </div>
                                 <div class="text-[9px] sm:text-[10px] opacity-80 hidden sm:block" x-text="evt.waktu_mulai + ' - ' + evt.waktu_selesai"></div>
-                                <template x-if="evt.sales && evt.sales.length > 0">
-                                    <div class="text-[9px] sm:text-[10px] font-medium truncate opacity-90 hidden sm:block" x-text="'Sales: ' + evt.sales.map(s => s.name).join(', ')"></div>
+                                <template x-if="evt.is_eo_event">
+                                    <div class="flex items-center justify-between text-[8px] sm:text-[9px] gap-1 mt-0.5">
+                                        <span class="font-bold uppercase tracking-wider opacity-70">Event EO</span>
+                                        <template x-if="evt.takeover_by">
+                                            <span class="font-semibold text-emerald-700 bg-emerald-100/90 px-1 py-0.2 rounded truncate" :title="'PJ: ' + evt.takeover_by.name" x-text="'PJ: ' + evt.takeover_by.name"></span>
+                                        </template>
+                                        <template x-if="!evt.takeover_by">
+                                            <span class="font-medium text-amber-700 bg-amber-100/90 px-1 py-0.2 rounded truncate">Belum Ada PJ</span>
+                                        </template>
+                                    </div>
                                 </template>
                             </div>
                         </template>
@@ -119,15 +134,74 @@
                     <div class="flex gap-3">
                         <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         <div class="text-slate-700">
-                            <span class="text-xs text-slate-500 block mb-1">Dikelola oleh (EO):</span>
+                            <span class="text-xs text-slate-500 block mb-1">Dibuat oleh:</span>
                             <span class="font-medium" x-text="selectedEvent?.eo_name"></span>
                         </div>
                     </div>
                 </div>
 
+                <!-- Takeover / Penanggung Jawab Section (khusus Event EO) -->
+                <template x-if="selectedEvent?.is_eo_event">
+                    <div class="mt-5 border-t border-slate-100 pt-4">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Penanggung Jawab Event</h4>
+                        
+                        <!-- Case 1: Sudah di-Takeover -->
+                        <template x-if="selectedEvent?.takeover_by">
+                            <div class="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-emerald-900" x-text="selectedEvent.takeover_by.name"></span>
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-200/70 text-emerald-800" x-text="selectedEvent.takeover_by.role"></span>
+                                    </div>
+                                    <p class="text-[11px] text-emerald-700 mt-0.5">
+                                        Telah diambil alih (Takeover)<span x-show="selectedEvent.takeover_at" x-text="' pada ' + selectedEvent.takeover_at"></span>.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Case 2: Belum di-Takeover -->
+                        <template x-if="!selectedEvent?.takeover_by">
+                            <div class="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold mb-1">
+                                            <span>Belum Ada Penanggung Jawab</span>
+                                        </div>
+                                        <p class="text-xs text-amber-700">Event ini belum memiliki penanggung jawab operasional.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Tombol Takeover: hanya jika role diizinkan (Bukan Admin & Bukan Data Analyst) -->
+                                <template x-if="canTakeover(selectedEvent)">
+                                    <div class="mt-3 pt-3 border-t border-amber-200/60 flex items-center justify-between gap-3">
+                                        <span class="text-[11px] text-slate-500">Anda dapat menjadi penanggung jawab event ini.</span>
+                                        <button 
+                                            type="button" 
+                                            @click="doTakeover(selectedEvent)" 
+                                            :disabled="takeoverLoading"
+                                            class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0"
+                                        >
+                                            <svg x-show="!takeoverLoading" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <svg x-show="takeoverLoading" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            <span x-text="takeoverLoading ? 'Memproses...' : 'Takeover Event'"></span>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
                 <!-- Assignment Section -->
                 <div class="mt-6 border-t border-slate-100 pt-4">
-                    <h4 class="text-sm font-bold text-slate-900 mb-3">Penugasan Tim</h4>
+                    <h4 class="text-sm font-bold text-slate-900 mb-3">Penugasan Personil</h4>
                     
                     <div class="space-y-4">
                         <template x-for="spv in selectedEvent?.spvs" :key="spv.id">
@@ -140,11 +214,22 @@
                                             <span class="text-xs text-slate-600" x-text="sales.name"></span>
                                         </div>
                                     </template>
-                                    <div x-show="getSalesForSpv(spv.id).length === 0" class="text-xs text-slate-400 italic">Belum ada Sales ditugaskan.</div>
+                                    <div x-show="getSalesForSpv(spv.id).length === 0" class="text-xs text-slate-400 italic">Belum ada personil di bawah SPV ini.</div>
                                 </div>
                             </div>
                         </template>
-                        <div x-show="!selectedEvent?.spvs?.length" class="text-xs text-slate-500 italic">Belum ada SPV ditugaskan.</div>
+                        <div x-show="!selectedEvent?.spvs?.length && selectedEvent?.sales?.length" class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                            <div class="font-semibold text-slate-800 text-sm mb-2">Anggota Terlibat</div>
+                            <div class="pl-2 border-l-2 border-blue-200 space-y-1">
+                                <template x-for="person in selectedEvent?.sales" :key="person.id">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                        <span class="text-xs text-slate-600" x-text="person.name"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div x-show="!selectedEvent?.spvs?.length && !selectedEvent?.sales?.length" class="text-xs text-slate-500 italic">Belum ada personil ditugaskan.</div>
                     </div>
                 </div>
 
@@ -206,45 +291,7 @@
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Lokasi / Instansi Tujuan</label>
                         <input type="text" name="lokasi" class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-slate-400" placeholder="Contoh: SMA N 1 Cirebon">
                     </div>
-                    
-                    @if(isset($bawahan) && count($bawahan) > 0)
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim (Opsional)</label>
-                        <p class="text-[10px] text-slate-500 mb-2">Anggota Tim dikosongkan = Agenda Pribadi.</p>
-                        
-                        <div class="relative" @click.away="dropdownOpen = false">
-                            <div class="w-full border border-slate-200 rounded-xl bg-white p-1.5 flex flex-wrap gap-1.5 min-h-[42px] cursor-text focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow" @click="dropdownOpen = true; $refs.searchInput.focus()">
-                                <template x-for="id in selectedUserIds" :key="id">
-                                    <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-1 rounded-lg">
-                                        <span x-text="getUser(id)?.name"></span>
-                                        <button type="button" @click.stop="removeUser(id)" class="text-blue-400 hover:text-blue-600 focus:outline-none">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                        </button>
-                                        <input type="hidden" name="assigned_users[]" :value="id">
-                                    </span>
-                                </template>
-                                <input x-ref="searchInput" x-model="searchUser" @focus="dropdownOpen = true" type="text" class="flex-1 min-w-[100px] border-none focus:ring-0 text-sm p-1 placeholder:text-slate-400 bg-transparent" placeholder="Cari & pilih anggota...">
-                            </div>
-                            
-                            <div x-show="dropdownOpen" x-transition class="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                <template x-for="user in filteredUsers" :key="user.id">
-                                    <div @click.stop="toggleUser(user.id)" class="px-3 py-2 cursor-pointer hover:bg-slate-50 flex items-center justify-between border-b border-slate-100 last:border-0">
-                                        <div>
-                                            <div class="text-sm font-medium text-slate-700" x-text="user.name"></div>
-                                            <div class="text-[10px] text-slate-500" x-text="user.role"></div>
-                                        </div>
-                                        <div x-show="selectedUserIds.includes(user.id)" class="text-blue-600">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                        </div>
-                                    </div>
-                                </template>
-                                <div x-show="filteredUsers.length === 0" class="px-3 py-4 text-center text-sm text-slate-500">
-                                    Tidak ada anggota ditemukan.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endif
+
 
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Deskripsi Tambahan</label>
@@ -284,32 +331,6 @@
             modalEventDetail: false,
             modalAddAgenda: false,
             selectedEvent: null,
-
-            usersList: {!! isset($bawahan) ? json_encode($bawahan) : '[]' !!},
-            selectedUserIds: [],
-            searchUser: '',
-            dropdownOpen: false,
-
-            get filteredUsers() {
-                if (this.searchUser === '') return this.usersList;
-                return this.usersList.filter(u => u.name.toLowerCase().includes(this.searchUser.toLowerCase()) || u.role.toLowerCase().includes(this.searchUser.toLowerCase()));
-            },
-            
-            toggleUser(id) {
-                if (this.selectedUserIds.includes(id)) {
-                    this.selectedUserIds = this.selectedUserIds.filter(i => i !== id);
-                } else {
-                    this.selectedUserIds.push(id);
-                }
-            },
-            
-            removeUser(id) {
-                this.selectedUserIds = this.selectedUserIds.filter(i => i !== id);
-            },
-            
-            getUser(id) {
-                return this.usersList.find(u => u.id === id);
-            },
 
             init() {
                 this.generateCalendar();
@@ -398,21 +419,24 @@
             getEventsForDate(dateString) {
                 return this.events.filter(e => {
                     if (e.tanggal !== dateString) return false;
+                    if (this.agendaFilter === 'Agenda') return !e.is_eo_event && !e.is_personal;
+                    if (this.agendaFilter === 'Event') return e.is_eo_event;
                     if (this.agendaFilter === 'Pribadi') return e.is_personal;
-                    if (this.agendaFilter === 'Tim') return !e.is_personal;
                     return true;
                 }).sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai));
             },
 
-            getEventColor(status) {
-                if (status === 'Cancelled') return 'bg-rose-50 text-rose-700 border-rose-200';
-                if (status === 'Completed') return 'bg-slate-50 text-slate-600 border-slate-200';
+            getEventColor(evt) {
+                if (evt.status === 'Cancelled') return 'bg-rose-50 text-rose-700 border-rose-200';
+                if (evt.status === 'Completed') return 'bg-slate-50 text-slate-600 border-slate-200';
+                if (evt.is_eo_event) return 'bg-violet-50 text-violet-700 border-violet-200';
                 return 'bg-blue-50 text-blue-700 border-blue-200';
             },
 
-            getEventDotColor(status) {
-                if (status === 'Cancelled') return 'bg-rose-500';
-                if (status === 'Completed') return 'bg-slate-500';
+            getEventDotColor(evt) {
+                if (evt.status === 'Cancelled') return 'bg-rose-500';
+                if (evt.status === 'Completed') return 'bg-slate-400';
+                if (evt.is_eo_event) return 'bg-violet-500';
                 return 'bg-blue-500';
             },
 
@@ -424,6 +448,58 @@
             getSalesForSpv(spvId) {
                 if (!this.selectedEvent || !this.selectedEvent.sales) return [];
                 return this.selectedEvent.sales.filter(s => s.assigned_by_spv_id === spvId);
+            },
+
+            currentUserRole: '{{ auth()->user()->role ?? '' }}',
+            takeoverLoading: false,
+
+            canTakeover(evt) {
+                if (!evt || !evt.is_eo_event) return false;
+                const role = (this.currentUserRole || '').toLowerCase();
+                const disallowed = ['admin', 'data analyst', 'data-analyst', 'analyst'];
+                if (disallowed.includes(role)) return false;
+                return !evt.takeover_by;
+            },
+
+            async doTakeover(evt) {
+                if (!evt) return;
+                if (!confirm(`Apakah Anda yakin ingin mengambil alih (Takeover) event '${evt.title}'?`)) {
+                    return;
+                }
+
+                this.takeoverLoading = true;
+                try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    const response = await fetch(`/calendar/events/${evt.id}/takeover`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken || ''
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert(data.message || 'Takeover berhasil!');
+                        await this.fetchEvents();
+                        if (this.selectedEvent && this.selectedEvent.id === evt.id) {
+                            this.selectedEvent = this.events.find(e => e.id === evt.id) || this.selectedEvent;
+                        }
+                    } else {
+                        alert(data.message || 'Gagal melakukan Takeover event.');
+                        await this.fetchEvents();
+                        if (this.selectedEvent && this.selectedEvent.id === evt.id) {
+                            this.selectedEvent = this.events.find(e => e.id === evt.id) || this.selectedEvent;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Takeover error:', err);
+                    alert('Terjadi kesalahan jaringan saat melakukan Takeover.');
+                } finally {
+                    this.takeoverLoading = false;
+                }
             },
 
             formatDate(dateStr) {
