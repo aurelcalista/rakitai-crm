@@ -36,9 +36,11 @@ class VerifikasiController extends Controller
         $kategoriFilter = $request->query('kategori');
         $prodiFilter = $request->query('prodi_id');
         $kelasFilter = $request->query('kelas');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
 
-        // Helper closure untuk menerapkan filter yang konsisten (kategori, jurusan/prodi, kelas, pencarian)
-        $applyFilters = function ($q) use ($search, $kategoriFilter, $prodiFilter, $kelasFilter) {
+        // Helper closure untuk menerapkan filter yang konsisten (kategori, jurusan/prodi, kelas, tanggal, pencarian)
+        $applyFilters = function ($q) use ($search, $kategoriFilter, $prodiFilter, $kelasFilter, $startDate, $endDate) {
             if ($kategoriFilter && $kategoriFilter !== 'all') {
                 $q->where('kategori', $kategoriFilter);
             }
@@ -53,6 +55,14 @@ class VerifikasiController extends Controller
                 $q->whereHas('prospek', function ($p) use ($kelasFilter) {
                     $p->where('kelas', $kelasFilter);
                 });
+            }
+
+            if ($startDate) {
+                $q->whereDate('tanggal', '>=', $startDate);
+            }
+
+            if ($endDate) {
+                $q->whereDate('tanggal', '<=', $endDate);
             }
 
             if ($search) {
@@ -92,14 +102,20 @@ class VerifikasiController extends Controller
 
         $totalPending = (clone $statsQuery)
             ->where('payment_status', Transaksi::STATUS_PENDING)
-            ->count();
+            ->distinct('prospek_id')
+            ->count('prospek_id');
         $totalVerified = (clone $statsQuery)
             ->where('payment_status', Transaksi::STATUS_VERIFIED)
-            ->count();
+            ->distinct('prospek_id')
+            ->count('prospek_id');
         $totalRejected = (clone $statsQuery)
             ->where('payment_status', Transaksi::STATUS_REJECTED)
-            ->count();
-        $totalRiwayat = $totalVerified + $totalRejected;
+            ->distinct('prospek_id')
+            ->count('prospek_id');
+        $totalRiwayat = (clone $statsQuery)
+            ->whereIn('payment_status', [Transaksi::STATUS_VERIFIED, Transaksi::STATUS_REJECTED])
+            ->distinct('prospek_id')
+            ->count('prospek_id');
         $sumVerifiedAmount = (clone $statsQuery)
             ->where('payment_status', Transaksi::STATUS_VERIFIED)
             ->sum('nominal');
@@ -122,6 +138,10 @@ class VerifikasiController extends Controller
         // Terapkan filter yang sama pada query tabel transaksi
         $applyFilters($query);
 
+        $totalCount = (clone $query)
+            ->distinct('prospek_id')
+            ->count('prospek_id');
+
         $transaksis = $query->paginate(20)->withQueryString();
         $prodis = Prodi::orderBy('nama')->get();
 
@@ -138,7 +158,10 @@ class VerifikasiController extends Controller
             'activeTab',
             'statusFilter',
             'kategoriFilter',
-            'search'
+            'search',
+            'totalCount',
+            'startDate',
+            'endDate'
         ));
     }
 

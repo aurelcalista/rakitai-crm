@@ -339,6 +339,43 @@ class Prospek extends Model
                 \Illuminate\Support\Facades\Log::warning('Error sending prospek updated notification: ' . $e->getMessage());
             }
         });
+
+        static::deleted(function ($prospek) {
+            try {
+                $auth = auth()->user();
+                $actorName = $auth ? "{$auth->name}" : 'Sistem';
+                $sales = $prospek->sales ?? ($prospek->sales_id ? \App\Models\User::find($prospek->sales_id) : null);
+                $spv = $sales?->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
+
+                if ($spv && (!$auth || $auth->id !== $spv->id)) {
+                    $spv->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "Prospek Dihapus",
+                        message: "{$actorName} telah menghapus data prospek '{$prospek->name}'.",
+                        type: 'danger',
+                        link: '/spv/prospek',
+                        icon: '',
+                        senderName: $actorName,
+                        senderRole: $auth?->role ?? 'Staff',
+                        action: 'prospek_deleted'
+                    ));
+                }
+
+                if ($sales && $auth && $auth->id !== (int)$sales->id) {
+                    $sales->notify(new \App\Notifications\CrmActivityNotification(
+                        title: "Prospek Dihapus",
+                        message: "{$actorName} telah menghapus data prospek '{$prospek->name}' dari penugasan Anda.",
+                        type: 'warning',
+                        link: '/prospek',
+                        icon: '',
+                        senderName: $actorName,
+                        senderRole: $auth?->role ?? 'Staff',
+                        action: 'prospek_deleted_sales'
+                    ));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Error sending prospek deleted notification: ' . $e->getMessage());
+            }
+        });
     }
 
     public const ACTIVE_STAGES = [

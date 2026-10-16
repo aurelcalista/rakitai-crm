@@ -6,55 +6,41 @@ use App\Models\Transaksi;
 use App\Models\Prospek;
 use App\Models\TahunAkademik;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class TransaksiSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     * Menyisakan 1 data transaksi sampel.
+     */
     public function run(): void
     {
-        $lunasProspeks = Prospek::where('status', 'LUNAS')->get();
-        $formulirProspeks = Prospek::whereIn('status', ['FORMULIR', 'BERKAS'])->get();
+        Schema::disableForeignKeyConstraints();
+        Transaksi::truncate();
+        Schema::enableForeignKeyConstraints();
+
+        $prospek = Prospek::first();
         $ta = TahunAkademik::getAktif();
 
-        // 1. Transactions for LUNAS prospects
-        foreach ($lunasProspeks as $p) {
-            $user = $p->sales ?? $p->cs;
+        if (!$prospek) return;
 
-            // Form payment
-            Transaksi::create([
-                'prospek_id'       => $p->id,
-                'user_id'          => $user?->id,
-                'jenis'            => 'Beli Formulir',
-                'nominal'          => 250000,
-                'tanggal'          => now()->subDays(10),
-                'notes'            => 'Pembayaran voucher formulir PMB online.',
-                'academic_year_id' => $ta?->id,
-            ]);
+        $user = $prospek->sales ?? $prospek->cs;
 
-            // UKT / Registration payment
-            Transaksi::create([
-                'prospek_id'       => $p->id,
-                'user_id'          => $user?->id,
-                'jenis'            => 'Pembayaran Termin 1',
-                'nominal'          => 3500000,
-                'tanggal'          => now()->subDays(3),
-                'notes'            => 'Pelunasan biaya registrasi ulang dan SPP semester 1.',
-                'academic_year_id' => $ta?->id,
-            ]);
-        }
-
-        // 2. Transactions for FORMULIR & BERKAS prospects
-        foreach ($formulirProspeks as $p) {
-            $user = $p->sales ?? $p->cs;
-
-            Transaksi::create([
-                'prospek_id'       => $p->id,
-                'user_id'          => $user?->id,
-                'jenis'            => 'Beli Formulir',
-                'nominal'          => 250000,
-                'tanggal'          => now()->subDays(5),
-                'notes'            => 'Pembelian formulir pendaftaran PMB.',
-                'academic_year_id' => $ta?->id,
-            ]);
-        }
+        // 1 Transaksi Sampel (Pembayaran Formulir PMB)
+        Transaksi::create([
+            'prospek_id'        => $prospek->id,
+            'user_id'           => $user?->id,
+            'jenis'             => 'Beli Formulir',
+            'kategori'          => 'Lunas',
+            'nominal'           => 250000,
+            'tanggal'           => now()->subDays(2),
+            'notes'             => 'Pembayaran pendaftaran PMB online.',
+            'academic_year_id'  => $ta?->id,
+            'metode_pembayaran' => 'bank_transfer',
+            'payment_status'    => 'verified',
+            'verified_by'       => $user?->id,
+            'verified_at'       => now()->subDays(1),
+        ]);
     }
 }

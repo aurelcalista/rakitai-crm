@@ -36,8 +36,9 @@ class DataAnalystController extends Controller
 
     /**
      * Dashboard Analitik PMB khusus Role Data Analyst.
+     * Mendukung render view HTML awal dan respons JSON realtime via AJAX/Fetch.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|\Illuminate\Http\JsonResponse
     {
         $filters = $this->resolveFilters($request);
 
@@ -125,13 +126,13 @@ class DataAnalystController extends Controller
         ];
 
         // ──────────────────────────────────────────────────────────────
-        // 3. PENDAFTAR & PEMBAYARAN TRANSAKSI VALID
+        // 3. PENDAFTAR & PEMBAYARAN TRANSAKSI VALID (100% DINAMIS)
         // ──────────────────────────────────────────────────────────────
+        // Transaksi disaring berdasarkan prospek yang lolos baseQuery filter
         $transaksiQuery = Transaksi::where(function ($q) {
-            $q
-                ->where('payment_status', Transaksi::STATUS_VERIFIED)
-                ->orWhereNull('payment_status');
-        });
+            $q->where('payment_status', Transaksi::STATUS_VERIFIED)
+              ->orWhereNull('payment_status');
+        })->whereIn('prospek_id', (clone $baseQuery)->select('prospeks.id'));
 
         if (!empty($filters['from_date'])) {
             $transaksiQuery->whereDate('tanggal', '>=', $filters['from_date']);
@@ -159,53 +160,58 @@ class DataAnalystController extends Controller
             ->get();
 
         // ──────────────────────────────────────────────────────────────
-        // 4. PERFORMA SALES & TIM
+        // 4. PERFORMA SALES & TIM (100% DINAMIS TERFILTER)
         // ──────────────────────────────────────────────────────────────
-        $salesList = User::where('role', 'Sales')
+        $salesQuery = User::where('role', 'Sales')
             ->where('status', 'Aktif')
-            ->with(['supervisor', 'wilayah'])
-            ->get()
-            ->map(function ($s) use ($filters) {
-                $prospeks = Prospek::where('sales_id', $s->id);
-                if (!empty($filters['from_date'])) {
-                    $prospeks->whereDate('created_at', '>=', $filters['from_date']);
-                }
-                if (!empty($filters['to_date'])) {
-                    $prospeks->whereDate('created_at', '<=', $filters['to_date']);
-                }
+            ->with(['supervisor', 'wilayah']);
+
+        if (!empty($filters['wilayah_id']) && $filters['wilayah_id'] !== 'all') {
+            $salesQuery->where('wilayah_id', $filters['wilayah_id']);
+        }
+        if (!empty($filters['sales_id']) && $filters['sales_id'] !== 'all') {
+            $salesQuery->where('id', $filters['sales_id']);
+        }
+
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $diffRaw = $isSqlite
+            ? 'AVG((julianday(follow_ups.created_at) - julianday(prospeks.created_at)) * 24) as avg_hours'
+            : 'AVG(TIMESTAMPDIFF(HOUR, prospeks.created_at, follow_ups.created_at)) as avg_hours';
+
+        $salesList = $salesQuery->get()
+            ->map(function ($s) use ($baseQuery, $diffRaw) {
+                $prospeks = (clone $baseQuery)->where('sales_id', $s->id);
 
                 $totalKontak = (clone $prospeks)->count();
                 $formulir = (clone $prospeks)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])->count();
                 $lunas = (clone $prospeks)->where('status', 'LUNAS')->count();
-                $followUpCount = FollowUp::where('user_id', $s->id)->count();
+                
+                $followUpCount = FollowUp::where('user_id', $s->id)
+                    ->whereIn('prospek_id', (clone $prospeks)->select('prospeks.id'))
+                    ->count();
 
                 // First response speed
-                $isSqlite = DB::connection()->getDriverName() === 'sqlite';
-                $diffRaw = $isSqlite
-                    ? 'AVG((julianday(follow_ups.created_at) - julianday(prospeks.created_at)) * 24) as avg_hours'
-                    : 'AVG(TIMESTAMPDIFF(HOUR, prospeks.created_at, follow_ups.created_at)) as avg_hours';
-
                 $firstFollowUps = FollowUp::where('user_id', $s->id)
                     ->join('prospeks', 'follow_ups.prospek_id', '=', 'prospeks.id')
+                    ->whereIn('follow_ups.prospek_id', (clone $prospeks)->select('prospeks.id'))
                     ->selectRaw($diffRaw)
                     ->value('avg_hours');
 
                 $avgResponseHours = $firstFollowUps !== null ? round((float) $firstFollowUps, 1) : null;
-
                 $konversi = $totalKontak > 0 ? round(($lunas / $totalKontak) * 100, 1) : 0;
 
                 return [
-                    'id' => $s->id,
-                    'kode' => $s->kode ?: '-',
-                    'name' => $s->name,
-                    'spv' => $s->supervisor?->name ?: 'Belum Ada',
-                    'wilayah' => $s->wilayah?->nama ?: 'Lintas Wilayah',
-                    'total_kontak' => $totalKontak,
-                    'follow_up_count' => $followUpCount,
+                    'id'                 => $s->id,
+                    'kode'               => $s->kode ?: '-',
+                    'name'               => $s->name,
+                    'spv'                => $s->supervisor?->name ?: 'Belum Ada',
+                    'wilayah'            => $s->wilayah?->nama ?: 'Lintas Wilayah',
+                    'total_kontak'       => $totalKontak,
+                    'follow_up_count'    => $followUpCount,
                     'avg_response_hours' => $avgResponseHours,
-                    'formulir_count' => $formulir,
-                    'lunas_count' => $lunas,
-                    'konversi' => $konversi,
+                    'formulir_count'     => $formulir,
+                    'lunas_count'        => $lunas,
+                    'konversi'           => $konversi,
                 ];
             })
             ->sortByDesc('lunas_count')
@@ -238,22 +244,31 @@ class DataAnalystController extends Controller
         $lowestChannel = $sumberAnalysis->filter(fn($s) => $s['kontak'] > 0)->sortBy('konversi')->first();
 
         // ──────────────────────────────────────────────────────────────
-        // 6. SEKOLAH & PERUSAHAAN MITRA
+        // 6. SEKOLAH & PERUSAHAAN MITRA (DINAMIS WILAYAH)
         // ──────────────────────────────────────────────────────────────
-        $totalSekolah = Sekolah::count();
+        $sekolahQuery = Sekolah::query();
+        if (!empty($filters['wilayah_id']) && $filters['wilayah_id'] !== 'all') {
+            $sekolahQuery->where('wilayah_id', $filters['wilayah_id']);
+        }
+        $totalSekolah = (clone $sekolahQuery)->count();
         $totalPerusahaan = Perusahaan::count();
 
-        // Sekolah yang sudah dihubungi (punya kunjungan atau punya prospek)
-        $sekolahDihubungiCount = Sekolah::where(function ($q) {
+        // Sekolah yang sudah dihubungi (punya kunjungan atau punya prospek terdaftar)
+        $sekolahDihubungiCount = (clone $sekolahQuery)->where(function ($q) {
             $q->has('kunjungans')->orHas('prospeks');
         })->count();
 
         $sekolahBelumDihubungiCount = max(0, $totalSekolah - $sekolahDihubungiCount);
 
-        // Top 5 Sekolah Penyumbang Calon Mahasiswa Terbanyak
-        $topSekolah = Sekolah::withCount(['prospeks as total_prospek', 'prospeks as total_lunas' => function ($q) {
-            $q->where('status', 'LUNAS');
-        }])
+        // Top 5 Sekolah Penyumbang Calon Mahasiswa Terbanyak (berdasarkan prospek terfilter)
+        $topSekolah = (clone $sekolahQuery)->withCount([
+            'prospeks as total_prospek' => function ($q) use ($baseQuery) {
+                $q->whereIn('prospeks.id', (clone $baseQuery)->select('prospeks.id'));
+            },
+            'prospeks as total_lunas' => function ($q) use ($baseQuery) {
+                $q->whereIn('prospeks.id', (clone $baseQuery)->select('prospeks.id'))->where('status', 'LUNAS');
+            }
+        ])
             ->orderByDesc('total_prospek')
             ->take(5)
             ->get();
@@ -266,8 +281,9 @@ class DataAnalystController extends Controller
             ->whereNotIn('status', ['LUNAS', 'CANCEL'])
             ->count();
 
-        // Duplikat nomor WhatsApp
-        $duplicateWaCount = Prospek::whereNotNull('whatsapp')
+        // Duplikat nomor WhatsApp dalam hasil filter
+        $duplicateWaCount = (clone $baseQuery)
+            ->whereNotNull('whatsapp')
             ->where('whatsapp', '!=', '')
             ->select('whatsapp')
             ->groupBy('whatsapp')
@@ -287,7 +303,8 @@ class DataAnalystController extends Controller
         })->count();
 
         // Riwayat follow-up terbaru (Read-only feed)
-        $recentFollowUps = FollowUp::with(['prospek', 'user'])
+        $recentFollowUps = FollowUp::whereIn('prospek_id', (clone $baseQuery)->select('prospeks.id'))
+            ->with(['prospek', 'user'])
             ->latest()
             ->take(5)
             ->get();
@@ -303,12 +320,12 @@ class DataAnalystController extends Controller
         );
 
         // ──────────────────────────────────────────────────────────────
-        // 9. PERBANDINGAN PERIODE (DAILY, WEEKLY, MONTHLY)
+        // 9. PERBANDINGAN PERIODE (100% DINAMIS DENGAN SCOPE FILTER)
         // ──────────────────────────────────────────────────────────────
-        $periodComparison = $this->calculatePeriodComparison();
+        $periodComparison = $this->calculatePeriodComparison($filters);
 
         // ──────────────────────────────────────────────────────────────
-        // 10. SEGMENTASI PENDAFTAR
+        // 10. SEGMENTASI PENDAFTAR (TERMASUK GELOMBANG)
         // ──────────────────────────────────────────────────────────────
         // Segmentasi Prodi
         $segmentasiProdi = (clone $baseQuery)
@@ -340,6 +357,20 @@ class DataAnalystController extends Controller
             ->take(6)
             ->get();
 
+        // Segmentasi Gelombang Pendaftaran
+        $segmentasiGelombang = (clone $baseQuery)
+            ->whereNotNull('gelombang')
+            ->where('gelombang', '!=', '')
+            ->selectRaw('gelombang, COUNT(id) as total')
+            ->groupBy('gelombang')
+            ->orderByDesc('total')
+            ->get();
+
+        // ──────────────────────────────────────────────────────────────
+        // DATASET VISUALISASI GRAFIK INTERAKTIF (CHART.JS)
+        // ──────────────────────────────────────────────────────────────
+        $chartsData = $this->buildChartsData($baseQuery, $filters, $funnelData, $salesList);
+
         // ──────────────────────────────────────────────────────────────
         // DROPDOWN FILTER OPTIONS
         // ──────────────────────────────────────────────────────────────
@@ -347,6 +378,49 @@ class DataAnalystController extends Controller
         $prodiOptions = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $taOptions = TahunAkademik::orderByDesc('nama')->get();
         $salesOptions = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
+        $gelombangOptions = MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('nama')->get();
+
+        // Jika request via AJAX / Fetch realtime, kirim payload JSON
+        if ($request->ajax() || $request->wantsJson() || $request->has('ajax')) {
+            return response()->json([
+                'success' => true,
+                'filters' => $filters,
+                'metrics' => [
+                    'totalProspekUnik'        => $totalProspekUnik,
+                    'kontakBaruCount'         => $kontakBaruCount,
+                    'formulirCount'           => $formulirCount,
+                    'lunasCount'              => $lunasCount,
+                    'lostCount'               => $lostCount,
+                    'convKontakFormulir'      => $convKontakFormulir,
+                    'convKontakLunas'         => $convKontakLunas,
+                    'convFormulirLunas'       => $convFormulirLunas,
+                    'totalRevenueValid'       => $totalRevenueValid,
+                    'transaksiFormulirNominal'=> $transaksiFormulirNominal,
+                    'transaksiFormulirCount'  => $transaksiFormulirCount,
+                    'transaksiTermin1Nominal' => $transaksiTermin1Nominal,
+                    'transaksiTermin1Count'   => $transaksiTermin1Count,
+                    'belumFollowUpCount'      => $belumFollowUpCount,
+                    'duplicateWaCount'        => $duplicateWaCount,
+                    'incompleteDataCount'     => $incompleteDataCount,
+                ],
+                'funnelData'            => $funnelData,
+                'chartsData'            => $chartsData,
+                'periodComparison'      => $periodComparison,
+                'pembayaranPerProdi'    => $pembayaranPerProdi,
+                'salesList'             => $salesList,
+                'sumberAnalysis'        => $sumberAnalysis,
+                'topChannel'            => $topChannel,
+                'totalSekolah'          => $totalSekolah,
+                'totalPerusahaan'       => $totalPerusahaan,
+                'sekolahDihubungiCount' => $sekolahDihubungiCount,
+                'topSekolah'            => $topSekolah,
+                'segmentasiProdi'       => $segmentasiProdi,
+                'segmentasiKelas'       => $segmentasiKelas,
+                'segmentasiJalur'       => $segmentasiJalur,
+                'segmentasiWilayah'     => $segmentasiWilayah,
+                'segmentasiGelombang'   => $segmentasiGelombang,
+            ]);
+        }
 
         return view('analyst.dashboard', compact(
             'filters',
@@ -385,10 +459,13 @@ class DataAnalystController extends Controller
             'segmentasiKelas',
             'segmentasiJalur',
             'segmentasiWilayah',
+            'segmentasiGelombang',
+            'chartsData',
             'wilayahOptions',
             'prodiOptions',
             'taOptions',
-            'salesOptions'
+            'salesOptions',
+            'gelombangOptions'
         ));
     }
 
@@ -408,14 +485,16 @@ class DataAnalystController extends Controller
             }
         }
 
-        // Search text
+        // Search text (nama, whatsapp, pic, no_registrasi, gelombang)
         if ($request->filled('search')) {
             $search = '%' . trim($request->search) . '%';
             $query->where(function ($q) use ($search) {
                 $q
                     ->where('name', 'like', $search)
                     ->orWhere('whatsapp', 'like', $search)
-                    ->orWhere('pic', 'like', $search);
+                    ->orWhere('pic', 'like', $search)
+                    ->orWhere('no_registrasi', 'like', $search)
+                    ->orWhere('gelombang', 'like', $search);
             });
         }
 
@@ -425,6 +504,7 @@ class DataAnalystController extends Controller
         $prodiOptions = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $taOptions = TahunAkademik::orderByDesc('nama')->get();
         $salesOptions = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
+        $gelombangOptions = MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('nama')->get();
         $sourceOptions = Prospek::SOURCES;
 
         return view('analyst.prospek', compact(
@@ -434,6 +514,7 @@ class DataAnalystController extends Controller
             'prodiOptions',
             'taOptions',
             'salesOptions',
+            'gelombangOptions',
             'sourceOptions'
         ));
     }
@@ -466,6 +547,10 @@ class DataAnalystController extends Controller
                     $fromDate = $now->toDateString();
                     $toDate = $now->toDateString();
                     break;
+                case 'kemarin':
+                    $fromDate = $now->copy()->subDay()->toDateString();
+                    $toDate = $now->copy()->subDay()->toDateString();
+                    break;
                 case 'minggu_ini':
                 case 'mingguan':
                     $fromDate = $now->copy()->startOfWeek()->toDateString();
@@ -484,25 +569,35 @@ class DataAnalystController extends Controller
         }
 
         return [
-            'periode' => $periode,
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
-            'ta' => $request->get('ta', TahunAkademik::getAktif()?->nama),
-            'wilayah_id' => $request->get('wilayah_id'),
-            'prodi_id' => $request->get('prodi_id'),
-            'kelas' => $request->get('kelas'),
-            'source' => $request->get('source'),
-            'status' => $request->get('status'),
-            'sales_id' => $request->get('sales_id'),
+            'periode'        => $periode,
+            'from_date'      => $fromDate,
+            'to_date'        => $toDate,
+            'ta'             => $request->get('ta', TahunAkademik::getAktif()?->nama),
+            'wilayah_id'     => $request->get('wilayah_id'),
+            'prodi_id'       => $request->get('prodi_id'),
+            'kelas'          => $request->get('kelas'),
+            'gelombang'      => $request->get('gelombang'),
+            'no_registrasi'  => $request->get('no_registrasi'),
+            'source'         => $request->get('source'),
+            'status'         => $request->get('status'),
+            'sales_id'       => $request->get('sales_id'),
+            'search'         => $request->get('search'),
             'periode_target' => $request->get('periode_target', 'bulanan'),
         ];
     }
 
     /**
-     * Calculate period-over-period comparisons (Today vs Yesterday, This Week vs Last Week, This Month vs Last Month).
+     * Calculate period-over-period comparisons (Today vs Yesterday, This Week vs Last Week, This Month vs Last Month)
+     * strictly adhering to the filtered prospect scope.
      */
-    protected function calculatePeriodComparison(): array
+    protected function calculatePeriodComparison(array $filters = []): array
     {
+        $scopedQuery = $this->exportService->buildProspekQuery(array_merge($filters, [
+            'from_date' => null,
+            'to_date'   => null,
+            'periode'   => null,
+        ]));
+
         $todayStart = Carbon::today()->startOfDay();
         $todayEnd = Carbon::today()->endOfDay();
 
@@ -522,50 +617,119 @@ class DataAnalystController extends Controller
         $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
 
         // 1. Hari Ini vs Kemarin
-        $kontakToday = Prospek::whereBetween('created_at', [$todayStart, $todayEnd])->count();
-        $kontakYesterday = Prospek::whereBetween('created_at', [$yesterdayStart, $yesterdayEnd])->count();
+        $kontakToday = (clone $scopedQuery)->whereBetween('created_at', [$todayStart, $todayEnd])->count();
+        $kontakYesterday = (clone $scopedQuery)->whereBetween('created_at', [$yesterdayStart, $yesterdayEnd])->count();
 
-        $lunasToday = Prospek::where('status', 'LUNAS')->whereBetween('updated_at', [$todayStart, $todayEnd])->count();
-        $lunasYesterday = Prospek::where('status', 'LUNAS')->whereBetween('updated_at', [$yesterdayStart, $yesterdayEnd])->count();
+        $lunasToday = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$todayStart, $todayEnd])->count();
+        $lunasYesterday = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$yesterdayStart, $yesterdayEnd])->count();
 
         // 2. Minggu Ini vs Minggu Kemarin
-        $kontakThisWeek = Prospek::whereBetween('created_at', [$thisWeekStart, $thisWeekEnd])->count();
-        $kontakLastWeek = Prospek::whereBetween('created_at', [$lastWeekStart, $lastWeekEnd])->count();
+        $kontakThisWeek = (clone $scopedQuery)->whereBetween('created_at', [$thisWeekStart, $thisWeekEnd])->count();
+        $kontakLastWeek = (clone $scopedQuery)->whereBetween('created_at', [$lastWeekStart, $lastWeekEnd])->count();
 
-        $lunasThisWeek = Prospek::where('status', 'LUNAS')->whereBetween('updated_at', [$thisWeekStart, $thisWeekEnd])->count();
-        $lunasLastWeek = Prospek::where('status', 'LUNAS')->whereBetween('updated_at', [$lastWeekStart, $lastWeekEnd])->count();
+        $lunasThisWeek = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$thisWeekStart, $thisWeekEnd])->count();
+        $lunasLastWeek = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$lastWeekStart, $lastWeekEnd])->count();
 
         // 3. Bulan Ini vs Bulan Kemarin
-        $kontakThisMonth = Prospek::whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
-        $kontakLastMonth = Prospek::whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])->count();
+        $kontakThisMonth = (clone $scopedQuery)->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
+        $kontakLastMonth = (clone $scopedQuery)->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])->count();
 
-        $lunasThisMonth = Prospek::where('status', 'LUNAS')->whereBetween('updated_at', [$thisMonthStart, $thisMonthEnd])->count();
-        $lunasLastMonth = Prospek::where('status', 'LUNAS')->whereBetween('updated_at', [$lastMonthStart, $lastMonthEnd])->count();
+        $lunasThisMonth = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$thisMonthStart, $thisMonthEnd])->count();
+        $lunasLastMonth = (clone $scopedQuery)->where('status', 'LUNAS')->whereBetween('updated_at', [$lastMonthStart, $lastMonthEnd])->count();
 
         return [
             'today' => [
-                'kontak' => $kontakToday,
+                'kontak'      => $kontakToday,
                 'kontak_prev' => $kontakYesterday,
                 'kontak_diff' => $kontakToday - $kontakYesterday,
-                'lunas' => $lunasToday,
-                'lunas_prev' => $lunasYesterday,
-                'lunas_diff' => $lunasToday - $lunasYesterday,
+                'lunas'       => $lunasToday,
+                'lunas_prev'  => $lunasYesterday,
+                'lunas_diff'  => $lunasToday - $lunasYesterday,
             ],
             'week' => [
-                'kontak' => $kontakThisWeek,
+                'kontak'      => $kontakThisWeek,
                 'kontak_prev' => $kontakLastWeek,
                 'kontak_diff' => $kontakThisWeek - $kontakLastWeek,
-                'lunas' => $lunasThisWeek,
-                'lunas_prev' => $lunasLastWeek,
-                'lunas_diff' => $lunasThisWeek - $lunasLastWeek,
+                'lunas'       => $lunasThisWeek,
+                'lunas_prev'  => $lunasLastWeek,
+                'lunas_diff'  => $lunasThisWeek - $lunasLastWeek,
             ],
             'month' => [
-                'kontak' => $kontakThisMonth,
+                'kontak'      => $kontakThisMonth,
                 'kontak_prev' => $kontakLastMonth,
                 'kontak_diff' => $kontakThisMonth - $kontakLastMonth,
-                'lunas' => $lunasThisMonth,
-                'lunas_prev' => $lunasLastMonth,
-                'lunas_diff' => $lunasThisMonth - $lunasLastMonth,
+                'lunas'       => $lunasThisMonth,
+                'lunas_prev'  => $lunasLastMonth,
+                'lunas_diff'  => $lunasThisMonth - $lunasLastMonth,
+            ],
+        ];
+    }
+
+    /**
+     * Build Chart.js formatted data points for interactive visualizations.
+     */
+    protected function buildChartsData($baseQuery, array $filters, array $funnelData, $salesList): array
+    {
+        $endDate = !empty($filters['to_date']) ? Carbon::parse($filters['to_date']) : Carbon::today();
+        $startDate = !empty($filters['from_date']) ? Carbon::parse($filters['from_date']) : $endDate->copy()->subDays(13);
+
+        if ($startDate->gt($endDate)) {
+            $startDate = $endDate->copy()->subDays(13);
+        }
+
+        $diffDays = $startDate->diffInDays($endDate);
+        $step = max(1, (int) ceil(($diffDays + 1) / 14));
+
+        $trendLabels = [];
+        $trendKontak = [];
+        $trendFormulir = [];
+        $trendLunas = [];
+
+        $current = $startDate->copy();
+        for ($i = 0; $i < 14 && $current <= $endDate; $i++) {
+            $dayStr = $current->toDateString();
+            $trendLabels[] = $current->isoFormat('D MMM');
+
+            $kontakDay = (clone $baseQuery)->whereDate('created_at', $dayStr)->count();
+            $formulirDay = (clone $baseQuery)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])
+                ->whereDate('updated_at', $dayStr)->count();
+            $lunasDay = (clone $baseQuery)->where('status', 'LUNAS')
+                ->whereDate('updated_at', $dayStr)->count();
+
+            $trendKontak[] = $kontakDay;
+            $trendFormulir[] = $formulirDay;
+            $trendLunas[] = $lunasDay;
+
+            $current->addDays($step);
+        }
+
+        // Funnel chart
+        $funnelLabels = array_column($funnelData, 'stage');
+        $funnelCounts = array_column($funnelData, 'count');
+
+        // Top 5 Sales chart
+        $topSales = collect($salesList)->take(5);
+        $salesNames = $topSales->pluck('name')->toArray();
+        $salesKontak = $topSales->pluck('total_kontak')->toArray();
+        $salesFormulir = $topSales->pluck('formulir_count')->toArray();
+        $salesLunas = $topSales->pluck('lunas_count')->toArray();
+
+        return [
+            'trend' => [
+                'labels'   => $trendLabels,
+                'kontak'   => $trendKontak,
+                'formulir' => $trendFormulir,
+                'lunas'    => $trendLunas,
+            ],
+            'funnel' => [
+                'labels' => $funnelLabels,
+                'counts' => $funnelCounts,
+            ],
+            'sales' => [
+                'labels'   => $salesNames,
+                'kontak'   => $salesKontak,
+                'formulir' => $salesFormulir,
+                'lunas'    => $salesLunas,
             ],
         ];
     }

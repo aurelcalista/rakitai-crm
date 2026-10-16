@@ -123,6 +123,23 @@
                 return '/spv/prospek/' + prospect.id;
             }
             return '/prospek/' + prospect.id;
+        },
+        modalDeleteProspek: false,
+        deleteProspectTarget: null,
+        openDeleteProspectModal(prospect) {
+            this.deleteProspectTarget = prospect;
+            this.modalDeleteProspek = true;
+        },
+        getDeleteProspectUrl(prospect) {
+            if (!prospect) return '#';
+            const role = '{{ strtolower(auth()->user()->role ?? '') }}';
+            if (role === 'sales') {
+                return '/sales/prospek/' + prospect.id;
+            }
+            if (role === 'spv') {
+                return '/spv/prospek/' + prospect.id;
+            }
+            return '/prospek/' + prospect.id;
         }
     }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
 
@@ -132,32 +149,54 @@
                 <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Manajemen Prospek</h2>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">Kelola data calon mahasiswa, sekolah mitra, dan instansi inbound UCIC.</p>
             </div>
-            @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
             <div class="flex flex-wrap items-center gap-2">
-                @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
-                <button 
-                    type="button" 
-                    @click="modalPresensiManual = true"
-                    class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                {{-- Tombol Unduh Spreadsheet --}}
+                <a 
+                    :href="'{{ route('export.prospek') }}?' + new URLSearchParams(Object.fromEntries(Object.entries({
+                        scope: selectedScope,
+                        status: selectedStatus !== 'all' ? selectedStatus : '',
+                        type: selectedType !== 'all' ? selectedType : '',
+                        gelombang: selectedGelombang !== 'all' ? selectedGelombang : '',
+                        takeover: selectedTakeover !== 'all' ? selectedTakeover : '',
+                        search: searchQuery || '',
+                        start_date: '{{ request('start_date', '') }}',
+                        end_date: '{{ request('end_date', '') }}'
+                    }).filter(([_, v]) => v !== '' && v !== null && v !== undefined)))"
+                    target="_blank"
+                    class="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    title="Unduh Spreadsheet Data Prospek (.xlsx)"
                 >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg class="w-4 h-4 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <span>Tambah Presensi Siswa</span>
-                </button>
+                    <span>Unduh Spreadsheet</span>
+                </a>
+
+                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
+                    @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
+                    <button 
+                        type="button" 
+                        @click="modalPresensiManual = true"
+                        class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Tambah Presensi Siswa</span>
+                    </button>
+                    @endif
+                    <button 
+                        type="button" 
+                        @click="modalTambahProspek = true"
+                        class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Tambah Prospek</span>
+                    </button>
                 @endif
-                <button 
-                    type="button" 
-                    @click="modalTambahProspek = true"
-                    class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
-                >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Tambah Prospek</span>
-                </button>
             </div>
-            @endif
         </div>
 
         {{-- Prospect Activity Metrics & Period Filter (CS & Sales) --}}
@@ -593,6 +632,14 @@
                                         >
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                                         </a>
+                                        <button 
+                                            type="button"
+                                            @click="openDeleteProspectModal(prospect)"
+                                            class="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition cursor-pointer"
+                                            title="Hapus Prospek"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -670,6 +717,14 @@
                             >
                                 Detail
                             </a>
+                            <button 
+                                type="button"
+                                @click="openDeleteProspectModal(prospect)"
+                                class="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-xs font-semibold hover:bg-rose-100 cursor-pointer"
+                                title="Hapus Prospek"
+                            >
+                                Hapus
+                            </button>
                         </div>
                     </div>
                 </template>
@@ -986,6 +1041,52 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL KONFIRMASI HAPUS PROSPEK -->
+        <div 
+            x-show="modalDeleteProspek" 
+            class="fixed inset-0 z-50 overflow-y-auto"
+            x-cloak
+            @keydown.escape.window="modalDeleteProspek = false"
+        >
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" @click="modalDeleteProspek = false"></div>
+
+                <div class="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center">
+                    <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 mb-2">Hapus Data Prospek?</h3>
+                    <p class="text-sm text-slate-500 mb-6">
+                        Yakin ingin menghapus prospek <strong class="text-slate-800" x-text="deleteProspectTarget ? (deleteProspectTarget.pic || deleteProspectTarget.name) : ''"></strong>? Seluruh histori timeline dan data follow-up terkait juga akan dihapus.
+                    </p>
+                    <div class="flex items-center gap-3 justify-center">
+                        <button
+                            type="button"
+                            @click="modalDeleteProspek = false"
+                            class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition cursor-pointer"
+                        >
+                            Batal
+                        </button>
+                        <form
+                            :action="getDeleteProspectUrl(deleteProspectTarget)"
+                            method="POST"
+                        >
+                            @csrf
+                            @method('DELETE')
+                            <button
+                                type="submit"
+                                class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition cursor-pointer shadow-xs"
+                            >
+                                Ya, Hapus
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

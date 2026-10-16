@@ -356,7 +356,15 @@
 
     <!-- TABEL 2: BREAKDOWN BERJENJANG (Sales / Tim SPV / Wilayah HM / Global) -->
     @if(count($hierarchyRows) > 1 || (count($hierarchyRows) === 1 && $level === 'Sales'))
-    <div class="crm-card bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+    <div class="crm-card bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden"
+         x-data="{
+             currentPage: 1,
+             perPage: 20,
+             totalItems: {{ count($hierarchyRows) }},
+             get totalPages() {
+                 return Math.ceil(this.totalItems / this.perPage) || 1;
+             }
+         }">
         <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
                 <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -392,7 +400,7 @@
                         <th class="py-3 px-4 text-center min-w-[160px]">Indikator Pencapaian</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-100 crm-table-slide">
                     @foreach($hierarchyRows as $hRow)
                         @php
                             $isTotal = !empty($hRow['is_total']);
@@ -402,8 +410,9 @@
                             $hDefisit = $hRow['defisit_target'] ?? ($hRow['pencapaian'] < $hRow['target'] ? ($hRow['target'] - $hRow['pencapaian']) : 0);
                             $hSisaTgt = $hRow['sisa_target'] ?? max(0, $hRow['target'] - $hRow['pencapaian']);
                             $hAkumulasi = $hRow['akumulasi_realisasi'] ?? $hRow['pencapaian'];
+                            $pageIndex = (int) floor($loop->index / 20) + 1;
                         @endphp
-                        <tr class="{{ $isTotal ? 'bg-slate-50 font-bold border-y-2 border-slate-200' : 'hover:bg-slate-50/80 transition' }}">
+                        <tr x-show="currentPage === {{ $pageIndex }}" class="{{ $isTotal ? 'bg-slate-50 font-bold border-y-2 border-slate-200' : 'hover:bg-slate-50/80 transition' }} crm-table-slide">
                             <td class="py-3.5 px-3 text-center font-bold text-slate-400">{{ $isTotal ? '-' : $loop->iteration }}</td>
                             <td class="py-3.5 px-4">
                                 <div class="font-extrabold {{ $isTotal ? 'text-slate-900 text-sm' : 'text-slate-800 text-xs' }}">
@@ -464,6 +473,15 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination Control -->
+        <x-table-pagination
+            total="totalItems"
+            page="currentPage"
+            perPage="perPage"
+            totalPages="totalPages"
+            color="purple"
+        />
     </div>
     @endif
 

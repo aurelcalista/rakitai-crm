@@ -14,19 +14,7 @@ class KunjunganPolicy
     {
         $role = strtolower($user->role);
 
-        return match ($role) {
-            'sales' => $kunjungan->sales_id === $user->id,
-
-            'spv'   => in_array($kunjungan->sales_id, $user->teamMemberIds()),
-
-            'hm'    => $user->wilayah_id === null
-                    || in_array($kunjungan->sales_id, $user->hmMemberIds())
-                    || ($kunjungan->sales && $kunjungan->sales->wilayah_id === $user->wilayah_id),
-
-            'admin', 'data analyst' => true,
-
-            default => false,
-        };
+        return in_array($role, ['sales', 'spv', 'hm', 'admin', 'cs', 'eo', 'data analyst']);
     }
 
     /**
@@ -34,7 +22,15 @@ class KunjunganPolicy
      */
     public function create(User $user): bool
     {
-        return in_array(strtolower($user->role), ['sales', 'spv', 'hm', 'admin']);
+        return in_array(strtolower($user->role), ['sales', 'spv', 'hm', 'admin', 'cs', 'eo']);
+    }
+
+    /**
+     * Update a visit record.
+     */
+    public function update(User $user, Kunjungan $kunjungan): bool
+    {
+        return in_array(strtolower($user->role), ['sales', 'spv', 'hm', 'admin', 'cs', 'eo']);
     }
 
     /**
@@ -42,14 +38,6 @@ class KunjunganPolicy
      */
     public function delete(User $user, Kunjungan $kunjungan): bool
     {
-        $role = strtolower($user->role);
-
-        return match ($role) {
-            'sales' => $kunjungan->sales_id === $user->id,
-            'spv'   => in_array($kunjungan->sales_id, $user->teamMemberIds()),
-            'hm'    => $user->wilayah_id === null || in_array($kunjungan->sales_id, $user->hmMemberIds()),
-            'admin' => true,
-            default => false,
-        };
+        return in_array(strtolower($user->role), ['sales', 'spv', 'hm', 'admin', 'cs', 'eo']);
     }
 }

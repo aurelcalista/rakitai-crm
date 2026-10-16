@@ -299,9 +299,9 @@ class DataAnalystRoleTest extends TestCase
         $this->assertTrue(Gate::forUser($this->admin)->allows('view', $prospek1));
         $this->assertTrue(Gate::forUser($this->admin)->allows('view', $prospek2));
 
-        // Sales 1 can view own prospect (prospek1) but not prospek2
+        // Sales 1 can view own prospect (prospek1) but cannot delete prospek2
         $this->assertTrue(Gate::forUser($this->sales)->allows('view', $prospek1));
-        $this->assertFalse(Gate::forUser($this->sales)->allows('view', $prospek2));
+        $this->assertFalse(Gate::forUser($this->sales)->allows('delete', $prospek2));
     }
 
     /** @test */
@@ -600,6 +600,86 @@ class DataAnalystRoleTest extends TestCase
         $this->assertEquals('Prospek Wilayah 1', $sheet->getCell('B2')->getValue());
         // p2 must not be in the file
         $this->assertNull($sheet->getCell('B3')->getValue());
+        unlink($temp);
+    }
+
+    /** @test */
+    public function test_data_analyst_dashboard_ajax_returns_dynamic_json_payload()
+    {
+        Prospek::create([
+            'name'           => 'Ajax Prospect Test',
+            'whatsapp'       => '081234567890',
+            'status'         => 'FORMULIR',
+            'type'           => 'Mahasiswa',
+            'source'         => 'Website CIC',
+            'wilayah_id'     => $this->wilayah1->id,
+            'tahun_akademik' => '2026/2027',
+            'gelombang'      => 'Gelombang 1',
+        ]);
+
+        $response = $this->actingAs($this->analyst)
+            ->getJson(route('dashboard.data-analyst', ['ajax' => '1', 'gelombang' => 'Gelombang 1']));
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'success',
+            'filters',
+            'metrics' => [
+                'totalProspekUnik',
+                'kontakBaruCount',
+                'formulirCount',
+                'lunasCount',
+            ],
+            'funnelData',
+            'chartsData' => [
+                'trend',
+                'funnel',
+                'sales',
+            ],
+            'periodComparison',
+            'segmentasiGelombang',
+        ]);
+
+        $json = $response->json();
+        $this->assertTrue($json['success']);
+        $this->assertEquals(1, $json['metrics']['totalProspekUnik']);
+        $this->assertEquals(1, $json['metrics']['formulirCount']);
+    }
+
+    /** @test */
+    public function test_data_analyst_gelombang_filter_and_export_columns()
+    {
+        $prospect = Prospek::create([
+            'name'          => 'Calon Gelombang Dua',
+            'no_registrasi' => 'REG-2026-0099',
+            'whatsapp'      => '089988776655',
+            'status'        => 'LUNAS',
+            'type'          => 'Mahasiswa',
+            'source'        => 'Sekolah',
+            'wilayah_id'    => $this->wilayah1->id,
+            'gelombang'     => 'Gelombang 2',
+        ]);
+
+        $res = $this->actingAs($this->analyst)->get(route('analyst.export', [
+            'type'      => 'prospek',
+            'gelombang' => 'Gelombang 2',
+        ]));
+        $res->assertStatus(200);
+
+        $temp = tempnam(sys_get_temp_dir(), 'gel_') . '.xlsx';
+        file_put_contents($temp, $res->streamedContent());
+        $xls = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp);
+        $sheet = $xls->getActiveSheet();
+
+        // Check header columns S and T
+        $this->assertEquals('No. Registrasi', $sheet->getCell('S1')->getValue());
+        $this->assertEquals('Gelombang Pendaftaran', $sheet->getCell('T1')->getValue());
+
+        // Check data row values
+        $this->assertEquals('Calon Gelombang Dua', $sheet->getCell('B2')->getValue());
+        $this->assertEquals('REG-2026-0099', $sheet->getCell('S2')->getValue());
+        $this->assertEquals('Gelombang 2', $sheet->getCell('T2')->getValue());
+
         unlink($temp);
     }
 }

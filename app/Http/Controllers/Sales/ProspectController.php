@@ -41,6 +41,8 @@ class ProspectController extends Controller
                           });
                       });
                   })
+                  // Prospek milik CS (cs_id terisi) juga tampil di Sales
+                  ->orWhereNotNull('cs_id')
                   // Akses lintas wilayah murni untuk sumber Presensi Siswa
                   ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
             });
@@ -691,6 +693,8 @@ class ProspectController extends Controller
         return [
             'id'             => $p->id,
             'name'           => $p->name,
+            'no_registrasi'  => $p->no_registrasi ?? '',
+            'gelombang'      => $p->gelombang ?? '',
             'sales_id'       => $p->sales_id,
             'owner_id'       => $p->owner_id,
             'cs_id'          => $p->cs_id,
@@ -790,5 +794,24 @@ class ProspectController extends Controller
         })->toArray();
 
         return $base;
+    }
+
+    /**
+     * Delete a prospect.
+     */
+    public function destroy(Prospek $prospek): RedirectResponse
+    {
+        $this->authorize('delete', $prospek);
+
+        $prospek->timelines()->delete();
+        $prospek->followUps()->delete();
+        $prospek->delete();
+
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/prospek/' . $prospek->id)) {
+            return redirect()->route('sales.prospek.index')->with('success', 'Data prospek berhasil dihapus!');
+        }
+
+        return redirect()->back()->with('success', 'Data prospek berhasil dihapus!');
     }
 }

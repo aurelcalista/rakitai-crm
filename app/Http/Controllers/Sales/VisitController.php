@@ -452,14 +452,10 @@ class VisitController extends Controller
 
     /**
      * Show visit detail.
-     * Only the owning Sales user can view their own visits.
      */
     public function show(Kunjungan $kunjungan): View
     {
-        // Backend authorization: only own visits
-        if ($kunjungan->sales_id !== auth()->id()) {
-            abort(403, 'Anda tidak memiliki akses ke kunjungan ini.');
-        }
+        $this->authorize('view', $kunjungan);
 
         $kunjungan->load(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event']);
         $visit = $this->formatKunjungan($kunjungan);
@@ -467,24 +463,83 @@ class VisitController extends Controller
     }
 
     /**
+     * Update visit record.
+     */
+    public function update(Request $request, Kunjungan $kunjungan): RedirectResponse
+    {
+        $this->authorize('update', $kunjungan);
+
+        $validated = $request->validate([
+            'tanggal'                  => 'required|date',
+            'waktu'                    => 'nullable|string',
+            'nama_institusi'           => 'nullable|string|max:255',
+            'tujuan_kunjungan'         => 'nullable|string|max:255',
+            'pic_name'                 => 'nullable|string|max:255',
+            'pic_whatsapp'             => 'nullable|string|max:30',
+            'alamat'                   => 'nullable|string|max:500',
+            'catatan'                  => 'nullable|string|max:2000',
+            'hasil'                    => 'nullable|string|max:2000',
+            'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
+            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'potensi_mahasiswa'        => 'nullable|string|max:255',
+            'detail_potensi_mahasiswa' => 'nullable|string|max:500',
+            'kesediaan_training_ai'    => 'nullable|boolean',
+            'bidang_usaha'             => 'nullable|string|max:255',
+            'potensi_s1'               => 'nullable|string|max:255',
+            'potensi_s2'               => 'nullable|string|max:255',
+            'potensi_csr'              => 'nullable|string|max:255',
+            'dosen_pemateri'           => 'nullable|string|max:255',
+            'dosen_id'                 => 'nullable|exists:users,id',
+        ]);
+
+        if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
+            if ($kunjungan->foto_path) {
+                Storage::disk('public')->delete($kunjungan->foto_path);
+            }
+            $validated['foto_path'] = $request->file('foto')->store('kunjungan', 'public');
+        }
+
+        if ($request->filled('nama_institusi')) {
+            $validated['tujuan_kunjungan'] = $request->nama_institusi;
+        } elseif ($request->filled('tujuan_kunjungan')) {
+            $validated['nama_institusi'] = $request->tujuan_kunjungan;
+        }
+
+        if ($request->filled('catatan') && !$request->filled('hasil')) {
+            $validated['hasil'] = $request->catatan;
+        } elseif ($request->filled('hasil') && !$request->filled('catatan')) {
+            $validated['catatan'] = $request->hasil;
+        }
+
+        if ($request->has('kesediaan_training_ai')) {
+            $validated['kesediaan_training_ai'] = $request->boolean('kesediaan_training_ai');
+        }
+
+        $kunjungan->update($validated);
+
+        return redirect()->back()->with('success', 'Data kunjungan berhasil diperbarui!');
+    }
+
+    /**
      * Delete a visit record.
-     * Authorization via KunjunganPolicy: Sales hanya bisa menghapus kunjungannya sendiri.
      */
     public function destroy(Kunjungan $kunjungan): RedirectResponse
     {
-        // Gate check via KunjunganPolicy::delete()
         $this->authorize('delete', $kunjungan);
 
-        // Hapus foto dari storage jika ada
         if ($kunjungan->foto_path) {
             Storage::disk('public')->delete($kunjungan->foto_path);
         }
 
         $kunjungan->delete();
 
-        return redirect()
-            ->route('sales.kunjungan.index')
-            ->with('success', 'Kunjungan berhasil dihapus.');
+        $referer = request()->header('referer');
+        if ($referer && str_contains($referer, '/kunjungan/' . $kunjungan->id)) {
+            $route = \Illuminate\Support\Facades\Route::has('sales.kunjungan.index') ? 'sales.kunjungan.index' : 'kunjungan.index';
+            return redirect()->route($route)->with('success', 'Kunjungan berhasil dihapus.');
+        }
+
+        return redirect()->back()->with('success', 'Kunjungan berhasil dihapus.');
     }
 
     // ─── Private Helpers ─────────────────────────────────────────────────────
@@ -519,7 +574,9 @@ class VisitController extends Controller
             'dosen_id'                 => $k->dosen_id,
             'dosen_pemateri'           => $k->dosen_pemateri,
             'date'                     => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
+            'raw_date'                 => $k->tanggal ? \Carbon\Carbon::parse($k->tanggal)->format('Y-m-d') : '',
             'time'                     => $k->waktu ?? '-',
+            'raw_time'                 => $k->waktu ? \Carbon\Carbon::parse($k->waktu)->format('H:i') : '',
             'address'                  => $k->alamat ?? '-',
             'potential'                => $potential,
             'photo'                    => $photoUrl,
