@@ -39,11 +39,32 @@ class Event extends Model
         'alamat',
         'pic_name',
         'pic_whatsapp',
+        'takeover_by_id',
+        'takeover_at',
     ];
 
     protected static function booted()
     {
         static::creating(function ($model) {
+            if (!$model->nama && $model->name) {
+                $model->nama = $model->name;
+            }
+            if (!$model->name && $model->nama) {
+                $model->name = $model->nama;
+            }
+            if (!$model->tanggal_mulai && $model->tanggal) {
+                $tglStr = $model->tanggal instanceof \Carbon\Carbon ? $model->tanggal->format('Y-m-d') : (string)$model->tanggal;
+                $mulaiTime = $model->waktu_mulai ? (is_string($model->waktu_mulai) ? $model->waktu_mulai : '08:00') : '08:00';
+                $model->tanggal_mulai = $tglStr . ' ' . (strlen($mulaiTime) === 5 ? $mulaiTime . ':00' : $mulaiTime);
+            }
+            if (!$model->tanggal_selesai && $model->tanggal) {
+                $tglStr = $model->tanggal instanceof \Carbon\Carbon ? $model->tanggal->format('Y-m-d') : (string)$model->tanggal;
+                $selesaiTime = $model->waktu_selesai ? (is_string($model->waktu_selesai) ? $model->waktu_selesai : '17:00') : '17:00';
+                $model->tanggal_selesai = $tglStr . ' ' . (strlen($selesaiTime) === 5 ? $selesaiTime . ':00' : $selesaiTime);
+            }
+            if (empty($model->lokasi)) {
+                $model->lokasi = '-';
+            }
             if (!$model->qr_code) {
                 $model->qr_code = self::generateUniqueQrToken($model);
             }
@@ -70,7 +91,16 @@ class Event extends Model
         'tanggal' => 'date',
         'waktu_mulai' => 'datetime:H:i',
         'waktu_selesai' => 'datetime:H:i',
+        'takeover_at' => 'datetime',
     ];
+
+    /**
+     * Get the user who took over the event responsibility.
+     */
+    public function takeoverBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'takeover_by_id');
+    }
 
     /**
      * Get the EO (Creator) of the event.

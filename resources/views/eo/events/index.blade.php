@@ -214,38 +214,7 @@
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
                         <input type="text" name="pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
                     </div>
-                    
-                    <!-- Multi-select Anggota Tim (semua role aktif) -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan Anggota Tim <span class="text-rose-500">*</span></label>
-                        <p class="text-[11px] text-slate-500 mb-2">Pilih satu atau lebih anggota yang terlibat dalam event ini.</p>
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
-                            @foreach($allUsers as $roleGroup => $usersInRole)
-                                <div class="px-3 py-1.5 bg-slate-100/70">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $roleGroup }}</span>
-                                </div>
-                                @foreach($usersInRole as $u)
-                                    <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-white cursor-pointer transition group">
-                                        <input type="checkbox" name="spvs[]" value="{{ $u->id }}"
-                                               class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white shadow-xs shrink-0">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
-                                                {{ strtoupper(substr($u->name, 0, 1)) }}
-                                            </div>
-                                            <div class="min-w-0">
-                                                <div class="text-sm font-semibold text-slate-800 truncate">{{ $u->name }}</div>
-                                                <div class="text-[10px] text-slate-400">{{ $u->role }}</div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                @endforeach
-                            @endforeach
-                            @if($allUsers->isEmpty())
-                                <div class="px-4 py-4 text-sm text-slate-400 text-center italic">Tidak ada anggota tersedia.</div>
-                            @endif
-                        </div>
-                    </div>
-                    
+
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Deskripsi</label>
                         <textarea name="deskripsi" rows="3" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Catatan tambahan acara..."></textarea>

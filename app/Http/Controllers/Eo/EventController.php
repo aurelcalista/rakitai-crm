@@ -88,7 +88,7 @@ class EventController extends Controller
             'waktu_mulai'    => 'required|date_format:H:i',
             'waktu_selesai'  => 'required|date_format:H:i|after:waktu_mulai',
             'lokasi'         => 'required|string|max:255',
-            'spvs'           => 'required|array|min:1',
+            'spvs'           => 'nullable|array',
             'spvs.*'         => 'exists:users,id',
             'sales'          => 'nullable|array',
             'sales.*'        => [
@@ -110,8 +110,6 @@ class EventController extends Controller
             'pic_whatsapp'   => 'nullable|string|max:20',
         ], [
             'waktu_selesai.after'  => 'Waktu selesai harus setelah waktu mulai.',
-            'spvs.required'        => 'Minimal satu anggota tim harus dipilih.',
-            'spvs.min'             => 'Minimal satu anggota tim harus dipilih.',
             'sales.*.exists'       => 'User yang ditugaskan tidak valid.',
         ]);
 
@@ -154,7 +152,13 @@ class EventController extends Controller
                 'qr_code'         => Event::generateUniqueQrToken(),
             ]);
 
-            $event->spvs()->sync($request->spvs);
+            if (!empty($request->spvs)) {
+                $event->spvs()->sync($request->spvs);
+
+                // Trigger notification to SPVs
+                $spvUsers = User::whereIn('id', $request->spvs)->get();
+                \Illuminate\Support\Facades\Notification::send($spvUsers, new EventNotification($event, 'assigned_spv'));
+            }
 
             if (!empty($request->sales)) {
                 foreach ($request->sales as $salesId) {
@@ -175,10 +179,6 @@ class EventController extends Controller
                     }
                 }
             }
-
-            // Trigger notification to SPVs
-            $spvUsers = User::whereIn('id', $request->spvs)->get();
-            \Illuminate\Support\Facades\Notification::send($spvUsers, new EventNotification($event, 'assigned_spv'));
 
             // Notifikasi ke Head of Marketing (HM)
             $hms = User::where('role', 'HM')->where('status', 'Aktif')->get();
@@ -214,7 +214,7 @@ class EventController extends Controller
             'waktu_mulai'    => 'required|date_format:H:i',
             'waktu_selesai'  => 'required|date_format:H:i|after:waktu_mulai',
             'lokasi'         => 'required|string|max:255',
-            'spvs'           => 'required|array|min:1',
+            'spvs'           => 'nullable|array',
             'spvs.*'         => 'exists:users,id',
             'sales'          => 'nullable|array',
             'sales.*'        => 'exists:users,id',
@@ -275,10 +275,11 @@ class EventController extends Controller
             ]);
 
             $oldSpvs = $event->spvs->pluck('id')->toArray();
-            $event->spvs()->sync($request->spvs);
+            $newSpvs = $request->spvs ?? [];
+            $event->spvs()->sync($newSpvs);
             
             // If SPV is removed, their sales assignments are removed.
-            $removedSpvs = array_diff($oldSpvs, $request->spvs);
+            $removedSpvs = array_diff($oldSpvs, $newSpvs);
             if (!empty($removedSpvs)) {
                 $removedSalesIds = DB::table('event_sales')
                                      ->where('event_id', $event->id)

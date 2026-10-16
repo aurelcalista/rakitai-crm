@@ -41,7 +41,7 @@ class CalendarController extends Controller
         $user = Auth::user();
 
         // Internal calendar shows all agendas and events to all authenticated users
-        $events = Event::with(['type', 'eo', 'spvs', 'sales'])
+        $events = Event::with(['type', 'eo', 'spvs', 'sales', 'takeoverBy'])
             ->get()
             ->map(function ($event) use ($user) {
                 $start = $event->tanggal_mulai ? \Carbon\Carbon::parse($event->tanggal_mulai) : ($event->tanggal ? \Carbon\Carbon::parse($event->tanggal . ' ' . ($event->waktu_mulai ?? '08:00')) : now());
@@ -81,6 +81,13 @@ class CalendarController extends Controller
                     'is_personal'   => $isPersonal,
                     // is_eo_event: true when created by EO role (has a master-data type_id)
                     'is_eo_event'   => !is_null($event->type_id),
+                    'takeover_by_id'=> $event->takeover_by_id,
+                    'takeover_by'   => $event->takeoverBy ? [
+                        'id'   => $event->takeoverBy->id,
+                        'name' => $event->takeoverBy->name,
+                        'role' => $event->takeoverBy->role,
+                    ] : null,
+                    'takeover_at'   => $event->takeover_at ? \Carbon\Carbon::parse($event->takeover_at)->format('d/m/Y H:i') : null,
                     'spvs'          => $event->spvs->map(fn($spv) => ['id' => $spv->id, 'name' => $spv->name]),
                     'sales'         => $event->sales->map(fn($s) => ['id' => $s->id, 'name' => $s->name]),
                 ];
@@ -92,6 +99,7 @@ class CalendarController extends Controller
     /**
      * Store Internal Meeting / Schedule.
      * Accessible by operational roles.
+     * Agenda is global/shared - no assigned_users selection and no takeover needed.
      * Automatically dispatches notifications to other active users across roles.
      */
     public function storeMeeting(Request $request)
@@ -106,8 +114,6 @@ class CalendarController extends Controller
             'lokasi'        => 'nullable|string|max:255',
             'deskripsi'     => 'nullable|string',
             'jenis'         => 'nullable|string|max:100',
-            'assigned_users'=> 'nullable|array',
-            'assigned_users.*' => 'exists:users,id',
         ], [
             'waktu_selesai.after' => 'Waktu selesai harus setelah waktu mulai.',
         ]);
@@ -139,16 +145,7 @@ class CalendarController extends Controller
             'status'          => 'Scheduled',
         ]);
 
-        $assignedIds = $request->input('assigned_users', []);
-        
-        // Always assign the creator if they didn't assign anyone else, or if they explicitly assigned themselves
-        if (empty($assignedIds)) {
-            $assignedIds[] = $user->id;
-        }
-
-        $event->sales()->attach($assignedIds, ['assigned_by_spv_id' => $user->id]);
-
-        // Kirim notifikasi ke seluruh personil aktif lain lintas role
+        // Kirim notifikasi agenda kalender baru ke seluruh personil aktif lain lintas role
         try {
             $otherUsers = \App\Models\User::where('status', 'Aktif')
                 ->where('id', '!=', $user->id)
@@ -160,19 +157,10 @@ class CalendarController extends Controller
                 $lokasiInfo = $request->lokasi ? " di {$request->lokasi}" : '';
                 $jamInfo = "{$request->waktu_mulai} - {$request->waktu_selesai} WIB";
 
-                $assignedLookup = array_flip($assignedIds);
+                $title = "Agenda Kalender Baru";
+                $message = "{$user->name} ({$user->role}) menambahkan agenda: '{$cleanTitle}' pada {$tanggalFormat} ({$jamInfo}){$lokasiInfo}.";
 
                 foreach ($otherUsers as $recipient) {
-                    $isAssigned = isset($assignedLookup[$recipient->id]);
-                    
-                    if ($isAssigned) {
-                        $title = "Penugasan Agenda Kalender";
-                        $message = "Anda ditugaskan pada agenda '{$cleanTitle}' oleh {$user->name} ({$user->role}) pada {$tanggalFormat} ({$jamInfo}){$lokasiInfo}.";
-                    } else {
-                        $title = "Agenda Kalender Baru";
-                        $message = "{$user->name} ({$user->role}) menambahkan agenda: '{$cleanTitle}' pada {$tanggalFormat} ({$jamInfo}){$lokasiInfo}.";
-                    }
-
                     $recipient->notify(new \App\Notifications\CrmActivityNotification(
                         title: $title,
                         message: $message,
@@ -194,5 +182,76 @@ class CalendarController extends Controller
         }
 
         return redirect()->back()->with('success', "Agenda '{$event->nama}' berhasil dijadwalkan!");
+    }
+
+    /**
+     * Take over responsibility for an event.
+     * Allowed for all operational roles with calendar access EXCEPT Admin and Data Analyst.
+     * Protected with database transaction and row-level locking (lockForUpdate)
+     * to atomically prevent race conditions and double takeovers.
+     */
+    public function takeoverEvent(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $disallowedRoles = ['admin', 'data analyst', 'data-analyst', 'analyst'];
+        if (in_array(strtolower($user->role ?? ''), $disallowedRoles)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['message' => 'Role Anda tidak diizinkan melakukan Takeover.'], 403);
+            }
+            return redirect()->back()->with('error', 'Role Anda tidak diizinkan melakukan Takeover.');
+        }
+
+        try {
+            $event = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $user) {
+                $event = Event::where('id', $id)->lockForUpdate()->firstOrFail();
+
+                if (!is_null($event->takeover_by_id)) {
+                    throw new \DomainException('Event sudah memiliki penanggung jawab.');
+                }
+
+                $event->update([
+                    'takeover_by_id' => $user->id,
+                    'takeover_at'    => now(),
+                ]);
+
+                return $event;
+            });
+
+            // Refresh model with relation
+            $event->load('takeoverBy');
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Berhasil melakukan Takeover untuk event '{$event->name}'!",
+                    'event'   => [
+                        'id'             => $event->id,
+                        'takeover_by_id' => $user->id,
+                        'takeover_by'    => [
+                            'id'   => $user->id,
+                            'name' => $user->name,
+                            'role' => $user->role,
+                        ],
+                        'takeover_at'    => $event->takeover_at ? $event->takeover_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
+                    ],
+                ]);
+            }
+
+            return redirect()->back()->with('success', "Berhasil melakukan Takeover untuk event '{$event->name}'!");
+        } catch (\DomainException $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+            return redirect()->back()->with('error', $e->getMessage());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['message' => 'Event tidak ditemukan.'], 404);
+            }
+            return redirect()->back()->with('error', 'Event tidak ditemukan.');
+        }
     }
 }

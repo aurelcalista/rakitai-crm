@@ -99,27 +99,26 @@ class InternalCalendarNotificationTest extends TestCase
         $this->assertCount(0, $this->sales->notifications);
     }
 
-    public function test_when_agenda_assigns_members_assigned_members_get_special_notification()
+    public function test_when_agenda_created_all_active_members_receive_agenda_notification_without_selective_assignment()
     {
         $response = $this->actingAs($this->spv)->post(route('calendar.meetings.store'), [
-            'name'           => 'Rapat Koordinasi Mingguan',
-            'tanggal'        => '2026-10-21',
-            'waktu_mulai'    => '13:00',
-            'waktu_selesai'  => '14:30',
-            'lokasi'         => 'Meeting Room 2',
-            'jenis'          => 'Rapat Internal',
-            'assigned_users' => [$this->sales->id],
+            'name'          => 'Rapat Koordinasi Mingguan',
+            'tanggal'       => '2026-10-21',
+            'waktu_mulai'   => '13:00',
+            'waktu_selesai' => '14:30',
+            'lokasi'        => 'Meeting Room 2',
+            'jenis'         => 'Rapat Internal',
         ]);
 
         $response->assertRedirect();
 
-        // Sales is assigned
+        // Agenda is shared across all active colleagues, all receive 'Agenda Kalender Baru'
         $this->assertCount(1, $this->sales->notifications);
         $salesNotif = $this->sales->notifications->first();
-        $this->assertEquals('Penugasan Agenda Kalender', $salesNotif->data['title']);
-        $this->assertStringContainsString('Anda ditugaskan', $salesNotif->data['message']);
+        $this->assertEquals('Agenda Kalender Baru', $salesNotif->data['title']);
+        $this->assertStringContainsString('Rapat Koordinasi Mingguan', $salesNotif->data['message']);
 
-        // Admin & CS are not assigned, but received new agenda notification
+        // Admin & CS also receive new agenda notification
         $this->assertCount(1, $this->admin->notifications);
         $adminNotif = $this->admin->notifications->first();
         $this->assertEquals('Agenda Kalender Baru', $adminNotif->data['title']);

@@ -77,4 +77,21 @@ class EventPolicy
     {
         return $this->update($user, $event);
     }
+
+    /**
+     * Take over an event.
+     * All roles with calendar access can take over EXCEPT Admin and Data Analyst.
+     * Event must not have already been taken over.
+     */
+    public function takeover(User $user, Event $event): bool
+    {
+        $role = strtolower($user->role ?? '');
+        $disallowedRoles = ['admin', 'data analyst', 'data-analyst', 'analyst'];
+
+        if (in_array($role, $disallowedRoles)) {
+            return false;
+        }
+
+        return is_null($event->takeover_by_id);
+    }
 }

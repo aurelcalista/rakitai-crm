@@ -44,6 +44,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/api/calendar/events', [\App\Http\Controllers\CalendarController::class, 'fetchEvents'])->name('api.calendar.events');
     Route::post('/calendar/meetings', [\App\Http\Controllers\CalendarController::class, 'storeMeeting'])->name('calendar.meetings.store');
+    Route::post('/calendar/events/{event}/takeover', [\App\Http\Controllers\CalendarController::class, 'takeoverEvent'])->name('calendar.events.takeover');
 
     // Dependent Dropdown Master Data Wilayah & Sekolah
     Route::get('/api/wilayah/{city}/kecamatan', [\App\Http\Controllers\WilayahController::class, 'getKecamatanByKota'])->name('api.wilayah.kecamatan');

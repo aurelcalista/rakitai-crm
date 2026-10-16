@@ -83,7 +83,15 @@
                                 </div>
                                 <div class="text-[9px] sm:text-[10px] opacity-80 hidden sm:block" x-text="evt.waktu_mulai + ' - ' + evt.waktu_selesai"></div>
                                 <template x-if="evt.is_eo_event">
-                                    <div class="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-70">Event EO</div>
+                                    <div class="flex items-center justify-between text-[8px] sm:text-[9px] gap-1 mt-0.5">
+                                        <span class="font-bold uppercase tracking-wider opacity-70">Event EO</span>
+                                        <template x-if="evt.takeover_by">
+                                            <span class="font-semibold text-emerald-700 bg-emerald-100/90 px-1 py-0.2 rounded truncate" :title="'PJ: ' + evt.takeover_by.name" x-text="'PJ: ' + evt.takeover_by.name"></span>
+                                        </template>
+                                        <template x-if="!evt.takeover_by">
+                                            <span class="font-medium text-amber-700 bg-amber-100/90 px-1 py-0.2 rounded truncate">Belum Ada PJ</span>
+                                        </template>
+                                    </div>
                                 </template>
                             </div>
                         </template>
@@ -131,6 +139,65 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Takeover / Penanggung Jawab Section (khusus Event EO) -->
+                <template x-if="selectedEvent?.is_eo_event">
+                    <div class="mt-5 border-t border-slate-100 pt-4">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">Penanggung Jawab Event</h4>
+                        
+                        <!-- Case 1: Sudah di-Takeover -->
+                        <template x-if="selectedEvent?.takeover_by">
+                            <div class="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-emerald-900" x-text="selectedEvent.takeover_by.name"></span>
+                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-200/70 text-emerald-800" x-text="selectedEvent.takeover_by.role"></span>
+                                    </div>
+                                    <p class="text-[11px] text-emerald-700 mt-0.5">
+                                        Telah diambil alih (Takeover)<span x-show="selectedEvent.takeover_at" x-text="' pada ' + selectedEvent.takeover_at"></span>.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Case 2: Belum di-Takeover -->
+                        <template x-if="!selectedEvent?.takeover_by">
+                            <div class="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold mb-1">
+                                            <span>Belum Ada Penanggung Jawab</span>
+                                        </div>
+                                        <p class="text-xs text-amber-700">Event ini belum memiliki penanggung jawab operasional.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Tombol Takeover: hanya jika role diizinkan (Bukan Admin & Bukan Data Analyst) -->
+                                <template x-if="canTakeover(selectedEvent)">
+                                    <div class="mt-3 pt-3 border-t border-amber-200/60 flex items-center justify-between gap-3">
+                                        <span class="text-[11px] text-slate-500">Anda dapat menjadi penanggung jawab event ini.</span>
+                                        <button 
+                                            type="button" 
+                                            @click="doTakeover(selectedEvent)" 
+                                            :disabled="takeoverLoading"
+                                            class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 shrink-0"
+                                        >
+                                            <svg x-show="!takeoverLoading" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <svg x-show="takeoverLoading" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            <span x-text="takeoverLoading ? 'Memproses...' : 'Takeover Event'"></span>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
 
                 <!-- Assignment Section -->
                 <div class="mt-6 border-t border-slate-100 pt-4">
@@ -224,39 +291,7 @@
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Lokasi / Instansi Tujuan</label>
                         <input type="text" name="lokasi" class="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-slate-400" placeholder="Contoh: SMA N 1 Cirebon">
                     </div>
-                    
-                    @if(isset($bawahan) && count($bawahan) > 0)
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim / Rekan <span class="text-slate-400 font-normal text-xs">(Opsional)</span></label>
-                        <p class="text-[10px] text-slate-500 mb-2">Pilih personil yang ikut terlibat. Agenda tetap tersinkronisasi ke semua role.</p>
-                        
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
-                            @php
-                                $grouped = collect($bawahan)->groupBy('role');
-                            @endphp
-                            @foreach($grouped as $roleGroup => $usersInGroup)
-                                <div class="px-3 py-1.5 bg-slate-100/70 sticky top-0">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $roleGroup }}</span>
-                                </div>
-                                @foreach($usersInGroup as $u)
-                                    <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-white cursor-pointer transition">
-                                        <input type="checkbox" name="assigned_users[]" value="{{ $u['id'] }}"
-                                               class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white shadow-xs shrink-0">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
-                                                {{ strtoupper(substr($u['name'], 0, 1)) }}
-                                            </div>
-                                            <div class="min-w-0">
-                                                <div class="text-sm font-semibold text-slate-800 truncate">{{ $u['name'] }}</div>
-                                                <div class="text-[10px] text-slate-400">{{ $u['role'] }}</div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                @endforeach
-                            @endforeach
-                        </div>
-                    </div>
-                    @endif
+
 
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Deskripsi Tambahan</label>
@@ -413,6 +448,58 @@
             getSalesForSpv(spvId) {
                 if (!this.selectedEvent || !this.selectedEvent.sales) return [];
                 return this.selectedEvent.sales.filter(s => s.assigned_by_spv_id === spvId);
+            },
+
+            currentUserRole: '{{ auth()->user()->role ?? '' }}',
+            takeoverLoading: false,
+
+            canTakeover(evt) {
+                if (!evt || !evt.is_eo_event) return false;
+                const role = (this.currentUserRole || '').toLowerCase();
+                const disallowed = ['admin', 'data analyst', 'data-analyst', 'analyst'];
+                if (disallowed.includes(role)) return false;
+                return !evt.takeover_by;
+            },
+
+            async doTakeover(evt) {
+                if (!evt) return;
+                if (!confirm(`Apakah Anda yakin ingin mengambil alih (Takeover) event '${evt.title}'?`)) {
+                    return;
+                }
+
+                this.takeoverLoading = true;
+                try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                    const response = await fetch(`/calendar/events/${evt.id}/takeover`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken || ''
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert(data.message || 'Takeover berhasil!');
+                        await this.fetchEvents();
+                        if (this.selectedEvent && this.selectedEvent.id === evt.id) {
+                            this.selectedEvent = this.events.find(e => e.id === evt.id) || this.selectedEvent;
+                        }
+                    } else {
+                        alert(data.message || 'Gagal melakukan Takeover event.');
+                        await this.fetchEvents();
+                        if (this.selectedEvent && this.selectedEvent.id === evt.id) {
+                            this.selectedEvent = this.events.find(e => e.id === evt.id) || this.selectedEvent;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Takeover error:', err);
+                    alert('Terjadi kesalahan jaringan saat melakukan Takeover.');
+                } finally {
+                    this.takeoverLoading = false;
+                }
             },
 
             formatDate(dateStr) {
