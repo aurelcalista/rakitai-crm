@@ -48,14 +48,20 @@ class EventController extends Controller
             ->paginate(25);
 
         $eventTypes  = MasterData::where('type', 'jenis_event')->where('status', 'Aktif')->get();
-        $spvs        = User::whereIn('role', ['SPV', 'Supervisor Marketing', 'Supervisor'])->where('status', 'Aktif')->get();
+        // All active users (except this EO) grouped by role for the assignment checkboxes
+        $allUsers    = User::where('status', 'Aktif')
+                           ->where('id', '!=', $user->id)
+                           ->orderBy('role')
+                           ->orderBy('name')
+                           ->get()
+                           ->groupBy('role');
         $dosens      = User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $salesList   = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
 
-        return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'spvs', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
+        return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'allUsers', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
     }
 
     public function show($id)
@@ -103,9 +109,10 @@ class EventController extends Controller
             'pic_name'       => 'nullable|string|max:255',
             'pic_whatsapp'   => 'nullable|string|max:20',
         ], [
-            'waktu_selesai.after' => 'Waktu selesai harus setelah waktu mulai.',
-            'spvs.required'       => 'Minimal satu SPV harus dipilih.',
-            'sales.*.exists'      => 'User yang ditugaskan harus ber-role Sales.',
+            'waktu_selesai.after'  => 'Waktu selesai harus setelah waktu mulai.',
+            'spvs.required'        => 'Minimal satu anggota tim harus dipilih.',
+            'spvs.min'             => 'Minimal satu anggota tim harus dipilih.',
+            'sales.*.exists'       => 'User yang ditugaskan tidak valid.',
         ]);
 
         // Check if event type is Training
@@ -210,12 +217,7 @@ class EventController extends Controller
             'spvs'           => 'required|array|min:1',
             'spvs.*'         => 'exists:users,id',
             'sales'          => 'nullable|array',
-            'sales.*'        => [
-                'required',
-                Rule::exists('users', 'id')->where(function ($query) {
-                    $query->where('role', 'Sales');
-                }),
-            ],
+            'sales.*'        => 'exists:users,id',
             'deskripsi'      => 'nullable|string',
             'dosen_id'       => 'nullable|exists:users,id',
             'dosen_pemateri' => 'nullable|string|max:255',

@@ -9,14 +9,21 @@
         </div>
         <div class="flex items-center gap-3">
             <select x-model="agendaFilter" class="text-xs sm:text-sm border-slate-200 rounded-xl bg-slate-50 text-slate-700 py-1.5 focus:ring-blue-500 focus:border-blue-500">
-                <option value="Semua">Semua Agenda</option>
+                <option value="Semua">Semua</option>
+                <option value="Agenda">Agenda Internal</option>
+                <option value="Event">Event EO</option>
                 <option value="Pribadi">Agenda Pribadi</option>
-                <option value="Tim">Agenda Tim</option>
             </select>
             <button @click="modalAddAgenda = true" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5">
                 <svg class="w-4 h-4 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                 <span>Tambah Agenda</span>
             </button>
+            <!-- Legend -->
+            <div class="hidden sm:flex items-center gap-3 text-[10px] font-semibold text-slate-500">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>Agenda</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>Event EO</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>Dibatalkan</span>
+            </div>
             <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <button @click="prevMonth()" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm text-slate-600">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
@@ -67,16 +74,16 @@
                             <div 
                                 @click="openEventDetails(evt)"
                                 class="flex flex-col gap-0.5 text-[10px] sm:text-xs p-1.5 sm:p-2 rounded-lg border cursor-pointer transition hover:opacity-80"
-                                :class="getEventColor(evt.status)"
+                                :class="getEventColor(evt)"
                                 :title="evt.title"
                             >
                                 <div class="font-bold truncate flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full shrink-0" :class="getEventDotColor(evt.status)"></span>
+                                    <span class="w-2 h-2 rounded-full shrink-0" :class="getEventDotColor(evt)"></span>
                                     <span class="truncate" x-text="evt.title"></span>
                                 </div>
                                 <div class="text-[9px] sm:text-[10px] opacity-80 hidden sm:block" x-text="evt.waktu_mulai + ' - ' + evt.waktu_selesai"></div>
-                                <template x-if="evt.sales && evt.sales.length > 0">
-                                    <div class="text-[9px] sm:text-[10px] font-medium truncate opacity-90 hidden sm:block" x-text="'Personil: ' + evt.sales.map(s => s.name).join(', ')"></div>
+                                <template x-if="evt.is_eo_event">
+                                    <div class="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider opacity-70">Event EO</div>
                                 </template>
                             </div>
                         </template>
@@ -220,39 +227,33 @@
                     
                     @if(isset($bawahan) && count($bawahan) > 0)
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim / Rekan (Opsional)</label>
-                        <p class="text-[10px] text-slate-500 mb-2">Pilih personil yang ditugaskan/terlibat (opsional). Agenda tetap tersinkronisasi ke seluruh role.</p>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim / Rekan <span class="text-slate-400 font-normal text-xs">(Opsional)</span></label>
+                        <p class="text-[10px] text-slate-500 mb-2">Pilih personil yang ikut terlibat. Agenda tetap tersinkronisasi ke semua role.</p>
                         
-                        <div class="relative" @click.away="dropdownOpen = false">
-                            <div class="w-full border border-slate-200 rounded-xl bg-white p-1.5 flex flex-wrap gap-1.5 min-h-[42px] cursor-text focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow" @click="dropdownOpen = true; $refs.searchInput.focus()">
-                                <template x-for="id in selectedUserIds" :key="id">
-                                    <span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-xs px-2 py-1 rounded-lg">
-                                        <span x-text="getUser(id)?.name"></span>
-                                        <button type="button" @click.stop="removeUser(id)" class="text-blue-400 hover:text-blue-600 focus:outline-none">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                        </button>
-                                        <input type="hidden" name="assigned_users[]" :value="id">
-                                    </span>
-                                </template>
-                                <input x-ref="searchInput" x-model="searchUser" @focus="dropdownOpen = true" type="text" class="flex-1 min-w-[100px] border-none focus:ring-0 text-sm p-1 placeholder:text-slate-400 bg-transparent" placeholder="Cari & pilih anggota...">
-                            </div>
-                            
-                            <div x-show="dropdownOpen" x-transition class="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                <template x-for="user in filteredUsers" :key="user.id">
-                                    <div @click.stop="toggleUser(user.id)" class="px-3 py-2 cursor-pointer hover:bg-slate-50 flex items-center justify-between border-b border-slate-100 last:border-0">
-                                        <div>
-                                            <div class="text-sm font-medium text-slate-700" x-text="user.name"></div>
-                                            <div class="text-[10px] text-slate-500" x-text="user.role"></div>
-                                        </div>
-                                        <div x-show="selectedUserIds.includes(user.id)" class="text-blue-600">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                        </div>
-                                    </div>
-                                </template>
-                                <div x-show="filteredUsers.length === 0" class="px-3 py-4 text-center text-sm text-slate-500">
-                                    Tidak ada anggota ditemukan.
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-44 overflow-y-auto divide-y divide-slate-100">
+                            @php
+                                $grouped = collect($bawahan)->groupBy('role');
+                            @endphp
+                            @foreach($grouped as $roleGroup => $usersInGroup)
+                                <div class="px-3 py-1.5 bg-slate-100/70 sticky top-0">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $roleGroup }}</span>
                                 </div>
-                            </div>
+                                @foreach($usersInGroup as $u)
+                                    <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-white cursor-pointer transition">
+                                        <input type="checkbox" name="assigned_users[]" value="{{ $u['id'] }}"
+                                               class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white shadow-xs shrink-0">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+                                                {{ strtoupper(substr($u['name'], 0, 1)) }}
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-slate-800 truncate">{{ $u['name'] }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ $u['role'] }}</div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                @endforeach
+                            @endforeach
                         </div>
                     </div>
                     @endif
@@ -295,32 +296,6 @@
             modalEventDetail: false,
             modalAddAgenda: false,
             selectedEvent: null,
-
-            usersList: {!! isset($bawahan) ? json_encode($bawahan) : '[]' !!},
-            selectedUserIds: [],
-            searchUser: '',
-            dropdownOpen: false,
-
-            get filteredUsers() {
-                if (this.searchUser === '') return this.usersList;
-                return this.usersList.filter(u => u.name.toLowerCase().includes(this.searchUser.toLowerCase()) || u.role.toLowerCase().includes(this.searchUser.toLowerCase()));
-            },
-            
-            toggleUser(id) {
-                if (this.selectedUserIds.includes(id)) {
-                    this.selectedUserIds = this.selectedUserIds.filter(i => i !== id);
-                } else {
-                    this.selectedUserIds.push(id);
-                }
-            },
-            
-            removeUser(id) {
-                this.selectedUserIds = this.selectedUserIds.filter(i => i !== id);
-            },
-            
-            getUser(id) {
-                return this.usersList.find(u => u.id === id);
-            },
 
             init() {
                 this.generateCalendar();
@@ -409,21 +384,24 @@
             getEventsForDate(dateString) {
                 return this.events.filter(e => {
                     if (e.tanggal !== dateString) return false;
+                    if (this.agendaFilter === 'Agenda') return !e.is_eo_event && !e.is_personal;
+                    if (this.agendaFilter === 'Event') return e.is_eo_event;
                     if (this.agendaFilter === 'Pribadi') return e.is_personal;
-                    if (this.agendaFilter === 'Tim') return !e.is_personal;
                     return true;
                 }).sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai));
             },
 
-            getEventColor(status) {
-                if (status === 'Cancelled') return 'bg-rose-50 text-rose-700 border-rose-200';
-                if (status === 'Completed') return 'bg-slate-50 text-slate-600 border-slate-200';
+            getEventColor(evt) {
+                if (evt.status === 'Cancelled') return 'bg-rose-50 text-rose-700 border-rose-200';
+                if (evt.status === 'Completed') return 'bg-slate-50 text-slate-600 border-slate-200';
+                if (evt.is_eo_event) return 'bg-violet-50 text-violet-700 border-violet-200';
                 return 'bg-blue-50 text-blue-700 border-blue-200';
             },
 
-            getEventDotColor(status) {
-                if (status === 'Cancelled') return 'bg-rose-500';
-                if (status === 'Completed') return 'bg-slate-500';
+            getEventDotColor(evt) {
+                if (evt.status === 'Cancelled') return 'bg-rose-500';
+                if (evt.status === 'Completed') return 'bg-slate-400';
+                if (evt.is_eo_event) return 'bg-violet-500';
                 return 'bg-blue-500';
             },
 

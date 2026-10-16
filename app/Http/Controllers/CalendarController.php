@@ -79,6 +79,8 @@ class CalendarController extends Controller
                     'eo_name'       => $event->eo ? $event->eo->name : '-',
                     'status'        => $event->status,
                     'is_personal'   => $isPersonal,
+                    // is_eo_event: true when created by EO role (has a master-data type_id)
+                    'is_eo_event'   => !is_null($event->type_id),
                     'spvs'          => $event->spvs->map(fn($spv) => ['id' => $spv->id, 'name' => $spv->name]),
                     'sales'         => $event->sales->map(fn($s) => ['id' => $s->id, 'name' => $s->name]),
                 ];
