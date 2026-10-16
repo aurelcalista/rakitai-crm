@@ -76,7 +76,7 @@
                                 </div>
                                 <div class="text-[9px] sm:text-[10px] opacity-80 hidden sm:block" x-text="evt.waktu_mulai + ' - ' + evt.waktu_selesai"></div>
                                 <template x-if="evt.sales && evt.sales.length > 0">
-                                    <div class="text-[9px] sm:text-[10px] font-medium truncate opacity-90 hidden sm:block" x-text="'Sales: ' + evt.sales.map(s => s.name).join(', ')"></div>
+                                    <div class="text-[9px] sm:text-[10px] font-medium truncate opacity-90 hidden sm:block" x-text="'Personil: ' + evt.sales.map(s => s.name).join(', ')"></div>
                                 </template>
                             </div>
                         </template>
@@ -119,7 +119,7 @@
                     <div class="flex gap-3">
                         <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         <div class="text-slate-700">
-                            <span class="text-xs text-slate-500 block mb-1">Dikelola oleh (EO):</span>
+                            <span class="text-xs text-slate-500 block mb-1">Dibuat oleh:</span>
                             <span class="font-medium" x-text="selectedEvent?.eo_name"></span>
                         </div>
                     </div>
@@ -127,7 +127,7 @@
 
                 <!-- Assignment Section -->
                 <div class="mt-6 border-t border-slate-100 pt-4">
-                    <h4 class="text-sm font-bold text-slate-900 mb-3">Penugasan Tim</h4>
+                    <h4 class="text-sm font-bold text-slate-900 mb-3">Penugasan Personil</h4>
                     
                     <div class="space-y-4">
                         <template x-for="spv in selectedEvent?.spvs" :key="spv.id">
@@ -140,11 +140,22 @@
                                             <span class="text-xs text-slate-600" x-text="sales.name"></span>
                                         </div>
                                     </template>
-                                    <div x-show="getSalesForSpv(spv.id).length === 0" class="text-xs text-slate-400 italic">Belum ada Sales ditugaskan.</div>
+                                    <div x-show="getSalesForSpv(spv.id).length === 0" class="text-xs text-slate-400 italic">Belum ada personil di bawah SPV ini.</div>
                                 </div>
                             </div>
                         </template>
-                        <div x-show="!selectedEvent?.spvs?.length" class="text-xs text-slate-500 italic">Belum ada SPV ditugaskan.</div>
+                        <div x-show="!selectedEvent?.spvs?.length && selectedEvent?.sales?.length" class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                            <div class="font-semibold text-slate-800 text-sm mb-2">Anggota Terlibat</div>
+                            <div class="pl-2 border-l-2 border-blue-200 space-y-1">
+                                <template x-for="person in selectedEvent?.sales" :key="person.id">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                        <span class="text-xs text-slate-600" x-text="person.name"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div x-show="!selectedEvent?.spvs?.length && !selectedEvent?.sales?.length" class="text-xs text-slate-500 italic">Belum ada personil ditugaskan.</div>
                     </div>
                 </div>
 
@@ -209,8 +220,8 @@
                     
                     @if(isset($bawahan) && count($bawahan) > 0)
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim (Opsional)</label>
-                        <p class="text-[10px] text-slate-500 mb-2">Anggota Tim dikosongkan = Agenda Pribadi.</p>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim / Rekan (Opsional)</label>
+                        <p class="text-[10px] text-slate-500 mb-2">Pilih personil yang ditugaskan/terlibat (opsional). Agenda tetap tersinkronisasi ke seluruh role.</p>
                         
                         <div class="relative" @click.away="dropdownOpen = false">
                             <div class="w-full border border-slate-200 rounded-xl bg-white p-1.5 flex flex-wrap gap-1.5 min-h-[42px] cursor-text focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow" @click="dropdownOpen = true; $refs.searchInput.focus()">
