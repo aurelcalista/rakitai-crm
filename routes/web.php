@@ -298,7 +298,7 @@ Route::middleware('auth')->group(function () {
     // ──────────────────────────────────────────────────────────────
     // Shared CRM Modules (CS, SPV, HM, Admin, Fallback, Sales, EO)
     // ──────────────────────────────────────────────────────────────
-    Route::middleware(['role:Admin,HM,SPV,CS,Sales,EO'])->group(function () {
+    Route::middleware(['role:Admin,HM,SPV,CS,Sales,EO,Data Analyst'])->group(function () {
         // Attendance Routes
         Route::middleware(['role:Sales,CS,EO,SPV'])->group(function () {
             Route::get('/absensi/input', [\App\Http\Controllers\AttendanceController::class, 'create'])->name('attendance.create');

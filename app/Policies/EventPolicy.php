@@ -43,7 +43,7 @@ class EventPolicy
      */
     public function create(User $user): bool
     {
-        return in_array(strtolower($user->role), ['eo', 'spv', 'hm', 'admin']);
+        return in_array(strtolower($user->role), ['eo', 'spv', 'hm', 'admin', 'data analyst', 'data-analyst']);
     }
 
     /**
