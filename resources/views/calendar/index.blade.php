@@ -230,7 +230,7 @@
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Anggota Tim / Rekan <span class="text-slate-400 font-normal text-xs">(Opsional)</span></label>
                         <p class="text-[10px] text-slate-500 mb-2">Pilih personil yang ikut terlibat. Agenda tetap tersinkronisasi ke semua role.</p>
                         
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-44 overflow-y-auto divide-y divide-slate-100">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
                             @php
                                 $grouped = collect($bawahan)->groupBy('role');
                             @endphp

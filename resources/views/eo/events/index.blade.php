@@ -219,7 +219,7 @@
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan Anggota Tim <span class="text-rose-500">*</span></label>
                         <p class="text-[11px] text-slate-500 mb-2">Pilih satu atau lebih anggota yang terlibat dalam event ini.</p>
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-100">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
                             @foreach($allUsers as $roleGroup => $usersInRole)
                                 <div class="px-3 py-1.5 bg-slate-100/70">
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $roleGroup }}</span>
