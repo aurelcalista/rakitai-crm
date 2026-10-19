@@ -20,7 +20,7 @@ class EventPolicy
         $role = strtolower($user->role);
 
         return match ($role) {
-            'eo'    => $event->eo_id === $user->id,
+            'eo'    => true,
 
             'sales' => $event->sales()->where('users.id', $user->id)->exists(),
 
@@ -40,42 +40,29 @@ class EventPolicy
 
     /**
      * Create an event.
+     * Only EO role can create new EO events.
      */
     public function create(User $user): bool
     {
-        return in_array(strtolower($user->role), ['eo', 'spv', 'hm', 'admin', 'data analyst', 'data-analyst']);
+        return strtolower($user->role) === 'eo';
     }
 
     /**
      * Update an event.
+     * All roles except Sales can update existing EO events.
      */
     public function update(User $user, Event $event): bool
     {
-        $role = strtolower($user->role);
-
-        if ($role === 'admin') return true;
-
-        if ($role === 'eo') {
-            return $event->eo_id === $user->id;
-        }
-
-        if ($role === 'hm') {
-            return $user->wilayah_id === null || ($event->eo && $event->eo->wilayah_id === $user->wilayah_id);
-        }
-
-        if ($role === 'spv') {
-            return $event->spvs()->where('users.id', $user->id)->exists();
-        }
-
-        return false;
+        return strtolower($user->role) !== 'sales';
     }
 
     /**
      * Delete an event.
+     * All roles except Sales can delete existing EO events.
      */
     public function delete(User $user, Event $event): bool
     {
-        return $this->update($user, $event);
+        return strtolower($user->role) !== 'sales';
     }
 
     /**

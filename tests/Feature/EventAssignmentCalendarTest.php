@@ -159,8 +159,8 @@ class EventAssignmentCalendarTest extends TestCase
         ]);
     }
 
-    /** C & N. EO tidak dapat assign Sales di luar kewenangannya / Phase 8 authorization */
-    public function test_skenario_C_and_N_eo_tidak_dapat_kelola_event_eo_lain()
+    /** C & N. Role EO dapat mengelola (update/delete) event yang dibuat oleh EO lain */
+    public function test_skenario_C_and_N_eo_dapat_kelola_event_eo_lain()
     {
         $event2 = Event::create([
             'nama' => 'Event EO 2',
@@ -172,9 +172,9 @@ class EventAssignmentCalendarTest extends TestCase
             'status' => 'Rencana',
         ]);
 
-        // EO 1 cannot update or delete EO 2 event
-        $this->assertFalse(Gate::forUser($this->eo1)->allows('update', $event2));
-        $this->assertFalse(Gate::forUser($this->eo1)->allows('delete', $event2));
+        // EO 1 can update and delete EO 2 event
+        $this->assertTrue(Gate::forUser($this->eo1)->allows('update', $event2));
+        $this->assertTrue(Gate::forUser($this->eo1)->allows('delete', $event2));
     }
 
     /** E & F. Multiple Sales assignment tersimpan tanpa duplicate & Calendar sync dipanggil untuk setiap Sales */

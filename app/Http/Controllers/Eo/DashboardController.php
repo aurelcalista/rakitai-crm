@@ -25,8 +25,8 @@ class DashboardController extends Controller
 
         $today = Carbon::today();
 
-        // Query basis
-        $baseQuery = Event::where('eo_id', $user->id);
+        // Query basis: all EO events
+        $baseQuery = Event::whereNotNull('type_id');
 
         // Metrics
         $totalEvents = (clone $baseQuery)->count();

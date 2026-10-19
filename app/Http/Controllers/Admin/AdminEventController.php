@@ -43,7 +43,7 @@ class AdminEventController extends Controller
         ];
 
         $events = Event::with(['type', 'spvs', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
-            ->where('eo_id', $user->id)
+            ->whereNotNull('type_id')
             ->orderBy('tanggal_mulai', 'desc')
             ->paginate(25);
 
@@ -61,8 +61,10 @@ class AdminEventController extends Controller
     public function show($id)
     {
         $event = Event::with(['type', 'spvs', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
-            ->where('eo_id', Auth::id())
+            ->whereNotNull('type_id')
             ->findOrFail($id);
+
+        Gate::authorize('view', $event);
 
         if (request()->wantsJson()) {
             return response()->json($event);
@@ -73,6 +75,10 @@ class AdminEventController extends Controller
 
     public function store(Request $request)
     {
+        if (strtolower(Auth::user()->role) !== 'eo') {
+            abort(403, 'Hanya role EO yang dapat membuat Event EO baru.');
+        }
+
         Gate::authorize('create', Event::class);
 
         $request->validate([
@@ -192,12 +198,12 @@ class AdminEventController extends Controller
             }
         });
 
-        return back()->with('success', 'Event berhasil dibuat.');
+        return redirect()->route('admin.events.index')->with('success', 'Event berhasil dibuat.');
     }
 
     public function update(Request $request, $id)
     {
-        $event = Event::where('eo_id', Auth::id())->findOrFail($id);
+        $event = Event::whereNotNull('type_id')->findOrFail($id);
 
         Gate::authorize('update', $event);
 
@@ -366,12 +372,12 @@ class AdminEventController extends Controller
             }
         });
 
-        return back()->with('success', 'Event berhasil diperbarui.');
+        return redirect()->route('admin.events.index')->with('success', 'Event berhasil diperbarui.');
     }
 
     public function destroy($id)
     {
-        $event = Event::where('eo_id', Auth::id())->findOrFail($id);
+        $event = Event::whereNotNull('type_id')->findOrFail($id);
 
         Gate::authorize('delete', $event);
         
@@ -382,8 +388,11 @@ class AdminEventController extends Controller
             $this->calendarService->removeSalesEvent($event, $salesUser);
         }
 
+        $event->spvs()->detach();
+        $event->sales()->detach();
+
         $event->delete();
         
-        return back()->with('success', 'Event berhasil dibatalkan/dihapus.');
+        return redirect()->route('admin.events.index')->with('success', 'Event berhasil dibatalkan/dihapus.');
     }
 }
