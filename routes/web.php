@@ -44,7 +44,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar', [\App\Http\Controllers\CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/api/calendar/events', [\App\Http\Controllers\CalendarController::class, 'fetchEvents'])->name('api.calendar.events');
     Route::post('/calendar/meetings', [\App\Http\Controllers\CalendarController::class, 'storeMeeting'])->name('calendar.meetings.store');
+    Route::put('/calendar/meetings/{event}', [\App\Http\Controllers\CalendarController::class, 'updateMeeting'])->name('calendar.meetings.update');
+    Route::delete('/calendar/meetings/{event}', [\App\Http\Controllers\CalendarController::class, 'destroyMeeting'])->name('calendar.meetings.destroy');
     Route::post('/calendar/events/{event}/takeover', [\App\Http\Controllers\CalendarController::class, 'takeoverEvent'])->name('calendar.events.takeover');
+    Route::put('/calendar/events/{event}', [\App\Http\Controllers\CalendarController::class, 'updateEvent'])->name('calendar.events.update');
+    Route::delete('/calendar/events/{event}', [\App\Http\Controllers\CalendarController::class, 'destroyEvent'])->name('calendar.events.destroy');
 
     // Dependent Dropdown Master Data Wilayah & Sekolah
     Route::get('/api/wilayah/{city}/kecamatan', [\App\Http\Controllers\WilayahController::class, 'getKecamatanByKota'])->name('api.wilayah.kecamatan');

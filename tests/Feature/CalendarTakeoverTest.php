@@ -81,7 +81,7 @@ class CalendarTakeoverTest extends TestCase
      */
     public function test_1_agenda_baru_dapat_dibuat_tanpa_assigned_users()
     {
-        $response = $this->actingAs($this->sales)->post(route('calendar.meetings.store'), [
+        $response = $this->actingAs($this->spv)->post(route('calendar.meetings.store'), [
             'name'          => 'Kunjungan Lapangan Bersama',
             'tanggal'       => '2026-11-01',
             'waktu_mulai'   => '09:00',
@@ -96,7 +96,7 @@ class CalendarTakeoverTest extends TestCase
         $this->assertDatabaseHas('events', [
             'name'     => '[Kunjungan Sekolah] Kunjungan Lapangan Bersama',
             'type_id'  => null,
-            'eo_id'    => $this->sales->id,
+            'eo_id'    => $this->spv->id,
             'lokasi'   => 'SMK Informatika',
         ]);
 

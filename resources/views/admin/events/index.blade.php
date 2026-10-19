@@ -34,14 +34,8 @@
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Kelola Event</h1>
-            <p class="text-sm text-slate-500 mt-1">Buat dan kelola jadwal event beserta penugasan SPV.</p>
+            <p class="text-sm text-slate-500 mt-1">Kelola dan tinjau jadwal event operasional beserta penugasan personil.</p>
         </div>
-        <button @click="modalTambahEvent = true" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm ring-1 ring-blue-700/50">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Buat Event Baru
-        </button>
     </div>
 
     <!-- Data Table -->
@@ -128,135 +122,23 @@
         @endif
     </div>
 
-    <!-- Modal Tambah Event -->
-    <div x-show="modalTambahEvent" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden p-4 sm:p-0">
-        <div x-show="modalTambahEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @click="modalTambahEvent = false"></div>
-        <div x-show="modalTambahEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <h3 class="text-lg font-bold text-slate-900">Buat Event Baru</h3>
-                <button @click="modalTambahEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <form action="{{ route('admin.events.store') }}" method="POST" class="p-6 overflow-y-auto max-h-[calc(100vh-10rem)]">
-                @csrf
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: Edu Expo SMA ABC">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Event <span class="text-rose-500">*</span></label>
-                        <select name="type_id" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Jenis --</option>
-                            @foreach($eventTypes as $type)
-                                <option value="{{ $type->id }}">{{ $type->nama }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tanggal <span class="text-rose-500">*</span></label>
-                        <input type="date" name="tanggal" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Waktu Mulai <span class="text-rose-500">*</span></label>
-                        <input type="time" name="waktu_mulai" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Waktu Selesai <span class="text-rose-500">*</span></label>
-                        <input type="time" name="waktu_selesai" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="lokasi" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: Aula SMA ABC">
-                    </div>
-                    
-                    <div class="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
-                        <h4 class="font-bold text-slate-800 mb-3">Informasi Target & Akademik</h4>
-                    </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Dosen / Pemateri</label>
-                        <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Program Studi</label>
-                        <select name="prodi_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Prodi --</option>
-                            @foreach($prodis as $prodi)
-                                <option value="{{ $prodi->id }}">{{ $prodi->nama }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Institusi</label>
-                        <select name="jenis_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Jenis --</option>
-                            <option value="Sekolah">Sekolah / Universitas</option>
-                            <option value="Perusahaan">Perusahaan / Corporate</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Institusi</label>
-                        <input type="text" name="nama_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: SMA Negeri 1 Cirebon">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Institusi</label>
-                        <input type="text" name="alamat" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Alamat lengkap...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama PIC / Kontak</label>
-                        <input type="text" name="pic_name" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Nama PIC...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
-                        <input type="text" name="pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
-                    </div>
-                    
-                    <!-- Multi-select SPV -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan SPV (Bisa lebih dari 1) <span class="text-rose-500">*</span></label>
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-40 overflow-y-auto">
-                            @foreach($spvs as $spv)
-                                <label class="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer transition">
-                                    <input type="checkbox" name="spvs[]" value="{{ $spv->id }}" class="rounded text-blue-600 focus:ring-blue-500 border-slate-300 bg-white shadow-sm w-4 h-4">
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-slate-800">{{ $spv->name }}</span>
-                                        <span class="text-[10px] text-slate-500">{{ $spv->wilayah ? $spv->wilayah->nama : 'Semua Wilayah' }}</span>
-                                    </div>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-                    
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Deskripsi</label>
-                        <textarea name="deskripsi" rows="3" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Catatan tambahan acara..."></textarea>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" @click="modalTambahEvent = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition">Simpan Event</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Modal Edit Event -->
     <div x-show="modalEditEvent" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden p-4 sm:p-0">
         <div x-show="modalEditEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @click="modalEditEvent = false"></div>
-        <div x-show="modalEditEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <h3 class="text-lg font-bold text-slate-900">Edit Event</h3>
-                <button @click="modalEditEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <form :action="`/admin.events.${selectedEvent?.id}`" method="POST" class="p-6 overflow-y-auto max-h-[calc(100vh-10rem)]">
+        <div x-show="modalEditEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl h-[90vh] max-h-[90vh] flex flex-col transform transition-all overflow-hidden border border-slate-100">
+            <form :action="`/admin/events/${selectedEvent?.id}`" method="POST" x-data="{ isSubmitting: false }" @submit="if(isSubmitting){ $event.preventDefault(); return false; } isSubmitting = true" class="flex flex-col h-full min-h-0 overflow-hidden">
                 @csrf
                 @method('PUT')
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                <div class="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
+                    <h3 class="text-lg font-bold text-slate-900">Edit Event</h3>
+                    <button type="button" @click="modalEditEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div class="flex-1 min-h-0 p-6 overflow-y-auto">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Event <span class="text-rose-500">*</span></label>
                         <input type="text" name="name" :value="selectedEvent?.name" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
@@ -351,9 +233,12 @@
                         <textarea name="deskripsi" rows="3" x-text="selectedEvent?.deskripsi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition"></textarea>
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <div class="shrink-0 flex justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/80">
                     <button type="button" @click="modalEditEvent = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition">Simpan Perubahan</button>
+                    <button type="submit" :disabled="isSubmitting" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        <svg x-show="isSubmitting" class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'"></span>
+                    </button>
                 </div>
             </form>
         </div>

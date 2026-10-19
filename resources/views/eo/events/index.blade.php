@@ -129,232 +129,476 @@
         @endif
     </div>
 
-    <!-- Modal Tambah Event -->
-    <div x-show="modalTambahEvent" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden p-4 sm:p-0">
-        <div x-show="modalTambahEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @click="modalTambahEvent = false"></div>
-        <div x-show="modalTambahEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <h3 class="text-lg font-bold text-slate-900">Buat Event Baru</h3>
-                <button @click="modalTambahEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <form action="{{ route('eo.events.store') }}" method="POST" class="p-6 overflow-y-auto max-h-[calc(100vh-10rem)]">
+    <!-- Modal Tambah Event (Style Identik dengan Modal Detail) -->
+    <div x-show="modalTambahEvent" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div x-show="modalTambahEvent" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0" 
+             x-transition:enter-end="opacity-100" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100" 
+             x-transition:leave-end="opacity-0" 
+             class="fixed inset-0 bg-slate-900/60 backdrop-blur-md" 
+             @click="modalTambahEvent = false"></div>
+        <div x-show="modalTambahEvent" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0 scale-95 translate-y-2" 
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0" 
+             x-transition:leave-end="opacity-0 scale-95 translate-y-2" 
+             class="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[90vh] flex flex-col transform transition-all overflow-hidden border border-slate-100">
+            <form action="{{ route('eo.events.store') }}" method="POST" x-data="{ isSubmitting: false }" @submit="if(isSubmitting){ $event.preventDefault(); return false; } isSubmitting = true" class="flex flex-col h-full min-h-0 overflow-hidden">
                 @csrf
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: Edu Expo SMA ABC">
+                <!-- Header (Identik dengan modal detail) -->
+                <div class="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">Buat Event Baru</h3>
+                            <p class="text-xs text-slate-500">Lengkapi data pelaksanaan, target institusi, dan rincian akademik</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Event <span class="text-rose-500">*</span></label>
-                        <select name="type_id" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Jenis --</option>
-                            @foreach($eventTypes as $type)
-                                <option value="{{ $type->id }}">{{ $type->nama }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tanggal <span class="text-rose-500">*</span></label>
-                        <input type="date" name="tanggal" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Waktu Mulai <span class="text-rose-500">*</span></label>
-                        <input type="time" name="waktu_mulai" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Waktu Selesai <span class="text-rose-500">*</span></label>
-                        <input type="time" name="waktu_selesai" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="lokasi" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: Aula SMA ABC">
-                    </div>
-                    
-                    <div class="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
-                        <h4 class="font-bold text-slate-800 mb-3">Informasi Target & Akademik</h4>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Dosen / Pemateri</label>
-                        <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Program Studi</label>
-                        <select name="prodi_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Prodi --</option>
-                            @foreach($prodis as $prodi)
-                                <option value="{{ $prodi->id }}">{{ $prodi->nama }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Institusi</label>
-                        <select name="jenis_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Jenis --</option>
-                            <option value="Sekolah">Sekolah / Universitas</option>
-                            <option value="Perusahaan">Perusahaan / Corporate</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Institusi</label>
-                        <input type="text" name="nama_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: SMA Negeri 1 Cirebon">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Institusi</label>
-                        <input type="text" name="alamat" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Alamat lengkap...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama PIC / Kontak</label>
-                        <input type="text" name="pic_name" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Nama PIC...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
-                        <input type="text" name="pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Deskripsi</label>
-                        <textarea name="deskripsi" rows="3" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Catatan tambahan acara..."></textarea>
-                    </div>
+                    <button type="button" @click="modalTambahEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1.5 rounded-lg hover:bg-slate-200">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" @click="modalTambahEvent = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition">Simpan Event</button>
+
+                <!-- Body (Kartu section terstruktur identik dengan modal detail) -->
+                <div class="flex-1 min-h-0 p-6 overflow-y-auto space-y-5">
+                    
+                    <!-- Card 1: Waktu & Lokasi Pelaksanaan -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                            <div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Waktu & Lokasi Pelaksanaan</h4>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Nama Event <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" name="name" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: Edu Expo SMA Pasundan 1">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Jenis Event <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <select name="type_id" required class="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs appearance-none font-medium">
+                                        <option value="">-- Pilih Jenis --</option>
+                                        @foreach($eventTypes as $type)
+                                            <option value="{{ $type->id }}">{{ $type->nama }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Tanggal Pelaksanaan <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="date" name="tanggal" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Waktu Mulai <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="time" name="waktu_mulai" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Waktu Selesai <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="time" name="waktu_selesai" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Lokasi Event <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" name="lokasi" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: Aula SMA Pasundan 1 Cirebon">
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Informasi Target & PIC -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Informasi Target & PIC</h4>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-medium">Opsional</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Jenis Institusi
+                                </label>
+                                <div class="relative">
+                                    <select name="jenis_institusi" class="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs appearance-none font-medium">
+                                        <option value="">-- Pilih Jenis --</option>
+                                        <option value="Sekolah">Sekolah / Universitas</option>
+                                        <option value="Perusahaan">Perusahaan / Corporate</option>
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nama Institusi
+                                </label>
+                                <input type="text" name="nama_institusi" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: SMA Negeri 1 Cirebon">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Alamat Institusi
+                            </label>
+                            <input type="text" name="alamat" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Alamat lengkap institusi atau instansi...">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nama PIC / Kontak
+                                </label>
+                                <input type="text" name="pic_name" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: Bpk. Bambang, S.Pd.">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nomor WhatsApp PIC
+                                </label>
+                                <input type="text" name="pic_whatsapp" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: 08123456789">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Akademik & Pemateri -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Akademik & Pemateri</h4>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-medium">Opsional</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nama Dosen / Pemateri
+                                </label>
+                                <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Program Studi
+                                </label>
+                                <div class="relative">
+                                    <select name="prodi_id" class="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs appearance-none font-medium">
+                                        <option value="">-- Pilih Prodi --</option>
+                                        @foreach($prodis as $prodi)
+                                            <option value="{{ $prodi->id }}">{{ $prodi->nama }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Deskripsi & Catatan -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-amber-100 text-amber-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Deskripsi & Catatan</h4>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-medium">Opsional</span>
+                        </div>
+
+                        <div>
+                            <textarea name="deskripsi" rows="3" class="w-full p-3.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs resize-none font-medium leading-relaxed" placeholder="Catatan tambahan acara atau rincian instruksi khusus..."></textarea>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer (Identik dengan modal detail) -->
+                <div class="shrink-0 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex items-center justify-end gap-3">
+                    <button type="button" @click="modalTambahEvent = false" class="px-5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition shadow-2xs">Batal</button>
+                    <button type="submit" :disabled="isSubmitting" class="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl disabled:opacity-50 transition shadow-sm hover:shadow flex items-center gap-2">
+                        <svg x-show="!isSubmitting" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="isSubmitting ? 'Menyimpan...' : 'Simpan Event'"></span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Edit Event -->
-    <div x-show="modalEditEvent" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden p-4 sm:p-0">
-        <div x-show="modalEditEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" @click="modalEditEvent = false"></div>
-        <div x-show="modalEditEvent" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <h3 class="text-lg font-bold text-slate-900">Edit Event</h3>
-                <button @click="modalEditEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-100">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <form :action="`/eo/events/${selectedEvent?.id}`" method="POST" class="p-6 overflow-y-auto max-h-[calc(100vh-10rem)]">
+    <!-- Modal Edit Event (Style Identik dengan Modal Detail) -->
+    <div x-show="modalEditEvent" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div x-show="modalEditEvent" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0" 
+             x-transition:enter-end="opacity-100" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100" 
+             x-transition:leave-end="opacity-0" 
+             class="fixed inset-0 bg-slate-900/60 backdrop-blur-md" 
+             @click="modalEditEvent = false"></div>
+        <div x-show="modalEditEvent" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0 scale-95 translate-y-2" 
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0" 
+             x-transition:leave-end="opacity-0 scale-95 translate-y-2" 
+             class="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] max-h-[90vh] flex flex-col transform transition-all overflow-hidden border border-slate-100">
+            <form :action="`/eo/events/${selectedEvent?.id}`" method="POST" x-data="{ isSubmitting: false }" @submit="if(isSubmitting){ $event.preventDefault(); return false; } isSubmitting = true" class="flex flex-col h-full min-h-0 overflow-hidden">
                 @csrf
                 @method('PUT')
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="name" :value="selectedEvent?.name" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Event <span class="text-rose-500">*</span></label>
-                        <select name="type_id" :value="selectedEvent?.type_id" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Jenis --</option>
-                            @foreach($eventTypes as $type)
-                                <option value="{{ $type->id }}" :selected="selectedEvent?.type_id == {{ $type->id }}">{{ $type->nama }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tanggal <span class="text-rose-500">*</span></label>
-                        <input type="date" name="tanggal" :value="formatDate(selectedEvent?.tanggal)" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Waktu Mulai <span class="text-rose-500">*</span></label>
-                        <input type="time" name="waktu_mulai" :value="formatTime(selectedEvent?.waktu_mulai)" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Waktu Selesai <span class="text-rose-500">*</span></label>
-                        <input type="time" name="waktu_selesai" :value="formatTime(selectedEvent?.waktu_selesai)" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Lokasi Event <span class="text-rose-500">*</span></label>
-                        <input type="text" name="lokasi" :value="selectedEvent?.lokasi" required class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    
-                    <div class="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
-                        <h4 class="font-bold text-slate-800 mb-3">Informasi Target & Akademik</h4>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Dosen / Pemateri</label>
-                        <input type="text" name="dosen_pemateri" :value="selectedEvent?.dosen_pemateri || selectedEvent?.dosen?.name" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Program Studi</label>
-                        <select name="prodi_id" :value="selectedEvent?.prodi_id" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Prodi --</option>
-                            @foreach($prodis as $prodi)
-                                <option value="{{ $prodi->id }}" :selected="selectedEvent?.prodi_id == {{ $prodi->id }}">{{ $prodi->nama }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Jenis Institusi</label>
-                        <select name="jenis_institusi" :value="selectedEvent?.jenis_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition">
-                            <option value="">-- Pilih Jenis --</option>
-                            <option value="Sekolah" :selected="selectedEvent?.jenis_institusi == 'Sekolah'">Sekolah / Universitas</option>
-                            <option value="Perusahaan" :selected="selectedEvent?.jenis_institusi == 'Perusahaan'">Perusahaan / Corporate</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Institusi</label>
-                        <input type="text" name="nama_institusi" :value="selectedEvent?.nama_institusi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: SMA Negeri 1 Cirebon">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Institusi</label>
-                        <input type="text" name="alamat" :value="selectedEvent?.alamat" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Alamat lengkap...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama PIC / Kontak</label>
-                        <input type="text" name="pic_name" :value="selectedEvent?.pic_name" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Nama PIC...">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp PIC</label>
-                        <input type="text" name="pic_whatsapp" :value="selectedEvent?.pic_whatsapp" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition" placeholder="Contoh: 08123456789">
-                    </div>
-                    
-                    <!-- Multi-select Anggota Tim (edit) -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Tugaskan Anggota Tim <span class="text-rose-500">*</span></label>
-                        <p class="text-[11px] text-slate-500 mb-2">Pilih satu atau lebih anggota. Anggota yang sudah ditugaskan sebelumnya otomatis tercentang.</p>
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-100">
-                            @foreach($allUsers as $roleGroup => $usersInRole)
-                                <div class="px-3 py-1.5 bg-slate-100/70">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $roleGroup }}</span>
-                                </div>
-                                @foreach($usersInRole as $u)
-                                    <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-white cursor-pointer transition group">
-                                        <input type="checkbox" name="spvs[]" value="{{ $u->id }}"
-                                               :checked="selectedEvent?.spv_ids?.includes({{ $u->id }})"
-                                               class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white shadow-xs shrink-0">
-                                        <div class="flex items-center gap-2 min-w-0">
-                                            <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
-                                                {{ strtoupper(substr($u->name, 0, 1)) }}
-                                            </div>
-                                            <div class="min-w-0">
-                                                <div class="text-sm font-semibold text-slate-800 truncate">{{ $u->name }}</div>
-                                                <div class="text-[10px] text-slate-400">{{ $u->role }}</div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                @endforeach
-                            @endforeach
-                            @if($allUsers->isEmpty())
-                                <div class="px-4 py-4 text-sm text-slate-400 text-center italic">Tidak ada anggota tersedia.</div>
-                            @endif
+                <!-- Header (Identik dengan modal detail) -->
+                <div class="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">Edit Event</h3>
+                            <p class="text-xs text-slate-500">Perbarui rincian event, lokasi, target institusi, atau akademik</p>
                         </div>
                     </div>
-                    
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Deskripsi</label>
-                        <textarea name="deskripsi" rows="3" x-text="selectedEvent?.deskripsi" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition"></textarea>
-                    </div>
+                    <button type="button" @click="modalEditEvent = false" class="text-slate-400 hover:text-slate-600 transition p-1.5 rounded-lg hover:bg-slate-200">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                    <button type="button" @click="modalEditEvent = false" class="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm transition">Simpan Perubahan</button>
+
+                <!-- Body (Kartu section terstruktur identik dengan modal detail) -->
+                <div class="flex-1 min-h-0 p-6 overflow-y-auto space-y-5">
+                    
+                    <!-- Card 1: Waktu & Lokasi Pelaksanaan -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                            <div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Waktu & Lokasi Pelaksanaan</h4>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Nama Event <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" name="name" :value="selectedEvent?.name" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Jenis Event <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <select name="type_id" :value="selectedEvent?.type_id" required class="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs appearance-none font-medium">
+                                        <option value="">-- Pilih Jenis --</option>
+                                        @foreach($eventTypes as $type)
+                                            <option value="{{ $type->id }}" :selected="selectedEvent?.type_id == {{ $type->id }}">{{ $type->nama }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Tanggal Pelaksanaan <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="date" name="tanggal" :value="formatDate(selectedEvent?.tanggal)" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Waktu Mulai <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="time" name="waktu_mulai" :value="formatTime(selectedEvent?.waktu_mulai)" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Waktu Selesai <span class="text-rose-500">*</span>
+                                </label>
+                                <input type="time" name="waktu_selesai" :value="formatTime(selectedEvent?.waktu_selesai)" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Lokasi Event <span class="text-rose-500">*</span>
+                            </label>
+                            <input type="text" name="lokasi" :value="selectedEvent?.lokasi" required class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Informasi Target & PIC -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Informasi Target & PIC</h4>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-medium">Opsional</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Jenis Institusi
+                                </label>
+                                <div class="relative">
+                                    <select name="jenis_institusi" :value="selectedEvent?.jenis_institusi" class="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs appearance-none font-medium">
+                                        <option value="">-- Pilih Jenis --</option>
+                                        <option value="Sekolah" :selected="selectedEvent?.jenis_institusi == 'Sekolah'">Sekolah / Universitas</option>
+                                        <option value="Perusahaan" :selected="selectedEvent?.jenis_institusi == 'Perusahaan'">Perusahaan / Corporate</option>
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nama Institusi
+                                </label>
+                                <input type="text" name="nama_institusi" :value="selectedEvent?.nama_institusi" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: SMA Negeri 1 Cirebon">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Alamat Institusi
+                            </label>
+                            <input type="text" name="alamat" :value="selectedEvent?.alamat" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Alamat lengkap...">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nama PIC / Kontak
+                                </label>
+                                <input type="text" name="pic_name" :value="selectedEvent?.pic_name" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Nama PIC...">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nomor WhatsApp PIC
+                                </label>
+                                <input type="text" name="pic_whatsapp" :value="selectedEvent?.pic_whatsapp" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: 08123456789">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Akademik & Pemateri -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Akademik & Pemateri</h4>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-medium">Opsional</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Nama Dosen / Pemateri
+                                </label>
+                                <input type="text" name="dosen_pemateri" :value="selectedEvent?.dosen_pemateri || selectedEvent?.dosen?.name" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Program Studi
+                                </label>
+                                <div class="relative">
+                                    <select name="prodi_id" :value="selectedEvent?.prodi_id" class="w-full px-3.5 pr-10 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs appearance-none font-medium">
+                                        <option value="">-- Pilih Prodi --</option>
+                                        @foreach($prodis as $prodi)
+                                            <option value="{{ $prodi->id }}" :selected="selectedEvent?.prodi_id == {{ $prodi->id }}">{{ $prodi->nama }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Deskripsi & Catatan -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-amber-100 text-amber-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Deskripsi & Catatan</h4>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-medium">Opsional</span>
+                        </div>
+
+                        <div>
+                            <textarea name="deskripsi" :value="selectedEvent?.deskripsi" rows="3" class="w-full p-3.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs resize-none font-medium leading-relaxed" placeholder="Catatan tambahan acara..."></textarea>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer (Identik dengan modal detail) -->
+                <div class="shrink-0 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex items-center justify-end gap-3">
+                    <button type="button" @click="modalEditEvent = false" class="px-5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition shadow-2xs">Batal</button>
+                    <button type="submit" :disabled="isSubmitting" class="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl disabled:opacity-50 transition shadow-sm hover:shadow flex items-center gap-2">
+                        <svg x-show="!isSubmitting" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <svg x-show="isSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span x-text="isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'"></span>
+                    </button>
                 </div>
             </form>
         </div>
