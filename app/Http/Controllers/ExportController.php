@@ -307,18 +307,20 @@ class ExportController extends Controller
 
         $query->chunk(250, function ($prospeks) use ($sheet, &$row, &$no, $stringCols) {
             foreach ($prospeks as $p) {
+                $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
+                $institusiName = $p->sekolah?->nama ?: ($p->perusahaan?->nama ?: ($p->type === 'Sekolah' || $p->type === 'Corporate' ? $p->name : '-'));
                 $values = [
                     $no++,
                     $p->id,
                     $p->no_registrasi ?: '-',
-                    $p->name,
+                    $camabaName,
                     $p->whatsapp ?: '-',
                     $p->type,
                     $p->status,
                     $p->prodi?->nama ?: ($p->prodi_lainnya ?: '-'),
                     $p->kelas ?: 'Reguler',
-                    $p->sekolah?->nama ?: ($p->perusahaan?->nama ?: '-'),
-                    $p->wilayah?->nama ?: '-',
+                    $institusiName,
+                    $p->wilayah?->nama ?: ($p->sekolah?->wilayah?->nama ?: '-'),
                     $p->sales?->name ?: ($p->owner?->name ?: '-'),
                     $p->cs?->name ?: '-',
                     $p->source ?: '-',
@@ -566,12 +568,14 @@ class ExportController extends Controller
         $query->chunk(250, function ($transaksis) use ($sheet, &$row, &$no, $stringCols, $currencyCols) {
             foreach ($transaksis as $t) {
                 $p = $t->prospek;
+                $camabaName = (!empty($p?->pic) && $p?->pic !== '-') ? $p?->pic : ($p?->name ?: '-');
+                $institusiName = $p?->sekolah?->nama ?: ($p?->perusahaan?->nama ?: ($p && ($p->type === 'Sekolah' || $p->type === 'Corporate') ? $p->name : '-'));
                 $values = [
                     $no++,
                     $t->id,
                     $p?->no_registrasi ?: '-',
-                    $p?->name ?: '-',
-                    $p?->sekolah?->nama ?: ($p?->perusahaan?->nama ?: '-'),
+                    $camabaName,
+                    $institusiName,
                     $p?->sales?->name ?: ($t->user?->name ?: '-'),
                     $p?->cs?->name ?: '-',
                     $p?->prodi?->nama ?: ($p?->prodi_lainnya ?: '-'),
@@ -697,11 +701,12 @@ class ExportController extends Controller
         $query->chunk(250, function ($transaksis) use ($sheet, &$row, &$no, $stringCols, $currencyCols) {
             foreach ($transaksis as $t) {
                 $p = $t->prospek;
+                $camabaName = (!empty($p?->pic) && $p?->pic !== '-') ? $p?->pic : ($p?->name ?: '-');
                 $values = [
                     $no++,
                     $t->id,
                     $t->tanggal ? Carbon::parse($t->tanggal)->format('d/m/Y') : '-',
-                    $p?->name ?: '-',
+                    $camabaName,
                     $p?->whatsapp ?: '-',
                     $p?->sales?->name ?: ($t->user?->name ?: '-'),
                     $p?->cs?->name ?: '-',

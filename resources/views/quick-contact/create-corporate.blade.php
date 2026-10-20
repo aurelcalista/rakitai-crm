@@ -96,13 +96,13 @@
                     <!-- No WhatsApp PIC -->
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1">Nomor WhatsApp PIC <span class="text-rose-500">*</span></label>
-                        <input type="tel" name="no_whatsapp" value="{{ old('no_whatsapp') }}" required class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Contoh: 08123456789">
+                        <x-input-whatsapp name="no_whatsapp" value="{{ old('no_whatsapp') }}" required placeholder="8123456789" />
                     </div>
 
                     <!-- No Perusahaan (wa_ortu) -->
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Nomor Perusahaan <span class="text-sm font-normal text-slate-500">(Opsional)</span></label>
-                        <input type="tel" name="wa_ortu" value="{{ old('wa_ortu') }}" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" placeholder="Contoh: (021) 1234567">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Nomor WhatsApp Perusahaan/Kantor <span class="text-sm font-normal text-slate-500">(Opsional)</span></label>
+                        <x-input-whatsapp name="wa_ortu" value="{{ old('wa_ortu') }}" placeholder="8123456789" />
                     </div>
 
                     <!-- Prodi -->

@@ -106,13 +106,17 @@ class VisitController extends Controller
     {
         $this->authorize('update', $kunjungan);
 
+        if ($request->filled('pic_whatsapp')) {
+            $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
+        }
+
         $validated = $request->validate([
             'tanggal'                  => 'required|date',
             'waktu'                    => 'nullable|string',
             'nama_institusi'           => 'nullable|string|max:255',
             'tujuan_kunjungan'         => 'nullable|string|max:255',
             'pic_name'                 => 'nullable|string|max:255',
-            'pic_whatsapp'             => 'nullable|string|max:30',
+            'pic_whatsapp'             => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'alamat'                   => 'nullable|string|max:500',
             'catatan'                  => 'nullable|string|max:2000',
             'hasil'                    => 'nullable|string|max:2000',
@@ -150,6 +154,10 @@ class VisitController extends Controller
 
         if ($request->has('kesediaan_training_ai')) {
             $validated['kesediaan_training_ai'] = $request->boolean('kesediaan_training_ai');
+        }
+
+        if (array_key_exists('pic_whatsapp', $validated)) {
+            $validated['pic_whatsapp'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['pic_whatsapp']);
         }
 
         $kunjungan->update($validated);

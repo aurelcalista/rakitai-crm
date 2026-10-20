@@ -782,6 +782,10 @@
                                     onUseExisting: (matched) => {
                                         this.manualSchool = false;
                                         this.manualSchoolName = '';
+                                        const inputSekolah = e.target.querySelector('input[name="sekolah_id"]');
+                                        if (inputSekolah) inputSekolah.value = String(matched.id);
+                                        const inputManual = e.target.querySelector('input[name="sekolah_manual"]');
+                                        if (inputManual) inputManual.value = '';
                                         window.dispatchEvent(new CustomEvent('select-item', {
                                             detail: { name: 'sekolah_id', value: String(matched.id), label: matched.nama }
                                         }));
@@ -792,6 +796,16 @@
                                     return;
                                 }
                             }
+
+                            // Ensure clean mutual exclusivity between master school and manual school
+                            if (this.manualSchool) {
+                                const inputSekolah = e.target.querySelector('input[name="sekolah_id"]');
+                                if (inputSekolah) inputSekolah.value = '';
+                            } else {
+                                const inputManual = e.target.querySelector('input[name="sekolah_manual"]');
+                                if (inputManual) inputManual.value = '';
+                            }
+
                             this.isSubmitting = true;
                             e.target.submit();
                         }
@@ -935,24 +949,20 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp Siswa <span class="text-rose-500">*</span></label>
-                                <input 
-                                    type="tel" 
+                                <x-input-whatsapp 
                                     name="no_whatsapp" 
-                                    value="{{ old('form_type') === 'presensi_manual' ? old('no_whatsapp') : '' }}" 
+                                    :value="old('form_type') === 'presensi_manual' ? old('no_whatsapp') : ''" 
                                     required 
-                                    placeholder="Contoh: 081234567890" 
-                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                                >
+                                    placeholder="81234567890" 
+                                />
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp Orang Tua <span class="text-slate-400 font-normal">(Opsional)</span></label>
-                                <input 
-                                    type="tel" 
+                                <x-input-whatsapp 
                                     name="wa_ortu" 
-                                    value="{{ old('form_type') === 'presensi_manual' ? old('wa_ortu') : '' }}" 
-                                    placeholder="Contoh: 081298765432" 
-                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                                >
+                                    :value="old('form_type') === 'presensi_manual' ? old('wa_ortu') : ''" 
+                                    placeholder="81298765432" 
+                                />
                             </div>
                         </div>
 

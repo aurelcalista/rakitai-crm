@@ -109,7 +109,7 @@ class EventController extends Controller
             'nama_institusi' => 'nullable|string|max:255',
             'alamat'         => 'nullable|string|max:500',
             'pic_name'       => 'nullable|string|max:255',
-            'pic_whatsapp'   => 'nullable|string|max:20',
+            'pic_whatsapp'   => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
         ], [
             'waktu_selesai.after'  => 'Waktu selesai harus setelah waktu mulai.',
             'sales.*.exists'       => 'User yang ditugaskan tidak valid.',
@@ -150,7 +150,7 @@ class EventController extends Controller
                 'nama_institusi'  => $request->nama_institusi,
                 'alamat'          => $request->alamat,
                 'pic_name'        => $request->pic_name,
-                'pic_whatsapp'    => $request->pic_whatsapp,
+                'pic_whatsapp'    => \App\Support\WhatsAppHelper::formatForDatabase($request->pic_whatsapp),
                 'qr_code'         => Event::generateUniqueQrToken(),
             ]);
 
@@ -230,7 +230,7 @@ class EventController extends Controller
             'nama_institusi' => 'nullable|string|max:255',
             'alamat'         => 'nullable|string|max:500',
             'pic_name'       => 'nullable|string|max:255',
-            'pic_whatsapp'   => 'nullable|string|max:20',
+            'pic_whatsapp'   => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
         ]);
 
         // Check if event type is Training
@@ -273,7 +273,7 @@ class EventController extends Controller
                 'nama_institusi'  => $request->nama_institusi,
                 'alamat'          => $request->alamat,
                 'pic_name'        => $request->pic_name,
-                'pic_whatsapp'    => $request->pic_whatsapp,
+                'pic_whatsapp'    => \App\Support\WhatsAppHelper::formatForDatabase($request->pic_whatsapp),
             ]);
 
             $oldSpvs = $event->spvs->pluck('id')->toArray();

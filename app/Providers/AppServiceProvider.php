@@ -50,7 +50,16 @@ class AppServiceProvider extends ServiceProvider
                               ->orWhere('owner_id', $user->id);
                         })->count();
                     } elseif ($role === 'cs') {
-                        $prospekCount = \App\Models\Prospek::where('cs_id', $user->id)->count();
+                        $prospekCount = \App\Models\Prospek::where(function($q) use ($user) {
+                            $q->where('cs_id', $user->id)
+                              ->orWhere('owner_id', $user->id)
+                              ->orWhere('takeover_by_id', $user->id)
+                              ->orWhere(function ($pq) {
+                                  $pq->where('source', \App\Models\Prospek::SOURCE_PRESENSI_SISWA)
+                                     ->orWhere('source', 'Presensi Siswa')
+                                     ->orWhere('source', 'like', '%presensi%');
+                              });
+                        })->count();
                     } elseif ($role === 'spv') {
                         $teamIds = $user->teamMemberIds();
                         $prospekCount = \App\Models\Prospek::where(function($q) use ($teamIds) {

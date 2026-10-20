@@ -92,11 +92,15 @@ class MobileFormController extends Controller
             abort(401, 'Sesi tidak valid atau telah berakhir. Akses form lapangan memerlukan autentikasi yang sah.');
         }
 
+        if ($request->filled('whatsapp')) {
+            $request->merge(['whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->whatsapp)]);
+        }
+
         $request->validate([
             'type'      => 'required|in:Sekolah,Corporate,Individu',
             'prodi_id'  => 'nullable|exists:prodis,id',
             'pic'       => 'required|string|max:255',
-            'whatsapp'  => 'required|string|max:30',
+            'whatsapp'  => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'source'    => 'required|string|max:100',
         ]);
 
@@ -132,7 +136,8 @@ class MobileFormController extends Controller
             'perusahaan_id'    => $request->type === 'Corporate' ? $request->perusahaan_id : null,
             'prodi_id'         => $request->prodi_id,
             'pic'              => $request->pic,
-            'whatsapp'         => $request->whatsapp,
+            'pic_phone'        => \App\Support\WhatsAppHelper::formatForDatabase($request->whatsapp),
+            'whatsapp'         => \App\Support\WhatsAppHelper::formatForDatabase($request->whatsapp),
             'sales_id'         => $salesId,
             'owner_id'         => $user->id,
             'wilayah_id'       => $user->wilayah_id,
@@ -201,11 +206,15 @@ class MobileFormController extends Controller
             abort(401, 'Sesi tidak valid atau telah berakhir. Akses form lapangan memerlukan autentikasi yang sah.');
         }
 
+        if ($request->filled('pic_whatsapp')) {
+            $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
+        }
+
         $request->validate([
             'jenis'        => 'required|in:Sekolah,Perusahaan',
             'tanggal'      => 'required|date',
             'pic_name'     => 'required|string|max:255',
-            'pic_whatsapp' => 'required|string|max:30',
+            'pic_whatsapp' => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'lat'          => 'required|numeric',
             'lng'          => 'required|numeric',
             'foto'         => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
@@ -319,7 +328,7 @@ class MobileFormController extends Controller
             'alamat'                => $request->alamat,
             'lokasi_penugasan'      => $request->lokasi_penugasan ?? 'Check-in Mobile GPS',
             'pic_name'              => $request->pic_name,
-            'pic_whatsapp'          => $request->pic_whatsapp,
+            'pic_whatsapp'          => \App\Support\WhatsAppHelper::formatForDatabase($request->pic_whatsapp),
             'foto_path'             => $fotoPath,
             'lat'                   => $request->lat,
             'lng'                   => $request->lng,

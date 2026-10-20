@@ -31,6 +31,13 @@ class QuickContactController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->filled('no_whatsapp')) {
+            $request->merge(['no_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->no_whatsapp)]);
+        }
+        if ($request->filled('wa_ortu')) {
+            $request->merge(['wa_ortu' => \App\Support\WhatsAppHelper::prepareForValidation($request->wa_ortu)]);
+        }
+
         $validated = $request->validate([
             'jenis_instansi'    => 'required|in:Sekolah,PT',
             'sekolah_id'        => 'nullable|exists:sekolahs,id',
@@ -38,8 +45,8 @@ class QuickContactController extends Controller
             'perusahaan_id'     => 'nullable|exists:perusahaans,id',
             'perusahaan_manual' => 'nullable|string|max:255',
             'nama'              => 'required|string|max:255',
-            'no_whatsapp'       => 'required|string|max:20',
-            'wa_ortu'           => 'nullable|string|max:20',
+            'no_whatsapp'       => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
+            'wa_ortu'           => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas'        => 'nullable|string|max:255',
             'prodi_id'          => 'required|string',
             'prodi_lainnya'     => 'nullable|required_if:prodi_id,lainnya|string|max:255',
@@ -106,10 +113,10 @@ class QuickContactController extends Controller
 
         $prospek = Prospek::create([
             'name'             => $name,
-            'whatsapp'         => $validated['no_whatsapp'],
-            'wa_ortu'          => $validated['wa_ortu'] ?? null,
+            'whatsapp'         => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+            'wa_ortu'          => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
             'pic'              => $validated['nama'],
-            'pic_phone'        => $validated['no_whatsapp'],
+            'pic_phone'        => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
             'type'             => $validated['jenis_instansi'] === 'PT' ? 'Corporate' : 'Sekolah',
             'sekolah_id'       => $sekolahId,
             'wilayah_id'       => $wilayahId,
@@ -146,12 +153,19 @@ class QuickContactController extends Controller
     {
         $request->merge(['jenis_instansi' => 'PT']);
         
+        if ($request->filled('no_whatsapp')) {
+            $request->merge(['no_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->no_whatsapp)]);
+        }
+        if ($request->filled('wa_ortu')) {
+            $request->merge(['wa_ortu' => \App\Support\WhatsAppHelper::prepareForValidation($request->wa_ortu)]);
+        }
+        
         $validated = $request->validate([
             'perusahaan_id'     => 'nullable|exists:perusahaans,id',
             'perusahaan_manual' => 'nullable|string|max:255',
             'nama'              => 'required|string|max:255',
-            'no_whatsapp'       => 'required|string|max:20',
-            'wa_ortu'           => 'nullable|string|max:20',
+            'no_whatsapp'       => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
+            'wa_ortu'           => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas'        => 'nullable|string|max:255',
             'prodi_id'          => 'required|string',
             'prodi_lainnya'     => 'nullable|required_if:prodi_id,lainnya|string|max:255',
@@ -182,10 +196,10 @@ class QuickContactController extends Controller
 
         $prospek = Prospek::create([
             'name'             => $name,
-            'whatsapp'         => $validated['no_whatsapp'],
-            'wa_ortu'          => $validated['wa_ortu'] ?? null,
+            'whatsapp'         => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+            'wa_ortu'          => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
             'pic'              => $validated['nama'],
-            'pic_phone'        => $validated['no_whatsapp'],
+            'pic_phone'        => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
             'type'             => 'Corporate',
             'sekolah_id'       => null,
             'wilayah_id'       => $wilayahId,

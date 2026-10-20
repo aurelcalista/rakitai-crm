@@ -974,7 +974,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">WhatsApp PIC</label>
-                                        <input type="text" name="pic_whatsapp" :value="selectedEvent?.pic_whatsapp" class="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 font-medium placeholder:text-slate-400" placeholder="08xxxxxx">
+                                        <x-input-whatsapp name="pic_whatsapp" bindValue="selectedEvent?.pic_whatsapp" placeholder="8123456789" />
                                     </div>
                                 </div>
                             </div>

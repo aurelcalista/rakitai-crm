@@ -39,8 +39,8 @@ class UpdateProspectRequest extends FormRequest
             'perusahaan_manual' => 'nullable|string|max:255',
             'category' => 'nullable|string|max:100',
             'pic'      => 'required|string|max:255',
-            'pic_phone'=> 'nullable|string|max:20',
-            'whatsapp' => 'required|string|max:20',
+            'pic_phone'=> ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+            'whatsapp' => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'status'   => 'required|string|max:255',
             'notes'    => [
                 'nullable',
@@ -84,7 +84,7 @@ class UpdateProspectRequest extends FormRequest
                 }
             ],
             'prodi_lainnya' => 'nullable|string',
-            'wa_ortu'  => 'nullable|string|max:255',
+            'wa_ortu'  => ['nullable', 'string', 'max:255', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas' => 'nullable|string|max:100',
             'kelas' => 'nullable|in:Reguler,Karyawan',
             'sekolah_kategori_id' => 'nullable|exists:master_data,id',
@@ -92,6 +92,26 @@ class UpdateProspectRequest extends FormRequest
             'sekolah_kecamatan' => 'nullable|string|max:100',
             'sekolah_telepon' => 'nullable|string|max:50',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+        if ($this->has('whatsapp') && $this->filled('whatsapp')) {
+            $merge['whatsapp'] = \App\Support\WhatsAppHelper::prepareForValidation($this->whatsapp);
+        }
+        if ($this->has('wa_ortu') && $this->filled('wa_ortu')) {
+            $merge['wa_ortu'] = \App\Support\WhatsAppHelper::prepareForValidation($this->wa_ortu);
+        }
+        if ($this->has('pic_phone') && $this->filled('pic_phone')) {
+            $merge['pic_phone'] = \App\Support\WhatsAppHelper::prepareForValidation($this->pic_phone);
+        }
+        if (!empty($merge)) {
+            $this->merge($merge);
+        }
     }
 
     /**

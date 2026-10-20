@@ -174,9 +174,11 @@ class AnalystExportService
 
         $query->chunk(250, function ($prospeks) use ($sheet, &$row, $stringCols) {
             foreach ($prospeks as $p) {
+                $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
+                $institusiName = $p->sekolah?->nama ?: ($p->perusahaan?->nama ?: ($p->type === 'Sekolah' || $p->type === 'Corporate' ? $p->name : '-'));
                 $values = [
                     $p->id,
-                    $p->name,
+                    $camabaName,
                     $p->whatsapp ?: '-',
                     $p->type,
                     self::mapToPrdStatus($p->status),
@@ -184,7 +186,7 @@ class AnalystExportService
                     (int) ($p->stage_number ?: 1),
                     $p->prodi?->nama ?: ($p->prodi_lainnya ?: '-'),
                     $p->kelas ?: 'Reguler',
-                    $p->sekolah?->nama ?: ($p->perusahaan?->nama ?: '-'),
+                    $institusiName,
                     $p->wilayah?->nama ?: '-',
                     $p->sekolah?->kecamatan ?: ($p->wilayah?->parent?->nama ?: '-'),
                     $p->source ?: 'Belum Ada Sumber',
@@ -385,10 +387,11 @@ class AnalystExportService
 
         $query->chunk(250, function ($transaksis) use ($sheet, &$row, $stringCols, $currencyCols) {
             foreach ($transaksis as $t) {
+                $camabaName = (!empty($t->prospek?->pic) && $t->prospek?->pic !== '-') ? $t->prospek?->pic : ($t->prospek?->name ?: '-');
                 $values = [
                     $t->id,
                     $t->prospek_id,
-                    $t->prospek?->name ?: '-',
+                    $camabaName,
                     $t->jenis,
                     (float) $t->nominal,
                     $t->metode_label,
@@ -779,11 +782,12 @@ class AnalystExportService
             ->chunk(250, function ($followUps) use ($sheet, &$row, $stringCols) {
                 foreach ($followUps as $f) {
                     $tanggal = $f->tanggal ?? $f->created_at;
+                    $camabaName = (!empty($f->prospek?->pic) && $f->prospek?->pic !== '-') ? $f->prospek?->pic : ($f->prospek?->name ?: '-');
                     $values = [
                         $f->id,
                         $tanggal ? $tanggal->format('Y-m-d H:i') : '-',
                         $f->prospek_id,
-                        $f->prospek?->name ?: '-',
+                        $camabaName,
                         $f->prospek?->whatsapp ?: '-',
                         self::mapToPrdStatus($f->prospek?->status),
                         $f->prospek?->status ?: '-',
@@ -841,11 +845,12 @@ class AnalystExportService
             ->chunk(250, function ($timelines) use ($sheet, &$row, $stringCols) {
                 foreach ($timelines as $t) {
                     $waktu = $t->time ?? $t->created_at;
+                    $camabaName = (!empty($t->prospek?->pic) && $t->prospek?->pic !== '-') ? $t->prospek?->pic : ($t->prospek?->name ?: '-');
                     $values = [
                         $t->id,
                         $waktu ? $waktu->format('Y-m-d H:i:s') : '-',
                         $t->prospek_id,
-                        $t->prospek?->name ?: '-',
+                        $camabaName,
                         $t->prospek?->whatsapp ?: '-',
                         $t->title ?: 'Perubahan Status',
                         $t->status_before ?: '-',
@@ -898,11 +903,12 @@ class AnalystExportService
 
         $uncontactedQuery->chunk(250, function ($prospeks) use ($sheet, &$row, $stringCols) {
             foreach ($prospeks as $p) {
+                $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
                 $values = [
                     'Belum Pernah Di-follow-up',
                     'Perlu Tindak Lanjut',
                     $p->id,
-                    $p->name,
+                    $camabaName,
                     $p->whatsapp ?: '-',
                     self::mapToPrdStatus($p->status),
                     $p->status,
@@ -933,11 +939,12 @@ class AnalystExportService
 
             $duplicateQuery->chunk(250, function ($prospeks) use ($sheet, &$row, $stringCols) {
                 foreach ($prospeks as $p) {
+                    $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
                     $values = [
                         'Kontak Duplikat (No WhatsApp)',
                         'Potensi Redundansi',
                         $p->id,
-                        $p->name,
+                        $camabaName,
                         $p->whatsapp ?: '-',
                         self::mapToPrdStatus($p->status),
                         $p->status,
@@ -971,11 +978,12 @@ class AnalystExportService
                     $missingFields[] = 'Asal Sekolah / Mitra';
                 }
 
+                $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
                 $values = [
                     'Profil Belum Lengkap',
                     'Kualitas Data Rendah',
                     $p->id,
-                    $p->name,
+                    $camabaName,
                     $p->whatsapp ?: '-',
                     self::mapToPrdStatus($p->status),
                     $p->status,
@@ -1265,9 +1273,10 @@ class AnalystExportService
 
             // Data rows
             foreach ($prospeks as $idx => $p) {
+                $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : ($p->name ?? $p->nama ?? '-');
                 fputcsv($out, [
                     $idx + 1,
-                    $p->name ?? $p->nama ?? '-',
+                    $camabaName,
                     $p->whatsapp ?? '-',
                     $p->status ?? '-',
                     $p->prodi->nama ?? '-',

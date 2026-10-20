@@ -62,7 +62,7 @@
                         this.sekolah_id = p.sekolah_id || '';
                         this.namaInstitusi = p.name || '';
                         this.picName = p.pic || '';
-                        this.picWhatsapp = p.whatsapp || '';
+                        this.picWhatsapp = String(p.whatsapp || '').replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                     }
                 } else if (val && val.startsWith('sekolah_')) {
                     const sid = val.replace('sekolah_', '');
@@ -72,7 +72,7 @@
                     if (s) {
                         this.namaInstitusi = s.nama || '';
                         this.picName = s.pic_name || '';
-                        this.picWhatsapp = s.pic_phone || '';
+                        this.picWhatsapp = String(s.pic_phone || '').replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                     }
                 } else {
                     this.prospek_id = '';
@@ -84,7 +84,7 @@
                     this.perusahaan_id = id;
                     this.namaInstitusi = this.perusahaanMap[id].nama || '';
                     this.picName = this.perusahaanMap[id].pic_name || '';
-                    this.picWhatsapp = this.perusahaanMap[id].pic_phone || '';
+                    this.picWhatsapp = String(this.perusahaanMap[id].pic_phone || '').replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                 }
             },
             captureLocation() {
@@ -350,14 +350,12 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Nomor WhatsApp PIC *</label>
-                    <input 
-                        type="tel" 
+                    <x-input-whatsapp 
                         name="pic_whatsapp" 
-                        x-model="picWhatsapp"
+                        model="picWhatsapp"
                         required 
-                        placeholder="08xxxxxxxxxx" 
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                    >
+                        placeholder="81234567890" 
+                    />
                 </div>
             </div>
 
