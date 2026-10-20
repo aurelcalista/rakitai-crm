@@ -30,14 +30,14 @@
                 if (id && this.sekolahMap[id]) {
                     this.namaInstansi = this.sekolahMap[id].nama || '';
                     if (!this.pic && this.sekolahMap[id].pic_name) this.pic = this.sekolahMap[id].pic_name;
-                    if (!this.whatsapp && this.sekolahMap[id].pic_phone) this.whatsapp = this.sekolahMap[id].pic_phone;
+                    if (!this.whatsapp && this.sekolahMap[id].pic_phone) this.whatsapp = String(this.sekolahMap[id].pic_phone).replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                 }
             },
             handlePerusahaanChange(id) {
                 if (id && this.perusahaanMap[id]) {
                     this.namaInstansi = this.perusahaanMap[id].nama || '';
                     if (!this.pic && this.perusahaanMap[id].pic_name) this.pic = this.perusahaanMap[id].pic_name;
-                    if (!this.whatsapp && this.perusahaanMap[id].pic_phone) this.whatsapp = this.perusahaanMap[id].pic_phone;
+                    if (!this.whatsapp && this.perusahaanMap[id].pic_phone) this.whatsapp = String(this.perusahaanMap[id].pic_phone).replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                 }
             }
         }"
@@ -209,14 +209,12 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">Nomor WhatsApp *</label>
-                    <input 
-                        type="tel" 
+                    <x-input-whatsapp 
                         name="whatsapp" 
-                        x-model="whatsapp"
+                        model="whatsapp"
                         required 
-                        placeholder="08xxxxxxxxxx" 
-                        class="w-full text-xs px-3.5 py-3 rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
-                    >
+                        placeholder="81234567890" 
+                    />
                 </div>
             </div>
 

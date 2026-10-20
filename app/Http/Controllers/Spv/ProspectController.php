@@ -34,7 +34,11 @@ class ProspectController extends Controller
               ->orWhereIn('cs_id', $teamMemberIds)
               // Prospek milik CS (cs_id terisi) juga tampil di SPV
               ->orWhereNotNull('cs_id')
-              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
+              ->orWhere(function ($pq) {
+                  $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                     ->orWhere('source', 'Presensi Siswa')
+                     ->orWhere('source', 'like', '%presensi%');
+              });
             if ($user->wilayah_id) {
                 $q->orWhere('wilayah_id', $user->wilayah_id);
             }
@@ -67,7 +71,11 @@ class ProspectController extends Controller
                     });
                 });
             } elseif ($request->scope === 'presensi') {
-                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+                $query->where(function ($pq) {
+                    $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                       ->orWhere('source', 'Presensi Siswa')
+                       ->orWhere('source', 'like', '%presensi%');
+                });
             }
         }
 
@@ -207,6 +215,38 @@ class ProspectController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if ($request->filled('whatsapp')) {
+            $rawWa = preg_replace('/[^0-9]/', '', (string)$request->whatsapp);
+            $cleanWa = preg_replace('/^(62|0)+/', '', $rawWa);
+            if (!empty($cleanWa)) {
+                $request->merge(['whatsapp' => '+62' . $cleanWa]);
+            } else {
+                $request->merge(['whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->whatsapp)]);
+            }
+        }
+        if ($request->filled('wa_ortu') && trim((string)$request->wa_ortu) !== '') {
+            $rawOrtu = preg_replace('/[^0-9]/', '', (string)$request->wa_ortu);
+            $cleanOrtu = preg_replace('/^(62|0)+/', '', $rawOrtu);
+            if (!empty($cleanOrtu)) {
+                $request->merge(['wa_ortu' => '+62' . $cleanOrtu]);
+            } else {
+                $request->merge(['wa_ortu' => null]);
+            }
+        } else {
+            $request->merge(['wa_ortu' => null]);
+        }
+        if ($request->filled('pic_phone') && trim((string)$request->pic_phone) !== '') {
+            $rawPhone = preg_replace('/[^0-9]/', '', (string)$request->pic_phone);
+            $cleanPhone = preg_replace('/^(62|0)+/', '', $rawPhone);
+            if (!empty($cleanPhone)) {
+                $request->merge(['pic_phone' => '+62' . $cleanPhone]);
+            } else {
+                $request->merge(['pic_phone' => null]);
+            }
+        } else {
+            $request->merge(['pic_phone' => null]);
+        }
+
         $validated = $request->validate([
             'tanggal_masuk' => 'nullable|date',
             'name'          => 'nullable|string|max:255',
@@ -218,8 +258,8 @@ class ProspectController extends Controller
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'perusahaan_manual' => 'nullable|string|max:255',
             'pic'           => 'required|string|max:255',
-            'pic_phone'     => 'nullable|string|max:20',
-            'whatsapp'      => 'required|string|max:20',
+            'pic_phone'     => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+            'whatsapp'      => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'prodi_id'      => 'nullable|exists:prodis,id',
             'kelas'         => 'nullable|in:Reguler,Karyawan',
             'status'        => 'required|string|max:255',
@@ -399,9 +439,9 @@ class ProspectController extends Controller
                 'sekolah_id'         => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'      => $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'                => $validated['pic'],
-                'pic_phone'          => $validated['pic_phone'] ?? null,
-                'whatsapp'           => $validated['whatsapp'],
-                'wa_ortu'            => $validated['wa_ortu'] ?? null,
+                'pic_phone'          => \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']),
+                'whatsapp'           => \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']),
+                'wa_ortu'            => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
                 'status'             => $validated['status'],
                 'stage_number'       => $stageNumber,
                 'notes'              => $validated['notes'] ?? null,
@@ -481,6 +521,16 @@ class ProspectController extends Controller
     {
         Gate::authorize('update', $prospek);
 
+        if ($request->filled('whatsapp')) {
+            $request->merge(['whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->whatsapp)]);
+        }
+        if ($request->filled('wa_ortu')) {
+            $request->merge(['wa_ortu' => \App\Support\WhatsAppHelper::prepareForValidation($request->wa_ortu)]);
+        }
+        if ($request->filled('pic_phone')) {
+            $request->merge(['pic_phone' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_phone)]);
+        }
+
         $validated = $request->validate([
             'type'        => 'nullable|in:Sekolah,Corporate,Individu',
             'sekolah_id'  => 'nullable|exists:sekolahs,id',
@@ -489,14 +539,14 @@ class ProspectController extends Controller
             'perusahaan_manual' => 'nullable|string|max:255',
             'name'        => 'nullable|string|max:255',
             'pic'         => 'required|string|max:255',
-            'pic_phone'   => 'nullable|string|max:20',
-            'whatsapp'    => 'required|string|max:20',
+            'pic_phone'   => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+            'whatsapp'    => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'notes'       => 'nullable|string',
             'category'    => 'nullable|string|max:100',
             'source'      => 'required|string|max:100',
             'prodi_id'    => 'nullable|string',
             'prodi_lainnya' => 'nullable|string',
-            'wa_ortu'     => 'nullable|string|max:20',
+            'wa_ortu'     => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas'  => 'nullable|string|max:100',
             'kelas'       => 'nullable|in:Reguler,Karyawan',
         ]);
@@ -566,6 +616,14 @@ class ProspectController extends Controller
         } else {
             $validated['prodi_id'] = null;
             $validated['prodi_lainnya'] = null;
+        }
+
+        if (array_key_exists('whatsapp', $validated)) {
+            $validated['whatsapp'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']);
+            $validated['pic_phone'] = $validated['whatsapp'];
+        }
+        if (array_key_exists('wa_ortu', $validated)) {
+            $validated['wa_ortu'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu']);
         }
 
         $prospek->update($validated);
@@ -781,7 +839,7 @@ class ProspectController extends Controller
             'takeover_by_name' => $p->takeoverBy?->name ?? null,
             'takeover_by_role' => $p->takeoverBy?->role ?? null,
             'takeover_at'    => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
-            'is_presensi'    => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
+            'is_presensi'    => $p->isPresensiSiswa(),
             'is_own'          => (bool) (auth()->id() && ($p->sales_id == auth()->id() || $p->owner_id == auth()->id() || $p->takeover_by_id == auth()->id())),
             'is_other'        => (bool) (auth()->id() && !($p->sales_id == auth()->id() || $p->owner_id == auth()->id() || $p->takeover_by_id == auth()->id()) && (!is_null($p->sales_id) || !is_null($p->takeover_by_id) || !is_null($p->cs_id))),
             'last_activity'  => $p->updated_at->diffForHumans(),

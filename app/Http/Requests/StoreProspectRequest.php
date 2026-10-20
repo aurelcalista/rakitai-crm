@@ -35,8 +35,8 @@ class StoreProspectRequest extends FormRequest
             'perusahaan_manual' => 'nullable|string|max:255',
             'category' => 'nullable|string|max:100',
             'pic'      => 'required|string|max:255',
-            'pic_phone'=> 'nullable|string|max:20',
-            'whatsapp' => 'required|string|max:20',
+            'pic_phone'=> ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+            'whatsapp' => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'status'   => 'required|string|max:255',
             'notes'    => [
                 'nullable',
@@ -80,7 +80,7 @@ class StoreProspectRequest extends FormRequest
                 }
             ],
             'prodi_lainnya' => 'nullable|string',
-            'wa_ortu' => 'nullable|string|max:255',
+            'wa_ortu' => ['nullable', 'string', 'max:255', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas' => 'nullable|string|max:100',
             'kelas' => 'nullable|in:Reguler,Karyawan',
             'sekolah_kategori_id' => 'nullable|exists:master_data,id',
@@ -88,6 +88,78 @@ class StoreProspectRequest extends FormRequest
             'sekolah_kecamatan' => 'nullable|string|max:100',
             'sekolah_telepon' => 'nullable|string|max:50',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+        if ($this->has('whatsapp') && $this->filled('whatsapp')) {
+            $rawWa = preg_replace('/[^0-9]/', '', (string)$this->whatsapp);
+            $cleanWa = preg_replace('/^(62|0)+/', '', $rawWa);
+            if (!empty($cleanWa)) {
+                $merge['whatsapp'] = '+62' . $cleanWa;
+            } else {
+                $merge['whatsapp'] = \App\Support\WhatsAppHelper::prepareForValidation($this->whatsapp);
+            }
+        }
+        if ($this->has('wa_ortu') && $this->filled('wa_ortu') && trim((string)$this->wa_ortu) !== '') {
+            $rawOrtu = preg_replace('/[^0-9]/', '', (string)$this->wa_ortu);
+            $cleanOrtu = preg_replace('/^(62|0)+/', '', $rawOrtu);
+            if (!empty($cleanOrtu)) {
+                $merge['wa_ortu'] = '+62' . $cleanOrtu;
+            } else {
+                $merge['wa_ortu'] = null;
+            }
+        } else {
+            $merge['wa_ortu'] = null;
+        }
+        if ($this->has('pic_phone') && $this->filled('pic_phone') && trim((string)$this->pic_phone) !== '') {
+            $rawPhone = preg_replace('/[^0-9]/', '', (string)$this->pic_phone);
+            $cleanPhone = preg_replace('/^(62|0)+/', '', $rawPhone);
+            if (!empty($cleanPhone)) {
+                $merge['pic_phone'] = '+62' . $cleanPhone;
+            } else {
+                $merge['pic_phone'] = \App\Support\WhatsAppHelper::prepareForValidation($this->pic_phone);
+            }
+        } else {
+            $merge['pic_phone'] = null;
+        }
+
+        // Sanitize optional fields
+        if ($this->has('no_registrasi') && trim((string)$this->no_registrasi) === '') {
+            $merge['no_registrasi'] = null;
+        }
+        if ($this->has('gelombang') && trim((string)$this->gelombang) === '') {
+            $merge['gelombang'] = null;
+        }
+        if ($this->has('asal_kelas') && trim((string)$this->asal_kelas) === '') {
+            $merge['asal_kelas'] = null;
+        }
+        if ($this->has('notes') && trim((string)$this->notes) === '') {
+            $merge['notes'] = null;
+        }
+        if ($this->has('category') && trim((string)$this->category) === '') {
+            $merge['category'] = null;
+        }
+        if ($this->has('prodi_id') && trim((string)$this->prodi_id) === '') {
+            $merge['prodi_id'] = null;
+        }
+        if ($this->has('prodi_lainnya') && trim((string)$this->prodi_lainnya) === '') {
+            $merge['prodi_lainnya'] = null;
+        }
+        if ($this->has('sekolah_id') && trim((string)$this->sekolah_id) === '') {
+            $merge['sekolah_id'] = null;
+        }
+        if ($this->has('perusahaan_id') && trim((string)$this->perusahaan_id) === '') {
+            $merge['perusahaan_id'] = null;
+        }
+
+        if (!empty($merge)) {
+            $this->merge($merge);
+        }
     }
 
     /**
@@ -121,7 +193,17 @@ class StoreProspectRequest extends FormRequest
 
             // Duplicate check: hanya cek berdasarkan whatsapp (nomor unik).
             // Untuk Sekolah/Corporate, nama yang sama dari institusi yang berbeda adalah valid.
-            $duplicate = Prospek::with(['owner', 'sales'])->where('whatsapp', $validated['whatsapp'])->first();
+            $cleanDigits = preg_replace('/[^0-9]/', '', $validated['whatsapp']);
+            $dbWaFormat = \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']);
+            $duplicate = Prospek::with(['owner', 'sales'])->where(function($q) use ($validated, $dbWaFormat, $cleanDigits) {
+                $q->where('whatsapp', $validated['whatsapp']);
+                if ($dbWaFormat) {
+                    $q->orWhere('whatsapp', $dbWaFormat);
+                }
+                if (!empty($cleanDigits)) {
+                    $q->orWhereRaw("REPLACE(REPLACE(REPLACE(whatsapp, '-', ''), ' ', ''), '+', '') = ?", [$cleanDigits]);
+                }
+            })->first();
 
             // Untuk tipe Individu, cek juga duplikat berdasarkan nama
             if (!$duplicate && $validated['type'] === 'Individu') {

@@ -71,7 +71,7 @@ class ProspekPolicy
 
         if ($role === 'cs') {
             // CS wilayah scope untuk presensi siswa jika wilayah sudah ditentukan
-            if (($prospek->source === Prospek::SOURCE_PRESENSI_SISWA || $prospek->source === 'Presensi Siswa')
+            if ($prospek->isPresensiSiswa()
                 && $user->wilayah_id && $prospek->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
                 return false;
             }

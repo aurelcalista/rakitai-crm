@@ -60,6 +60,10 @@ class AdminKunjunganController extends Controller
 
     public function update(Request $request, Kunjungan $kunjungan)
     {
+        if ($request->filled('pic_whatsapp')) {
+            $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
+        }
+
         $validated = $request->validate([
             'tanggal'          => 'required|date',
             'waktu'            => 'nullable|string',
@@ -67,7 +71,7 @@ class AdminKunjunganController extends Controller
             'tujuan_kunjungan' => 'required|string',
             'nama_institusi'   => 'nullable|string',
             'pic_name'         => 'nullable|string',
-            'pic_whatsapp'     => 'nullable|string',
+            'pic_whatsapp'     => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'alamat'           => 'nullable|string',
             'hasil'            => 'nullable|string',
             'catatan'          => 'nullable|string',
@@ -85,6 +89,10 @@ class AdminKunjunganController extends Controller
 
         if ($request->filled('tujuan_kunjungan') && !$request->filled('nama_institusi')) {
             $validated['nama_institusi'] = $request->tujuan_kunjungan;
+        }
+
+        if (array_key_exists('pic_whatsapp', $validated)) {
+            $validated['pic_whatsapp'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['pic_whatsapp']);
         }
 
         $kunjungan->update($validated);

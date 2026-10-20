@@ -289,7 +289,7 @@
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     Nomor WhatsApp PIC
                                 </label>
-                                <input type="text" name="pic_whatsapp" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: 08123456789">
+                                <x-input-whatsapp name="pic_whatsapp" placeholder="8123456789" />
                             </div>
                         </div>
                     </div>
@@ -527,7 +527,7 @@
                                 <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     Nomor WhatsApp PIC
                                 </label>
-                                <input type="text" name="pic_whatsapp" :value="selectedEvent?.pic_whatsapp" class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-400 transition shadow-2xs font-medium" placeholder="Contoh: 08123456789">
+                                <x-input-whatsapp name="pic_whatsapp" bindValue="selectedEvent?.pic_whatsapp" placeholder="8123456789" />
                             </div>
                         </div>
                     </div>

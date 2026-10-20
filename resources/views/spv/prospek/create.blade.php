@@ -377,7 +377,7 @@
 
                         <div class="space-y-1">
                             <label class="block text-xs font-semibold text-slate-700">Nomor WhatsApp Aktif <span class="text-rose-500">*</span></label>
-                            <input type="text" name="whatsapp" value="{{ old('whatsapp') }}" placeholder="Contoh: 081234567890" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500/20 focus:bg-white" required>
+                            <x-input-whatsapp name="whatsapp" required :value="old('whatsapp')" placeholder="81234567890" />
                             <p class="text-[10px] text-slate-400">Sistem otomatis memvalidasi duplikasi nomor HP & nama.</p>
                         </div>
                     </div>

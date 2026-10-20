@@ -293,7 +293,7 @@
                             </div>
                             <div>
                                 <label class="block font-semibold text-slate-700 mb-1">WhatsApp PIC</label>
-                                <input type="text" name="pic_whatsapp" value="{{ $visit['whatsapp'] !== '-' ? $visit['whatsapp'] : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                <x-input-whatsapp name="pic_whatsapp" :value="$visit['whatsapp'] !== '-' ? $visit['whatsapp'] : ''" placeholder="8123456789" />
                             </div>
                         </div>
 

@@ -388,7 +388,7 @@ class CalendarController extends Controller
             'nama_institusi' => 'nullable|string|max:255',
             'alamat'         => 'nullable|string|max:500',
             'pic_name'       => 'nullable|string|max:255',
-            'pic_whatsapp'   => 'nullable|string|max:20',
+            'pic_whatsapp'   => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
         ]);
 
         // Check if event type is Training
@@ -431,7 +431,7 @@ class CalendarController extends Controller
                 'nama_institusi'  => $request->nama_institusi,
                 'alamat'          => $request->alamat,
                 'pic_name'        => $request->pic_name,
-                'pic_whatsapp'    => $request->pic_whatsapp,
+                'pic_whatsapp'    => \App\Support\WhatsAppHelper::formatForDatabase($request->pic_whatsapp),
             ]);
 
             if ($request->has('spvs')) {

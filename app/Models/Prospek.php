@@ -30,12 +30,21 @@ class Prospek extends Model
     protected static function booted()
     {
         static::saving(function ($prospek) {
-            // Bersihkan nomor WhatsApp jika diinput dalam format link wa.me
-            if (!empty($prospek->wa_ortu) && preg_match('/wa\.me\/([0-9+]+)/i', $prospek->wa_ortu, $m)) {
-                $prospek->wa_ortu = preg_replace('/[^0-9]/', '', $m[1]);
+            // Bersihkan nomor WhatsApp jika diinput dalam format link wa.me atau format belum standar
+            if (!empty($prospek->wa_ortu)) {
+                if (preg_match('/wa\.me\/([0-9+]+)/i', $prospek->wa_ortu, $m)) {
+                    $prospek->wa_ortu = $m[1];
+                }
+                $prospek->wa_ortu = \App\Support\WhatsAppHelper::formatForDatabase($prospek->wa_ortu);
             }
-            if (!empty($prospek->whatsapp) && preg_match('/wa\.me\/([0-9+]+)/i', $prospek->whatsapp, $m)) {
-                $prospek->whatsapp = preg_replace('/[^0-9]/', '', $m[1]);
+            if (!empty($prospek->whatsapp)) {
+                if (preg_match('/wa\.me\/([0-9+]+)/i', $prospek->whatsapp, $m)) {
+                    $prospek->whatsapp = $m[1];
+                }
+                $prospek->whatsapp = \App\Support\WhatsAppHelper::formatForDatabase($prospek->whatsapp);
+                if (empty($prospek->pic_phone)) {
+                    $prospek->pic_phone = $prospek->whatsapp;
+                }
             }
 
             // Keep the legacy string column in sync with the active TA when creating
@@ -644,7 +653,9 @@ class Prospek extends Model
      */
     public function isPresensiSiswa(): bool
     {
-        return $this->source === self::SOURCE_PRESENSI_SISWA || $this->source === 'Presensi Siswa';
+        return $this->source === self::SOURCE_PRESENSI_SISWA 
+            || $this->source === 'Presensi Siswa'
+            || str_contains(strtolower($this->source ?? ''), 'presensi');
     }
 
     /**

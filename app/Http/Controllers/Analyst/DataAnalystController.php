@@ -481,7 +481,11 @@ class DataAnalystController extends Controller
         // Scope filter
         if ($request->filled('scope')) {
             if ($request->scope === 'presensi') {
-                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+                $query->where(function ($pq) {
+                    $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                       ->orWhere('source', 'Presensi Siswa')
+                       ->orWhere('source', 'like', '%presensi%');
+                });
             }
         }
 

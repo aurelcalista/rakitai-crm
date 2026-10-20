@@ -84,8 +84,8 @@ class ManualPresensiSiswaTest extends TestCase
             'nama'        => 'Budi Santoso',
             'sekolah_id'  => $this->sekolah->id,
             'asal_kelas'  => '12 RPL 2',
-            'no_whatsapp' => '081234567890',
-            'wa_ortu'     => '081298765432',
+            'no_whatsapp' => '81234567890',
+            'wa_ortu'     => '81298765432',
             'prodi_id'    => $this->prodi->id,
             'kelas'       => 'Reguler',
             'notes'       => 'Hadir langsung di counter CS kampus utama',
@@ -103,8 +103,8 @@ class ManualPresensiSiswaTest extends TestCase
         $this->assertEquals('Belum Di-takeover', $prospek->status_takeover);
         $this->assertEquals('BARU', $prospek->status);
         $this->assertEquals('12 RPL 2', $prospek->asal_kelas);
-        $this->assertEquals('081234567890', $prospek->whatsapp);
-        $this->assertEquals('081298765432', $prospek->wa_ortu);
+        $this->assertEquals('+6281234567890', $prospek->whatsapp);
+        $this->assertEquals('+6281298765432', $prospek->wa_ortu);
         $this->assertEquals($this->sekolah->id, $prospek->sekolah_id);
         $this->assertEquals($this->wilayah->id, $prospek->wilayah_id);
         $this->assertStringContainsString('Presensi siswa langsung dicatat manual oleh CS Dina (CS)', $prospek->notes);
@@ -121,7 +121,7 @@ class ManualPresensiSiswaTest extends TestCase
             'nama'           => 'Siti Nurhaliza',
             'sekolah_manual' => 'SMA Swasta Harapan Bangsa',
             'asal_kelas'     => '12 IPS 1',
-            'no_whatsapp'    => '081399887766',
+            'no_whatsapp'    => '81399887766',
             'prodi_id'       => 'lainnya',
             'prodi_lainnya'  => 'Digital Marketing & AI',
             'kelas'          => 'Karyawan',
@@ -150,7 +150,7 @@ class ManualPresensiSiswaTest extends TestCase
         $response = $this->actingAs($this->cs)->from(route('prospek.index'))->post(route('prospek.presensi-manual'), [
             'nama'        => 'Ahmad Fauzan',
             'asal_kelas'  => '12 IPA',
-            'no_whatsapp' => '081122334455',
+            'no_whatsapp' => '81122334455',
             'prodi_id'    => $this->prodi->id,
             'kelas'       => 'Reguler',
         ]);
@@ -158,5 +158,126 @@ class ManualPresensiSiswaTest extends TestCase
         $response->assertRedirect(route('prospek.index'));
         $response->assertSessionHasErrors(['sekolah_id']);
         $this->assertDatabaseMissing('prospeks', ['pic' => 'Ahmad Fauzan']);
+    }
+
+    public function test_manual_attendance_saves_and_displays_when_optional_fields_are_empty()
+    {
+        // Leaving all optional fields (no_registrasi, gelombang, wa_ortu, notes) empty
+        $response = $this->actingAs($this->cs)->post(route('prospek.presensi-manual'), [
+            'nama'          => 'Rian Pratama',
+            'no_registrasi' => '',
+            'gelombang'     => '',
+            'sekolah_id'    => $this->sekolah->id,
+            'asal_kelas'    => '12 TKJ 1',
+            'no_whatsapp'   => '87711223344',
+            'wa_ortu'       => '',
+            'prodi_id'      => $this->prodi->id,
+            'kelas'         => 'Reguler',
+            'notes'         => '',
+        ]);
+
+        $response->assertRedirect(route('prospek.index', ['scope' => 'presensi']));
+        $response->assertSessionHas('success');
+
+        // Verify record in database
+        $prospek = Prospek::where('pic', 'Rian Pratama')->first();
+        $this->assertNotNull($prospek, 'Data presensi siswa harus tersimpan ke database');
+        $this->assertNull($prospek->no_registrasi);
+        $this->assertNull($prospek->gelombang);
+        $this->assertNull($prospek->wa_ortu);
+        $this->assertEquals('+6287711223344', $prospek->whatsapp);
+        $this->assertEquals('12 TKJ 1', $prospek->asal_kelas);
+        $this->assertEquals(Prospek::SOURCE_PRESENSI_SISWA, $prospek->source);
+
+        // Verify record appears in page view
+        $viewResponse = $this->actingAs($this->cs)->get(route('prospek.index', ['scope' => 'presensi']));
+        $viewResponse->assertStatus(200);
+        $viewResponse->assertSee('Rian Pratama');
+        $viewResponse->assertSee('12 TKJ 1');
+
+        // Also visible in "Semua Prospek"
+        $allResponse = $this->actingAs($this->cs)->get(route('prospek.index'));
+        $allResponse->assertStatus(200);
+        $allResponse->assertSee('Rian Pratama');
+    }
+
+    public function test_manual_attendance_gracefully_normalizes_whatsapp_with_08_prefix()
+    {
+        $response = $this->actingAs($this->cs)->post(route('prospek.presensi-manual'), [
+            'nama'        => 'Dewi Anggraeni',
+            'sekolah_id'  => $this->sekolah->id,
+            'asal_kelas'  => '12 Akuntansi',
+            'no_whatsapp' => '08987654321', // Starts with 08
+            'wa_ortu'     => '08123456789', // Starts with 08
+            'prodi_id'    => $this->prodi->id,
+            'kelas'       => 'Reguler',
+        ]);
+
+        $response->assertRedirect(route('prospek.index', ['scope' => 'presensi']));
+        $response->assertSessionHas('success');
+
+        $prospek = Prospek::where('pic', 'Dewi Anggraeni')->first();
+        $this->assertNotNull($prospek);
+        $this->assertEquals('+628987654321', $prospek->whatsapp);
+        $this->assertEquals('+628123456789', $prospek->wa_ortu);
+    }
+
+    public function test_tambah_prospek_baru_with_empty_optional_fields_successfully_saved_and_displayed()
+    {
+        $response = $this->actingAs($this->cs)->post(route('prospek.store'), [
+            'type'          => 'Sekolah',
+            'sekolah_id'    => $this->sekolah->id,
+            'kelas'         => 'Reguler',
+            'prodi_id'      => '', // Kosong
+            'prodi_lainnya' => '', // Kosong
+            'status'        => 'BARU',
+            'pic'           => 'Surya Kencana',
+            'asal_kelas'    => '', // Kosong
+            'whatsapp'      => '85544332211',
+            'wa_ortu'       => '', // Kosong
+            'source'        => 'Website UCIC',
+            'no_registrasi' => '', // Kosong
+            'gelombang'     => '', // Kosong
+            'category'      => '', // Kosong
+            'notes'         => '', // Kosong
+        ]);
+
+        $response->assertSessionHas('success');
+
+        $prospek = Prospek::where('pic', 'Surya Kencana')->first();
+        $this->assertNotNull($prospek, 'Prospek baru dengan opsional kosong harus tersimpan');
+        $this->assertNull($prospek->no_registrasi);
+        $this->assertNull($prospek->gelombang);
+        $this->assertNull($prospek->wa_ortu);
+        $this->assertNull($prospek->asal_kelas);
+        $this->assertNull($prospek->notes);
+        $this->assertNull($prospek->prodi_id);
+        $this->assertEquals('+6285544332211', $prospek->whatsapp);
+
+        // Verify it appears in Data Prospek view
+        $viewResponse = $this->actingAs($this->cs)->get(route('prospek.index'));
+        $viewResponse->assertStatus(200);
+        $viewResponse->assertSee('Surya Kencana');
+    }
+
+    public function test_tambah_prospek_baru_normalizes_whatsapp_with_08_prefix()
+    {
+        $response = $this->actingAs($this->cs)->post(route('prospek.store'), [
+            'type'          => 'Sekolah',
+            'sekolah_id'    => $this->sekolah->id,
+            'kelas'         => 'Reguler',
+            'status'        => 'BARU',
+            'pic'           => 'Bima Arya',
+            'whatsapp'      => '081299887766', // 08 prefix
+            'wa_ortu'       => '081399887766', // 08 prefix
+            'source'        => 'Website UCIC',
+        ]);
+
+        $response->assertSessionHas('success');
+
+        $prospek = Prospek::where('pic', 'Bima Arya')->first();
+        $this->assertNotNull($prospek);
+        $this->assertEquals('+6281299887766', $prospek->whatsapp);
+        $this->assertEquals('+6281399887766', $prospek->wa_ortu);
     }
 }

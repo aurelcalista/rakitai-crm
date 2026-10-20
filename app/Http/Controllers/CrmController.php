@@ -1239,7 +1239,11 @@ class CrmController extends Controller
                       // Prospek milik CS (cs_id terisi) juga bisa dilihat semua role
                       ->orWhereNotNull('cs_id')
                       // Pengecualian akses lintas wilayah untuk Sales pada sumber Presensi Siswa
-                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
+                      ->orWhere(function ($pq) {
+                          $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                             ->orWhere('source', 'Presensi Siswa')
+                             ->orWhere('source', 'like', '%presensi%');
+                      });
                 });
             } elseif ($role === 'spv') {
                 $salesIds = $user->teamMemberIds();
@@ -1247,7 +1251,11 @@ class CrmController extends Controller
                     $q->whereIn('sales_id', $salesIds)
                       ->orWhereIn('owner_id', $salesIds)
                       ->orWhere('takeover_by_id', $user->id)
-                      ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA)
+                      ->orWhere(function ($pq) {
+                          $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                             ->orWhere('source', 'Presensi Siswa')
+                             ->orWhere('source', 'like', '%presensi%');
+                      })
                       // Prospek milik CS juga tampil di SPV
                       ->orWhereNotNull('cs_id');
                     if ($user->wilayah_id) {
@@ -1256,29 +1264,36 @@ class CrmController extends Controller
                 });
             } elseif ($role === 'cs') {
                 $query->where(function ($q) use ($user) {
-                    $q->where(function ($sq) use ($user) {
-                        $sq->where('cs_id', $user->id)
-                           ->orWhere('owner_id', $user->id)
-                           ->orWhere('takeover_by_id', $user->id)
-                           ->orWhereNotNull('cs_id')
-                           ->orWhereHas('owner', function ($oq) {
-                               $oq->whereIn('role', ['CS', 'cs']);
-                           })
-                           ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA)
-                           ->orWhere(function ($st) {
-                               $st->where('stage_number', '>=', 5)
-                                  ->orWhereIn('status', [
-                                      'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
-                                      '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
-                                  ]);
-                           });
-                    });
-                    if ($user->wilayah_id) {
-                        $q->where(function ($w) use ($user) {
-                            $w->where('wilayah_id', $user->wilayah_id)
-                              ->orWhereNull('wilayah_id');
+                    $q->where(function ($mainQ) use ($user) {
+                        $mainQ->where(function ($sq) use ($user) {
+                            $sq->where('cs_id', $user->id)
+                               ->orWhere('owner_id', $user->id)
+                               ->orWhere('takeover_by_id', $user->id)
+                               ->orWhereNotNull('cs_id')
+                               ->orWhereHas('owner', function ($oq) {
+                                   $oq->whereIn('role', ['CS', 'cs']);
+                               })
+                               ->orWhere(function ($st) {
+                                   $st->where('stage_number', '>=', 5)
+                                      ->orWhereIn('status', [
+                                          'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
+                                          '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
+                                      ]);
+                               });
                         });
-                    }
+                        if ($user->wilayah_id) {
+                            $mainQ->where(function ($w) use ($user) {
+                                $w->where('wilayah_id', $user->wilayah_id)
+                                  ->orWhereNull('wilayah_id');
+                            });
+                        }
+                    })
+                    // Pengecualian akses terbuka lintas wilayah untuk Presensi Siswa (dapat dilihat seluruh CS)
+                    ->orWhere(function ($pq) {
+                        $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                           ->orWhere('source', 'Presensi Siswa')
+                           ->orWhere('source', 'like', '%presensi%');
+                    });
                 });
             } elseif (in_array($role, ['hm', 'eo'])) {
                 if ($role === 'hm') {
@@ -1302,7 +1317,11 @@ class CrmController extends Controller
                         
                         $query->where(function($q) use ($allSalesInScope, $user) {
                             $q->whereIn('sales_id', $allSalesInScope)
-                              ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA)
+                              ->orWhere(function ($pq) {
+                                  $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                                     ->orWhere('source', 'Presensi Siswa')
+                                     ->orWhere('source', 'like', '%presensi%');
+                              })
                               // Prospek milik CS juga tampil di HM
                               ->orWhereNotNull('cs_id');
                             if ($user->wilayah_id) {
@@ -1313,7 +1332,11 @@ class CrmController extends Controller
                     }
                 } else {
                     $query->where(function ($q) use ($user) {
-                        $q->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+                        $q->where(function ($pq) {
+                            $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                               ->orWhere('source', 'Presensi Siswa')
+                               ->orWhere('source', 'like', '%presensi%');
+                        });
                         if ($user->wilayah_id) {
                             $q->orWhere('wilayah_id', $user->wilayah_id);
                         }
@@ -1354,7 +1377,11 @@ class CrmController extends Controller
                     });
                 });
             } elseif ($request->scope === 'presensi') {
-                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+                $query->where(function ($pq) {
+                    $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                       ->orWhere('source', 'Presensi Siswa')
+                       ->orWhere('source', 'like', '%presensi%');
+                });
             }
         }
 
@@ -1438,10 +1465,16 @@ class CrmController extends Controller
                 'takeover_by_id' => $p->takeover_by_id,
                 'sales_name' => $p->sales ? $p->sales->name : '-',
                 'cs_name' => $p->cs ? $p->cs->name : ($p->owner && strtolower($p->owner->role ?? '') === 'cs' ? $p->owner->name : '-'),
-                'category' => $p->category ?? '-',
+                'category' => !empty($p->category) ? $p->category : ($p->prodi?->nama ?: '-'),
                 'pic' => $p->pic ?? '-',
                 'pic_phone' => $p->pic_phone ?? '-',
                 'whatsapp' => $p->whatsapp ?? '-',
+                'wa_ortu' => $p->wa_ortu ?? '',
+                'asal_kelas' => $p->asal_kelas ?? '',
+                'prodi_id' => $p->prodi_id,
+                'prodi_nama' => $p->prodi ? $p->prodi->nama : (!empty($p->category) ? $p->category : '-'),
+                'prodi_lainnya' => $p->prodi_lainnya ?? '',
+                'sekolah_id' => $p->sekolah_id,
                 'status' => $p->status,
                 'stage_number' => $p->stage_number,
                 'takeover_sales' => $p->sales ? $p->sales->name : null,
@@ -1452,7 +1485,7 @@ class CrmController extends Controller
                 'takeover_by_name' => $p->takeoverBy?->name ?? null,
                 'takeover_by_role' => $p->takeoverBy?->role ?? null,
                 'takeover_at' => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
-                'is_presensi' => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
+                'is_presensi' => $p->isPresensiSiswa(),
                 'last_activity' => $p->updated_at->diffForHumans(),
                 'potential' => $p->potential ?? '-',
                 'source' => $p->source ?? '-',
@@ -1691,6 +1724,28 @@ class CrmController extends Controller
 
     public function prospekStore(Request $request)
     {
+        if ($request->filled('whatsapp')) {
+            $rawWa = preg_replace('/[^0-9]/', '', (string)$request->whatsapp);
+            $cleanWa = preg_replace('/^(62|0)+/', '', $rawWa);
+            if (!empty($cleanWa)) {
+                $request->merge(['whatsapp' => '+62' . $cleanWa]);
+            } else {
+                $request->merge(['whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->whatsapp)]);
+            }
+        }
+
+        if ($request->filled('wa_ortu') && trim((string)$request->wa_ortu) !== '') {
+            $rawOrtu = preg_replace('/[^0-9]/', '', (string)$request->wa_ortu);
+            $cleanOrtu = preg_replace('/^(62|0)+/', '', $rawOrtu);
+            if (!empty($cleanOrtu)) {
+                $request->merge(['wa_ortu' => '+62' . $cleanOrtu]);
+            } else {
+                $request->merge(['wa_ortu' => null]);
+            }
+        } else {
+            $request->merge(['wa_ortu' => null]);
+        }
+
         $request->validate([
             'name'          => 'nullable|string|max:255',
             'no_registrasi' => 'nullable|string|max:100',
@@ -1698,13 +1753,13 @@ class CrmController extends Controller
             'type'          => 'required|string',
             'status'        => 'required|string',
             'pic'           => 'required|string',
-            'whatsapp'      => 'required|string',
+            'whatsapp'      => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'prodi_id'      => 'nullable|string',
             'prodi_lainnya' => 'nullable|string',
             'sekolah_id'    => 'nullable|exists:sekolahs,id',
             'perusahaan_id' => 'nullable|exists:perusahaans,id',
             'sales_id'      => 'nullable|exists:users,id',
-            'wa_ortu'       => 'nullable|string',
+            'wa_ortu'       => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas'    => 'nullable|string',
         ]);
 
@@ -1775,33 +1830,40 @@ class CrmController extends Controller
                 $name = $request->pic;
             }
 
-            $prodi = $request->prodi_id ? \App\Models\Prodi::find($request->prodi_id) : null;
-            $stageNumber = \App\Models\Prospek::STAGES[$request->status] ?? 1;
+            $noRegistrasi = $request->filled('no_registrasi') ? trim($request->no_registrasi) : null;
+            $gelombang    = $request->filled('gelombang') ? trim($request->gelombang) : null;
+            $asalKelas    = $request->filled('asal_kelas') ? trim($request->asal_kelas) : null;
+            $notes        = $request->filled('notes') ? trim($request->notes) : null;
+            $prodiId      = ($request->filled('prodi_id') && $request->prodi_id !== 'lainnya') ? $request->prodi_id : null;
+            $prodiLainnya = ($request->prodi_id === 'lainnya' && $request->filled('prodi_lainnya')) ? trim($request->prodi_lainnya) : null;
+            $prodi        = $prodiId ? \App\Models\Prodi::find($prodiId) : null;
+            $category     = $request->filled('category') ? trim($request->category) : ($prodi?->nama ?: '-');
+            $stageNumber  = \App\Models\Prospek::STAGES[$request->status] ?? 1;
 
             $prospek = Prospek::create([
                 'name'               => $name,
-                'no_registrasi'      => $request->no_registrasi,
-                'gelombang'          => $request->gelombang,
+                'no_registrasi'      => $noRegistrasi,
+                'gelombang'          => $gelombang,
                 'type'               => $request->type,
                 'status'             => $request->status,
                 'stage_number'       => $stageNumber,
                 'pic'                => $request->pic,
-                'pic_phone'          => $request->pic_phone ?? null,
-                'whatsapp'           => $request->whatsapp,
+                'pic_phone'          => \App\Support\WhatsAppHelper::formatForDatabase($request->whatsapp),
+                'whatsapp'           => \App\Support\WhatsAppHelper::formatForDatabase($request->whatsapp),
                 'sales_id'           => $salesId,
                 'cs_id'              => $csId,
                 'wilayah_id'         => $wilayahId,
-                'prodi_id'           => $prodi?->id,
-                'category'           => $request->category ?? ($prodi?->nama ?? '-'),
+                'prodi_id'           => $prodiId,
+                'category'           => $category,
                 'source'             => $request->source ?? 'Inbound Direct',
                 'kelas'              => $request->kelas ?? 'Reguler',
-                'notes'              => $request->notes,
+                'notes'              => $notes,
                 'owner_id'           => $ownerId,
-                'sekolah_id'         => $request->type === 'Sekolah' ? $request->sekolah_id : null,
-                'perusahaan_id'      => $request->type === 'Corporate' ? $request->perusahaan_id : null,
-                'wa_ortu'            => $request->wa_ortu,
-                'asal_kelas'         => $request->asal_kelas,
-                'prodi_lainnya'      => $request->prodi_id === 'lainnya' ? $request->prodi_lainnya : null,
+                'sekolah_id'         => $request->type === 'Sekolah' ? ($request->sekolah_id ?: null) : null,
+                'perusahaan_id'      => $request->type === 'Corporate' ? ($request->perusahaan_id ?: null) : null,
+                'wa_ortu'            => \App\Support\WhatsAppHelper::formatForDatabase($request->wa_ortu),
+                'asal_kelas'         => $asalKelas,
+                'prodi_lainnya'      => $prodiLainnya,
             ]);
 
             if ($request->prodi_id === 'lainnya') {
@@ -1836,6 +1898,38 @@ class CrmController extends Controller
      */
     public function prospekPresensiManual(Request $request)
     {
+        if ($request->filled('no_whatsapp')) {
+            $rawWa = preg_replace('/[^0-9]/', '', (string)$request->no_whatsapp);
+            $cleanWa = preg_replace('/^(62|0)+/', '', $rawWa);
+            if (!empty($cleanWa)) {
+                $request->merge(['no_whatsapp' => '+62' . $cleanWa]);
+            } else {
+                $request->merge(['no_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->no_whatsapp)]);
+            }
+        }
+
+        if ($request->filled('wa_ortu') && trim((string)$request->wa_ortu) !== '') {
+            $rawOrtu = preg_replace('/[^0-9]/', '', (string)$request->wa_ortu);
+            $cleanOrtu = preg_replace('/^(62|0)+/', '', $rawOrtu);
+            if (!empty($cleanOrtu)) {
+                $request->merge(['wa_ortu' => '+62' . $cleanOrtu]);
+            } else {
+                $request->merge(['wa_ortu' => null]);
+            }
+        } else {
+            $request->merge(['wa_ortu' => null]);
+        }
+
+        if (!$request->filled('no_registrasi') || trim((string)$request->no_registrasi) === '') {
+            $request->merge(['no_registrasi' => null]);
+        }
+        if (!$request->filled('gelombang') || trim((string)$request->gelombang) === '') {
+            $request->merge(['gelombang' => null]);
+        }
+        if (!$request->filled('notes') || trim((string)$request->notes) === '') {
+            $request->merge(['notes' => null]);
+        }
+
         $validated = $request->validate([
             'nama'           => 'required|string|max:255',
             'no_registrasi'  => 'nullable|string|max:100',
@@ -1843,8 +1937,8 @@ class CrmController extends Controller
             'sekolah_id'     => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
             'asal_kelas'     => 'required|string|max:100',
-            'no_whatsapp'    => 'required|string|max:25',
-            'wa_ortu'        => 'nullable|string|max:25',
+            'no_whatsapp'    => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
+            'wa_ortu'        => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'prodi_id'       => 'required',
             'prodi_lainnya'  => 'nullable|required_if:prodi_id,lainnya|string|max:255',
             'kelas'          => 'required|in:Reguler,Karyawan',
@@ -1857,7 +1951,7 @@ class CrmController extends Controller
                 ->withErrors(['sekolah_id' => 'Nama sekolah wajib dipilih dari master data atau diisi manual jika belum terdaftar.']);
         }
 
-        $name = $validated['nama'];
+        $schoolName = null;
         $sekolahId = null;
         $wilayahId = null;
         $manualNotes = null;
@@ -1865,7 +1959,7 @@ class CrmController extends Controller
         if (!empty($validated['sekolah_id'])) {
             $sekolah = \App\Models\Sekolah::find($validated['sekolah_id']);
             if ($sekolah) {
-                $name = $sekolah->nama;
+                $schoolName = $sekolah->nama;
                 $sekolahId = $sekolah->id;
                 $wilayahId = $sekolah->wilayah_id;
             }
@@ -1874,7 +1968,7 @@ class CrmController extends Controller
             // Cek apakah nama manual cocok (case-insensitive) dengan data master sekolah yang ada
             $matched = \App\Models\Sekolah::whereRaw('LOWER(nama) = ?', [strtolower($manualName)])->first();
             if ($matched) {
-                $name = $matched->nama;
+                $schoolName = $matched->nama;
                 $sekolahId = $matched->id;
                 $wilayahId = $matched->wilayah_id;
             } else {
@@ -1884,12 +1978,14 @@ class CrmController extends Controller
                     'nama'   => $manualName,
                     'status' => 'Aktif',
                 ]);
-                $name = $newSchool->nama;
+                $schoolName = $newSchool->nama;
                 $sekolahId = $newSchool->id;
                 $wilayahId = null;
                 $manualNotes = 'Sekolah baru otomatis ditambahkan ke Master Data: ' . $manualName;
             }
         }
+
+        $name = $schoolName ?: $validated['nama'];
 
         $currentUser = auth()->user();
         $inputterRole = $currentUser ? ($currentUser->role ?? 'CS') : 'CS';
@@ -1905,12 +2001,12 @@ class CrmController extends Controller
 
         $prospek = Prospek::create([
             'name'             => $name,
-            'no_registrasi'    => $request->no_registrasi,
-            'gelombang'        => $request->gelombang,
-            'whatsapp'         => $validated['no_whatsapp'],
-            'wa_ortu'          => $validated['wa_ortu'] ?? null,
+            'no_registrasi'    => $validated['no_registrasi'] ?? null,
+            'gelombang'        => $validated['gelombang'] ?? null,
+            'whatsapp'         => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+            'wa_ortu'          => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
             'pic'              => $validated['nama'],
-            'pic_phone'        => $validated['no_whatsapp'],
+            'pic_phone'        => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
             'type'             => 'Sekolah',
             'sekolah_id'       => $sekolahId,
             'wilayah_id'       => $wilayahId,
@@ -1940,7 +2036,10 @@ class CrmController extends Controller
             'time'         => now(),
         ]);
 
-        $redirectRoute = (strtolower(auth()->user()->role ?? '') === 'sales') ? 'sales.prospek.index' : 'prospek.index';
+        $userRole = strtolower(auth()->user()->role ?? '');
+        $redirectRoute = ($userRole === 'sales' && \Illuminate\Support\Facades\Route::has('sales.prospek.index'))
+            ? 'sales.prospek.index'
+            : (($userRole === 'spv' && \Illuminate\Support\Facades\Route::has('spv.prospek.index')) ? 'spv.prospek.index' : 'prospek.index');
 
         return redirect()->route($redirectRoute, ['scope' => 'presensi'])
             ->with('success', 'Presensi siswa "' . $prospek->pic . '" berhasil disimpan dan masuk ke filter Presensi Siswa.');
@@ -2012,7 +2111,7 @@ class CrmController extends Controller
             'takeover_by_name' => $prospectRaw->takeoverBy?->name ?? null,
             'takeover_by_role' => $prospectRaw->takeoverBy?->role ?? null,
             'takeover_at' => $prospectRaw->takeover_at ? $prospectRaw->takeover_at->format('d M Y, H:i') : null,
-            'is_presensi' => (bool) ($prospectRaw->source === Prospek::SOURCE_PRESENSI_SISWA || $prospectRaw->source === 'Presensi Siswa'),
+            'is_presensi' => $prospectRaw->isPresensiSiswa(),
             'last_activity' => $prospectRaw->updated_at->diffForHumans(),
             'source' => $prospectRaw->source ?? '-',
             'notes' => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($prospectRaw->notes ?? ''),
@@ -2100,6 +2199,13 @@ class CrmController extends Controller
     {
         $prospek = Prospek::findOrFail($id);
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
+
+        if ($request->filled('whatsapp')) {
+            $request->merge(['whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->whatsapp)]);
+        }
+        if ($request->filled('wa_ortu')) {
+            $request->merge(['wa_ortu' => \App\Support\WhatsAppHelper::prepareForValidation($request->wa_ortu)]);
+        }
         
         $validated = $request->validate([
             'status' => 'required|string',
@@ -2108,8 +2214,8 @@ class CrmController extends Controller
             'type' => 'nullable|string',
             'name' => 'nullable|string',
             'pic' => 'nullable|string',
-            'whatsapp' => 'nullable|string',
-            'wa_ortu' => 'nullable|string',
+            'whatsapp' => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+            'wa_ortu' => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas' => 'nullable|string',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string',
@@ -2216,6 +2322,14 @@ class CrmController extends Controller
 
         unset($validated['sekolah_manual'], $validated['perusahaan_manual']);
 
+        if (array_key_exists('whatsapp', $validated)) {
+            $validated['whatsapp'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']);
+            $validated['pic_phone'] = $validated['whatsapp'];
+        }
+        if (array_key_exists('wa_ortu', $validated)) {
+            $validated['wa_ortu'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu']);
+        }
+
         if (empty($validated['prodi_id'])) {
             $validated['prodi_id'] = null;
             $validated['prodi_lainnya'] = null;
@@ -2294,7 +2408,7 @@ class CrmController extends Controller
             }
 
             // Presensi Siswa takeover:
-            if ($prospek->source === Prospek::SOURCE_PRESENSI_SISWA || $prospek->source === 'Presensi Siswa') {
+            if ($prospek->isPresensiSiswa()) {
                 $updates = [
                     'status_takeover' => 'Sudah Di-takeover',
                     'takeover_by_id'  => $userId,
@@ -2586,12 +2700,16 @@ class CrmController extends Controller
             }
         }
 
+        if ($request->filled('pic_whatsapp')) {
+            $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
+        }
+
         $request->validate([
             'nama_institusi' => 'required|string|max:255',
             'jenis'          => 'required|in:Sekolah,Perusahaan',
             'tanggal'        => 'required|date',
             'pic_name'       => 'required|string|max:255',
-            'pic_whatsapp'   => 'required|string|max:20',
+            'pic_whatsapp'   => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'catatan'        => 'nullable|string|max:2000',
             'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
             'dosen_pemateri' => 'nullable|string|max:255',
@@ -2680,13 +2798,17 @@ class CrmController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('update', $kunjungan);
 
+        if ($request->filled('pic_whatsapp')) {
+            $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
+        }
+
         $validated = $request->validate([
             'tanggal'                  => 'required|date',
             'waktu'                    => 'nullable|string',
             'nama_institusi'           => 'nullable|string|max:255',
             'tujuan_kunjungan'         => 'nullable|string|max:255',
             'pic_name'                 => 'nullable|string|max:255',
-            'pic_whatsapp'             => 'nullable|string|max:30',
+            'pic_whatsapp'             => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
             'alamat'                   => 'nullable|string|max:500',
             'catatan'                  => 'nullable|string|max:2000',
             'hasil'                    => 'nullable|string|max:2000',
@@ -2724,6 +2846,10 @@ class CrmController extends Controller
 
         if ($request->has('kesediaan_training_ai')) {
             $validated['kesediaan_training_ai'] = $request->boolean('kesediaan_training_ai');
+        }
+
+        if (array_key_exists('pic_whatsapp', $validated)) {
+            $validated['pic_whatsapp'] = \App\Support\WhatsAppHelper::formatForDatabase($validated['pic_whatsapp']);
         }
 
         $kunjungan->update($validated);

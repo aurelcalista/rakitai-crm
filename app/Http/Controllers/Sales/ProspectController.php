@@ -44,7 +44,11 @@ class ProspectController extends Controller
                   // Prospek milik CS (cs_id terisi) juga tampil di Sales
                   ->orWhereNotNull('cs_id')
                   // Akses lintas wilayah murni untuk sumber Presensi Siswa
-                  ->orWhere('source', Prospek::SOURCE_PRESENSI_SISWA);
+                  ->orWhere(function ($pq) {
+                      $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                         ->orWhere('source', 'Presensi Siswa')
+                         ->orWhere('source', 'like', '%presensi%');
+                  });
             });
 
         // Filter tab scope: all, own, others, presensi
@@ -74,7 +78,11 @@ class ProspectController extends Controller
                     });
                 });
             } elseif ($request->scope === 'presensi') {
-                $query->where('source', Prospek::SOURCE_PRESENSI_SISWA);
+                $query->where(function ($pq) {
+                    $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
+                       ->orWhere('source', 'Presensi Siswa')
+                       ->orWhere('source', 'like', '%presensi%');
+                });
             }
         }
 
@@ -286,18 +294,23 @@ class ProspectController extends Controller
             }
 
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
+            $prodi = !empty($validated['prodi_id']) ? \App\Models\Prodi::find($validated['prodi_id']) : null;
+            $category = !empty($validated['category']) ? $validated['category'] : ($prodi?->nama ?: '-');
 
             $prospek = Prospek::create([
                 'name'         => $name,
                 'no_registrasi'=> $validated['no_registrasi'] ?? null,
                 'gelombang'    => $validated['gelombang'] ?? null,
                 'type'         => $validated['type'],
-                'category'     => $validated['category'] ?? null,
+                'category'     => $category,
                 'sekolah_id'   => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
                 'perusahaan_id'=> $validated['type'] === 'Corporate' ? ($validated['perusahaan_id'] ?? null) : null,
                 'pic'          => $validated['pic'],
                 'pic_phone'    => $validated['pic_phone'] ?? null,
-                'whatsapp'     => $validated['whatsapp'],
+                'whatsapp'     => \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']),
+                'wa_ortu'      => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
+                'asal_kelas'   => $validated['asal_kelas'] ?? null,
+                'prodi_lainnya'=> $validated['prodi_lainnya'] ?? null,
                 'status'       => $validated['status'],
                 'stage_number' => $stageNumber,
                 'notes'        => $validated['notes'] ?? null,
@@ -606,7 +619,7 @@ class ProspectController extends Controller
             }
 
             // Presensi Siswa takeover by Sales
-            if ($lead->source === Prospek::SOURCE_PRESENSI_SISWA || $lead->source === 'Presensi Siswa') {
+            if ($lead->isPresensiSiswa()) {
                 $lead->update([
                     'sales_id'        => $userId,
                     'status_takeover' => 'Sudah Di-takeover',
@@ -726,7 +739,7 @@ class ProspectController extends Controller
             'takeover_by_name' => $p->takeoverBy?->name ?? null,
             'takeover_by_role' => $p->takeoverBy?->role ?? null,
             'takeover_at'    => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
-            'is_presensi'    => (bool) ($p->source === Prospek::SOURCE_PRESENSI_SISWA || $p->source === 'Presensi Siswa'),
+            'is_presensi'    => $p->isPresensiSiswa(),
             'last_activity'  => $p->updated_at ? $p->updated_at->diffForHumans() : '-',
             'notes'          => $latestFollowUp && $latestFollowUp->catatan ? $latestFollowUp->catatan : ($p->notes ?? ''),
             'source'         => $p->source ?? '-',

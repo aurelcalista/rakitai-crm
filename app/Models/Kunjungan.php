@@ -27,6 +27,12 @@ class Kunjungan extends Model
 
     protected static function booted()
     {
+        static::saving(function ($model) {
+            if (!empty($model->pic_whatsapp) && $model->pic_whatsapp !== '-') {
+                $model->pic_whatsapp = \App\Support\WhatsAppHelper::formatForDatabase($model->pic_whatsapp);
+            }
+        });
+
         static::creating(function ($model) {
             if (!$model->academic_year_id) {
                 $aktif = TahunAkademik::getAktif();

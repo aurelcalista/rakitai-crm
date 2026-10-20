@@ -622,4 +622,62 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $response->assertSee('Nama Lengkap');
         $response->assertSee('Nama Sekolah');
     }
+
+    /** CS dapat melihat data presensi siswa lintas wilayah di halaman Data Prospek */
+    public function test_cs_can_see_presensi_siswa_from_other_wilayah_on_data_prospek()
+    {
+        // Prospek presensi di wilayah B (Bandung)
+        $pPresensiB = Prospek::create([
+            'name' => 'SMK Negeri 1 Bandung',
+            'pic' => 'Asep Siswa Bandung',
+            'whatsapp' => '082299887766',
+            'type' => 'Sekolah',
+            'status' => 'BARU',
+            'stage_number' => 1,
+            'wilayah_id' => $this->wilayahB->id,
+            'owner_id' => null,
+            'sales_id' => null,
+            'source' => Prospek::SOURCE_PRESENSI_SISWA,
+            'status_takeover' => 'Belum Di-takeover',
+            'academic_year_id' => $this->ta->id,
+        ]);
+
+        // CS A (Wilayah Cirebon) membuka halaman Data Prospek
+        $resDefault = $this->actingAs($this->csA)->get(route('prospek.index'));
+        $resDefault->assertStatus(200);
+        $prospectsDefault = collect($resDefault->viewData('prospects'));
+        $this->assertTrue($prospectsDefault->contains('id', $pPresensiB->id));
+
+        // CS A membuka tab filter Presensi Siswa
+        $resScope = $this->actingAs($this->csA)->get(route('prospek.index', ['scope' => 'presensi']));
+        $resScope->assertStatus(200);
+        $prospectsScope = collect($resScope->viewData('prospects'));
+        $this->assertTrue($prospectsScope->contains('id', $pPresensiB->id));
+        $this->assertEquals(1, $prospectsScope->where('id', $pPresensiB->id)->first()['is_presensi']);
+    }
+
+    /** Data presensi dengan variasi sumber (lama dan corporate) muncul di filter Presensi */
+    public function test_presensi_variations_appear_in_presensi_filter()
+    {
+        $pCorporate = Prospek::create([
+            'name' => 'PT Presensi Maju',
+            'pic' => 'Budi Staff',
+            'whatsapp' => '082299887711',
+            'type' => 'Corporate',
+            'status' => 'BARU',
+            'stage_number' => 1,
+            'wilayah_id' => $this->wilayahB->id,
+            'owner_id' => null,
+            'sales_id' => null,
+            'source' => 'Presensi Corporate',
+            'status_takeover' => 'Belum Di-takeover',
+            'academic_year_id' => $this->ta->id,
+        ]);
+
+        $res = $this->actingAs($this->csA)->get(route('prospek.index', ['scope' => 'presensi']));
+        $res->assertStatus(200);
+        $prospects = collect($res->viewData('prospects'));
+        $this->assertTrue($prospects->contains('id', $pCorporate->id));
+        $this->assertEquals(1, $prospects->where('id', $pCorporate->id)->first()['is_presensi']);
+    }
 }

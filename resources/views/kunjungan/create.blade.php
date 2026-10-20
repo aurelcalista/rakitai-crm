@@ -107,7 +107,7 @@
                     if (id && this.perusahaanMap[id]) {
                         this.nama_institusi = this.perusahaanMap[id].nama || '';
                         if (this.perusahaanMap[id].pic_name) this.pic_name = this.perusahaanMap[id].pic_name;
-                        if (this.perusahaanMap[id].pic_phone) this.pic_whatsapp = this.perusahaanMap[id].pic_phone;
+                        if (this.perusahaanMap[id].pic_phone) this.pic_whatsapp = String(this.perusahaanMap[id].pic_phone).replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                     } else {
                         if (!this.modeManualCorp) {
                             this.nama_institusi = '';
@@ -124,7 +124,7 @@
                             this.sekolah_id = p.sekolah_id || '';
                             this.nama_institusi = p.name || '';
                             this.pic_name = p.pic || '';
-                            this.pic_whatsapp = p.whatsapp || '';
+                            this.pic_whatsapp = String(p.whatsapp || '').replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                         }
                     } else if (val && val.startsWith('sekolah_')) {
                         const sid = val.replace('sekolah_', '');
@@ -134,7 +134,7 @@
                         if (s) {
                             this.nama_institusi = s.nama || '';
                             this.pic_name = s.pic_name || '';
-                            this.pic_whatsapp = s.pic_phone || '';
+                            this.pic_whatsapp = String(s.pic_phone || '').replace(/[^0-9]/g, '').replace(/^(62|0)+/, '');
                         }
                     } else {
                         this.prospek_id = '';
@@ -440,9 +440,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">No. WhatsApp PIC <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="pic_whatsapp" x-model="pic_whatsapp" required
-                                        placeholder="08123456789"
-                                        class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition @error('pic_whatsapp') border-rose-300 @enderror">
+                                    <x-input-whatsapp name="pic_whatsapp" model="pic_whatsapp" required placeholder="8123456789" />
                                     @error('pic_whatsapp')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
