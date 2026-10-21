@@ -1,3 +1,22 @@
+@php
+    $spvItems = $spvs->map(fn($u) => [
+        'id' => (string)$u->id,
+        'nama' => $u->name,
+        'sub' => $u->wilayah ? 'Wilayah: ' . $u->wilayah->nama : 'Supervisor',
+    ])->values();
+
+    $eoItems = $otherEos->map(fn($u) => [
+        'id' => (string)$u->id,
+        'nama' => $u->name,
+        'sub' => $u->email ? $u->email : 'Event Organizer',
+    ])->values();
+@endphp
+
+<script>
+    window.eoSpvList = @json($spvItems);
+    window.eoOtherEoList = @json($eoItems);
+</script>
+
 <x-app-layout title="Kelola Event">
 <div x-data="{ 
     modalTambahEvent: false, 
@@ -6,6 +25,65 @@
     selectedEvent: null,
     detailEvent: null,
     copiedQr: false,
+
+    // State Tambah Event
+    createAssignType: 'spv',
+    createSpvId: '',
+    createSpvLabel: '',
+    createEoId: '',
+    createEoLabel: '',
+
+    // State Edit Event
+    editAssignType: 'spv',
+    editSpvId: '',
+    editSpvLabel: '',
+    editEoId: '',
+    editEoLabel: '',
+
+    openCreateEvent() {
+        this.createAssignType = 'spv';
+        this.createSpvId = '';
+        this.createSpvLabel = '';
+        this.createEoId = '';
+        this.createEoLabel = '';
+        this.modalTambahEvent = true;
+    },
+
+    openEditEvent(evt) {
+        this.selectedEvent = evt;
+        const currentUserId = {{ Auth::id() }};
+        const assignees = evt.spvs || [];
+
+        if (assignees.length === 0) {
+            this.editAssignType = 'self';
+            this.editSpvId = '';
+            this.editSpvLabel = '';
+            this.editEoId = '';
+            this.editEoLabel = '';
+        } else {
+            const first = assignees[0];
+            if (first.id === currentUserId) {
+                this.editAssignType = 'self';
+                this.editSpvId = '';
+                this.editSpvLabel = '';
+                this.editEoId = '';
+                this.editEoLabel = '';
+            } else if (first.role === 'EO') {
+                this.editAssignType = 'eo';
+                this.editEoId = String(first.id);
+                this.editEoLabel = first.name;
+                this.editSpvId = '';
+                this.editSpvLabel = '';
+            } else {
+                this.editAssignType = 'spv';
+                this.editSpvId = String(first.id);
+                this.editSpvLabel = first.name + (first.wilayah ? ' (' + first.wilayah.nama + ')' : '');
+                this.editEoId = '';
+                this.editEoLabel = '';
+            }
+        }
+        this.modalEditEvent = true;
+    },
 
     formatTime(val) {
         if (!val) return '-';
@@ -36,7 +114,7 @@
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Kelola Event</h1>
             <p class="text-sm text-slate-500 mt-1">Buat dan kelola jadwal event beserta penugasan SPV.</p>
         </div>
-        <button @click="modalTambahEvent = true" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm ring-1 ring-blue-700/50">
+        <button @click="openCreateEvent()" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition shadow-sm ring-1 ring-blue-700/50">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -53,7 +131,7 @@
                         <th class="px-5 py-4 w-12 text-center">No</th>
                         <th class="px-5 py-4">Event</th>
                         <th class="px-5 py-4">Waktu & Lokasi</th>
-                        <th class="px-5 py-4">Anggota Ditugaskan</th>
+                        <th class="px-5 py-4">Penanggung Jawab</th>
                         <th class="px-5 py-4">Status</th>
                         <th class="px-5 py-4 text-center">Aksi</th>
                     </tr>
@@ -73,15 +151,26 @@
                             </td>
                             <td class="px-5 py-4">
                                 <div class="flex flex-wrap gap-1">
-                                    @foreach($event->spvs as $member)
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
-                                            {{ $member->name }}
-                                        </span>
-                                    @endforeach
-                                    @if($event->spvs->isEmpty())
-                                        <span class="text-slate-400 italic text-xs">Belum ada anggota</span>
-                                    @endif
+                                    @forelse($event->spvs as $person)
+                                        @if(in_array($person->role, ['SPV', 'Supervisor Marketing', 'Supervisor']))
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200" title="{{ $person->wilayah ? 'Wilayah: ' . $person->wilayah->nama : 'Supervisor' }}">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                                                <span class="font-semibold">SPV:</span> {{ $person->name }}
+                                            </span>
+                                        @elseif($person->id === Auth::id())
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></span>
+                                                <span class="font-semibold">Pegang Sendiri (EO)</span>
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                                                <span class="font-semibold">EO:</span> {{ $person->name }}
+                                            </span>
+                                        @endif
+                                    @empty
+                                        <span class="text-slate-400 italic text-xs">Belum ada PJ</span>
+                                    @endforelse
                                 </div>
                             </td>
                             <td class="px-5 py-4">
@@ -97,7 +186,7 @@
                                 <button type="button" @click='detailEvent = @json($event); modalDetailEvent = true' class="p-1.5 text-slate-400 hover:text-emerald-600 transition" title="Detail Event">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                 </button>
-                                <button type="button" @click='selectedEvent = @json($event); selectedEvent.spv_ids = @json($event->spvs->pluck("id")); modalEditEvent = true' class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="Edit Event">
+                                <button type="button" @click='openEditEvent(@json($event))' class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="Edit Event">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
                                 <form action="{{ route('eo.events.destroy', $event->id) }}" method="POST" class="inline-block" data-confirm="Apakah Anda yakin ingin membatalkan dan menghapus event ini? Semua assignment terkait akan ikut terhapus.">
@@ -332,7 +421,208 @@
                         </div>
                     </div>
 
-                    <!-- Card 4: Deskripsi & Catatan -->
+                    <!-- Card 4: Penugasan Penanggung Jawab Event -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Penugasan Penanggung Jawab Event <span class="text-rose-500">*</span></h4>
+                            </div>
+                            <span class="text-[11px] text-blue-600 font-semibold">Alokasi Tim</span>
+                        </div>
+
+                        <!-- Radio Toggle Assign Type -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                :class="createAssignType === 'spv' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                <input type="radio" name="assign_type" value="spv" x-model="createAssignType" class="text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-bold block">Tugaskan ke SPV</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Supervisi / Tim Sales</span>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                :class="createAssignType === 'eo' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                <input type="radio" name="assign_type" value="eo" x-model="createAssignType" class="text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-bold block">Tugaskan ke Sesama EO</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Delegasi Rekan EO</span>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                :class="createAssignType === 'self' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                <input type="radio" name="assign_type" value="self" x-model="createAssignType" class="text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-bold block">Pegang Sendiri (EO)</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Dikelola Mandiri oleh Anda</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Dropdown SPV (Search Plugin) -->
+                        <div x-show="createAssignType === 'spv'" class="space-y-1.5 pt-1">
+                            <label class="block text-xs font-bold text-slate-700">Pilih Supervisor (SPV): <span class="text-rose-500">*</span></label>
+                            <div class="relative" x-data="{
+                                open: false,
+                                search: '',
+                                get items() { return window.eoSpvList || []; },
+                                get filteredItems() {
+                                    if (!this.search.trim()) return this.items;
+                                    const q = this.search.toLowerCase();
+                                    return this.items.filter(item => item.nama.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)));
+                                },
+                                select(item) {
+                                    createSpvId = String(item.id);
+                                    createSpvLabel = item.nama + (item.sub ? ' (' + item.sub + ')' : '');
+                                    this.open = false;
+                                    this.search = '';
+                                }
+                            }" @click.outside="open = false">
+                                <input type="hidden" name="spv_id" :value="createSpvId" :required="createAssignType === 'spv'">
+                                
+                                <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                    <div class="flex items-center gap-2 truncate">
+                                        <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        <span x-text="createSpvLabel ? createSpvLabel : '-- Pilih SPV Penanggung Jawab (Wajib) --'" :class="!createSpvLabel ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'"></span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="open" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                     style="display: none;">
+                                    <div class="relative mb-2">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" 
+                                               x-model="search" 
+                                               placeholder="Ketik untuk cari nama SPV..." 
+                                               class="w-full text-xs pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                               style="padding-left: 2.25rem !important;"
+                                               @keydown.escape="open = false">
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto space-y-1">
+                                        <template x-for="item in filteredItems" :key="item.id">
+                                            <div @click="select(item)" 
+                                                 class="w-full px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer"
+                                                 :class="createSpvId == item.id ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'text-slate-700 hover:bg-slate-50'">
+                                                <div>
+                                                    <div class="font-bold" x-text="item.nama"></div>
+                                                    <div class="text-[10px] text-slate-400 font-normal" x-text="item.sub"></div>
+                                                </div>
+                                                <template x-if="createSpvId == item.id">
+                                                    <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredItems.length === 0">
+                                            <div class="p-3 text-center text-xs text-slate-400">Tidak ada SPV ditemukan</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dropdown EO (Search Plugin) -->
+                        <div x-show="createAssignType === 'eo'" class="space-y-1.5 pt-1">
+                            <label class="block text-xs font-bold text-slate-700">Pilih Rekan Event Organizer (EO): <span class="text-rose-500">*</span></label>
+                            <div class="relative" x-data="{
+                                open: false,
+                                search: '',
+                                get items() { return window.eoOtherEoList || []; },
+                                get filteredItems() {
+                                    if (!this.search.trim()) return this.items;
+                                    const q = this.search.toLowerCase();
+                                    return this.items.filter(item => item.nama.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)));
+                                },
+                                select(item) {
+                                    createEoId = String(item.id);
+                                    createEoLabel = item.nama;
+                                    this.open = false;
+                                    this.search = '';
+                                }
+                            }" @click.outside="open = false">
+                                <input type="hidden" name="eo_partner_id" :value="createEoId" :required="createAssignType === 'eo'">
+                                
+                                <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                    <div class="flex items-center gap-2 truncate">
+                                        <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        <span x-text="createEoLabel ? createEoLabel : '-- Pilih Rekan EO (Wajib) --'" :class="!createEoLabel ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'"></span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="open" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                     style="display: none;">
+                                    <div class="relative mb-2">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" 
+                                               x-model="search" 
+                                               placeholder="Ketik untuk cari nama EO..." 
+                                               class="w-full text-xs pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                               style="padding-left: 2.25rem !important;"
+                                               @keydown.escape="open = false">
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto space-y-1">
+                                        <template x-for="item in filteredItems" :key="item.id">
+                                            <div @click="select(item)" 
+                                                 class="w-full px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer"
+                                                 :class="createEoId == item.id ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-700 hover:bg-slate-50'">
+                                                <div>
+                                                    <div class="font-bold" x-text="item.nama"></div>
+                                                    <div class="text-[10px] text-slate-400 font-normal" x-text="item.sub"></div>
+                                                </div>
+                                                <template x-if="createEoId == item.id">
+                                                    <svg class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredItems.length === 0">
+                                            <div class="p-3 text-center text-xs text-slate-400">Tidak ada rekan EO lain yang tersedia</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Pegang Sendiri (Self) -->
+                        <div x-show="createAssignType === 'self'" class="p-3 bg-blue-50/60 border border-blue-200/70 rounded-xl text-xs text-blue-800 flex items-center gap-2.5">
+                            <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Event ini akan dipegang dan dikelola langsung oleh Anda (<strong>{{ Auth::user()->name }}</strong>).</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 5: Deskripsi & Catatan -->
                     <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
                         <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
                             <div class="flex items-center gap-2">
@@ -570,7 +860,208 @@
                         </div>
                     </div>
 
-                    <!-- Card 4: Deskripsi & Catatan -->
+                    <!-- Card 4: Penugasan Penanggung Jawab Event -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Penugasan Penanggung Jawab Event <span class="text-rose-500">*</span></h4>
+                            </div>
+                            <span class="text-[11px] text-blue-600 font-semibold">Alokasi Tim</span>
+                        </div>
+
+                        <!-- Radio Toggle Assign Type -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                :class="editAssignType === 'spv' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                <input type="radio" name="assign_type" value="spv" x-model="editAssignType" class="text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-bold block">Tugaskan ke SPV</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Supervisi / Tim Sales</span>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                :class="editAssignType === 'eo' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                <input type="radio" name="assign_type" value="eo" x-model="editAssignType" class="text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-bold block">Tugaskan ke Sesama EO</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Delegasi Rekan EO</span>
+                                </div>
+                            </label>
+
+                            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                :class="editAssignType === 'self' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                <input type="radio" name="assign_type" value="self" x-model="editAssignType" class="text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <span class="font-bold block">Pegang Sendiri (EO)</span>
+                                    <span class="text-[10px] text-slate-400 font-normal">Dikelola Mandiri oleh Anda</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Dropdown SPV (Search Plugin) -->
+                        <div x-show="editAssignType === 'spv'" class="space-y-1.5 pt-1">
+                            <label class="block text-xs font-bold text-slate-700">Pilih Supervisor (SPV): <span class="text-rose-500">*</span></label>
+                            <div class="relative" x-data="{
+                                open: false,
+                                search: '',
+                                get items() { return window.eoSpvList || []; },
+                                get filteredItems() {
+                                    if (!this.search.trim()) return this.items;
+                                    const q = this.search.toLowerCase();
+                                    return this.items.filter(item => item.nama.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)));
+                                },
+                                select(item) {
+                                    editSpvId = String(item.id);
+                                    editSpvLabel = item.nama + (item.sub ? ' (' + item.sub + ')' : '');
+                                    this.open = false;
+                                    this.search = '';
+                                }
+                            }" @click.outside="open = false">
+                                <input type="hidden" name="spv_id" :value="editSpvId" :required="editAssignType === 'spv'">
+                                
+                                <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                    <div class="flex items-center gap-2 truncate">
+                                        <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        <span x-text="editSpvLabel ? editSpvLabel : '-- Pilih SPV Penanggung Jawab (Wajib) --'" :class="!editSpvLabel ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'"></span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="open" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                     style="display: none;">
+                                    <div class="relative mb-2">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" 
+                                               x-model="search" 
+                                               placeholder="Ketik untuk cari nama SPV..." 
+                                               class="w-full text-xs pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                               style="padding-left: 2.25rem !important;"
+                                               @keydown.escape="open = false">
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto space-y-1">
+                                        <template x-for="item in filteredItems" :key="item.id">
+                                            <div @click="select(item)" 
+                                                 class="w-full px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer"
+                                                 :class="editSpvId == item.id ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'text-slate-700 hover:bg-slate-50'">
+                                                <div>
+                                                    <div class="font-bold" x-text="item.nama"></div>
+                                                    <div class="text-[10px] text-slate-400 font-normal" x-text="item.sub"></div>
+                                                </div>
+                                                <template x-if="editSpvId == item.id">
+                                                    <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredItems.length === 0">
+                                            <div class="p-3 text-center text-xs text-slate-400">Tidak ada SPV ditemukan</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dropdown EO (Search Plugin) -->
+                        <div x-show="editAssignType === 'eo'" class="space-y-1.5 pt-1">
+                            <label class="block text-xs font-bold text-slate-700">Pilih Rekan Event Organizer (EO): <span class="text-rose-500">*</span></label>
+                            <div class="relative" x-data="{
+                                open: false,
+                                search: '',
+                                get items() { return window.eoOtherEoList || []; },
+                                get filteredItems() {
+                                    if (!this.search.trim()) return this.items;
+                                    const q = this.search.toLowerCase();
+                                    return this.items.filter(item => item.nama.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)));
+                                },
+                                select(item) {
+                                    editEoId = String(item.id);
+                                    editEoLabel = item.nama;
+                                    this.open = false;
+                                    this.search = '';
+                                }
+                            }" @click.outside="open = false">
+                                <input type="hidden" name="eo_partner_id" :value="editEoId" :required="editAssignType === 'eo'">
+                                
+                                <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                    <div class="flex items-center gap-2 truncate">
+                                        <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        <span x-text="editEoLabel ? editEoLabel : '-- Pilih Rekan EO (Wajib) --'" :class="!editEoLabel ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'"></span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="open" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                     style="display: none;">
+                                    <div class="relative mb-2">
+                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" 
+                                               x-model="search" 
+                                               placeholder="Ketik untuk cari nama EO..." 
+                                               class="w-full text-xs pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                               style="padding-left: 2.25rem !important;"
+                                               @keydown.escape="open = false">
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto space-y-1">
+                                        <template x-for="item in filteredItems" :key="item.id">
+                                            <div @click="select(item)" 
+                                                 class="w-full px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer"
+                                                 :class="editEoId == item.id ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-700 hover:bg-slate-50'">
+                                                <div>
+                                                    <div class="font-bold" x-text="item.nama"></div>
+                                                    <div class="text-[10px] text-slate-400 font-normal" x-text="item.sub"></div>
+                                                </div>
+                                                <template x-if="editEoId == item.id">
+                                                    <svg class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="filteredItems.length === 0">
+                                            <div class="p-3 text-center text-xs text-slate-400">Tidak ada rekan EO lain yang tersedia</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Pegang Sendiri (Self) -->
+                        <div x-show="editAssignType === 'self'" class="p-3 bg-blue-50/60 border border-blue-200/70 rounded-xl text-xs text-blue-800 flex items-center gap-2.5">
+                            <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Event ini akan dipegang dan dikelola langsung oleh Anda (<strong>{{ Auth::user()->name }}</strong>).</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 5: Deskripsi & Catatan -->
                     <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4.5 space-y-4">
                         <div class="flex items-center justify-between pb-2 border-b border-slate-200/60">
                             <div class="flex items-center gap-2">
@@ -755,27 +1246,56 @@
                         </div>
                     </template>
 
-                    <!-- Assignments - Anggota Tim Ditugaskan -->
+                    <!-- Assignments (Penanggung Jawab & Tim) -->
                     <div class="pt-4 border-t border-slate-200">
-                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Anggota Tim Ditugaskan</h4>
-
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Penanggung Jawab & Tim Penugasan</h4>
+                        
                         <template x-if="detailEvent.spvs && detailEvent.spvs.length > 0">
-                            <div class="flex flex-wrap gap-2">
-                                <template x-for="member in detailEvent.spvs" :key="member.id">
-                                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-800 shadow-xs">
-                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0" x-text="member.name.charAt(0).toUpperCase()"></span>
-                                        <span x-text="member.name"></span>
-                                    </span>
+                            <div class="space-y-4">
+                                <template x-for="spv in detailEvent.spvs" :key="spv.id">
+                                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                        <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-200/60">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-xs text-white"
+                                                     :class="spv.role === 'EO' ? (spv.id == {{ Auth::id() }} ? 'bg-purple-600' : 'bg-indigo-600') : 'bg-blue-600'"
+                                                     x-text="spv.name.charAt(0).toUpperCase()"></div>
+                                                <div>
+                                                    <div class="text-sm font-bold text-slate-900" x-text="spv.name"></div>
+                                                    <div class="text-[11px] text-slate-500 font-medium" x-text="spv.wilayah ? `Wilayah: ${spv.wilayah.nama}` : (spv.role === 'EO' ? (spv.id == {{ Auth::id() }} ? 'Pegang Sendiri (EO)' : 'Rekan EO') : 'Supervisor')"></div>
+                                                </div>
+                                            </div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                                                  :class="spv.role === 'EO' ? (spv.id == {{ Auth::id() }} ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200') : 'bg-blue-50 text-blue-700 border border-blue-200'"
+                                                  x-text="spv.role === 'EO' ? (spv.id == {{ Auth::id() }} ? 'Pegang Sendiri' : 'Rekan EO') : 'SPV Bertugas'"></span>
+                                        </div>
+                                        <div class="pl-2" x-show="spv.role !== 'EO'">
+                                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Sales Ditugaskan:</p>
+                                            <div class="flex flex-wrap gap-2">
+                                                <template x-for="sale in getSalesForSpv(spv.id)" :key="sale.id">
+                                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-800 shadow-xs">
+                                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                        <span x-text="sale.name"></span>
+                                                    </span>
+                                                </template>
+                                                <template x-if="getSalesForSpv(spv.id).length === 0">
+                                                    <span class="text-xs text-slate-400 italic">Belum ada sales ditugaskan oleh SPV ini</span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div class="pl-2" x-show="spv.role === 'EO'">
+                                            <p class="text-xs text-slate-500 italic">Event ini ditangani langsung oleh Event Organizer tanpa penugasan tim sales SPV.</p>
+                                        </div>
+                                    </div>
                                 </template>
                             </div>
                         </template>
-
+                        
                         <template x-if="!detailEvent.spvs || detailEvent.spvs.length === 0">
                             <div class="text-center p-6 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
                                 <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
-                                <p class="text-sm font-medium text-slate-500">Belum ada anggota yang ditugaskan.</p>
+                                <p class="text-sm font-medium text-slate-500">Belum ada penanggung jawab yang ditugaskan pada event ini.</p>
                             </div>
                         </template>
                     </div>
@@ -784,7 +1304,7 @@
         </div>
         <div class="flex justify-between items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
             <template x-if="detailEvent">
-                <button type="button" @click="modalDetailEvent = false; selectedEvent = detailEvent; selectedEvent.spv_ids = (detailEvent.spvs || []).map(s => s.id); modalEditEvent = true" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition border border-blue-200">
+                <button type="button" @click="modalDetailEvent = false; openEditEvent(detailEvent)" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition border border-blue-200">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     Edit Event
                 </button>

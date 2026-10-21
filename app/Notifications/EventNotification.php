@@ -60,11 +60,16 @@ class EventNotification extends Notification
                 break;
         }
 
+        $targetUrl = ($this->action === 'assigned_sales' || (isset($notifiable->role) && strtolower($notifiable->role) === 'sales'))
+            ? '/sales/event'
+            : '/calendar';
+
         return [
-            'title' => 'Notifikasi Event',
-            'message' => $message,
-            'icon' => $icon,
-            'url' => '/calendar',
+            'title'    => 'Notifikasi Event',
+            'message'  => $message,
+            'icon'     => $icon,
+            'url'      => $targetUrl,
+            'link'     => $targetUrl,
             'event_id' => $this->event->id
         ];
     }

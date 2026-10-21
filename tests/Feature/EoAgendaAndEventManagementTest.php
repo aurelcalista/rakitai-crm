@@ -225,6 +225,7 @@ class EoAgendaAndEventManagementTest extends TestCase
             'waktu_mulai'   => '10:00',
             'waktu_selesai' => '17:00',
             'lokasi'        => 'Convention Hall Lt 2',
+            'spvs'          => [$this->spv->id],
             'deskripsi'     => 'Event besar yang direvisi EO.',
         ]);
 
@@ -276,7 +277,7 @@ class EoAgendaAndEventManagementTest extends TestCase
      */
     public function test_event_dibuat_tanpa_spv_tetap_muncul_di_kelola_event_kalender_dan_dashboard()
     {
-        // EO 1 membuat event tanpa SPV
+        // EO 1 membuat event dengan SPV
         $response = $this->actingAs($this->eo1)->post(route('eo.events.store'), [
             'name'          => 'Job Fair & Edufest 2026',
             'type_id'       => $this->eventType->id,
@@ -284,7 +285,8 @@ class EoAgendaAndEventManagementTest extends TestCase
             'waktu_mulai'   => '08:00',
             'waktu_selesai' => '15:00',
             'lokasi'        => 'Stadion Olahraga',
-            'deskripsi'     => 'Event tanpa SPV di awal.',
+            'spvs'          => [$this->spv->id],
+            'deskripsi'     => 'Event edukasi dan bursa karir.',
         ]);
 
         $response->assertRedirect(route('eo.events.index'));
@@ -297,7 +299,7 @@ class EoAgendaAndEventManagementTest extends TestCase
 
         $event = Event::where('name', 'Job Fair & Edufest 2026')->first();
         $this->assertNotNull($event);
-        $this->assertCount(0, $event->spvs);
+        $this->assertCount(1, $event->spvs);
 
         // 1. Muncul di Kalender Internal
         $calendarResponse = $this->actingAs($this->eo1)->getJson(route('api.calendar.events'));
@@ -328,6 +330,7 @@ class EoAgendaAndEventManagementTest extends TestCase
             'waktu_mulai'   => '09:00',
             'waktu_selesai' => '11:00',
             'lokasi'        => 'Gedung Serbaguna',
+            'spvs'          => [$this->spv->id],
         ]);
 
         $response->assertRedirect(route('eo.events.index'));
@@ -345,5 +348,145 @@ class EoAgendaAndEventManagementTest extends TestCase
         $response->assertSee('Simpan Perubahan', false);
         $response->assertSee('type="submit"', false);
     }
+
+    public function test_eo_dapat_menugaskan_event_ke_spv()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $response = $this->actingAs($this->eo1)->post(route('eo.events.store'), [
+            'name'          => 'Workshop Digital Marketing',
+            'type_id'       => $this->eventType->id,
+            'tanggal'       => '2026-11-20',
+            'waktu_mulai'   => '09:00',
+            'waktu_selesai' => '12:00',
+            'lokasi'        => 'Auditorium Kampus',
+            'assign_type'   => 'spv',
+            'spv_id'        => $this->spv->id,
+        ]);
+
+        $response->assertRedirect(route('eo.events.index'));
+        $event = Event::where('name', 'Workshop Digital Marketing')->first();
+        $this->assertNotNull($event);
+        $this->assertTrue($event->spvs->contains('id', $this->spv->id));
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->spv,
+            \App\Notifications\EventNotification::class
+        );
+    }
+
+    public function test_eo_dapat_menugaskan_event_ke_sesama_eo()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $response = $this->actingAs($this->eo1)->post(route('eo.events.store'), [
+            'name'          => 'Expo Kolaborasi Kampus',
+            'type_id'       => $this->eventType->id,
+            'tanggal'       => '2026-11-21',
+            'waktu_mulai'   => '10:00',
+            'waktu_selesai' => '15:00',
+            'lokasi'        => 'Hall Utama',
+            'assign_type'   => 'eo',
+            'eo_partner_id' => $this->eo2->id,
+        ]);
+
+        $response->assertRedirect(route('eo.events.index'));
+        $event = Event::where('name', 'Expo Kolaborasi Kampus')->first();
+        $this->assertNotNull($event);
+        $this->assertTrue($event->spvs->contains('id', $this->eo2->id));
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->eo2,
+            \App\Notifications\CrmActivityNotification::class,
+            function ($notif) {
+                return $notif->action === 'event_assigned_eo';
+            }
+        );
+    }
+
+    public function test_eo_dapat_menugaskan_event_ke_diri_sendiri()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $response = $this->actingAs($this->eo1)->post(route('eo.events.store'), [
+            'name'          => 'Event Mandiri EO',
+            'type_id'       => $this->eventType->id,
+            'tanggal'       => '2026-11-22',
+            'waktu_mulai'   => '13:00',
+            'waktu_selesai' => '16:00',
+            'lokasi'        => 'Ruang Kreatif',
+            'assign_type'   => 'self',
+        ]);
+
+        $response->assertRedirect(route('eo.events.index'));
+        $event = Event::where('name', 'Event Mandiri EO')->first();
+        $this->assertNotNull($event);
+        $this->assertTrue($event->spvs->contains('id', $this->eo1->id));
+
+        // Self assignment mengirim notifikasi ke diri sendiri
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->eo1,
+            \App\Notifications\CrmActivityNotification::class,
+            function ($notif) {
+                return $notif->action === 'event_assigned_self';
+            }
+        );
+    }
+
+    public function test_eo_dapat_mengubah_penugasan_event_dari_spv_ke_rekan_eo()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $event = Event::create([
+            'name'            => 'Event Awal SPV',
+            'nama'            => 'Event Awal SPV',
+            'type_id'         => $this->eventType->id,
+            'tanggal'         => '2026-11-23',
+            'waktu_mulai'     => '08:00',
+            'waktu_selesai'   => '11:00',
+            'tanggal_mulai'   => '2026-11-23 08:00:00',
+            'tanggal_selesai' => '2026-11-23 11:00:00',
+            'lokasi'          => 'Ruang Serba Guna',
+            'eo_id'           => $this->eo1->id,
+            'status'          => 'Scheduled',
+        ]);
+        $event->spvs()->sync([$this->spv->id]);
+
+        $response = $this->actingAs($this->eo1)->put(route('eo.events.update', $event->id), [
+            'name'          => 'Event Awal SPV Dialihkan',
+            'type_id'       => $this->eventType->id,
+            'tanggal'       => '2026-11-23',
+            'waktu_mulai'   => '08:00',
+            'waktu_selesai' => '11:00',
+            'lokasi'        => 'Ruang Serba Guna',
+            'assign_type'   => 'eo',
+            'eo_partner_id' => $this->eo2->id,
+        ]);
+
+        $response->assertRedirect(route('eo.events.index'));
+        $event->refresh();
+        $this->assertTrue($event->spvs->contains('id', $this->eo2->id));
+        $this->assertFalse($event->spvs->contains('id', $this->spv->id));
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->eo2,
+            \App\Notifications\CrmActivityNotification::class
+        );
+    }
+
+    public function test_view_kelola_event_menampilkan_opsi_penugasan_dan_plugin_search()
+    {
+        $response = $this->actingAs($this->eo1)->get(route('eo.events.index'));
+
+        $response->assertOk();
+        $response->assertSee('Tugaskan ke SPV', false);
+        $response->assertSee('Tugaskan ke Sesama EO', false);
+        $response->assertSee('Pegang Sendiri (EO)', false);
+        $response->assertSee('window.eoSpvList', false);
+        $response->assertSee('window.eoOtherEoList', false);
+        $response->assertSee('Ketik untuk cari nama SPV...', false);
+        $response->assertSee('Ketik untuk cari nama EO...', false);
+    }
 }
+
 

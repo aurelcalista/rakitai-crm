@@ -580,7 +580,376 @@ class EventAssignmentCalendarTest extends TestCase
                 'jenis_institusi' => 'Sekolah',
                 'nama_institusi' => 'SMA N 1 Cirebon',
                 'pic_name' => 'Pak Budi',
-                'pic_whatsapp' => '08123456789',
+                'pic_whatsapp' => '+628123456789',
+            ]);
+    }
+
+    public function test_calendar_fetch_events_includes_spv_team_sales()
+    {
+        $event = Event::create([
+            'name' => 'Event Calendar Fetch Test',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-01',
+            'waktu_mulai' => '09:00',
+            'waktu_selesai' => '12:00',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $this->sales1->update(['supervisor_id' => $this->spv1->id, 'status' => 'Aktif']);
+        $event->spvs()->attach($this->spv1->id);
+
+        $response = $this->actingAs($this->eo1)
+            ->getJson(route('api.calendar.events'));
+
+        $response->assertStatus(200);
+        $data = collect($response->json())->firstWhere('id', $event->id);
+        $this->assertNotNull($data);
+        $this->assertEquals($this->spv1->id, $data['spvs'][0]['id']);
+        $this->assertArrayHasKey('team_sales', $data['spvs'][0]);
+        $this->assertTrue(collect($data['spvs'][0]['team_sales'])->contains('id', $this->sales1->id));
+        $this->assertArrayHasKey('target_roles', $data);
+        $this->assertTrue(in_array('SPV', $data['target_roles']));
+        $this->assertEquals('SPV', $data['primary_role']);
+    }
+
+    public function test_can_assign_multiple_sales_to_spv_and_sales_receive_notifications()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $event = Event::create([
+            'name' => 'Event Multi Sales Assignment',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-15',
+            'waktu_mulai' => '08:00',
+            'waktu_selesai' => '14:00',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $this->sales1->update(['supervisor_id' => $this->spv1->id, 'status' => 'Aktif']);
+        $this->sales2->update(['supervisor_id' => $this->spv1->id, 'status' => 'Aktif']);
+        $event->spvs()->attach($this->spv1->id);
+
+        $response = $this->actingAs($this->spv1)
+            ->postJson(route('calendar.events.assign-sales', $event->id), [
+                'spv_id' => $this->spv1->id,
+                'sales_ids' => [$this->sales1->id, $this->sales2->id],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson(['success' => true]);
+
+        $assignedSales = $event->fresh()->sales;
+        $this->assertCount(2, $assignedSales);
+        $this->assertTrue($assignedSales->contains('id', $this->sales1->id));
+        $this->assertTrue($assignedSales->contains('id', $this->sales2->id));
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->sales1,
+            \App\Notifications\EventNotification::class
+        );
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->sales1,
+            \App\Notifications\CrmActivityNotification::class
+        );
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->sales2,
+            \App\Notifications\EventNotification::class
+        );
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->sales2,
+            \App\Notifications\CrmActivityNotification::class
+        );
+    }
+
+    /** Test when event is assigned to an EO (self or fellow EO), calendar response flags is_spv as false */
+    public function test_calendar_fetch_events_differentiates_eo_assignment_from_spv()
+    {
+        $event = Event::create([
+            'name' => 'Seminar Langsung Oleh EO',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-25',
+            'waktu_mulai' => '09:00',
+            'waktu_selesai' => '12:00',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        // EO assigns to fellow EO2
+        $event->spvs()->attach($this->eo2->id);
+
+        $response = $this->actingAs($this->eo1)
+            ->getJson(route('api.calendar.events', ['start' => '2026-10-01', 'end' => '2026-10-31']));
+
+        $response->assertStatus(200);
+        $events = $response->json();
+        $matched = collect($events)->firstWhere('id', $event->id);
+
+        $this->assertNotNull($matched);
+        $this->assertEquals(['EO'], $matched['target_roles']);
+        $this->assertEquals('EO', $matched['primary_role']);
+        $this->assertCount(1, $matched['spvs']);
+        $this->assertFalse($matched['spvs'][0]['is_spv']);
+        $this->assertEquals('EO', $matched['spvs'][0]['role']);
+    }
+
+    /** Test updating an event from calendar allows changing assigned person from SPV to fellow EO */
+    public function test_calendar_update_event_can_change_assignment_from_spv_to_eo()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $event = Event::create([
+            'name' => 'Event Awal SPV',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-25',
+            'waktu_mulai' => '09:00',
+            'waktu_selesai' => '12:00',
+            'tanggal_mulai' => '2026-10-25 09:00:00',
+            'tanggal_selesai' => '2026-10-25 12:00:00',
+            'lokasi' => 'Gedung A',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $event->spvs()->attach($this->spv1->id);
+        $event->sales()->attach($this->sales1->id, ['assigned_by_spv_id' => $this->spv1->id]);
+
+        $response = $this->actingAs($this->eo1)
+            ->put(route('calendar.events.update', $event->id), [
+                'name' => 'Event Awal SPV',
+                'type_id' => $this->eventType->id,
+                'tanggal' => '2026-10-25',
+                'waktu_mulai' => '09:00',
+                'waktu_selesai' => '12:00',
+                'lokasi' => 'Gedung A',
+                'assign_type' => 'eo',
+                'eo_partner_id' => $this->eo2->id,
+            ]);
+
+        $response->assertRedirect(route('calendar.index'));
+
+        $freshEvent = $event->fresh();
+        $this->assertTrue($freshEvent->spvs->contains('id', $this->eo2->id));
+        $this->assertFalse($freshEvent->spvs->contains('id', $this->spv1->id));
+        // Previous SPV sales should be detached
+        $this->assertCount(0, $freshEvent->sales);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->eo2,
+            \App\Notifications\CrmActivityNotification::class
+        );
+    }
+
+    /** Test updating an event from calendar allows changing assigned person from EO to SPV */
+    public function test_calendar_update_event_can_change_assignment_from_eo_to_spv()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $event = Event::create([
+            'name' => 'Event Awal EO',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-25',
+            'waktu_mulai' => '09:00',
+            'waktu_selesai' => '12:00',
+            'tanggal_mulai' => '2026-10-25 09:00:00',
+            'tanggal_selesai' => '2026-10-25 12:00:00',
+            'lokasi' => 'Gedung B',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $event->spvs()->attach($this->eo2->id);
+
+        $response = $this->actingAs($this->eo1)
+            ->put(route('calendar.events.update', $event->id), [
+                'name' => 'Event Awal EO',
+                'type_id' => $this->eventType->id,
+                'tanggal' => '2026-10-25',
+                'waktu_mulai' => '09:00',
+                'waktu_selesai' => '12:00',
+                'lokasi' => 'Gedung B',
+                'assign_type' => 'spv',
+                'spv_id' => $this->spv1->id,
+            ]);
+
+        $response->assertRedirect(route('calendar.index'));
+
+        $freshEvent = $event->fresh();
+        $this->assertTrue($freshEvent->spvs->contains('id', $this->spv1->id));
+        $this->assertFalse($freshEvent->spvs->contains('id', $this->eo2->id));
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->spv1,
+            \App\Notifications\EventNotification::class
+        );
+    }
+
+    /** Test EO cannot assign sales to SPV (only the SPV themselves can) */
+    public function test_eo_cannot_assign_sales_to_spv()
+    {
+        $event = Event::create([
+            'name' => 'Event EO Cannot Assign Sales',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-15',
+            'waktu_mulai' => '08:00',
+            'waktu_selesai' => '14:00',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $this->sales1->update(['supervisor_id' => $this->spv1->id, 'status' => 'Aktif']);
+        $event->spvs()->attach($this->spv1->id);
+
+        $response = $this->actingAs($this->eo1)
+            ->postJson(route('calendar.events.assign-sales', $event->id), [
+                'spv_id' => $this->spv1->id,
+                'sales_ids' => [$this->sales1->id],
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    /** Test SPV cannot assign sales for another SPV */
+    public function test_different_spv_cannot_assign_sales_to_other_spv()
+    {
+        $event = Event::create([
+            'name' => 'Event SPV Conflict',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-15',
+            'waktu_mulai' => '08:00',
+            'waktu_selesai' => '14:00',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $this->sales1->update(['supervisor_id' => $this->spv1->id, 'status' => 'Aktif']);
+        $event->spvs()->attach($this->spv1->id);
+
+        // Acting as spv2 trying to assign sales for spv1
+        $response = $this->actingAs($this->spv2)
+            ->postJson(route('calendar.events.assign-sales', $event->id), [
+                'spv_id' => $this->spv1->id,
+                'sales_ids' => [$this->sales1->id],
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    /** Test non-EO role editing event cannot change the event assignment */
+    public function test_non_eo_cannot_change_event_assignment()
+    {
+        $admin = User::factory()->create([
+            'name' => 'Admin User',
+            'email' => 'admin_test@test.com',
+            'role' => 'Admin',
+        ]);
+
+        $event = Event::create([
+            'name' => 'Original Event Name',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-25',
+            'waktu_mulai' => '09:00',
+            'waktu_selesai' => '12:00',
+            'tanggal_mulai' => '2026-10-25 09:00:00',
+            'tanggal_selesai' => '2026-10-25 12:00:00',
+            'lokasi' => 'Gedung A',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $event->spvs()->attach($this->spv1->id);
+
+        // Admin updates event details and attempts to change assignment to spv2
+        $response = $this->actingAs($admin)
+            ->put(route('calendar.events.update', $event->id), [
+                'name' => 'Updated Event Name by Admin',
+                'type_id' => $this->eventType->id,
+                'tanggal' => '2026-10-25',
+                'waktu_mulai' => '09:00',
+                'waktu_selesai' => '12:00',
+                'lokasi' => 'Gedung A Updated',
+                'assign_type' => 'spv',
+                'spv_id' => $this->spv2->id,
+            ]);
+
+        $response->assertRedirect(route('calendar.index'));
+
+        $freshEvent = $event->fresh();
+        $this->assertEquals('Updated Event Name by Admin', $freshEvent->name);
+        $this->assertEquals('Gedung A Updated', $freshEvent->lokasi);
+        // Assignment should remain spv1 because non-EO cannot modify assignments
+        $this->assertTrue($freshEvent->spvs->contains('id', $this->spv1->id));
+        $this->assertFalse($freshEvent->spvs->contains('id', $this->spv2->id));
+    }
+
+    /** Test when SPV assigns sales, notification is received by sales and event dynamically appears in sales jadwal event */
+    public function test_spv_assigns_sales_notification_sent_and_appears_dynamically_in_sales_jadwal_event()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $event = Event::create([
+            'name' => 'Seminar Pendidikan Cirebon',
+            'type_id' => $this->eventType->id,
+            'tanggal' => '2026-10-30',
+            'waktu_mulai' => '08:00',
+            'waktu_selesai' => '12:00',
+            'tanggal_mulai' => '2026-10-30 08:00:00',
+            'tanggal_selesai' => '2026-10-30 12:00:00',
+            'lokasi' => 'SMK Negeri 1 Cirebon',
+            'eo_id' => $this->eo1->id,
+            'status' => 'Scheduled',
+        ]);
+
+        $this->sales1->update(['supervisor_id' => $this->spv1->id, 'status' => 'Aktif']);
+        $event->spvs()->attach($this->spv1->id);
+
+        // 1. SPV assigns sales1
+        $response = $this->actingAs($this->spv1)
+            ->postJson(route('calendar.events.assign-sales', $event->id), [
+                'spv_id' => $this->spv1->id,
+                'sales_ids' => [$this->sales1->id],
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson(['success' => true]);
+
+        // 2. Notification is received by sales1
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->sales1,
+            \App\Notifications\EventNotification::class,
+            function ($notification) use ($event) {
+                return $notification->action === 'assigned_sales' && $notification->event->id === $event->id;
+            }
+        );
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->sales1,
+            \App\Notifications\CrmActivityNotification::class,
+            function ($notification) {
+                return $notification->action === 'event_assigned_sales' && $notification->link === '/sales/event';
+            }
+        );
+
+        // 3. Sales accesses Jadwal Event (HTML view)
+        $salesViewResponse = $this->actingAs($this->sales1)
+            ->get(route('sales.event.index'));
+
+        $salesViewResponse->assertStatus(200);
+        $salesViewResponse->assertSee('Seminar Pendidikan Cirebon');
+        $salesViewResponse->assertSee($this->spv1->name);
+
+        // 4. Sales accesses Jadwal Event dynamically (JSON / AJAX)
+        $salesJsonResponse = $this->actingAs($this->sales1)
+            ->getJson(route('sales.event.index'));
+
+        $salesJsonResponse->assertStatus(200)
+            ->assertJson(['success' => true])
+            ->assertJsonFragment([
+                'id' => $event->id,
+                'name' => 'Seminar Pendidikan Cirebon',
+                'spv_name' => $this->spv1->name,
             ]);
     }
 }
+

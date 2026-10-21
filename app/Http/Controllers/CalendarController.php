@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\EventAssignmentService;
 use App\Services\GoogleCalendarService;
 use App\Notifications\EventNotification;
+use App\Notifications\CrmActivityNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +44,16 @@ class CalendarController extends Controller
 
         // Master data for Event EO Edit modal on Calendar
         $eventTypes = MasterData::where('type', 'jenis_event')->where('status', 'Aktif')->get();
-        $spvs = User::whereIn('role', ['SPV', 'Supervisor Marketing', 'Supervisor'])->where('status', 'Aktif')->get();
+        $spvs = User::whereIn('role', ['SPV', 'Supervisor Marketing', 'Supervisor'])
+            ->where('status', 'Aktif')
+            ->with('wilayah')
+            ->orderBy('name')
+            ->get();
+        $otherEos = User::where('role', 'EO')
+            ->where('status', 'Aktif')
+            ->where('id', '!=', $user->id)
+            ->orderBy('name')
+            ->get();
         $salesList = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
         $prodis = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $sekolahs = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
@@ -56,6 +66,7 @@ class CalendarController extends Controller
             'bawahan',
             'eventTypes',
             'spvs',
+            'otherEos',
             'salesList',
             'prodis',
             'sekolahs',
@@ -97,6 +108,48 @@ class CalendarController extends Controller
                 $waktuSelesai = $event->waktu_selesai ? (is_string($event->waktu_selesai) ? substr($event->waktu_selesai, 0, 5) : \Carbon\Carbon::parse($event->waktu_selesai)->format('H:i')) : $end->format('H:i');
                 $tanggal = $event->tanggal ? \Carbon\Carbon::parse($event->tanggal)->format('Y-m-d') : $start->format('Y-m-d');
 
+                // Determine target roles for visual differentiation
+                $targetRoles = [];
+                if ($event->spvs->isNotEmpty()) {
+                    foreach ($event->spvs as $assignedPerson) {
+                        $r = strtoupper($assignedPerson->role ?? 'SPV');
+                        if (!in_array($r, $targetRoles)) {
+                            $targetRoles[] = $r;
+                        }
+                    }
+                }
+                if ($event->sales->isNotEmpty()) {
+                    foreach ($event->sales as $s) {
+                        $r = strtoupper($s->role ?? 'Sales');
+                        if (!in_array($r, $targetRoles)) {
+                            $targetRoles[] = $r;
+                        }
+                    }
+                }
+                if (empty($targetRoles)) {
+                    if (!is_null($event->type_id)) {
+                        $targetRoles[] = 'EO';
+                    } else {
+                        $creatorRole = $event->eo ? strtoupper($event->eo->role) : 'EO';
+                        $targetRoles[] = $creatorRole;
+                    }
+                }
+
+                $primaryRole = 'EO';
+                if (in_array('SPV', $targetRoles)) {
+                    $primaryRole = 'SPV';
+                } elseif (in_array('SALES', $targetRoles)) {
+                    $primaryRole = 'Sales';
+                } elseif (in_array('EO', $targetRoles)) {
+                    $primaryRole = 'EO';
+                } elseif (in_array('HM', $targetRoles)) {
+                    $primaryRole = 'HM';
+                } elseif (in_array('ADMIN', $targetRoles)) {
+                    $primaryRole = 'Admin';
+                } else {
+                    $primaryRole = $targetRoles[0] ?? 'EO';
+                }
+
                 return [
                     'id'            => $event->id,
                     'title'         => $title,
@@ -114,6 +167,8 @@ class CalendarController extends Controller
                     'is_personal'   => $isPersonal,
                     // is_eo_event: true when created by EO role (has a master-data type_id)
                     'is_eo_event'   => !is_null($event->type_id),
+                    'target_roles'  => $targetRoles,
+                    'primary_role'  => $primaryRole,
                     'type_id'       => $event->type_id,
                     'name'          => $event->name ?: $event->nama,
                     'takeover_by_id'=> $event->takeover_by_id,
@@ -123,8 +178,47 @@ class CalendarController extends Controller
                         'role' => $event->takeoverBy->role,
                     ] : null,
                     'takeover_at'   => $event->takeover_at ? \Carbon\Carbon::parse($event->takeover_at)->format('d/m/Y H:i') : null,
-                    'spvs'          => $event->spvs->map(fn($spv) => ['id' => $spv->id, 'name' => $spv->name]),
-                    'sales'         => $event->sales->map(fn($s) => ['id' => $s->id, 'name' => $s->name]),
+                    'spvs'          => $event->spvs->map(function ($spv) use ($event) {
+                        $isSpv = in_array(strtoupper($spv->role ?? ''), ['SPV', 'SUPERVISOR MARKETING', 'SUPERVISOR']);
+
+                        $allSales = collect();
+                        if ($isSpv) {
+                            $spvMemberIds = array_unique(array_merge(
+                                $spv->teamMemberIds(),
+                                $spv->subordinates()->where('role', 'Sales')->pluck('id')->toArray()
+                            ));
+
+                            $teamSales = \App\Models\User::whereIn('id', $spvMemberIds)
+                                ->where('role', 'Sales')
+                                ->where('status', 'Aktif')
+                                ->orderBy('name')
+                                ->get(['id', 'name']);
+
+                            $assignedSales = $event->sales->filter(function ($s) use ($spv, $spvMemberIds) {
+                                return ($s->pivot?->assigned_by_spv_id == $spv->id)
+                                    || in_array($s->id, $spvMemberIds)
+                                    || ($s->supervisor_id == $spv->id);
+                            });
+
+                            $allSales = $teamSales->concat($assignedSales)->unique('id')->values();
+                        }
+
+                        return [
+                            'id'         => $spv->id,
+                            'name'       => $spv->name,
+                            'role'       => $spv->role ?? ($isSpv ? 'SPV' : 'EO'),
+                            'is_spv'     => $isSpv,
+                            'team_sales' => $allSales->map(fn($s) => [
+                                'id'   => $s->id,
+                                'name' => $s->name,
+                            ])->values(),
+                        ];
+                    }),
+                    'sales'         => $event->sales->map(fn($s) => [
+                        'id'                 => $s->id,
+                        'name'               => $s->name,
+                        'assigned_by_spv_id' => $s->pivot?->assigned_by_spv_id,
+                    ]),
                     'spv_ids'       => $event->spvs->pluck('id')->toArray(),
                     'sales_ids'     => $event->sales->pluck('id')->toArray(),
                     'dosen_id'      => $event->dosen_id,
@@ -374,6 +468,9 @@ class CalendarController extends Controller
             'waktu_mulai'    => 'required|date_format:H:i',
             'waktu_selesai'  => 'required|date_format:H:i|after:waktu_mulai',
             'lokasi'         => 'required|string|max:255',
+            'assign_type'    => 'nullable|in:spv,eo,self',
+            'spv_id'         => 'required_if:assign_type,spv|nullable|exists:users,id',
+            'eo_partner_id'  => 'required_if:assign_type,eo|nullable|exists:users,id',
             'spvs'           => 'nullable|array',
             'spvs.*'         => 'exists:users,id',
             'sales'          => 'nullable|array',
@@ -389,7 +486,24 @@ class CalendarController extends Controller
             'alamat'         => 'nullable|string|max:500',
             'pic_name'       => 'nullable|string|max:255',
             'pic_whatsapp'   => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+        ], [
+            'spv_id.required_if'        => 'Silakan pilih Supervisor (SPV) yang ditugaskan.',
+            'eo_partner_id.required_if' => 'Silakan pilih Rekan EO yang ditugaskan.',
         ]);
+
+        $assignedUserIds = null;
+        $isEo = strtoupper(Auth::user()->role ?? '') === 'EO';
+        if ($isEo && $request->has('assign_type')) {
+            if ($request->assign_type === 'spv') {
+                $assignedUserIds = [$request->spv_id];
+            } elseif ($request->assign_type === 'eo') {
+                $assignedUserIds = [$request->eo_partner_id];
+            } else {
+                $assignedUserIds = [Auth::id()];
+            }
+        } elseif ($isEo && $request->has('spvs')) {
+            $assignedUserIds = $request->spvs ?? [];
+        }
 
         // Check if event type is Training
         $type = MasterData::find($request->type_id);
@@ -403,7 +517,7 @@ class CalendarController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($request, $event, $assignmentService, $calendarService) {
+        DB::transaction(function () use ($request, $event, $assignedUserIds, $assignmentService, $calendarService) {
             $oldStart = \Carbon\Carbon::parse($event->tanggal_mulai);
             $oldEnd = \Carbon\Carbon::parse($event->tanggal_selesai);
 
@@ -434,10 +548,43 @@ class CalendarController extends Controller
                 'pic_whatsapp'    => \App\Support\WhatsAppHelper::formatForDatabase($request->pic_whatsapp),
             ]);
 
-            if ($request->has('spvs')) {
+            if ($assignedUserIds !== null) {
                 $oldSpvs = $event->spvs->pluck('id')->toArray();
-                $newSpvs = $request->spvs ?? [];
+                $newSpvs = $assignedUserIds;
                 $event->spvs()->sync($newSpvs);
+
+                // Notifications for newly assigned personil
+                $newlyAdded = array_diff($newSpvs, $oldSpvs);
+                if (!empty($newlyAdded)) {
+                    $addedUsers = User::whereIn('id', $newlyAdded)->get();
+                    foreach ($addedUsers as $assignedUser) {
+                        if (in_array(strtoupper($assignedUser->role), ['SPV', 'SUPERVISOR MARKETING', 'SUPERVISOR'])) {
+                            $assignedUser->notify(new EventNotification($event, 'assigned_spv'));
+                        } elseif ($assignedUser->id === Auth::id()) {
+                            $assignedUser->notify(new CrmActivityNotification(
+                                title: "Penugasan Event Mandiri",
+                                message: "Anda ditugaskan memegang event '{$event->name}' secara mandiri.",
+                                type: 'info',
+                                link: '/calendar',
+                                icon: '',
+                                senderName: Auth::user()->name,
+                                senderRole: Auth::user()->role,
+                                action: 'event_assigned_self'
+                            ));
+                        } else {
+                            $assignedUser->notify(new CrmActivityNotification(
+                                title: "Penugasan Event Baru",
+                                message: "Anda ditugaskan pada event '{$event->name}' oleh " . Auth::user()->name . ".",
+                                type: 'info',
+                                link: '/calendar',
+                                icon: '',
+                                senderName: Auth::user()->name,
+                                senderRole: Auth::user()->role,
+                                action: 'event_assigned_eo'
+                            ));
+                        }
+                    }
+                }
 
                 $removedSpvs = array_diff($oldSpvs, $newSpvs);
                 if (!empty($removedSpvs)) {
@@ -454,6 +601,7 @@ class CalendarController extends Controller
                     }
 
                     if (!empty($removedSalesIds)) {
+                        $event->sales()->detach($removedSalesIds);
                         $removedSalesUsers = User::whereIn('id', $removedSalesIds)->get();
                         \Illuminate\Support\Facades\Notification::send($removedSalesUsers, new EventNotification($event, 'assignment_removed'));
                     }
@@ -638,5 +786,127 @@ class CalendarController extends Controller
             }
             return redirect()->back()->with('error', 'Event tidak ditemukan.');
         }
+    }
+
+    /**
+     * Assign sales team members under a specific SPV to an event.
+     * Accessible by EO, SPV, Admin, HM.
+     * Sends notifications to newly assigned sales.
+     */
+    public function assignSalesToSpv(Request $request, $id, GoogleCalendarService $calendarService)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $event = Event::findOrFail($id);
+
+        $validated = $request->validate([
+            'spv_id'      => 'required|exists:users,id',
+            'sales_ids'   => 'nullable|array',
+            'sales_ids.*' => 'exists:users,id',
+        ]);
+
+        $spvId = (int) $validated['spv_id'];
+        $spv = User::findOrFail($spvId);
+
+        // Authorization check: Hanya SPV yang bersangkutan yang berwenang memilih/mengubah tim sales di bawahnya.
+        // Role lain (EO, Admin, HM, Sales, dll.) tidak dapat mengubah sales di bawah SPV.
+        $userRole = strtoupper($user->role ?? '');
+        $isSpv = in_array($userRole, ['SPV', 'SUPERVISOR MARKETING', 'SUPERVISOR']);
+        $isAuthorized = $isSpv && ($spvId === (int) $user->id);
+
+        if (!$isAuthorized) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya SPV yang bersangkutan yang dapat mengelola penugasan tim sales.',
+            ], 403);
+        }
+
+        $selectedSalesIds = array_map('intval', $validated['sales_ids'] ?? []);
+
+        // Get members belonging to this SPV
+        $spvMemberIds = array_unique(array_merge(
+            $spv->teamMemberIds(),
+            $spv->subordinates()->where('role', 'Sales')->pluck('id')->toArray()
+        ));
+
+        // Current sales assigned in the event that belong to this SPV
+        $currentSalesUnderSpv = array_map('intval', $event->sales()
+            ->where(function ($q) use ($spvId, $spvMemberIds) {
+                $q->where('event_sales.assigned_by_spv_id', $spvId)
+                  ->orWhereIn('users.id', $spvMemberIds);
+            })
+            ->pluck('users.id')
+            ->toArray());
+
+        $removedSalesIds = array_diff($currentSalesUnderSpv, $selectedSalesIds);
+
+        DB::transaction(function () use ($event, $spvId, $selectedSalesIds, $removedSalesIds, $calendarService, $user) {
+            // 1. Detach removed sales
+            if (!empty($removedSalesIds)) {
+                $event->sales()->detach($removedSalesIds);
+
+                $removedUsers = User::whereIn('id', $removedSalesIds)->get();
+                foreach ($removedUsers as $rUser) {
+                    try {
+                        $calendarService->removeSalesEvent($event, $rUser);
+                    } catch (\Throwable $t) {}
+
+                    $rUser->notify(new EventNotification($event, 'assignment_removed'));
+                }
+            }
+
+            // 2. Attach or update selected sales and dispatch notifications
+            if (!empty($selectedSalesIds)) {
+                $eventName = $event->nama ?: $event->name;
+                $assignedSalesUsers = User::whereIn('id', $selectedSalesIds)->get();
+
+                foreach ($assignedSalesUsers as $salesUser) {
+                    if ($event->sales()->where('users.id', $salesUser->id)->exists()) {
+                        $event->sales()->updateExistingPivot($salesUser->id, ['assigned_by_spv_id' => $spvId]);
+                    } else {
+                        $event->sales()->attach($salesUser->id, ['assigned_by_spv_id' => $spvId]);
+                    }
+
+                    try {
+                        $calendarService->syncSalesEvent($event, $salesUser);
+                    } catch (\Throwable $t) {}
+
+                    // Database notification (EventNotification)
+                    $salesUser->notify(new EventNotification($event, 'assigned_sales'));
+
+                    // Interactive bell notification (CrmActivityNotification)
+                    $salesUser->notify(new CrmActivityNotification(
+                        title: "Penugasan Event Baru",
+                        message: "Anda telah ditugaskan ke event '{$eventName}' sebagai Sales oleh " . $user->name . ".",
+                        type: 'info',
+                        link: '/sales/event',
+                        icon: '',
+                        senderName: $user->name,
+                        senderRole: $user->role,
+                        action: 'event_assigned_sales',
+                        extraData: [
+                            'event_id' => $event->id,
+                            'url' => '/sales/event',
+                        ]
+                    ));
+                }
+            }
+        });
+
+        // Fresh sales list with assigned_by_spv_id
+        $freshSales = $event->fresh()->sales->map(fn($s) => [
+            'id' => $s->id,
+            'name' => $s->name,
+            'assigned_by_spv_id' => $s->pivot?->assigned_by_spv_id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Penugasan Sales berhasil disimpan & notifikasi telah dikirim ke personil sales.',
+            'sales' => $freshSales,
+        ]);
     }
 }
