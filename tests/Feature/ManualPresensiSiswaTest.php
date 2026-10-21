@@ -7,7 +7,7 @@ use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use App\Models\Sekolah;
 use App\Models\TahunAkademik;
-use App\Models\User;
+use App\Models\User;    
 use App\Models\Wilayah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

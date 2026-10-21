@@ -49,6 +49,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/calendar/events/{event}/takeover', [\App\Http\Controllers\CalendarController::class, 'takeoverEvent'])->name('calendar.events.takeover');
     Route::put('/calendar/events/{event}', [\App\Http\Controllers\CalendarController::class, 'updateEvent'])->name('calendar.events.update');
     Route::delete('/calendar/events/{event}', [\App\Http\Controllers\CalendarController::class, 'destroyEvent'])->name('calendar.events.destroy');
+    Route::post('/calendar/events/{event}/assign-sales', [\App\Http\Controllers\CalendarController::class, 'assignSalesToSpv'])->name('calendar.events.assign-sales');
 
     // Dependent Dropdown Master Data Wilayah & Sekolah
     Route::get('/api/wilayah/{city}/kecamatan', [\App\Http\Controllers\WilayahController::class, 'getKecamatanByKota'])->name('api.wilayah.kecamatan');

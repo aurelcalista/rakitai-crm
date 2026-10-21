@@ -1,3 +1,22 @@
+@php
+    $spvItems = ($spvs ?? collect())->map(fn($u) => [
+        'id' => (string)$u->id,
+        'nama' => $u->name,
+        'sub' => $u->wilayah ? 'Wilayah: ' . $u->wilayah->nama : 'Supervisor',
+    ])->values();
+
+    $eoItems = ($otherEos ?? collect())->map(fn($u) => [
+        'id' => (string)$u->id,
+        'nama' => $u->name,
+        'sub' => $u->email ? $u->email : 'Event Organizer',
+    ])->values();
+@endphp
+
+<script>
+    window.calendarSpvList = @json($spvItems);
+    window.calendarOtherEoList = @json($eoItems);
+</script>
+
 <x-app-layout title="Kalender Internal">
 <div x-data="calendarApp()" x-init="init()" class="h-full flex flex-col">
     
@@ -9,10 +28,18 @@
         </div>
         <div class="flex items-center gap-3">
             <select x-model="agendaFilter" class="text-xs sm:text-sm border border-slate-300 rounded-xl bg-white text-slate-700 px-3 py-1.5 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition shadow-2xs font-medium">
-                <option value="Semua">Semua</option>
-                <option value="Agenda">Agenda Internal</option>
-                <option value="Event">Event EO</option>
-                <option value="Pribadi">Agenda Pribadi</option>
+                <option value="Semua">Semua Kegiatan</option>
+                <optgroup label="Berdasarkan Jenis">
+                    <option value="Agenda">Agenda Internal (Biru)</option>
+                    <option value="Event">Event EO (Ungu)</option>
+                    <option value="Pribadi">Agenda Pribadi</option>
+                </optgroup>
+                <optgroup label="Berdasarkan Role">
+                    <option value="Role_SPV">Tugas SPV (Hijau)</option>
+                    <option value="Role_Sales">Tugas Sales (Oranye)</option>
+                    <option value="Role_EO">Tugas EO (Indigo)</option>
+                    <option value="Role_HM">Tugas HM (Rose)</option>
+                </optgroup>
             </select>
             @if(strtolower(auth()->user()->role ?? '') !== 'sales')
             <button @click="openAddAgenda()" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1.5">
@@ -20,11 +47,34 @@
                 <span>Tambah Agenda</span>
             </button>
             @endif
-            <!-- Legend -->
-            <div class="hidden sm:flex items-center gap-3 text-[10px] font-semibold text-slate-500">
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>Agenda</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>Event EO</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>Dibatalkan</span>
+            <!-- Legend (Jenis Biru/Ungu + Warna Tiap Role) -->
+            <div class="hidden lg:flex items-center gap-3 text-[10px] font-semibold">
+                <!-- Jenis (Biru / Ungu) -->
+                <div class="flex items-center gap-2 border-r border-slate-200 pr-3">
+                    <span class="text-slate-400 font-medium">Jenis:</span>
+                    <span class="inline-flex items-center gap-1 text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>Agenda
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-violet-700 bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-md">
+                        <span class="w-2 h-2 rounded-full bg-violet-600"></span>Event EO
+                    </span>
+                </div>
+                <!-- Role (SPV, Sales, EO, HM) -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-slate-400 font-medium">Role:</span>
+                    <span class="inline-flex items-center gap-1 text-emerald-800 bg-emerald-50 border border-emerald-300 px-1.5 py-0.5 rounded-md">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>SPV
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded-md">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span>Sales
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-indigo-800 bg-indigo-50 border border-indigo-300 px-1.5 py-0.5 rounded-md">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>EO
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-rose-800 bg-rose-50 border border-rose-300 px-1.5 py-0.5 rounded-md">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>HM
+                    </span>
+                </div>
             </div>
             <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
             <button @click="prevMonth()" class="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm text-slate-600">
@@ -75,26 +125,39 @@
                         <template x-for="evt in getEventsForDate(dateObj.date)" :key="evt.id">
                             <div 
                                 @click="openEventDetails(evt)"
-                                class="flex flex-col gap-0.5 text-[10px] sm:text-xs p-1.5 sm:p-2 rounded-lg border cursor-pointer transition hover:opacity-80"
-                                :class="getEventColor(evt)"
-                                :title="evt.title"
+                                class="flex flex-col gap-1 text-[10px] sm:text-xs p-1.5 sm:p-2 rounded-lg border cursor-pointer transition hover:opacity-90 shadow-2xs group relative"
+                                :class="getEventCardClass(evt)"
+                                :title="evt.title + ' (' + (evt.is_eo_event ? 'Event EO' : 'Agenda') + ' • ' + (evt.target_roles || []).join(', ') + ')'"
                             >
+                                <!-- Top Row: Type Dot (Biru/Ungu) + Title -->
                                 <div class="font-bold truncate flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full shrink-0" :class="getEventDotColor(evt)"></span>
-                                    <span class="truncate" x-text="evt.title"></span>
+                                    <span class="w-2 h-2 rounded-full shrink-0 shadow-2xs" :class="getEventTypeDot(evt)"></span>
+                                    <span class="truncate font-semibold text-slate-900 group-hover:text-blue-700 transition-colors" x-text="evt.title"></span>
                                 </div>
-                                <div class="text-[9px] sm:text-[10px] opacity-80 hidden sm:block" x-text="evt.waktu_mulai + ' - ' + evt.waktu_selesai"></div>
-                                <template x-if="evt.is_eo_event">
-                                    <div class="flex items-center justify-between text-[8px] sm:text-[9px] gap-1 mt-0.5">
-                                        <span class="font-bold uppercase tracking-wider opacity-70">Event EO</span>
-                                        <template x-if="evt.takeover_by">
-                                            <span class="font-semibold text-emerald-700 bg-emerald-100/90 px-1 py-0.2 rounded truncate" :title="'PJ: ' + evt.takeover_by.name" x-text="'PJ: ' + evt.takeover_by.name"></span>
-                                        </template>
-                                        <template x-if="!evt.takeover_by">
-                                            <span class="font-medium text-amber-700 bg-amber-100/90 px-1 py-0.2 rounded truncate">Belum Ada PJ</span>
-                                        </template>
-                                    </div>
-                                </template>
+
+                                <!-- Time Row -->
+                                <div class="text-[9px] sm:text-[10px] text-slate-500 hidden sm:block font-medium" x-text="evt.waktu_mulai + ' - ' + evt.waktu_selesai"></div>
+
+                                <!-- Badges Row: Jenis (Biru/Ungu) + Role Badges (Warna Tiap Role) -->
+                                <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                                    <!-- Jenis Badge: Ungu untuk Event EO, Biru untuk Agenda -->
+                                    <span class="text-[8px] sm:text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider shrink-0"
+                                          :class="evt.is_eo_event ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-blue-100 text-blue-700 border border-blue-200'"
+                                          x-text="evt.is_eo_event ? 'Event' : 'Agenda'">
+                                    </span>
+
+                                    <!-- Role Badges (Warna tiap Role) -->
+                                    <template x-for="role in (evt.target_roles || []).slice(0, 2)" :key="role">
+                                        <span class="text-[8px] sm:text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider shrink-0 border"
+                                              :class="getRoleBadgeClass(role)"
+                                              x-text="role">
+                                        </span>
+                                    </template>
+                                    <template x-if="(evt.target_roles || []).length > 2">
+                                        <span class="text-[8px] font-bold px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200" 
+                                              x-text="'+' + ((evt.target_roles || []).length - 2)"></span>
+                                    </template>
+                                </div>
                             </div>
                         </template>
                     </div>
@@ -173,6 +236,14 @@
                                 <template x-if="selectedEvent?.status">
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200" x-text="selectedEvent.status"></span>
                                 </template>
+                                <!-- Role Badges (Warna Tiap Role) -->
+                                <template x-for="role in (selectedEvent?.target_roles || [])" :key="role">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border uppercase"
+                                          :class="getRoleBadgeClass(role)">
+                                        <span class="font-normal text-[10px] opacity-75">Tugas:</span>
+                                        <span x-text="role"></span>
+                                    </span>
+                                </template>
                             </div>
                             <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-snug tracking-tight" x-text="selectedEvent?.title"></h2>
                         </div>
@@ -248,67 +319,7 @@
                     <!-- Right Column (Span 5): Penanggung Jawab & Penugasan Personil -->
                     <div class="lg:col-span-5 space-y-4 flex flex-col justify-between">
                         <div class="space-y-4">
-                            <!-- Takeover / Penanggung Jawab Section (khusus Event EO) -->
-                            <template x-if="selectedEvent?.is_eo_event">
-                                <div class="rounded-xl overflow-hidden border border-slate-200/70 shadow-2xs">
-                                    <!-- Case 1: Sudah di-Takeover -->
-                                    <template x-if="selectedEvent?.takeover_by">
-                                        <div class="bg-emerald-50/90 border-emerald-200 p-4">
-                                            <div class="flex items-center gap-2 mb-2.5">
-                                                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs shrink-0 shadow-2xs">
-                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                </span>
-                                                <span class="text-xs font-bold text-emerald-900 uppercase tracking-wider">Penanggung Jawab</span>
-                                            </div>
-                                            <div class="bg-white/90 rounded-lg p-3 border border-emerald-100 shadow-2xs">
-                                                <div class="flex items-center justify-between gap-2">
-                                                    <div class="font-bold text-slate-900 text-sm truncate" x-text="selectedEvent.takeover_by.name"></div>
-                                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider shrink-0" x-text="selectedEvent.takeover_by.role"></span>
-                                                </div>
-                                                <p class="text-[11px] text-emerald-700 mt-1 flex items-center gap-1">
-                                                    <span>Telah diambil alih (Takeover)</span>
-                                                    <span x-show="selectedEvent.takeover_at" x-text="'pada ' + selectedEvent.takeover_at"></span>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </template>
 
-                                    <!-- Case 2: Belum di-Takeover -->
-                                    <template x-if="!selectedEvent?.takeover_by">
-                                        <div class="bg-amber-50/90 border-amber-200 p-4">
-                                            <div class="flex items-start gap-3">
-                                                <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                    </svg>
-                                                </div>
-                                                <div class="min-w-0 flex-1">
-                                                    <div class="text-xs font-bold text-amber-900 mb-0.5">Belum Ada Penanggung Jawab</div>
-                                                    <p class="text-[11px] text-amber-700 leading-snug">Event ini belum memiliki penanggung jawab operasional.</p>
-                                                </div>
-                                            </div>
-
-                                            <!-- Tombol Takeover -->
-                                            <template x-if="canTakeover(selectedEvent)">
-                                                <div class="mt-3 pt-3 border-t border-amber-200/80">
-                                                    <button 
-                                                        type="button" 
-                                                        @click="doTakeover(selectedEvent)" 
-                                                        :disabled="takeoverLoading"
-                                                        class="w-full py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-2"
-                                                    >
-                                                        <svg x-show="!takeoverLoading" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                        <svg x-show="takeoverLoading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                        <span x-text="takeoverLoading ? 'Memproses...' : 'Ambil Alih Event (Takeover)'"></span>
-                                                    </button>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
 
                             <!-- Penugasan Personil Section (Khusus Event EO) -->
                             <template x-if="selectedEvent?.is_eo_event">
@@ -323,22 +334,294 @@
                                     <span class="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-1.5 py-0.5" x-text="((selectedEvent?.spvs?.length || 0) + (selectedEvent?.sales?.length || 0)) + ' Personil'"></span>
                                 </div>
                                 
-                                <div class="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                                    <template x-for="spv in selectedEvent?.spvs" :key="spv.id">
-                                        <div class="bg-white rounded-lg p-2.5 border border-slate-200/80 shadow-2xs">
-                                            <div class="flex items-center justify-between gap-2 mb-1.5">
+                                <div class="space-y-2.5 pr-1">
+                                    <template x-for="spv in selectedEvent?.spvs" :key="spv.id + '-' + (selectedEvent?.id || 0)">
+                                        <div class="bg-white rounded-lg p-3 border border-slate-200/80 shadow-2xs space-y-2.5">
+                                            <div class="flex items-center justify-between gap-2">
                                                 <div class="font-bold text-slate-800 text-xs truncate" x-text="spv.name"></div>
-                                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/60 uppercase">SPV</span>
+                                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
+                                                      :class="spv.is_spv ? 'bg-blue-50 text-blue-700 border border-blue-200/60' : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'"
+                                                      x-text="spv.role || (spv.is_spv ? 'SPV' : 'EO')"></span>
                                             </div>
-                                            <div class="pl-2 border-l-2 border-blue-200 space-y-1">
-                                                <template x-for="sales in getSalesForSpv(spv.id)" :key="sales.id">
-                                                    <div class="flex items-center gap-1.5">
-                                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                                        <span class="text-[11px] text-slate-600 truncate" x-text="sales.name"></span>
+
+                                            <!-- Tampilan untuk Penugasan EO: Tugas Mandiri EO (Tidak perlu memilih tim sales) -->
+                                            <template x-if="!spv.is_spv">
+                                                <div class="p-3 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-center gap-2.5">
+                                                    <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                        </svg>
                                                     </div>
-                                                </template>
-                                                <div x-show="getSalesForSpv(spv.id).length === 0" class="text-[11px] text-slate-400 italic">Belum ada tim di bawah SPV ini.</div>
-                                            </div>
+                                                    <div class="min-w-0">
+                                                        <div class="text-xs font-bold text-indigo-950">Tugas Mandiri EO</div>
+                                                        <div class="text-[11px] text-indigo-700 font-medium">Event ini dikelola langsung oleh <span class="font-bold" x-text="spv.name"></span> tanpa pembagian tim sales.</div>
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <!-- Tampilan untuk Penugasan SPV -->
+                                            <template x-if="spv.is_spv">
+                                                <div>
+                                                    <!-- Jika User adalah SPV yang bertugas: Tampilkan form dropdown multi-select & tombol Simpan Penugasan -->
+                                                    <template x-if="canManageSpvSales(spv)">
+                                                        <div class="space-y-2" x-data="{
+                                                            open: false,
+                                                            search: '',
+                                                            selectedSalesIds: [],
+                                                            saving: false,
+                                                            saveSuccess: false,
+                                                            saveError: '',
+                                                            get items() {
+                                                                return (spv.team_sales && spv.team_sales.length > 0) ? spv.team_sales : [];
+                                                            },
+                                                            get filteredItems() {
+                                                                if (!this.search.trim()) return this.items;
+                                                                const q = this.search.toLowerCase();
+                                                                return this.items.filter(item => item.name.toLowerCase().includes(q));
+                                                            },
+                                                            get selectedSalesNames() {
+                                                                return this.items
+                                                                    .filter(item => this.selectedSalesIds.includes(Number(item.id)))
+                                                                    .map(item => item.name);
+                                                            },
+                                                            toggleSales(id) {
+                                                                const numId = Number(id);
+                                                                if (this.selectedSalesIds.includes(numId)) {
+                                                                    this.selectedSalesIds = this.selectedSalesIds.filter(x => x !== numId);
+                                                                } else {
+                                                                    this.selectedSalesIds.push(numId);
+                                                                }
+                                                            },
+                                                            selectAll() {
+                                                                this.selectedSalesIds = this.items.map(item => Number(item.id));
+                                                            },
+                                                            clearAll() {
+                                                                this.selectedSalesIds = [];
+                                                            },
+                                                            async saveSalesAssignment() {
+                                                                if (!selectedEvent || !selectedEvent.id) return;
+                                                                this.saving = true;
+                                                                this.saveSuccess = false;
+                                                                this.saveError = '';
+                                                                try {
+                                                                    const token = document.querySelector('meta[name=\'csrf-token\']')?.getAttribute('content');
+                                                                    const res = await fetch(`/calendar/events/${selectedEvent.id}/assign-sales`, {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'Accept': 'application/json',
+                                                                            'X-CSRF-TOKEN': token || ''
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            spv_id: spv.id,
+                                                                            sales_ids: this.selectedSalesIds
+                                                                        })
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (!res.ok || !data.success) {
+                                                                        throw new Error(data.message || 'Gagal menyimpan penugasan sales');
+                                                                    }
+                                                                    if (data.sales) {
+                                                                        selectedEvent.sales = data.sales;
+                                                                    }
+                                                                    this.saveSuccess = true;
+                                                                    setTimeout(() => { this.saveSuccess = false; }, 3500);
+                                                                } catch (err) {
+                                                                    this.saveError = err.message || 'Terjadi kesalahan sistem';
+                                                                    setTimeout(() => { this.saveError = ''; }, 4000);
+                                                                } finally {
+                                                                    this.saving = false;
+                                                                }
+                                                            }
+                                                        }" 
+                                                        x-init="
+                                                            const currentAssigned = (selectedEvent?.sales || [])
+                                                                .filter(s => (s.assigned_by_spv_id === spv.id) || (spv.team_sales || []).some(ts => ts.id === s.id))
+                                                                .map(s => Number(s.id));
+                                                            selectedSalesIds = Array.from(new Set(currentAssigned));
+                                                        "
+                                                        @click.outside="open = false">
+                                                            
+                                                            <!-- Dropdown Trigger Button -->
+                                                            <div class="relative">
+                                                                <button type="button" 
+                                                                        @click="open = !open" 
+                                                                        class="w-full text-xs font-semibold px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                                                    <div class="flex items-center gap-2 truncate min-w-0">
+                                                                        <svg class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                                        </svg>
+                                                                        <template x-if="selectedSalesIds.length > 0">
+                                                                            <span class="truncate text-blue-700 font-bold text-[11px]" 
+                                                                                  x-text="selectedSalesIds.length + ' Sales Dipilih: ' + selectedSalesNames.join(', ')"></span>
+                                                                        </template>
+                                                                        <template x-if="selectedSalesIds.length === 0">
+                                                                            <span class="truncate text-slate-600 text-[11px] font-medium" 
+                                                                                  x-text="items.length > 0 ? 'Pilih Tim Sales (' + items.length + ' Sales Tersedia)' : 'Belum ada tim sales di bawah SPV'"></span>
+                                                                        </template>
+                                                                    </div>
+                                                                    
+                                                                    <div class="flex items-center gap-1.5 shrink-0 ml-1">
+                                                                        <template x-if="selectedSalesIds.length > 0">
+                                                                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700" x-text="selectedSalesIds.length"></span>
+                                                                        </template>
+                                                                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                    </div>
+                                                                </button>
+
+                                                                <!-- Dropdown Popup with Search Input & Checkboxes -->
+                                                                <div x-show="open" 
+                                                                     x-transition:enter="transition ease-out duration-100"
+                                                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                                                     x-transition:leave="transition ease-in duration-75"
+                                                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                                                     class="absolute left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                                                     style="display: none;">
+                                                                    
+                                                                    <!-- Search Input -->
+                                                                    <div class="relative mb-1.5">
+                                                                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                                        </svg>
+                                                                        <input type="text" 
+                                                                               x-model="search" 
+                                                                               placeholder="Cari nama sales..." 
+                                                                               class="w-full text-xs pr-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                                                               style="padding-left: 2rem !important;"
+                                                                               @click.stop
+                                                                               @keydown.escape="open = false">
+                                                                    </div>
+
+                                                                    <!-- Select All / Clear Row -->
+                                                                    <div x-show="items.length > 1" class="flex items-center justify-between px-1 py-1 mb-1 border-b border-slate-100 text-[10px] text-slate-500">
+                                                                        <button type="button" @click="selectAll()" class="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer">
+                                                                            Pilih Semua
+                                                                        </button>
+                                                                        <button type="button" @click="clearAll()" class="text-slate-400 hover:text-rose-600 cursor-pointer">
+                                                                            Hapus Pilihan
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <!-- List of Sales Options (Checkboxes) -->
+                                                                    <div class="max-h-48 overflow-y-auto space-y-1">
+                                                                        <template x-for="sales in filteredItems" :key="sales.id">
+                                                                            <div @click="toggleSales(sales.id)" 
+                                                                                 class="p-2 rounded-lg hover:bg-blue-50 cursor-pointer flex items-center justify-between text-xs transition group"
+                                                                                 :class="selectedSalesIds.includes(Number(sales.id)) ? 'bg-blue-50/80 font-bold text-blue-700' : 'text-slate-700'">
+                                                                                <div class="flex items-center gap-2.5 truncate">
+                                                                                    <input type="checkbox" 
+                                                                                           :checked="selectedSalesIds.includes(Number(sales.id))" 
+                                                                                           @click.stop="toggleSales(sales.id)"
+                                                                                           class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 pointer-events-auto">
+                                                                                    <span class="text-[11px] truncate" x-text="sales.name"></span>
+                                                                                </div>
+                                                                                <div class="flex items-center gap-1 shrink-0">
+                                                                                    <template x-if="(selectedEvent?.sales || []).some(es => es.id === sales.id)">
+                                                                                        <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">Tergabung</span>
+                                                                                    </template>
+                                                                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
+                                                                                          :class="selectedSalesIds.includes(Number(sales.id)) ? 'bg-blue-200 text-blue-800' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-700'">Sales</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </template>
+
+                                                                        <div x-show="filteredItems.length === 0" class="py-3 px-2 text-center text-[11px] text-slate-400 italic">
+                                                                            <span x-show="items.length === 0">Tidak ada tim sales di bawah SPV ini.</span>
+                                                                            <span x-show="items.length > 0">Nama sales tidak ditemukan.</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- Button Simpan Penugasan Sales -->
+                                                            <div>
+                                                                <button type="button" 
+                                                                        @click="saveSalesAssignment()" 
+                                                                        :disabled="saving"
+                                                                        class="w-full text-xs font-bold py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white flex items-center justify-center gap-1.5 transition shadow-2xs cursor-pointer">
+                                                                    <template x-if="saving">
+                                                                        <div class="flex items-center gap-1.5">
+                                                                            <svg class="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                                                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                                                            </svg>
+                                                                            <span>Menyimpan & Notifikasi...</span>
+                                                                        </div>
+                                                                    </template>
+                                                                    <template x-if="!saving">
+                                                                        <div class="flex items-center gap-1.5">
+                                                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                                                                            </svg>
+                                                                            <span x-text="'Simpan Penugasan (' + selectedSalesIds.length + ' Sales)'"></span>
+                                                                        </div>
+                                                                    </template>
+                                                                </button>
+
+                                                                <!-- Alert Sukses Simpan -->
+                                                                <div x-show="saveSuccess" 
+                                                                     x-transition
+                                                                     class="mt-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center gap-1.5"
+                                                                     style="display: none;">
+                                                                    <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                    <span>Penugasan tersimpan & notifikasi telah dikirim ke sales!</span>
+                                                                </div>
+
+                                                                <!-- Alert Gagal Simpan -->
+                                                                <div x-show="saveError" 
+                                                                     x-transition
+                                                                     class="mt-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 flex items-center gap-1.5"
+                                                                     style="display: none;">
+                                                                    <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                    </svg>
+                                                                    <span x-text="saveError"></span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+
+                                                    <!-- Jika User BUKAN SPV yang bertugas (EO, Admin, Sales, dll.): Tampilkan daftar sales secara READ-ONLY -->
+                                                    <template x-if="!canManageSpvSales(spv)">
+                                                        <div class="space-y-2 pt-0.5">
+                                                            <div class="flex items-center justify-between">
+                                                                <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                                                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                                    </svg>
+                                                                    Tim Sales Ditugaskan:
+                                                                </span>
+                                                                <span class="text-[10px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-1.5 py-0.5" x-text="getAssignedSalesForSpv(spv).length + ' Sales'"></span>
+                                                            </div>
+
+                                                            <!-- Jika Ada Sales Ditugaskan -->
+                                                            <template x-if="getAssignedSalesForSpv(spv).length > 0">
+                                                                <div class="flex flex-wrap gap-1.5 p-2 rounded-lg bg-slate-50 border border-slate-200/70">
+                                                                    <template x-for="sales in getAssignedSalesForSpv(spv)" :key="sales.id">
+                                                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-white border border-blue-200/80 text-blue-800 shadow-2xs">
+                                                                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                                                            <span x-text="sales.name"></span>
+                                                                        </span>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+
+                                                            <!-- Jika Belum Ada Sales Ditugaskan -->
+                                                            <template x-if="getAssignedSalesForSpv(spv).length === 0">
+                                                                <div class="p-2.5 rounded-lg bg-slate-50 border border-dashed border-slate-200 text-center">
+                                                                    <span class="text-[11px] text-slate-400 italic">Belum ada tim sales yang ditugaskan oleh SPV ini.</span>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
                                         </div>
                                     </template>
                                     
@@ -931,6 +1214,209 @@
                                     </div>
                                 </div>
                             </div>
+
+                            @if(strtoupper(auth()->user()->role ?? '') === 'EO')
+                            <!-- Card Penugasan: Ganti Penanggung Jawab (SPV / EO / Mandiri) -->
+                            <div class="bg-slate-50/70 border border-slate-200/70 rounded-xl p-4.5 space-y-3.5">
+                                <div class="flex items-center justify-between pb-1 border-b border-slate-200/60">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                        </div>
+                                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Penugasan Penanggung Jawab</h4>
+                                    </div>
+                                    <span class="text-[11px] text-indigo-600 font-semibold">Alokasi Tim</span>
+                                </div>
+
+                                <!-- Opsi Tipe Penugasan: SPV / Rekan EO / Mandiri -->
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                        :class="editAssignType === 'spv' ? 'bg-white border-blue-600 text-blue-900 ring-2 ring-blue-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                        <input type="radio" name="assign_type" value="spv" x-model="editAssignType" class="text-blue-600 focus:ring-blue-500">
+                                        <div class="min-w-0">
+                                            <span class="font-bold block text-[11px] truncate">Tugaskan SPV</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Supervisi</span>
+                                        </div>
+                                    </label>
+
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                        :class="editAssignType === 'eo' ? 'bg-white border-indigo-600 text-indigo-900 ring-2 ring-indigo-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                        <input type="radio" name="assign_type" value="eo" x-model="editAssignType" class="text-indigo-600 focus:ring-indigo-500">
+                                        <div class="min-w-0">
+                                            <span class="font-bold block text-[11px] truncate">Rekan EO</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Delegasi</span>
+                                        </div>
+                                    </label>
+
+                                    <label class="flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition text-xs font-semibold"
+                                        :class="editAssignType === 'self' ? 'bg-white border-purple-600 text-purple-900 ring-2 ring-purple-500/20 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'">
+                                        <input type="radio" name="assign_type" value="self" x-model="editAssignType" class="text-purple-600 focus:ring-purple-500">
+                                        <div class="min-w-0">
+                                            <span class="font-bold block text-[11px] truncate">Pegang Sendiri</span>
+                                            <span class="text-[9px] text-slate-400 font-normal">Mandiri</span>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <!-- Dropdown SPV (Search Plugin) -->
+                                <div x-show="editAssignType === 'spv'" class="space-y-1.5 pt-0.5">
+                                    <label class="block text-xs font-bold text-slate-700">Pilih Supervisor (SPV): <span class="text-rose-500">*</span></label>
+                                    <div class="relative" x-data="{
+                                        open: false,
+                                        search: '',
+                                        get items() { return window.calendarSpvList || []; },
+                                        get filteredItems() {
+                                            if (!this.search.trim()) return this.items;
+                                            const q = this.search.toLowerCase();
+                                            return this.items.filter(item => item.nama.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)));
+                                        },
+                                        select(item) {
+                                            editSpvId = String(item.id);
+                                            editSpvLabel = item.nama + (item.sub ? ' (' + item.sub + ')' : '');
+                                            this.open = false;
+                                            this.search = '';
+                                        }
+                                    }" @click.outside="open = false">
+                                        <input type="hidden" name="spv_id" :value="editSpvId" :required="editAssignType === 'spv'">
+                                        
+                                        <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                            <div class="flex items-center gap-2 truncate">
+                                                <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                                <span x-text="editSpvLabel ? editSpvLabel : '-- Pilih SPV Penanggung Jawab --'" :class="!editSpvLabel ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'"></span>
+                                            </div>
+                                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        <div x-show="open" 
+                                             x-transition:enter="transition ease-out duration-100"
+                                             x-transition:enter-start="transform opacity-0 scale-95"
+                                             x-transition:enter-end="transform opacity-100 scale-100"
+                                             x-transition:leave="transition ease-in duration-75"
+                                             x-transition:leave-start="transform opacity-100 scale-100"
+                                             x-transition:leave-end="transform opacity-0 scale-95"
+                                             class="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                             style="display: none;">
+                                            <div class="relative mb-2">
+                                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                                <input type="text" 
+                                                       x-model="search" 
+                                                       placeholder="Ketik untuk cari nama SPV..." 
+                                                       class="w-full text-xs pr-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                                       style="padding-left: 2.25rem !important;"
+                                                       @keydown.escape="open = false">
+                                            </div>
+                                            <div class="max-h-44 overflow-y-auto space-y-1">
+                                                <template x-for="item in filteredItems" :key="item.id">
+                                                    <div @click="select(item)" 
+                                                         class="w-full px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer"
+                                                         :class="editSpvId == item.id ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'text-slate-700 hover:bg-slate-50'">
+                                                        <div>
+                                                            <div class="font-bold" x-text="item.nama"></div>
+                                                            <div class="text-[10px] text-slate-400 font-normal" x-text="item.sub"></div>
+                                                        </div>
+                                                        <template x-if="editSpvId == item.id">
+                                                            <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredItems.length === 0">
+                                                    <div class="p-3 text-center text-xs text-slate-400">Tidak ada SPV ditemukan</div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dropdown EO (Search Plugin) -->
+                                <div x-show="editAssignType === 'eo'" class="space-y-1.5 pt-0.5">
+                                    <label class="block text-xs font-bold text-slate-700">Pilih Rekan Event Organizer (EO): <span class="text-rose-500">*</span></label>
+                                    <div class="relative" x-data="{
+                                        open: false,
+                                        search: '',
+                                        get items() { return window.calendarOtherEoList || []; },
+                                        get filteredItems() {
+                                            if (!this.search.trim()) return this.items;
+                                            const q = this.search.toLowerCase();
+                                            return this.items.filter(item => item.nama.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)));
+                                        },
+                                        select(item) {
+                                            editEoId = String(item.id);
+                                            editEoLabel = item.nama;
+                                            this.open = false;
+                                            this.search = '';
+                                        }
+                                    }" @click.outside="open = false">
+                                        <input type="hidden" name="eo_partner_id" :value="editEoId" :required="editAssignType === 'eo'">
+                                        
+                                        <button type="button" @click="open = !open" class="w-full text-xs font-semibold px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 flex items-center justify-between cursor-pointer transition shadow-2xs">
+                                            <div class="flex items-center gap-2 truncate">
+                                                <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                                <span x-text="editEoLabel ? editEoLabel : '-- Pilih Rekan EO --'" :class="!editEoLabel ? 'text-slate-400 font-normal' : 'text-slate-800 font-bold'"></span>
+                                            </div>
+                                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        <div x-show="open" 
+                                             x-transition:enter="transition ease-out duration-100"
+                                             x-transition:enter-start="transform opacity-0 scale-95"
+                                             x-transition:enter-end="transform opacity-100 scale-100"
+                                             x-transition:leave="transition ease-in duration-75"
+                                             x-transition:leave-start="transform opacity-100 scale-100"
+                                             x-transition:leave-end="transform opacity-0 scale-95"
+                                             class="absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 overflow-hidden"
+                                             style="display: none;">
+                                            <div class="relative mb-2">
+                                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                                <input type="text" 
+                                                       x-model="search" 
+                                                       placeholder="Ketik untuk cari nama EO..." 
+                                                       class="w-full text-xs pr-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 font-medium"
+                                                       style="padding-left: 2.25rem !important;"
+                                                       @keydown.escape="open = false">
+                                            </div>
+                                            <div class="max-h-44 overflow-y-auto space-y-1">
+                                                <template x-for="item in filteredItems" :key="item.id">
+                                                    <div @click="select(item)" 
+                                                         class="w-full px-3 py-2 text-xs rounded-lg transition flex items-center justify-between cursor-pointer"
+                                                         :class="editEoId == item.id ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-700 hover:bg-slate-50'">
+                                                        <div>
+                                                            <div class="font-bold" x-text="item.nama"></div>
+                                                            <div class="text-[10px] text-slate-400 font-normal" x-text="item.sub"></div>
+                                                        </div>
+                                                        <template x-if="editEoId == item.id">
+                                                            <svg class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="filteredItems.length === 0">
+                                                    <div class="p-3 text-center text-xs text-slate-400">Tidak ada rekan EO lain yang tersedia</div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Info Pegang Sendiri (Self) -->
+                                <div x-show="editAssignType === 'self'" class="p-2.5 bg-blue-50/60 border border-blue-200/70 rounded-xl text-xs text-blue-800 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="text-[11px]">Event ini akan dikelola secara mandiri oleh EO yang bertugas.</span>
+                                </div>
+                            </div>
+                            @endif
                         </div>
 
                         <!-- Kolom Kanan: Institusi, Akademik, & Catatan -->
@@ -1063,6 +1549,11 @@
             modalAddAgenda: false,
             modalEditAgenda: false,
             modalEditEvent: false,
+            editAssignType: 'spv',
+            editSpvId: '',
+            editSpvLabel: '',
+            editEoId: '',
+            editEoLabel: '',
             selectedEvent: null,
             selectedAgenda: null,
             agendaDeleteLoading: false,
@@ -1190,22 +1681,53 @@
                     if (this.agendaFilter === 'Agenda') return !e.is_eo_event && !e.is_personal;
                     if (this.agendaFilter === 'Event') return e.is_eo_event;
                     if (this.agendaFilter === 'Pribadi') return e.is_personal;
+                    if (this.agendaFilter.startsWith('Role_')) {
+                        const targetRole = this.agendaFilter.replace('Role_', '').toUpperCase();
+                        const roles = (e.target_roles || []).map(r => r.toUpperCase());
+                        return roles.includes(targetRole);
+                    }
                     return true;
                 }).sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai));
             },
 
+            getEventCardClass(evt) {
+                if (evt.status === 'Cancelled') {
+                    return 'bg-rose-50/70 border-rose-200 border-l-[3.5px] border-l-rose-500';
+                }
+                if (evt.status === 'Completed') {
+                    return 'bg-slate-50/70 border-slate-200 border-l-[3.5px] border-l-slate-400';
+                }
+                // Biru untuk Agenda, Ungu / Violet untuk Event EO
+                if (evt.is_eo_event) {
+                    return 'bg-violet-50/50 hover:bg-violet-50 border-violet-200/90 border-l-[3.5px] border-l-violet-600';
+                }
+                return 'bg-blue-50/50 hover:bg-blue-50 border-blue-200/90 border-l-[3.5px] border-l-blue-600';
+            },
+
+            getEventTypeDot(evt) {
+                if (evt.status === 'Cancelled') return 'bg-rose-500';
+                if (evt.status === 'Completed') return 'bg-slate-400';
+                if (evt.is_eo_event) return 'bg-violet-600';
+                return 'bg-blue-600';
+            },
+
+            getRoleBadgeClass(role) {
+                const r = (role || '').toUpperCase();
+                if (r === 'SPV') return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                if (r === 'SALES') return 'bg-amber-100 text-amber-800 border-amber-300';
+                if (r === 'EO') return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+                if (r === 'HM') return 'bg-rose-100 text-rose-800 border-rose-300';
+                if (r === 'ADMIN') return 'bg-slate-200 text-slate-800 border-slate-300';
+                if (r === 'CS') return 'bg-cyan-100 text-cyan-800 border-cyan-300';
+                return 'bg-slate-100 text-slate-700 border-slate-200';
+            },
+
             getEventColor(evt) {
-                if (evt.status === 'Cancelled') return 'bg-rose-50 text-rose-700 border-rose-200';
-                if (evt.status === 'Completed') return 'bg-slate-50 text-slate-600 border-slate-200';
-                if (evt.is_eo_event) return 'bg-violet-50 text-violet-700 border-violet-200';
-                return 'bg-blue-50 text-blue-700 border-blue-200';
+                return this.getEventCardClass(evt);
             },
 
             getEventDotColor(evt) {
-                if (evt.status === 'Cancelled') return 'bg-rose-500';
-                if (evt.status === 'Completed') return 'bg-slate-400';
-                if (evt.is_eo_event) return 'bg-violet-500';
-                return 'bg-blue-500';
+                return this.getEventTypeDot(evt);
             },
 
             openEventDetails(evt) {
@@ -1216,6 +1738,23 @@
             getSalesForSpv(spvId) {
                 if (!this.selectedEvent || !this.selectedEvent.sales) return [];
                 return this.selectedEvent.sales.filter(s => s.assigned_by_spv_id === spvId);
+            },
+
+            canManageSpvSales(spv) {
+                if (!spv) return false;
+                const role = (this.currentUserRole || '').toUpperCase();
+                const isSpv = ['SPV', 'SUPERVISOR MARKETING', 'SUPERVISOR'].includes(role);
+                return isSpv && (Number(this.currentUserId) === Number(spv.id));
+            },
+
+            getAssignedSalesForSpv(spv) {
+                if (!this.selectedEvent || !this.selectedEvent.sales || !spv) return [];
+                return this.selectedEvent.sales.filter(s => {
+                    if (s.assigned_by_spv_id) {
+                        return Number(s.assigned_by_spv_id) === Number(spv.id);
+                    }
+                    return (spv.team_sales || []).some(ts => Number(ts.id) === Number(s.id));
+                });
             },
 
             currentUserRole: '{{ auth()->user()->role ?? '' }}',
@@ -1254,6 +1793,37 @@
             openEditEvent(evt) {
                 if (!evt) return;
                 this.selectedEvent = evt;
+                const currentUserId = {{ Auth::id() ?? 0 }};
+                const assignees = evt.spvs || [];
+
+                if (assignees.length === 0) {
+                    this.editAssignType = 'self';
+                    this.editSpvId = '';
+                    this.editSpvLabel = '';
+                    this.editEoId = '';
+                    this.editEoLabel = '';
+                } else {
+                    const first = assignees[0];
+                    if (Number(first.id) === currentUserId) {
+                        this.editAssignType = 'self';
+                        this.editSpvId = '';
+                        this.editSpvLabel = '';
+                        this.editEoId = '';
+                        this.editEoLabel = '';
+                    } else if (first.role === 'EO' || (!first.is_spv && first.role !== 'SPV')) {
+                        this.editAssignType = 'eo';
+                        this.editEoId = String(first.id);
+                        this.editEoLabel = first.name;
+                        this.editSpvId = '';
+                        this.editSpvLabel = '';
+                    } else {
+                        this.editAssignType = 'spv';
+                        this.editSpvId = String(first.id);
+                        this.editSpvLabel = first.name;
+                        this.editEoId = '';
+                        this.editEoLabel = '';
+                    }
+                }
                 this.modalEventDetail = false;
                 this.modalEditEvent = true;
             },

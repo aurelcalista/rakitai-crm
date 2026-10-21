@@ -108,6 +108,14 @@ class AppServiceProvider extends ServiceProvider
                     $followUpHariIni = $followUpQuery->count();
                 }
 
+                $salesEventCount = 0;
+                if ($role === 'sales') {
+                    $salesEventCount = \App\Models\Event::whereHas('sales', function ($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    })
+                    ->whereIn('status', ['Scheduled', 'Rencana', 'Sedang Berjalan'])
+                    ->count();
+                }
 
                 $unreadNotifications = $user->unreadNotifications;
                 $rawNotifications = $user->notifications()->limit(20)->get();
@@ -127,6 +135,7 @@ class AppServiceProvider extends ServiceProvider
                 $view->with([
                     'globalProspekCount'          => $prospekCount,
                     'globalFollowUpTodayCount'    => $followUpHariIni,
+                    'globalSalesEventCount'       => $salesEventCount,
                     'globalUnreadNotifications'   => $unreadNotifications,
                     'globalNotifications'         => $notifications,
                 ]);

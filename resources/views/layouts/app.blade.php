@@ -695,6 +695,9 @@ x-init="
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
                                 <span x-show="!sidebarCollapsed">Jadwal Event</span>
+                                @if(($globalSalesEventCount ?? 0) > 0)
+                                    <span x-show="!sidebarCollapsed" class="ml-auto px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-semibold">{{ $globalSalesEventCount }} Event</span>
+                                @endif
                             </a>
                             <a 
                                 href="{{ route('potensi-wilayah.index') }}" 

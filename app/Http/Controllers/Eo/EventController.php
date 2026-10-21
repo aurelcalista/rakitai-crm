@@ -42,31 +42,34 @@ class EventController extends Controller
             'avatar_url' => $user->avatar_url,
         ];
 
-        $events = Event::with(['type', 'spvs', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
+        $events = Event::with(['type', 'spvs.wilayah', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
             ->whereNotNull('type_id')
             ->orderBy('tanggal_mulai', 'desc')
             ->paginate(25);
 
         $eventTypes  = MasterData::where('type', 'jenis_event')->where('status', 'Aktif')->get();
-        // All active users (except this EO) grouped by role for the assignment checkboxes
-        $allUsers    = User::where('status', 'Aktif')
-                           ->where('id', '!=', $user->id)
-                           ->orderBy('role')
+        $spvs        = User::whereIn('role', ['SPV', 'Supervisor Marketing', 'Supervisor'])
+                           ->where('status', 'Aktif')
+                           ->with('wilayah')
                            ->orderBy('name')
-                           ->get()
-                           ->groupBy('role');
+                           ->get();
+        $otherEos    = User::where('role', 'EO')
+                           ->where('status', 'Aktif')
+                           ->where('id', '!=', $user->id)
+                           ->orderBy('name')
+                           ->get();
         $dosens      = User::whereIn('role', ['Dosen', 'Staff', 'Admin', 'SPV'])->where('status', 'Aktif')->get();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $sekolahs    = Sekolah::where('status', 'Aktif')->orderBy('nama')->get();
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $salesList   = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
 
-        return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'allUsers', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
+        return view('eo.events.index', compact('pageTitle', 'currentUser', 'events', 'eventTypes', 'spvs', 'otherEos', 'dosens', 'prodis', 'sekolahs', 'perusahaans', 'salesList'));
     }
 
     public function show($id)
     {
-        $event = Event::with(['type', 'spvs', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
+        $event = Event::with(['type', 'spvs.wilayah', 'sales', 'dosen', 'prodi', 'sekolah', 'perusahaan'])
             ->whereNotNull('type_id')
             ->findOrFail($id);
 
@@ -115,6 +118,37 @@ class EventController extends Controller
             'sales.*.exists'       => 'User yang ditugaskan tidak valid.',
         ]);
 
+        $assignedUserIds = [];
+        if ($request->filled('assign_type')) {
+            $request->validate([
+                'assign_type'   => 'required|in:spv,eo,self',
+                'spv_id'        => 'required_if:assign_type,spv|nullable|exists:users,id',
+                'eo_partner_id' => 'required_if:assign_type,eo|nullable|exists:users,id',
+            ], [
+                'spv_id.required_if'        => 'Silakan pilih Supervisor (SPV) yang ditugaskan.',
+                'eo_partner_id.required_if' => 'Silakan pilih Rekan EO yang ditugaskan.',
+            ]);
+
+            if ($request->assign_type === 'spv') {
+                $assignedUserIds = [$request->spv_id];
+            } elseif ($request->assign_type === 'eo') {
+                $assignedUserIds = [$request->eo_partner_id];
+            } else {
+                $assignedUserIds = [Auth::id()];
+            }
+        } elseif ($request->has('spvs')) {
+            $request->validate([
+                'spvs'   => 'required|array|min:1',
+                'spvs.*' => 'exists:users,id',
+            ], [
+                'spvs.required' => 'Minimal satu penanggung jawab harus dipilih.',
+                'spvs.min'      => 'Minimal satu penanggung jawab harus dipilih.',
+            ]);
+            $assignedUserIds = $request->spvs;
+        } else {
+            $assignedUserIds = [];
+        }
+
         // Check if event type is Training
         $type = MasterData::find($request->type_id);
         $isTraining = ($type && stripos($type->nama, 'training') !== false) || 
@@ -127,7 +161,7 @@ class EventController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $assignedUserIds) {
             $event = Event::create([
                 'name'            => $request->name,
                 'nama'            => $request->name,
@@ -154,12 +188,37 @@ class EventController extends Controller
                 'qr_code'         => Event::generateUniqueQrToken(),
             ]);
 
-            if (!empty($request->spvs)) {
-                $event->spvs()->sync($request->spvs);
+            if (!empty($assignedUserIds)) {
+                $event->spvs()->sync($assignedUserIds);
 
-                // Trigger notification to SPVs
-                $spvUsers = User::whereIn('id', $request->spvs)->get();
-                \Illuminate\Support\Facades\Notification::send($spvUsers, new EventNotification($event, 'assigned_spv'));
+                $assignedUsers = User::whereIn('id', $assignedUserIds)->get();
+                foreach ($assignedUsers as $assignedUser) {
+                    if (in_array($assignedUser->role, ['SPV', 'Supervisor Marketing', 'Supervisor'])) {
+                        $assignedUser->notify(new EventNotification($event, 'assigned_spv'));
+                    } elseif ($assignedUser->id === Auth::id()) {
+                        $assignedUser->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "Penugasan Event Mandiri",
+                            message: "Anda ditugaskan memegang event '{$event->name}' secara mandiri.",
+                            type: 'info',
+                            link: '/calendar',
+                            icon: '',
+                            senderName: Auth::user()->name,
+                            senderRole: 'EO',
+                            action: 'event_assigned_self'
+                        ));
+                    } else {
+                        $assignedUser->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "Penugasan Event Baru",
+                            message: "Anda ditugaskan pada event '{$event->name}' oleh " . Auth::user()->name . ".",
+                            type: 'info',
+                            link: '/calendar',
+                            icon: '',
+                            senderName: Auth::user()->name,
+                            senderRole: 'EO',
+                            action: 'event_assigned_eo'
+                        ));
+                    }
+                }
             }
 
             if (!empty($request->sales)) {
@@ -231,7 +290,41 @@ class EventController extends Controller
             'alamat'         => 'nullable|string|max:500',
             'pic_name'       => 'nullable|string|max:255',
             'pic_whatsapp'   => ['nullable', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: true)],
+        ], [
+            'waktu_selesai.after'  => 'Waktu selesai harus setelah waktu mulai.',
+            'sales.*.exists'       => 'User yang ditugaskan tidak valid.',
         ]);
+
+        $assignedUserIds = [];
+        if ($request->filled('assign_type')) {
+            $request->validate([
+                'assign_type'   => 'required|in:spv,eo,self',
+                'spv_id'        => 'required_if:assign_type,spv|nullable|exists:users,id',
+                'eo_partner_id' => 'required_if:assign_type,eo|nullable|exists:users,id',
+            ], [
+                'spv_id.required_if'        => 'Silakan pilih Supervisor (SPV) yang ditugaskan.',
+                'eo_partner_id.required_if' => 'Silakan pilih Rekan EO yang ditugaskan.',
+            ]);
+
+            if ($request->assign_type === 'spv') {
+                $assignedUserIds = [$request->spv_id];
+            } elseif ($request->assign_type === 'eo') {
+                $assignedUserIds = [$request->eo_partner_id];
+            } else {
+                $assignedUserIds = [Auth::id()];
+            }
+        } elseif ($request->has('spvs')) {
+            $request->validate([
+                'spvs'   => 'required|array|min:1',
+                'spvs.*' => 'exists:users,id',
+            ], [
+                'spvs.required' => 'Minimal satu penanggung jawab harus dipilih.',
+                'spvs.min'      => 'Minimal satu penanggung jawab harus dipilih.',
+            ]);
+            $assignedUserIds = $request->spvs;
+        } else {
+            $assignedUserIds = null;
+        }
 
         // Check if event type is Training
         $type = MasterData::find($request->type_id);
@@ -245,7 +338,7 @@ class EventController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($request, $event) {
+        DB::transaction(function () use ($request, $event, $assignedUserIds) {
             $oldStart = \Carbon\Carbon::parse($event->tanggal_mulai);
             $oldEnd = \Carbon\Carbon::parse($event->tanggal_selesai);
 
@@ -277,8 +370,42 @@ class EventController extends Controller
             ]);
 
             $oldSpvs = $event->spvs->pluck('id')->toArray();
-            $newSpvs = $request->spvs ?? [];
-            $event->spvs()->sync($newSpvs);
+            $newSpvs = $assignedUserIds !== null ? $assignedUserIds : $oldSpvs;
+            if ($assignedUserIds !== null) {
+                $event->spvs()->sync($newSpvs);
+            }
+
+            $newlyAdded = array_diff($newSpvs, $oldSpvs);
+            if (!empty($newlyAdded)) {
+                $addedUsers = User::whereIn('id', $newlyAdded)->get();
+                foreach ($addedUsers as $assignedUser) {
+                    if (in_array($assignedUser->role, ['SPV', 'Supervisor Marketing', 'Supervisor'])) {
+                        $assignedUser->notify(new EventNotification($event, 'assigned_spv'));
+                    } elseif ($assignedUser->id === Auth::id()) {
+                        $assignedUser->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "Penugasan Event Mandiri",
+                            message: "Anda ditugaskan memegang event '{$event->name}' secara mandiri.",
+                            type: 'info',
+                            link: '/calendar',
+                            icon: '',
+                            senderName: Auth::user()->name,
+                            senderRole: 'EO',
+                            action: 'event_assigned_self'
+                        ));
+                    } else {
+                        $assignedUser->notify(new \App\Notifications\CrmActivityNotification(
+                            title: "Penugasan Event Baru",
+                            message: "Anda ditugaskan pada event '{$event->name}' oleh " . Auth::user()->name . ".",
+                            type: 'info',
+                            link: '/calendar',
+                            icon: '',
+                            senderName: Auth::user()->name,
+                            senderRole: 'EO',
+                            action: 'event_assigned_eo'
+                        ));
+                    }
+                }
+            }
             
             // If SPV is removed, their sales assignments are removed.
             $removedSpvs = array_diff($oldSpvs, $newSpvs);
