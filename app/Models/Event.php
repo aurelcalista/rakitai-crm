@@ -94,7 +94,7 @@ class Event extends Model
     }
 
     protected $casts = [
-        'tanggal' => 'date',
+        'tanggal' => 'date:Y-m-d',
         'waktu_mulai' => 'datetime:H:i',
         'waktu_selesai' => 'datetime:H:i',
         'takeover_at' => 'datetime',

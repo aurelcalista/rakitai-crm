@@ -1561,7 +1561,10 @@
             agendaAddForm: {
                 name: '',
                 jenis: 'Kunjungan Sekolah',
-                tanggal: new Date().toISOString().split('T')[0],
+                tanggal: (() => {
+                    const d = new Date();
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                })(),
                 waktu_mulai: '08:00',
                 waktu_selesai: '10:00',
                 lokasi: '',
@@ -1579,10 +1582,12 @@
             },
 
             openAddAgenda() {
+                const d = new Date();
+                const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 this.agendaAddForm = {
                     name: '',
                     jenis: 'Kunjungan Sekolah',
-                    tanggal: new Date().toISOString().split('T')[0],
+                    tanggal: todayStr,
                     waktu_mulai: '08:00',
                     waktu_selesai: '10:00',
                     lokasi: '',
@@ -1773,8 +1778,21 @@
                 return role !== 'sales';
             },
 
+            parseDateOnly(val) {
+                if (!val) return '';
+                if (typeof val === 'string') {
+                    if (val.includes('T')) {
+                        const d = new Date(val);
+                        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    }
+                    if (val.length >= 10) return val.substring(0, 10);
+                }
+                return val;
+            },
+
             openEditAgenda(evt) {
                 if (!evt) return;
+                evt.tanggal = this.parseDateOnly(evt.tanggal);
                 this.selectedAgenda = evt;
                 this.agendaEditForm = {
                     id: evt.id,
@@ -1792,6 +1810,7 @@
 
             openEditEvent(evt) {
                 if (!evt) return;
+                evt.tanggal = this.parseDateOnly(evt.tanggal);
                 this.selectedEvent = evt;
                 const currentUserId = {{ Auth::id() ?? 0 }};
                 const assignees = evt.spvs || [];
@@ -2089,6 +2108,10 @@
 
             formatDate(dateStr) {
                 if (!dateStr) return '';
+                if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                    const [y, m, d] = dateStr.split('-').map(Number);
+                    return `${d} ${this.monthNames[m - 1]} ${y}`;
+                }
                 const d = new Date(dateStr);
                 return `${d.getDate()} ${this.monthNames[d.getMonth()]} ${d.getFullYear()}`;
             }
