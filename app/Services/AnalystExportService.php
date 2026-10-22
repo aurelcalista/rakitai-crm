@@ -98,6 +98,9 @@ class AnalystExportService
             case 'sekolah':
                 $this->exportSekolah($spreadsheet, $filterParams);
                 break;
+            case 'kunjungan':
+                $this->exportKunjungan($spreadsheet, $filterParams);
+                break;
             case 'target':
                 $this->exportTarget($spreadsheet, $filterParams);
                 break;
@@ -605,6 +608,98 @@ class AnalystExportService
                 (int) $lunasCount,
                 $p->pic_name ?: '-',
                 $p->pic_phone ?: '-'
+            ];
+
+            $this->writeTableRow($sheet, $row, $values, $stringCols);
+            $row++;
+        }
+
+        $this->finalizeTable($sheet, count($headers), max($row - 1, 1), 1);
+    }
+
+    /**
+     * Export rekap data kunjungan sekolah dan perusahaan lintas role ke sheet XLSX.
+     */
+    protected function exportKunjungan(Spreadsheet $spreadsheet, array $params): void
+    {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rekap Data Kunjungan');
+
+        $headers = [
+            'Nomor Kunjungan',
+            'Tanggal',
+            'Waktu',
+            'Jenis Kunjungan',
+            'Nama Institusi',
+            'Petugas Kunjungan',
+            'Role Petugas',
+            'Wilayah',
+            'PIC Institusi',
+            'WhatsApp PIC',
+            'Tujuan Kunjungan',
+            'Potensi Mahasiswa / Kemitraan',
+            'Hasil Kunjungan',
+            'Status Kunjungan',
+            'Status Verifikasi'
+        ];
+
+        $this->setupSheetHeader($sheet, $headers, 1);
+
+        $query = \App\Models\Kunjungan::with(['sales.wilayah', 'sekolah.wilayah', 'perusahaan.wilayah']);
+
+        if (!empty($params['from_date'])) {
+            $query->whereDate('tanggal', '>=', $params['from_date']);
+        }
+        if (!empty($params['to_date'])) {
+            $query->whereDate('tanggal', '<=', $params['to_date']);
+        }
+        if (!empty($params['sales_id']) && $params['sales_id'] !== 'all') {
+            $query->where('sales_id', $params['sales_id']);
+        }
+        if (!empty($params['wilayah_id']) && $params['wilayah_id'] !== 'all') {
+            $wId = $params['wilayah_id'];
+            $query->where(function ($wq) use ($wId) {
+                $wq->whereHas('sekolah', fn($sq) => $sq->where('wilayah_id', $wId))
+                   ->orWhereHas('perusahaan', fn($pq) => $pq->where('wilayah_id', $wId))
+                   ->orWhereHas('sales', fn($uq) => $uq->where('wilayah_id', $wId));
+            });
+        }
+
+        $query->orderBy('tanggal', 'desc');
+
+        $row = 2;
+        $stringCols = [1, 3, 10]; // Nomor, Waktu, WhatsApp PIC
+
+        foreach ($query->get() as $k) {
+            $instName = $k->nama_institusi
+                ?: ($k->jenis === 'Sekolah' ? $k->sekolah?->nama : $k->perusahaan?->nama)
+                ?: '-';
+
+            $wilayahName = $k->sekolah?->wilayah?->nama
+                ?: $k->perusahaan?->wilayah?->nama
+                ?: $k->sales?->wilayah?->nama
+                ?: '-';
+
+            $potensi = $k->jenis === 'Sekolah'
+                ? ($k->potensi_mahasiswa ? $k->potensi_mahasiswa . ' Siswa' : '-')
+                : ($k->potensi_s1 || $k->potensi_s2 ? ('S1: ' . ($k->potensi_s1 ?: 0) . ' / S2: ' . ($k->potensi_s2 ?: 0)) : '-');
+
+            $values = [
+                $k->nomor,
+                $k->tanggal ? Carbon::parse($k->tanggal)->format('d/m/Y') : '-',
+                $k->waktu ? substr($k->waktu, 0, 5) : '-',
+                in_array($k->jenis, ['Perusahaan', 'Corporate']) ? 'Perusahaan' : 'Sekolah',
+                $instName,
+                $k->sales?->name ?: '-',
+                $k->sales?->role ?: '-',
+                $wilayahName,
+                $k->pic_name ?: ($k->sekolah?->pic_name ?: '-'),
+                $k->pic_whatsapp ?: ($k->sekolah?->pic_phone ?: '-'),
+                $k->tujuan_kunjungan ?: '-',
+                $potensi,
+                $k->hasil ?: '-',
+                $k->status ?: 'Menunggu',
+                $k->status_verifikasi ?: '-'
             ];
 
             $this->writeTableRow($sheet, $row, $values, $stringCols);
@@ -1178,11 +1273,14 @@ class AnalystExportService
         $query = Prospek::with(['sales', 'cs', 'owner', 'prodi', 'wilayah', 'sekolah', 'perusahaan']);
 
         // 1. Periode filter — qualify with table prefix to avoid ambiguity on joins
-        if (!empty($params['from_date'])) {
-            $query->whereDate('prospeks.created_at', '>=', $params['from_date']);
+        $fromDate = $params['from_date'] ?? ($params['start_date'] ?? null);
+        $toDate = $params['to_date'] ?? ($params['end_date'] ?? null);
+
+        if (!empty($fromDate)) {
+            $query->whereDate('prospeks.created_at', '>=', $fromDate);
         }
-        if (!empty($params['to_date'])) {
-            $query->whereDate('prospeks.created_at', '<=', $params['to_date']);
+        if (!empty($toDate)) {
+            $query->whereDate('prospeks.created_at', '<=', $toDate);
         }
 
         // 2. Tahun Akademik filter
