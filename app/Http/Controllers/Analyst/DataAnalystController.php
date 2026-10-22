@@ -274,6 +274,101 @@ class DataAnalystController extends Controller
             ->get();
 
         // ──────────────────────────────────────────────────────────────
+        // 6b. REKAP DATA KUNJUNGAN SEKOLAH & PERUSAHAAN (SEMUA ROLE)
+        // ──────────────────────────────────────────────────────────────
+        $kunjunganBaseQuery = Kunjungan::with(['sales', 'sekolah', 'perusahaan']);
+
+        if (!empty($filters['from_date'])) {
+            $kunjunganBaseQuery->whereDate('kunjungans.tanggal', '>=', $filters['from_date']);
+        }
+        if (!empty($filters['to_date'])) {
+            $kunjunganBaseQuery->whereDate('kunjungans.tanggal', '<=', $filters['to_date']);
+        }
+        if (!empty($filters['sales_id']) && $filters['sales_id'] !== 'all') {
+            $kunjunganBaseQuery->where('kunjungans.sales_id', $filters['sales_id']);
+        }
+        if (!empty($filters['wilayah_id']) && $filters['wilayah_id'] !== 'all') {
+            $wId = $filters['wilayah_id'];
+            $kunjunganBaseQuery->where(function ($wq) use ($wId) {
+                $wq->whereHas('sekolah', fn($sq) => $sq->where('wilayah_id', $wId))
+                   ->orWhereHas('perusahaan', fn($pq) => $pq->where('wilayah_id', $wId))
+                   ->orWhereHas('sales', fn($uq) => $uq->where('wilayah_id', $wId));
+            });
+        }
+
+        $totalKunjungan = (clone $kunjunganBaseQuery)->count();
+        $totalKunjunganSekolah = (clone $kunjunganBaseQuery)->where('jenis', 'Sekolah')->count();
+        $totalKunjunganPerusahaan = (clone $kunjunganBaseQuery)->whereIn('jenis', ['Perusahaan', 'Corporate'])->count();
+        $totalKunjunganSelesai = (clone $kunjunganBaseQuery)->where(function ($sq) {
+            $sq->whereIn('status', ['Selesai', 'Terverifikasi'])
+               ->orWhere('status_verifikasi', 'Terverifikasi');
+        })->count();
+
+        // Rekap Kunjungan per Role Petugas (diambil dari data semua role yang melakukan kunjungan)
+        $kunjunganPerRole = (clone $kunjunganBaseQuery)
+            ->join('users', 'kunjungans.sales_id', '=', 'users.id')
+            ->selectRaw('
+                users.role,
+                COUNT(kunjungans.id) as total_kunjungan,
+                SUM(CASE WHEN kunjungans.jenis = \'Sekolah\' THEN 1 ELSE 0 END) as total_sekolah,
+                SUM(CASE WHEN kunjungans.jenis IN (\'Perusahaan\', \'Corporate\') THEN 1 ELSE 0 END) as total_perusahaan,
+                SUM(CASE WHEN kunjungans.status IN (\'Selesai\', \'Terverifikasi\') OR kunjungans.status_verifikasi = \'Terverifikasi\' THEN 1 ELSE 0 END) as total_selesai
+            ')
+            ->groupBy('users.role')
+            ->orderByDesc('total_kunjungan')
+            ->get()
+            ->map(function ($r) {
+                return [
+                    'role'             => $r->role ?: 'Staff',
+                    'total_kunjungan'  => (int) $r->total_kunjungan,
+                    'total_sekolah'    => (int) $r->total_sekolah,
+                    'total_perusahaan' => (int) $r->total_perusahaan,
+                    'total_selesai'    => (int) $r->total_selesai,
+                ];
+            })
+            ->values();
+
+        // Riwayat data kunjungan riil untuk tabel eksplorasi rekap
+        $rekapKunjunganList = (clone $kunjunganBaseQuery)
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->take(50)
+            ->get()
+            ->map(function ($k) {
+                $instName = $k->nama_institusi
+                    ?: ($k->jenis === 'Sekolah' ? $k->sekolah?->nama : $k->perusahaan?->nama)
+                    ?: 'Institusi';
+
+                return [
+                    'id'             => $k->id,
+                    'nomor'          => $k->nomor,
+                    'tanggal'        => $k->tanggal ? Carbon::parse($k->tanggal)->format('d M Y') : '-',
+                    'raw_date'       => $k->tanggal ? Carbon::parse($k->tanggal)->toDateString() : null,
+                    'waktu'          => $k->waktu ? substr($k->waktu, 0, 5) : '-',
+                    'jenis'          => in_array($k->jenis, ['Perusahaan', 'Corporate']) ? 'Perusahaan' : 'Sekolah',
+                    'nama_institusi' => $instName,
+                    'petugas_name'   => $k->sales?->name ?? 'Petugas Kunjungan',
+                    'petugas_role'   => $k->sales?->role ?? 'Sales',
+                    'tujuan'         => $k->tujuan_kunjungan ?: '-',
+                    'hasil'          => $k->hasil ?: '-',
+                    'status'         => $k->status_verifikasi === 'Terverifikasi' ? 'Terverifikasi' : ($k->status ?: 'Menunggu'),
+                    'potensi'        => $k->jenis === 'Sekolah'
+                        ? ($k->potensi_mahasiswa ? $k->potensi_mahasiswa . ' Siswa' : '-')
+                        : ($k->potensi_s1 || $k->potensi_s2 ? ('S1: ' . ($k->potensi_s1 ?: 0) . ' / S2: ' . ($k->potensi_s2 ?: 0)) : '-'),
+                ];
+            })
+            ->values();
+
+        $rekapKunjungan = [
+            'total_kunjungan'   => $totalKunjungan,
+            'total_sekolah'     => $totalKunjunganSekolah,
+            'total_perusahaan'  => $totalKunjunganPerusahaan,
+            'total_selesai'     => $totalKunjunganSelesai,
+            'per_role'          => $kunjunganPerRole,
+            'list'              => $rekapKunjunganList,
+        ];
+
+        // ──────────────────────────────────────────────────────────────
         // 7. AKTIVITAS & KUALITAS DATA OPERASIONAL
         // ──────────────────────────────────────────────────────────────
         $belumFollowUpCount = (clone $baseQuery)
@@ -414,6 +509,7 @@ class DataAnalystController extends Controller
                 'totalPerusahaan'       => $totalPerusahaan,
                 'sekolahDihubungiCount' => $sekolahDihubungiCount,
                 'topSekolah'            => $topSekolah,
+                'rekapKunjungan'        => $rekapKunjungan,
                 'segmentasiProdi'       => $segmentasiProdi,
                 'segmentasiKelas'       => $segmentasiKelas,
                 'segmentasiJalur'       => $segmentasiJalur,
@@ -449,6 +545,7 @@ class DataAnalystController extends Controller
             'sekolahDihubungiCount',
             'sekolahBelumDihubungiCount',
             'topSekolah',
+            'rekapKunjungan',
             'belumFollowUpCount',
             'duplicateWaCount',
             'incompleteDataCount',
@@ -541,10 +638,10 @@ class DataAnalystController extends Controller
     {
         $periode = $request->get('periode', 'semua');
         $now = Carbon::now();
-        $fromDate = $request->get('from_date');
-        $toDate = $request->get('to_date');
+        $fromDate = $request->get('from_date') ?: $request->get('start_date');
+        $toDate = $request->get('to_date') ?: $request->get('end_date');
 
-        if (empty($fromDate) || empty($toDate)) {
+        if (empty($fromDate) && empty($toDate)) {
             switch ($periode) {
                 case 'hari_ini':
                 case 'harian':
