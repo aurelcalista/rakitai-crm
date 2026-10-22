@@ -93,7 +93,13 @@
     },
     formatDate(val) {
         if (!val) return '-';
-        if (typeof val === 'string' && val.length >= 10) return val.substring(0, 10);
+        if (typeof val === 'string') {
+            if (val.includes('T')) {
+                const d = new Date(val);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+            if (val.length >= 10) return val.substring(0, 10);
+        }
         return val;
     },
     copyQr(token) {
