@@ -9,4 +9,10 @@ class Prodi extends Model
     protected $fillable = [
         'kode', 'nama', 'jenjang', 'fakultas', 'kuota', 'spp', 'ukt', 'ukt_reguler', 'status'
     ];
+
+    public function prospeks()
+    {
+        return $this->hasMany(Prospek::class, 'prodi_id');
+    }
 }
+

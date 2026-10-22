@@ -12,10 +12,12 @@ class Prospek extends Model
     public const SOURCE_PRESENSI_SISWA = 'Presensi Siswa';
 
     protected $fillable = [
-        'name', 'no_registrasi', 'gelombang', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
-        'status', 'stage_number', 'notes',
+        'name', 'email', 'no_registrasi', 'gelombang', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
+        'status', 'status_formulir', 'status_berkas', 'status_ujian', 'nilai_ujian', 'tanggal_ujian', 'minat_kuliah', 'minat_miniclass',
+        'stage_number', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
-        'sekolah_id', 'asal_kelas', 'perusahaan_id', 'prodi_id', 'prodi_lainnya',
+        'sekolah_id', 'asal_kelas', 'perusahaan_id', 'prodi_id', 'prodi_lainnya', 'prodi_pilihan_2_id',
+        'berkas_data', 'form_data',
         'lost_reason', 'lost_note',
         'follow_up_count', 'active_follow_up_count',
         'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',
@@ -25,11 +27,22 @@ class Prospek extends Model
     protected $casts = [
         'handover_at' => 'datetime',
         'takeover_at' => 'datetime',
+        'tanggal_ujian' => 'datetime',
+        'berkas_data' => 'array',
+        'form_data' => 'array',
+        'nilai_ujian' => 'float',
     ];
 
     protected static function booted()
     {
         static::saving(function ($prospek) {
+            if (empty($prospek->type)) {
+                $prospek->type = 'Inbound';
+            }
+            if (empty($prospek->pic)) {
+                $prospek->pic = $prospek->name;
+            }
+
             // Bersihkan nomor WhatsApp jika diinput dalam format link wa.me atau format belum standar
             if (!empty($prospek->wa_ortu)) {
                 if (preg_match('/wa\.me\/([0-9+]+)/i', $prospek->wa_ortu, $m)) {
@@ -714,6 +727,11 @@ class Prospek extends Model
     public function perusahaan()
     {
         return $this->belongsTo(Perusahaan::class);
+    }
+
+    public function prodiPilihan2()
+    {
+        return $this->belongsTo(Prodi::class, 'prodi_pilihan_2_id');
     }
 
     public function sales()

@@ -38,11 +38,13 @@ class Transaksi extends Model
     ];
 
     protected $fillable = [
+        'order_id',
         'prospek_id',
         'user_id',
         'jenis',
         'kategori',
         'nominal',
+        'detail_pembayaran',
         'tanggal',
         'notes',
         'academic_year_id',
@@ -63,6 +65,10 @@ class Transaksi extends Model
                 if ($aktif) {
                     $model->academic_year_id = $aktif->id;
                 }
+            }
+            if (empty($model->order_id)) {
+                $pid = $model->prospek_id ?: rand(100, 999);
+                $model->order_id = 'PMB-UCIC-' . $pid . '-' . time() . rand(10, 99);
             }
         });
 

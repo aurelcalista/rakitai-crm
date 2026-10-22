@@ -294,6 +294,69 @@ x-init="
                     </div>
                 </div>
 
+                {{-- Section: PMB UCIC (Admin, HM, CS) --}}
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin', 'hm', 'cs']))
+                <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
+
+                <div>
+                    <div x-show="!sidebarCollapsed" class="px-3 mb-2 text-[11px] font-bold text-blue-600 uppercase tracking-wider flex items-center justify-between">
+                        <span>PMB UCIC</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-200">Admisi</span>
+                    </div>
+                    <div class="space-y-1">
+                        <a 
+                            href="{{ route('pmb.dashboard') }}" 
+                            title="Dashboard PMB"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.dashboard*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.dashboard*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Dashboard PMB</span>
+                        </a>
+
+                        <a 
+                            href="{{ route('pmb.pendaftar.index') }}" 
+                            title="Data Pendaftar"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.pendaftar.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.pendaftar.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Data Pendaftar</span>
+                        </a>
+
+                        <a 
+                            href="{{ route('pmb.pembayaran.index') }}" 
+                            title="Data Pembayaran"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Data Pembayaran</span>
+                        </a>
+
+                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin', 'hm']))
+                        <a 
+                            href="{{ route('pmb.admin.index') }}" 
+                            title="Data Admin"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.admin.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.admin.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2H9.17A3.001 3.001 0 0112 14z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Data Admin</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
                 @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm']))
                 <div x-show="sidebarCollapsed" class="w-8 mx-auto border-t border-slate-100"></div>
 
@@ -1407,6 +1470,63 @@ x-init="
                         </a>
                     </div>
                 </div>
+
+                {{-- SECTION: PMB UCIC (Mobile: Admin, HM, CS) --}}
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin', 'hm', 'cs']))
+                <div x-show="matches('pmb penerimaan mahasiswa baru pendaftar formulir ujian pembayaran admin admisi')">
+                    <div class="px-3 mb-1.5 text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center justify-between">
+                        <span>PMB UCIC</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-200">Admisi</span>
+                    </div>
+                    <div class="space-y-1">
+                        <a 
+                            href="{{ route('pmb.dashboard') }}" 
+                            @click="mobileMenuOpen = false"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.dashboard*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.dashboard*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            <span class="flex-1">Dashboard PMB</span>
+                        </a>
+
+                        <a 
+                            href="{{ route('pmb.pendaftar.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.pendaftar.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.pendaftar.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span class="flex-1">Data Pendaftar</span>
+                        </a>
+
+                        <a 
+                            href="{{ route('pmb.pembayaran.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            <span class="flex-1">Data Pembayaran</span>
+                        </a>
+
+                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin', 'hm']))
+                        <a 
+                            href="{{ route('pmb.admin.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.admin.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.admin.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2H9.17A3.001 3.001 0 0112 14z" />
+                            </svg>
+                            <span class="flex-1">Data Admin</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @endif
 
                 @if(in_array(strtolower(auth()->user()->role), ['sales', 'cs', 'eo', 'spv', 'hm']))
                 <!-- SECTION: ABSENSI -->

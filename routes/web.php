@@ -359,9 +359,35 @@ Route::middleware('auth')->group(function () {
         Route::post('/verifikasi/{transaksi}/reject',       [\App\Http\Controllers\Cs\VerifikasiController::class, 'reject'])->name('verifikasi.reject');
     });
 
+    // ──────────────────────────────────────────────────────────────
+    // PMB UCIC Integrated Modules (Admin, HM, CS)
+    // ──────────────────────────────────────────────────────────────
+    Route::middleware(['role:Admin,HM,CS'])->prefix('pmb')->name('pmb.')->group(function () {
+        // PMB Dashboard
+        Route::get('/dashboard', [\App\Http\Controllers\Pmb\PmbDashboardController::class, 'index'])->name('dashboard');
 
+        // Data Pendaftar PMB
+        Route::get('/pendaftar',                      [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'index'])->name('pendaftar.index');
+        Route::get('/pendaftar/export',               [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'export'])->name('pendaftar.export');
+        Route::get('/pendaftar/{id}',                 [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'show'])->name('pendaftar.show');
+        Route::put('/pendaftar/{id}',                 [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'update'])->name('pendaftar.update');
+        Route::delete('/pendaftar/{id}',              [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'destroy'])->name('pendaftar.destroy');
+        Route::post('/pendaftar/{id}/reset-password', [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'resetPassword'])->name('pendaftar.reset-password');
 
-    // Account & Profile (all roles)
+        // Data Pembayaran PMB
+        Route::get('/pembayaran',                     [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'index'])->name('pembayaran.index');
+        Route::get('/pembayaran/export',              [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'export'])->name('pembayaran.export');
+        Route::post('/pembayaran/{id}/verify',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'verify'])->name('pembayaran.verify');
+        Route::post('/pembayaran/{id}/reject',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'reject'])->name('pembayaran.reject');
+
+        // Data Admin PMB (HANYA untuk Admin & HM, CS DILARANG AKSES)
+        Route::middleware(['role:Admin,HM'])->group(function () {
+            Route::get('/admin',              [\App\Http\Controllers\Pmb\PmbAdminController::class, 'index'])->name('admin.index');
+            Route::post('/admin',             [\App\Http\Controllers\Pmb\PmbAdminController::class, 'store'])->name('admin.store');
+            Route::put('/admin/{id}',         [\App\Http\Controllers\Pmb\PmbAdminController::class, 'update'])->name('admin.update');
+            Route::delete('/admin/{id}',      [\App\Http\Controllers\Pmb\PmbAdminController::class, 'destroy'])->name('admin.destroy');
+        });
+    });    // Account & Profile (all roles)
     Route::get('/profil',           [CrmController::class, 'profilIndex'])->name('profil.index');
     Route::post('/profil',          [CrmController::class, 'profilUpdate'])->name('profil.update');
     Route::post('/profil/password', [CrmController::class, 'profilPasswordUpdate'])->name('profil.password.update');
