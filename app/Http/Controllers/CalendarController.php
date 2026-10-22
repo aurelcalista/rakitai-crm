@@ -87,8 +87,9 @@ class CalendarController extends Controller
         $events = Event::with(['type', 'eo', 'spvs', 'sales', 'takeoverBy'])
             ->get()
             ->map(function ($event) use ($user) {
-                $start = $event->tanggal_mulai ? \Carbon\Carbon::parse($event->tanggal_mulai) : ($event->tanggal ? \Carbon\Carbon::parse($event->tanggal . ' ' . ($event->waktu_mulai ?? '08:00')) : now());
-                $end = $event->tanggal_selesai ? \Carbon\Carbon::parse($event->tanggal_selesai) : ($event->tanggal ? \Carbon\Carbon::parse($event->tanggal . ' ' . ($event->waktu_selesai ?? '09:00')) : now());
+                $tglStr = $event->tanggal ? ($event->tanggal instanceof \Carbon\CarbonInterface ? $event->tanggal->format('Y-m-d') : substr((string)$event->tanggal, 0, 10)) : null;
+                $start = $event->tanggal_mulai ? \Carbon\Carbon::parse($event->tanggal_mulai) : ($tglStr ? \Carbon\Carbon::parse($tglStr . ' ' . ($event->waktu_mulai ?? '08:00')) : now());
+                $end = $event->tanggal_selesai ? \Carbon\Carbon::parse($event->tanggal_selesai) : ($tglStr ? \Carbon\Carbon::parse($tglStr . ' ' . ($event->waktu_selesai ?? '09:00')) : now());
 
                 $jenisLabel = $event->type ? $event->type->nama : ($event->jenis_institusi ?: 'Agenda / Meeting');
                 $title = $event->nama ?: $event->name;
@@ -106,7 +107,7 @@ class CalendarController extends Controller
 
                 $waktuMulai = $event->waktu_mulai ? (is_string($event->waktu_mulai) ? substr($event->waktu_mulai, 0, 5) : \Carbon\Carbon::parse($event->waktu_mulai)->format('H:i')) : $start->format('H:i');
                 $waktuSelesai = $event->waktu_selesai ? (is_string($event->waktu_selesai) ? substr($event->waktu_selesai, 0, 5) : \Carbon\Carbon::parse($event->waktu_selesai)->format('H:i')) : $end->format('H:i');
-                $tanggal = $event->tanggal ? \Carbon\Carbon::parse($event->tanggal)->format('Y-m-d') : $start->format('Y-m-d');
+                $tanggal = $tglStr ?: $start->format('Y-m-d');
 
                 // Determine target roles for visual differentiation
                 $targetRoles = [];
