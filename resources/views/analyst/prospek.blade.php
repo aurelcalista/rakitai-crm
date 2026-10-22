@@ -27,8 +27,8 @@
         <!-- ============================================================== -->
         <!-- HEADER SCREEN BANNER                                           -->
         <!-- ============================================================== -->
-        <div class="relative overflow-hidden bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500"></div>
+        <div class="relative z-30 bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500 rounded-t-2xl"></div>
 
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div class="flex items-start sm:items-center gap-3.5">
