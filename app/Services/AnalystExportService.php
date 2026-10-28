@@ -1343,6 +1343,45 @@ class AnalystExportService
             $query->where('prospeks.no_registrasi', 'like', '%' . trim($params['no_registrasi']) . '%');
         }
 
+        // 11. Scope filter (presensi, sudah_follow_up, belum_follow_up, duplikat_wa, incomplete)
+        if (!empty($params['scope'])) {
+            $scope = $params['scope'];
+            if ($scope === 'presensi') {
+                $query->where(function ($pq) {
+                    $pq->where('prospeks.source', Prospek::SOURCE_PRESENSI_SISWA)
+                       ->orWhere('prospeks.source', 'Presensi Siswa')
+                       ->orWhere('prospeks.source', 'like', '%presensi%');
+                });
+            } elseif ($scope === 'sudah_follow_up') {
+                $query->where(function ($q) {
+                    $q->where('prospeks.follow_up_count', '>', 0)
+                      ->orHas('followUps');
+                });
+            } elseif ($scope === 'belum_follow_up') {
+                $query->where('prospeks.follow_up_count', 0)
+                      ->whereNotIn('prospeks.status', ['LUNAS', 'CANCEL']);
+            } elseif ($scope === 'duplikat_wa') {
+                $query->whereIn('prospeks.whatsapp', function ($sq) {
+                    $sq->select('whatsapp')
+                       ->from('prospeks')
+                       ->whereNotNull('whatsapp')
+                       ->where('whatsapp', '!=', '')
+                       ->groupBy('whatsapp')
+                       ->havingRaw('COUNT(*) > 1');
+                });
+            } elseif ($scope === 'incomplete') {
+                $query->where(function ($q) {
+                    $q->whereNull('prospeks.whatsapp')
+                      ->orWhere('prospeks.whatsapp', '')
+                      ->orWhereNull('prospeks.prodi_id')
+                      ->orWhereNull('prospeks.source')
+                      ->orWhere(function ($sq) {
+                          $sq->whereNull('prospeks.sekolah_id')->whereNull('prospeks.perusahaan_id');
+                      });
+                });
+            }
+        }
+
         return $query;
     }
 

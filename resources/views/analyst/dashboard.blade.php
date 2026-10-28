@@ -49,6 +49,7 @@
                 transaksiFormulirCount: {{ $transaksiFormulirCount }},
                 transaksiTermin1Nominal: {{ $transaksiTermin1Nominal }},
                 transaksiTermin1Count: {{ $transaksiTermin1Count }},
+                sudahFollowUpCount: {{ $sudahFollowUpCount }},
                 belumFollowUpCount: {{ $belumFollowUpCount }},
                 duplicateWaCount: {{ $duplicateWaCount }},
                 incompleteDataCount: {{ $incompleteDataCount }},
@@ -1243,22 +1244,87 @@
                     </div>
                 </div>
 
+                <!-- Status Volume & Follow-Up Prospek (Klik untuk Lihat Data Terfilter) -->
+                <div class="grid grid-cols-2 gap-3 mb-3 text-center">
+                    <a 
+                        :href="getProspekScopeUrl(null)" 
+                        href="{{ route('analyst.prospek.index') }}"
+                        class="group p-3 bg-blue-50/70 hover:bg-blue-100/80 active:bg-blue-100 rounded-xl border border-blue-200/80 hover:border-blue-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat seluruh data prospek"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[10px] font-bold text-blue-700 uppercase">Total Prospek</span>
+                                <svg class="w-3 h-3 text-blue-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-xl font-black text-blue-950 block mt-0.5" x-text="Number(metrics.totalProspekUnik).toLocaleString('id-ID')">{{ number_format($totalProspekUnik) }}</span>
+                        </div>
+                        <span class="text-[9.5px] text-blue-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Semua Lead &rarr;</span>
+                    </a>
+                    <a 
+                        :href="getProspekScopeUrl('sudah_follow_up')" 
+                        href="{{ route('analyst.prospek.index', ['scope' => 'sudah_follow_up']) }}"
+                        class="group p-3 bg-emerald-50/70 hover:bg-emerald-100/80 active:bg-emerald-100 rounded-xl border border-emerald-200/80 hover:border-emerald-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat data prospek yang sudah di-follow up"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[10px] font-bold text-emerald-700 uppercase">Sudah Follow-Up</span>
+                                <svg class="w-3 h-3 text-emerald-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-xl font-black text-emerald-950 block mt-0.5" x-text="Number(metrics.sudahFollowUpCount).toLocaleString('id-ID')">{{ number_format($sudahFollowUpCount) }}</span>
+                        </div>
+                        <span class="text-[9.5px] text-emerald-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Lihat yang Sudah &rarr;</span>
+                    </a>
+                </div>
+
+                <!-- Audit Kualitas Data CRM (Klik untuk Lihat Data Terfilter) -->
                 <div class="grid grid-cols-3 gap-3 mb-4 text-center">
-                    <div class="p-3 bg-amber-50/70 rounded-xl border border-amber-100">
-                        <span class="text-[10px] font-bold text-amber-700 uppercase block">Belum Follow-Up</span>
-                        <span class="text-xl font-black text-amber-950" x-text="Number(metrics.belumFollowUpCount).toLocaleString('id-ID')">{{ number_format($belumFollowUpCount) }}</span>
-                        <span class="text-[9.5px] text-amber-600 block mt-0.5">Perlu Tindak Lanjut</span>
-                    </div>
-                    <div class="p-3 bg-rose-50/70 rounded-xl border border-rose-100">
-                        <span class="text-[10px] font-bold text-rose-700 uppercase block">Duplikat Nomor</span>
-                        <span class="text-xl font-black text-rose-950" x-text="Number(metrics.duplicateWaCount).toLocaleString('id-ID')">{{ number_format($duplicateWaCount) }}</span>
-                        <span class="text-[9.5px] text-rose-600 block mt-0.5">Nomor WA Berulang</span>
-                    </div>
-                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Data Belum Lengkap</span>
-                        <span class="text-xl font-black text-slate-900" x-text="Number(metrics.incompleteDataCount).toLocaleString('id-ID')">{{ number_format($incompleteDataCount) }}</span>
-                        <span class="text-[9.5px] text-slate-400 block mt-0.5">Tanpa Prodi / Mitra</span>
-                    </div>
+                    <a 
+                        :href="getProspekScopeUrl('belum_follow_up')" 
+                        href="{{ route('analyst.prospek.index', ['scope' => 'belum_follow_up']) }}"
+                        class="group p-3 bg-amber-50/70 hover:bg-amber-100/80 active:bg-amber-100 rounded-xl border border-amber-200/80 hover:border-amber-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat data prospek yang belum di-follow up"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[10px] font-bold text-amber-700 uppercase">Belum Follow-Up</span>
+                                <svg class="w-3 h-3 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-xl font-black text-amber-950 block mt-0.5" x-text="Number(metrics.belumFollowUpCount).toLocaleString('id-ID')">{{ number_format($belumFollowUpCount) }}</span>
+                        </div>
+                        <span class="text-[9.5px] text-amber-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Lihat Siapa Saja &rarr;</span>
+                    </a>
+                    <a 
+                        :href="getProspekScopeUrl('duplikat_wa')" 
+                        href="{{ route('analyst.prospek.index', ['scope' => 'duplikat_wa']) }}"
+                        class="group p-3 bg-rose-50/70 hover:bg-rose-100/80 active:bg-rose-100 rounded-xl border border-rose-200/80 hover:border-rose-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat nomor WhatsApp duplikat"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[10px] font-bold text-rose-700 uppercase">Duplikat Nomor</span>
+                                <svg class="w-3 h-3 text-rose-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-xl font-black text-rose-950 block mt-0.5" x-text="Number(metrics.duplicateWaCount).toLocaleString('id-ID')">{{ number_format($duplicateWaCount) }}</span>
+                        </div>
+                        <span class="text-[9.5px] text-rose-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Nomor Berulang &rarr;</span>
+                    </a>
+                    <a 
+                        :href="getProspekScopeUrl('incomplete')" 
+                        href="{{ route('analyst.prospek.index', ['scope' => 'incomplete']) }}"
+                        class="group p-3 bg-slate-50 hover:bg-slate-100/90 active:bg-slate-100 rounded-xl border border-slate-200/90 hover:border-slate-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat data prospek yang belum lengkap"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase">Data Belum Lengkap</span>
+                                <svg class="w-3 h-3 text-slate-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-xl font-black text-slate-900 block mt-0.5" x-text="Number(metrics.incompleteDataCount).toLocaleString('id-ID')">{{ number_format($incompleteDataCount) }}</span>
+                        </div>
+                        <span class="text-[9.5px] text-slate-400 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Tanpa Mitra/Prodi &rarr;</span>
+                    </a>
                 </div>
 
                 <div>
@@ -1390,6 +1456,29 @@
                         }
                         return matchTab && matchRole;
                     });
+                },
+
+                getProspekScopeUrl(scope = null) {
+                    try {
+                        const url = new URL('{{ route('analyst.prospek.index') }}', window.location.origin);
+                        const form = this.$refs.filterForm;
+                        if (form) {
+                            const formData = new FormData(form);
+                            for (const [key, val] of formData.entries()) {
+                                if (val && val !== 'all' && key !== '_token' && key !== 'ajax') {
+                                    url.searchParams.set(key, val);
+                                }
+                            }
+                        }
+                        if (scope) {
+                            url.searchParams.set('scope', scope);
+                        } else {
+                            url.searchParams.delete('scope');
+                        }
+                        return url.toString();
+                    } catch(e) {
+                        return '{{ route('analyst.prospek.index') }}' + (scope ? '?scope=' + scope : '');
+                    }
                 },
 
                 initDashboard() {

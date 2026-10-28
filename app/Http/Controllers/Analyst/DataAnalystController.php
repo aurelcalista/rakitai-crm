@@ -376,6 +376,11 @@ class DataAnalystController extends Controller
             ->whereNotIn('status', ['LUNAS', 'CANCEL'])
             ->count();
 
+        $sudahFollowUpCount = (clone $baseQuery)->where(function ($q) {
+            $q->where('follow_up_count', '>', 0)
+              ->orHas('followUps');
+        })->count();
+
         // Duplikat nomor WhatsApp dalam hasil filter
         $duplicateWaCount = (clone $baseQuery)
             ->whereNotNull('whatsapp')
@@ -495,6 +500,7 @@ class DataAnalystController extends Controller
                     'transaksiTermin1Nominal' => $transaksiTermin1Nominal,
                     'transaksiTermin1Count'   => $transaksiTermin1Count,
                     'belumFollowUpCount'      => $belumFollowUpCount,
+                    'sudahFollowUpCount'      => $sudahFollowUpCount,
                     'duplicateWaCount'        => $duplicateWaCount,
                     'incompleteDataCount'     => $incompleteDataCount,
                 ],
@@ -547,6 +553,7 @@ class DataAnalystController extends Controller
             'topSekolah',
             'rekapKunjungan',
             'belumFollowUpCount',
+            'sudahFollowUpCount',
             'duplicateWaCount',
             'incompleteDataCount',
             'recentFollowUps',
@@ -574,17 +581,6 @@ class DataAnalystController extends Controller
         $filters = $this->resolveFilters($request);
 
         $query = $this->exportService->buildProspekQuery($filters);
-
-        // Scope filter
-        if ($request->filled('scope')) {
-            if ($request->scope === 'presensi') {
-                $query->where(function ($pq) {
-                    $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
-                       ->orWhere('source', 'Presensi Siswa')
-                       ->orWhere('source', 'like', '%presensi%');
-                });
-            }
-        }
 
         // Search text (nama, whatsapp, pic, no_registrasi, gelombang)
         if ($request->filled('search')) {
@@ -682,6 +678,7 @@ class DataAnalystController extends Controller
             'source'         => $request->get('source'),
             'status'         => $request->get('status'),
             'sales_id'       => $request->get('sales_id'),
+            'scope'          => $request->get('scope'),
             'search'         => $request->get('search'),
             'periode_target' => $request->get('periode_target', $request->get('periode', 'bulanan')),
         ];
