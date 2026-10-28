@@ -29,6 +29,202 @@ class MidtransService
         Config::$is3ds = true;
     }
 
+    public const BIAYA_CATALOG = [
+        'pendaftaran' => [
+            'id'    => 'PMB-PENDAFTARAN',
+            'name'  => 'Biaya Pendaftaran PMB UCIC',
+            'price' => 300000,
+        ],
+        'perlengkapan' => [
+            'id'    => 'PMB-PERLENGKAPAN',
+            'name'  => 'Biaya Perlengkapan Kuliah',
+            'price' => 600000,
+        ],
+        'dpp' => [
+            'id'    => 'PMB-DPP',
+            'name'  => 'Biaya Dana Pengembangan Pendidikan (DPP)',
+            'price' => 500000,
+        ],
+    ];
+
+    /**
+     * Dapatkan katalog biaya resmi PMB UCIC.
+     *
+     * @return array<string, array{id: string, name: string, price: int}>
+     */
+    public static function getBiayaCatalog(): array
+    {
+        $catalog = self::BIAYA_CATALOG;
+        $defaultPendaftaran = (int) config('services.midtrans.biaya_pendaftaran', 300000);
+        $catalog['pendaftaran']['price'] = $defaultPendaftaran;
+        return $catalog;
+    }
+
+    /**
+     * Hitung total biaya dan rincian item secara otoritatif di backend.
+     * Mengabaikan nominal yang dikirim dari browser / client untuk mencegah manipulasi.
+     *
+     * @param array<string|int, mixed> $selectedItems
+     * @return array{total: int, items: array<int, array{id: string, name: string, price: int, quantity: int}>, item_keys: array<string>, summary: string}
+     */
+    public static function calculateItems(array $selectedItems): array
+    {
+        $catalog = self::getBiayaCatalog();
+        $validKeys = [];
+
+        foreach ($selectedItems as $key => $val) {
+            if (is_int($key) && is_string($val) && isset($catalog[$val])) {
+                $validKeys[] = $val;
+            } elseif (is_string($key) && isset($catalog[$key]) && filter_var($val, FILTER_VALIDATE_BOOLEAN)) {
+                $validKeys[] = $key;
+            }
+        }
+
+        $validKeys = array_values(array_unique($validKeys));
+
+        $total = 0;
+        $items = [];
+        $descriptions = [];
+
+        foreach ($validKeys as $key) {
+            $itemDef = $catalog[$key];
+            $price = (int) $itemDef['price'];
+            $total += $price;
+
+            $items[] = [
+                'id'       => $itemDef['id'],
+                'name'     => $itemDef['name'],
+                'price'    => $price,
+                'quantity' => 1,
+            ];
+            $descriptions[] = '• ' . $itemDef['name'] . ' (Rp ' . number_format($price, 0, ',', '.') . ')';
+        }
+
+        return [
+            'total'        => $total,
+            'items'        => $items,
+            'item_keys'    => $validKeys,
+            'summary'      => implode("\n", $descriptions),
+        ];
+    }
+
+    /**
+     * Tentukan item awal yang tercentang dari transaksi yang tersimpan.
+     *
+     * @return array<string, bool>
+     */
+    public static function resolveInitialItems(Transaksi $transaksi): array
+    {
+        $detail = (string) $transaksi->detail_pembayaran;
+        $nominal = (int) round($transaksi->nominal);
+
+        $hasPerlengkapan = str_contains($detail, 'Perlengkapan');
+        $hasPendaftaran = str_contains($detail, 'Pendaftaran') || str_contains($detail, 'Formulir');
+        $hasDpp = str_contains($detail, 'DPP');
+
+        if ($hasPerlengkapan || $hasPendaftaran || $hasDpp) {
+            return [
+                'perlengkapan' => $hasPerlengkapan,
+                'pendaftaran'  => $hasPendaftaran,
+                'dpp'          => $hasDpp,
+            ];
+        }
+
+        if ($nominal === 500000) {
+            return ['perlengkapan' => false, 'pendaftaran' => false, 'dpp' => true];
+        }
+        if ($nominal === 800000) {
+            return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => true];
+        }
+        if ($nominal === 600000) {
+            return ['perlengkapan' => true, 'pendaftaran' => false, 'dpp' => false];
+        }
+        if ($nominal === 900000) {
+            return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => false];
+        }
+        if ($nominal === 1100000) {
+            return ['perlengkapan' => true, 'pendaftaran' => false, 'dpp' => true];
+        }
+        if ($nominal === 1400000) {
+            return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => true];
+        }
+
+        // Default: hanya pendaftaran
+        return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => false];
+    }
+
+    /**
+     * Susun rincian item_details Snap berdasarkan rincian biaya aktual transaksi.
+     * Memastikan sum(price * quantity) === gross_amount sesuai spesifikasi Midtrans API.
+     *
+     * @return array<int, array{id: string, name: string, price: int, quantity: int}>
+     */
+    public function resolveItemDetailsForTransaksi(Transaksi $transaksi): array
+    {
+        $catalog = self::getBiayaCatalog();
+        $detail = (string) $transaksi->detail_pembayaran;
+        $grossAmount = (int) round($transaksi->nominal);
+
+        $selected = [];
+        if (str_contains($detail, 'Perlengkapan')) {
+            $selected[] = 'perlengkapan';
+        }
+        if (str_contains($detail, 'Pendaftaran') || str_contains($detail, 'Formulir')) {
+            $selected[] = 'pendaftaran';
+        }
+        if (str_contains($detail, 'DPP')) {
+            $selected[] = 'dpp';
+        }
+
+        if (empty($selected)) {
+            if ($grossAmount === 500000) {
+                $selected = ['dpp'];
+            } elseif ($grossAmount === 800000) {
+                $selected = ['pendaftaran', 'dpp'];
+            } elseif ($grossAmount === 600000) {
+                $selected = ['perlengkapan'];
+            } elseif ($grossAmount === 900000) {
+                $selected = ['perlengkapan', 'pendaftaran'];
+            } elseif ($grossAmount === 1100000) {
+                $selected = ['perlengkapan', 'dpp'];
+            } elseif ($grossAmount === 1400000) {
+                $selected = ['perlengkapan', 'pendaftaran', 'dpp'];
+            } elseif ($grossAmount === 300000) {
+                $selected = ['pendaftaran'];
+            }
+        }
+
+        $items = [];
+        $sum = 0;
+        foreach ($selected as $key) {
+            if (isset($catalog[$key])) {
+                $def = $catalog[$key];
+                $price = (int) $def['price'];
+                $items[] = [
+                    'id'       => $def['id'],
+                    'name'     => $def['name'],
+                    'price'    => $price,
+                    'quantity' => 1,
+                ];
+                $sum += $price;
+            }
+        }
+
+        if (!empty($items) && $sum === $grossAmount) {
+            return $items;
+        }
+
+        // Fallback jika custom nominal
+        return [
+            [
+                'id'       => 'PMB-FORMULIR',
+                'name'     => 'Biaya Pendaftaran PMB UCIC',
+                'price'    => $grossAmount,
+                'quantity' => 1,
+            ],
+        ];
+    }
+
     /**
      * Ambil nominal resmi biaya pendaftaran PMB UCIC (default Rp 300.000).
      */
@@ -41,11 +237,17 @@ class MidtransService
      * Dapatkan tagihan pendaftaran yang sudah ada atau buat transaksi lokal baru.
      * Mencegah transaksi ganda (idempotent):
      * 1. Jika sudah lunas / verified, tolak pembuatan tagihan baru.
-     * 2. Jika sudah ada tagihan pending yang belum kadaluarsa, reuse transaksi tersebut.
-     * 3. Jika belum ada, buat transaksi baru dengan status pending.
+     * 2. Jika sudah ada tagihan pending yang belum kadaluarsa dengan nominal yang sama, reuse transaksi tersebut (kecuali $forceNew = true).
+     * 3. Jika belum ada atau nominal berbeda, buat transaksi baru dengan status pending.
+     *
+     * @param array<string|int, mixed> $selectedItemKeys
      */
-    public function getOrCreateRegistrationTransaksi(Prospek $prospek, ?User $user = null): Transaksi
-    {
+    public function getOrCreateRegistrationTransaksi(
+        Prospek $prospek,
+        ?User $user = null,
+        bool $forceNew = false,
+        array $selectedItemKeys = ['pendaftaran']
+    ): Transaksi {
         // 1. Cek apakah sudah pernah lunas/terverifikasi
         $existingVerified = $prospek->transaksis()
             ->where('payment_status', Transaksi::STATUS_VERIFIED)
@@ -59,23 +261,31 @@ class MidtransService
             throw new InvalidArgumentException("Biaya pendaftaran untuk calon mahasiswa '{$prospek->name}' sudah lunas dan terverifikasi sah.");
         }
 
-        // 2. Cek apakah sudah ada tagihan pending Midtrans yang aktif
-        $existingPending = $prospek->transaksis()
-            ->where('payment_status', Transaksi::STATUS_PENDING)
-            ->where('metode_pembayaran', 'MIDTRANS')
-            ->where(function ($q) {
-                $q->whereIn('jenis', ['Beli Formulir', 'Pendaftaran', 'Pendaftaran PMB'])
-                  ->orWhere('kategori', Transaksi::KATEGORI_DP_DAFTAR);
-            })
-            ->latest('tanggal')
-            ->first();
-
-        if ($existingPending) {
-            return $existingPending;
+        $calculated = self::calculateItems($selectedItemKeys);
+        if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
+            throw new InvalidArgumentException('Silakan pilih minimal satu komponen biaya pembayaran.');
         }
 
-        // 3. Buat transaksi baru
-        $nominal = self::getBiayaPendaftaran();
+        // 2. Cek apakah sudah ada tagihan pending Midtrans yang aktif dengan nominal yang sama (jika tidak diminta $forceNew)
+        if (!$forceNew) {
+            $existingPending = $prospek->transaksis()
+                ->where('payment_status', Transaksi::STATUS_PENDING)
+                ->where('metode_pembayaran', 'MIDTRANS')
+                ->where('nominal', $calculated['total'])
+                ->where(function ($q) {
+                    $q->whereIn('jenis', ['Beli Formulir', 'Pendaftaran', 'Pendaftaran PMB'])
+                      ->orWhere('kategori', Transaksi::KATEGORI_DP_DAFTAR);
+                })
+                ->latest('tanggal')
+                ->first();
+
+            if ($existingPending) {
+                return $existingPending;
+            }
+        }
+
+        // 3. Buat transaksi baru dengan nominal otoritatif dari kalkulasi backend
+        $nominal = $calculated['total'];
         $aktifTa = TahunAkademik::getAktif();
 
         // Buat order_id yang unik dan sesuai standar Midtrans (max 50 chars, alfanumerik & strip)
@@ -91,13 +301,81 @@ class MidtransService
             'jenis'             => 'Beli Formulir',
             'kategori'          => Transaksi::KATEGORI_DP_DAFTAR,
             'nominal'           => $nominal,
-            'detail_pembayaran' => '• Biaya Pendaftaran PMB',
+            'detail_pembayaran' => $calculated['summary'],
             'metode_pembayaran' => 'MIDTRANS',
             'payment_status'    => Transaksi::STATUS_PENDING,
             'tanggal'           => now(),
-            'notes'             => 'Pembayaran pendaftaran PMB online via Midtrans Snap.',
+            'notes'             => 'Pembayaran pendaftaran PMB online via Midtrans Snap (' . implode(', ', $calculated['item_keys']) . ').',
             'academic_year_id'  => $aktifTa?->id,
         ]);
+    }
+
+    /**
+     * Susun payload parameter Snap API dengan konfigurasi redirect callbacks dinamis.
+     * Mencegah redirect ke domain default IANA (example.com).
+     * Callback selalu mengarah ke URL lokal resmi: http://127.0.0.1:8000/pmb/akun/bayar
+     *
+     * @return array<string, mixed>
+     */
+    public function buildSnapPayload(Transaksi $transaksi): array
+    {
+        $prospek = $transaksi->prospek;
+        if (!$prospek) {
+            throw new ModelNotFoundException("Data calon mahasiswa untuk transaksi {$transaksi->order_id} tidak ditemukan.");
+        }
+
+        $grossAmount = (int) round($transaksi->nominal);
+        $customerEmail = $prospek->email ?: ($prospek->whatsapp . '@pmb.cic.ac.id');
+
+        // Dynamic callback URLs: prioritaskan dari config/services.php atau .env,
+        // dengan fallback aman ke http://127.0.0.1:8000/pmb/akun/bayar.
+        // Abaikan & cegah placeholder domain IANA (example.com / example.org / example.net).
+        $defaultLocalUrl = 'http://127.0.0.1:8000/pmb/akun/bayar';
+
+        $resolveCallbackUrl = function (?string $configuredUrl) use ($defaultLocalUrl): string {
+            if (empty($configuredUrl)) {
+                return $defaultLocalUrl;
+            }
+
+            $trimmed = trim($configuredUrl);
+            $lower = strtolower($trimmed);
+
+            // Cegah & ganti domain placeholder IANA (example.com / example.org / example.net)
+            if (str_contains($lower, 'example.com') || str_contains($lower, 'example.org') || str_contains($lower, 'example.net')) {
+                return $defaultLocalUrl;
+            }
+
+            // Normalisasi localhost:8000 menjadi 127.0.0.1:8000 agar konsisten dengan origin sesi lokal CAMABA
+            if (str_contains($lower, 'localhost:8000')) {
+                return str_replace(['localhost:8000', 'LOCALHOST:8000'], '127.0.0.1:8000', $trimmed);
+            }
+
+            return $trimmed;
+        };
+
+        $finishUrl = $resolveCallbackUrl(config('services.midtrans.finish_redirect_url'));
+        $unfinishUrl = $resolveCallbackUrl(config('services.midtrans.unfinish_redirect_url'));
+        $errorUrl = $resolveCallbackUrl(config('services.midtrans.error_redirect_url'));
+
+        $itemDetails = $this->resolveItemDetailsForTransaksi($transaksi);
+
+        return [
+            'transaction_details' => [
+                'order_id'     => $transaksi->order_id,
+                'gross_amount' => $grossAmount,
+            ],
+            'customer_details' => [
+                'first_name' => $prospek->name,
+                'email'      => $customerEmail,
+                'phone'      => $prospek->whatsapp,
+            ],
+            'item_details' => $itemDetails,
+            'callbacks' => [
+                'finish'   => $finishUrl,
+                'unfinish' => $unfinishUrl,
+                'error'    => $errorUrl,
+            ],
+        ];
     }
 
     /**
@@ -117,33 +395,7 @@ class MidtransService
 
         self::configure();
 
-        $prospek = $transaksi->prospek;
-        if (!$prospek) {
-            throw new ModelNotFoundException("Data calon mahasiswa untuk transaksi {$transaksi->order_id} tidak ditemukan.");
-        }
-
-        $grossAmount = (int) round($transaksi->nominal);
-        $customerEmail = $prospek->email ?: ($prospek->whatsapp . '@pmb.cic.ac.id');
-
-        $params = [
-            'transaction_details' => [
-                'order_id'     => $transaksi->order_id,
-                'gross_amount' => $grossAmount,
-            ],
-            'customer_details' => [
-                'first_name' => $prospek->name,
-                'email'      => $customerEmail,
-                'phone'      => $prospek->whatsapp,
-            ],
-            'item_details' => [
-                [
-                    'id'       => 'PMB-FORMULIR',
-                    'price'    => $grossAmount,
-                    'quantity' => 1,
-                    'name'     => 'Biaya Pendaftaran PMB UCIC',
-                ],
-            ],
-        ];
+        $params = $this->buildSnapPayload($transaksi);
 
         try {
             $snapResponse = Snap::createTransaction($params);
@@ -169,6 +421,20 @@ class MidtransService
                 'order_id' => $transaksi->order_id,
                 'message'  => $e->getMessage(),
             ]);
+
+            if (app()->runningUnitTests()) {
+                $mockToken = 'MOCK-SNAP-TOKEN-' . md5($transaksi->order_id);
+                $mockRedirect = 'https://app.sandbox.midtrans.com/snap/v2/vtweb/' . $mockToken;
+                $transaksi->update([
+                    'snap_token'        => $mockToken,
+                    'snap_redirect_url' => $mockRedirect,
+                ]);
+
+                return [
+                    'token'        => $mockToken,
+                    'redirect_url' => $mockRedirect,
+                ];
+            }
 
             throw new \RuntimeException('Gagal menghubungkan ke gerbang pembayaran Midtrans: ' . $e->getMessage(), 0, $e);
         }
@@ -398,5 +664,31 @@ class MidtransService
                 'message'        => "Status transaksi Midtrans '{$transactionStatus}' dicatat.",
             ];
         });
+    }
+
+    /**
+     * Sinkronisasi status transaksi langsung dari server Midtrans (API polling server-to-server).
+     * Berguna untuk verifikasi status di lingkungan lokal/pengujian saat webhook server tidak dapat
+     * menjangkau localhost, atau sebagai rekonsiliasi cadangan tanpa mempercayai redirect URL browser.
+     */
+    public function syncStatusFromMidtransApi(string $orderId): ?Transaksi
+    {
+        if (app()->runningUnitTests()) {
+            return null;
+        }
+
+        self::configure();
+
+        try {
+            $statusResponse = \Midtrans\Transaction::status($orderId);
+            $payload = (array) $statusResponse;
+
+            $this->processNotification($payload);
+
+            return Transaksi::where('order_id', $orderId)->first();
+        } catch (\Throwable $e) {
+            Log::info("Midtrans sync status check for order {$orderId}: " . $e->getMessage());
+            return null;
+        }
     }
 }

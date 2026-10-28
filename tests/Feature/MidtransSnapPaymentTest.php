@@ -376,4 +376,359 @@ class MidtransSnapPaymentTest extends TestCase
 
         $this->assertEquals(Transaksi::STATUS_VERIFIED, $trx->fresh()->payment_status);
     }
+
+    public function test_snap_payload_includes_valid_pmb_callbacks_and_no_placeholder_domains()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'Callback Test User',
+            'whatsapp' => '081298765432',
+            'status'   => 'BARU',
+        ]);
+
+        $trx = Transaksi::create([
+            'order_id'          => 'PMB-UCIC-CALLBACK-001',
+            'prospek_id'        => $prospek->id,
+            'user_id'           => $camaba->id,
+            'nominal'           => 300000,
+            'jenis'             => 'Beli Formulir',
+            'metode_pembayaran' => 'MIDTRANS',
+            'payment_status'    => Transaksi::STATUS_PENDING,
+            'tanggal'           => now(),
+        ]);
+
+        $service = new MidtransService();
+        $payload = $service->buildSnapPayload($trx);
+
+        $this->assertArrayHasKey('callbacks', $payload);
+        $this->assertArrayHasKey('finish', $payload['callbacks']);
+        $this->assertArrayHasKey('unfinish', $payload['callbacks']);
+        $this->assertArrayHasKey('error', $payload['callbacks']);
+
+        // Default callback URL harus persis http://127.0.0.1:8000/pmb/akun/bayar
+        $this->assertEquals('http://127.0.0.1:8000/pmb/akun/bayar', $payload['callbacks']['finish']);
+        $this->assertEquals('http://127.0.0.1:8000/pmb/akun/bayar', $payload['callbacks']['unfinish']);
+        $this->assertEquals('http://127.0.0.1:8000/pmb/akun/bayar', $payload['callbacks']['error']);
+
+        // Pastikan tidak ada penggunaan placeholder domain (example.com/example.org/example.net)
+        foreach ($payload['callbacks'] as $type => $url) {
+            $this->assertStringNotContainsString('example.com', $url, "Callback {$type} must not contain example.com");
+            $this->assertStringNotContainsString('example.org', $url, "Callback {$type} must not contain example.org");
+            $this->assertStringNotContainsString('example.net', $url, "Callback {$type} must not contain example.net");
+        }
+
+        // Jika konfigurasi tidak sengaja diset ke example.com, sistem harus menolak dan tetap fallback ke 127.0.0.1
+        config([
+            'services.midtrans.finish_redirect_url' => 'https://example.com/finish',
+        ]);
+        $fallbackPayload = $service->buildSnapPayload($trx);
+        $this->assertEquals('http://127.0.0.1:8000/pmb/akun/bayar', $fallbackPayload['callbacks']['finish']);
+
+        // Uji override valid via config services.php
+        config([
+            'services.midtrans.finish_redirect_url' => 'http://127.0.0.1:8000/pmb/akun/bayar?custom=finish',
+        ]);
+
+        $customPayload = $service->buildSnapPayload($trx);
+        $this->assertEquals('http://127.0.0.1:8000/pmb/akun/bayar?custom=finish', $customPayload['callbacks']['finish']);
+    }
+
+    public function test_browser_redirect_with_settlement_query_params_does_not_falsely_verify_payment()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'Browser Redirect Test User',
+            'whatsapp' => '081211112222',
+            'status'   => 'BARU',
+        ]);
+
+        $trx = Transaksi::create([
+            'order_id'          => 'PMB-UCIC-SPOOF-001',
+            'prospek_id'        => $prospek->id,
+            'user_id'           => $camaba->id,
+            'nominal'           => 300000,
+            'jenis'             => 'Beli Formulir',
+            'metode_pembayaran' => 'MIDTRANS',
+            'payment_status'    => Transaksi::STATUS_PENDING,
+            'tanggal'           => now(),
+        ]);
+
+        // Simulasikan browser redirect dari Midtrans dengan parameter settlement palsu
+        $response = $this->actingAs($camaba)->get(route('pmb.akun.bayar', [
+            'order_id'           => $trx->order_id,
+            'status_code'        => '200',
+            'transaction_status' => 'settlement',
+        ]));
+
+        $response->assertOk();
+
+        // Pastikan transaksi lokal TETAP pending dan TIDAK otomatis ditandai verified hanya karena redirect browser
+        $freshTrx = $trx->fresh();
+        $this->assertEquals(Transaksi::STATUS_PENDING, $freshTrx->payment_status);
+        $this->assertNull($freshTrx->verified_at);
+        $this->assertNotEquals(5, $prospek->fresh()->stage_number);
+    }
+
+    /**
+     * Uji kalkulasi komponen biaya PMB pada MidtransService:
+     * - Perlengkapan: Rp 600.000
+     * - Pendaftaran: Rp 300.000
+     * - DPP: Rp 500.000
+     */
+    public function test_midtrans_service_calculate_items_scenarios()
+    {
+        // 1. Hanya DPP: 500.000
+        $calcDpp = MidtransService::calculateItems(['dpp']);
+        $this->assertEquals(500000, $calcDpp['total']);
+        $this->assertEquals(['dpp'], $calcDpp['item_keys']);
+        $this->assertCount(1, $calcDpp['items']);
+        $this->assertEquals(500000, $calcDpp['items'][0]['price']);
+
+        // 2. Hanya Pendaftaran: 300.000
+        $calcDaftar = MidtransService::calculateItems(['pendaftaran']);
+        $this->assertEquals(300000, $calcDaftar['total']);
+        $this->assertEquals(['pendaftaran'], $calcDaftar['item_keys']);
+        $this->assertCount(1, $calcDaftar['items']);
+        $this->assertEquals(300000, $calcDaftar['items'][0]['price']);
+
+        // 3. Pendaftaran + DPP: 800.000
+        $calcBoth = MidtransService::calculateItems(['pendaftaran', 'dpp']);
+        $this->assertEquals(800000, $calcBoth['total']);
+        $this->assertEquals(['pendaftaran', 'dpp'], $calcBoth['item_keys']);
+        $this->assertCount(2, $calcBoth['items']);
+
+        // 4. Perlengkapan + Pendaftaran + DPP: 1.400.000
+        $calcAll = MidtransService::calculateItems(['perlengkapan', 'pendaftaran', 'dpp']);
+        $this->assertEquals(1400000, $calcAll['total']);
+        $this->assertCount(3, $calcAll['items']);
+
+        // 5. Associative format dari form: ['pendaftaran' => true, 'dpp' => true, 'perlengkapan' => false]
+        $calcAssoc = MidtransService::calculateItems([
+            'pendaftaran'  => true,
+            'dpp'          => true,
+            'perlengkapan' => false,
+        ]);
+        $this->assertEquals(800000, $calcAssoc['total']);
+        $this->assertEquals(['pendaftaran', 'dpp'], $calcAssoc['item_keys']);
+
+        // 6. Kosong / tidak ada biaya dipilih: 0
+        $calcEmpty = MidtransService::calculateItems([]);
+        $this->assertEquals(0, $calcEmpty['total']);
+        $this->assertEmpty($calcEmpty['items']);
+    }
+
+    /**
+     * Skenario 1: Hanya DPP Rp 500.000 yang dipilih.
+     * Total tampilan, database, dan Midtrans snap payload harus tepat Rp 500.000.
+     */
+    public function test_checkout_only_dpp_calculates_500k_and_syncs_to_db_and_snap_payload()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'DPP Only User',
+            'whatsapp' => '081233445566',
+            'status'   => 'BARU',
+        ]);
+
+        $response = $this->actingAs($camaba)->postJson(route('pmb.checkout', $prospek->id), [
+            'items' => ['dpp'],
+            'fresh' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success'           => true,
+                'nominal'           => 500000,
+                'nominal_formatted' => 'Rp 500.000',
+            ]);
+
+        $orderId = $response->json('order_id');
+        $transaksi = Transaksi::where('order_id', $orderId)->first();
+        $this->assertNotNull($transaksi);
+        $this->assertEquals(500000, (int) $transaksi->nominal);
+        $this->assertStringContainsString('DPP', $transaksi->detail_pembayaran);
+
+        // Periksa payload Midtrans Snap: gross_amount 500.000 & item_details berisi DPP seharga 500.000
+        $service = new MidtransService();
+        $snapPayload = $service->buildSnapPayload($transaksi);
+        $this->assertEquals(500000, $snapPayload['transaction_details']['gross_amount']);
+        $this->assertEquals(500000, array_sum(array_column($snapPayload['item_details'], 'price')));
+        $this->assertEquals('PMB-DPP', $snapPayload['item_details'][0]['id']);
+    }
+
+    /**
+     * Skenario 2: Hanya Pendaftaran Rp 300.000 yang dipilih.
+     * Total tampilan, database, dan Midtrans snap payload harus tepat Rp 300.000.
+     */
+    public function test_checkout_only_pendaftaran_calculates_300k()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'Pendaftaran Only User',
+            'whatsapp' => '081244556677',
+            'status'   => 'BARU',
+        ]);
+
+        $response = $this->actingAs($camaba)->postJson(route('pmb.checkout', $prospek->id), [
+            'items' => ['pendaftaran'],
+            'fresh' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success'           => true,
+                'nominal'           => 300000,
+                'nominal_formatted' => 'Rp 300.000',
+            ]);
+
+        $orderId = $response->json('order_id');
+        $transaksi = Transaksi::where('order_id', $orderId)->first();
+        $this->assertEquals(300000, (int) $transaksi->nominal);
+
+        $service = new MidtransService();
+        $snapPayload = $service->buildSnapPayload($transaksi);
+        $this->assertEquals(300000, $snapPayload['transaction_details']['gross_amount']);
+        $this->assertEquals(300000, array_sum(array_column($snapPayload['item_details'], 'price')));
+    }
+
+    /**
+     * Skenario 3: Pendaftaran dan DPP dipilih bersamaan.
+     * Total tampilan, database, dan Midtrans snap payload harus tepat Rp 800.000.
+     */
+    public function test_checkout_pendaftaran_and_dpp_calculates_800k()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'Pendaftaran Dan DPP User',
+            'whatsapp' => '081255667788',
+            'status'   => 'BARU',
+        ]);
+
+        $response = $this->actingAs($camaba)->postJson(route('pmb.checkout', $prospek->id), [
+            'items' => ['pendaftaran', 'dpp'],
+            'fresh' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success'           => true,
+                'nominal'           => 800000,
+                'nominal_formatted' => 'Rp 800.000',
+            ]);
+
+        $orderId = $response->json('order_id');
+        $transaksi = Transaksi::where('order_id', $orderId)->first();
+        $this->assertEquals(800000, (int) $transaksi->nominal);
+
+        $service = new MidtransService();
+        $snapPayload = $service->buildSnapPayload($transaksi);
+        $this->assertEquals(800000, $snapPayload['transaction_details']['gross_amount']);
+        $this->assertCount(2, $snapPayload['item_details']);
+        $this->assertEquals(800000, array_sum(array_column($snapPayload['item_details'], 'price')));
+    }
+
+    /**
+     * Skenario 4: Tidak ada biaya yang dipilih (kosong).
+     * Checkout dicegah dan backend mengembalikan error validasi 422.
+     */
+    public function test_checkout_with_no_fee_selected_fails_validation_and_prevents_checkout()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'No Fee User',
+            'whatsapp' => '081266778899',
+            'status'   => 'BARU',
+        ]);
+
+        // Kirim array kosong
+        $response = $this->actingAs($camaba)->postJson(route('pmb.checkout', $prospek->id), [
+            'items' => [],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
+            ]);
+
+        // Kirim semua item false
+        $response2 = $this->actingAs($camaba)->postJson(route('pmb.checkout', $prospek->id), [
+            'items' => [
+                'perlengkapan' => false,
+                'pendaftaran'  => false,
+                'dpp'          => false,
+            ],
+        ]);
+
+        $response2->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
+            ]);
+    }
+
+    /**
+     * Skenario 5: Backend menghitung total otoritatif dan mengabaikan nilai tampered dari client/browser.
+     */
+    public function test_backend_calculates_authoritative_total_and_ignores_tampered_browser_amount()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'Hacker User',
+            'whatsapp' => '081277889900',
+            'status'   => 'BARU',
+        ]);
+
+        // Client mencoba mengirim nominal palsu Rp 1.000 untuk pendaftaran
+        $response = $this->actingAs($camaba)->postJson(route('pmb.checkout', $prospek->id), [
+            'items'   => ['pendaftaran'],
+            'nominal' => 1000,
+            'total'   => 1000,
+            'fresh'   => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success'           => true,
+                'nominal'           => 300000, // Harus tetap 300.000 sesuai katalog resmi backend
+                'nominal_formatted' => 'Rp 300.000',
+            ]);
+
+        $orderId = $response->json('order_id');
+        $transaksi = Transaksi::where('order_id', $orderId)->first();
+        $this->assertEquals(300000, (int) $transaksi->nominal);
+    }
+
+    /**
+     * Skenario 6: Halaman view pembayaran CAMABA merender checkbox dan katalog harga dengan benar.
+     */
+    public function test_pmb_bayar_view_renders_checkbox_and_authoritative_catalog_prices()
+    {
+        $camaba = User::factory()->create(['role' => 'Camaba']);
+        $prospek = Prospek::create([
+            'user_id'  => $camaba->id,
+            'name'     => 'View Render User',
+            'whatsapp' => '081288990011',
+            'status'   => 'BARU',
+        ]);
+
+        $response = $this->actingAs($camaba)->get(route('pmb.akun.bayar'));
+        $response->assertOk();
+
+        // Verifikasi teks rincian biaya resmi UCIC
+        $response->assertSee('Perlengkapan');
+        $response->assertSee('Rp 600.000');
+        $response->assertSee('Pendaftaran');
+        $response->assertSee('Rp 300.000');
+        $response->assertSee('DPP');
+        $response->assertSee('Rp 500.000');
+        $response->assertSee('Total Pembayaran');
+    }
 }

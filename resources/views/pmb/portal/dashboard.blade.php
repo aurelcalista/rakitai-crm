@@ -1,365 +1,234 @@
 @extends('pmb.portal.layout')
 
-@section('title', 'Dashboard Calon Mahasiswa')
+@section('title', 'Dashboard - Portal PMB UCIC')
 
 @section('content')
 <div class="space-y-6">
 
-    <!-- Welcome Hero Banner -->
-    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 text-white p-6 sm:p-8 shadow-lg shadow-blue-900/10">
-        <!-- Ambient Glow -->
-        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+    @php
+        $isPaid = ($transaksiAktif?->payment_status ?? '') === \App\Models\Transaksi::STATUS_VERIFIED;
+        $isFormFilled = !empty($prospek->prodi_id) || ($prospek->status_formulir ?? '') === 'Sudah Isi';
+        $isUjianDone = ($prospek->status_ujian ?? '') === 'Sudah Mengerjakan';
+        $berkasData = is_array($prospek?->berkas_data) ? $prospek->berkas_data : [];
+        $uploadedDocsCount = count(array_filter($berkasData, fn($d) => !empty($d['file_path'])));
+        $isBerkasUploaded = ($prospek?->status_berkas ?? '') === 'Sudah Upload' || $uploadedDocsCount >= 7;
+    @endphp
 
-        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/20 text-white mb-2">
-                    🎓 Portal Resmi PMB UCIC
-                </span>
-                <h1 class="text-2xl sm:text-3xl font-black font-display tracking-tight">
-                    Halo, {{ $user->name }}!
-                </h1>
-                <p class="text-xs sm:text-sm text-blue-100 mt-1 max-w-xl">
-                    Selamat datang di portal pendaftaran mahasiswa baru Universitas Catur Insan Cendekia. Pantau status pendaftaran, pembayaran formulir, dan lengkapi berkas Anda di sini.
-                </p>
-            </div>
+    <!-- Card 1: Banner Sambutan (Matching Screenshot 1) -->
+    <div class="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/90 shadow-sm text-center">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0b3d82] font-display">
+            Selamat Datang di Portal PMB UCIC
+        </h1>
+        <p class="text-slate-600 text-sm mt-3 max-w-2xl mx-auto leading-relaxed">
+            Halo <strong class="text-slate-900 font-bold">{{ $prospek->name ?? $user->name }}</strong>,
+            pendaftaran Anda sudah berhasil disubmit! 📝 Silakan lanjutkan ke tahap pembayaran untuk menyelesaikan proses pendaftaran.
+        </p>
+    </div>
 
-            <!-- Quick Action Button -->
-            <div class="shrink-0 flex sm:flex-col gap-2">
-                @if(($transaksiAktif?->payment_status ?? '') === \App\Models\Transaksi::STATUS_VERIFIED)
-                    <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white shadow-xs">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                        </svg>
-                        <span>Formulir Terbayar</span>
-                    </span>
-                @else
-                    <a href="{{ route('pmb.akun.bayar') }}"
-                       class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-900 shadow-md transition active:scale-95">
-                        <svg class="w-4 h-4 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                        </svg>
-                        <span>Bayar Biaya Formulir</span>
-                    </a>
-                @endif
+    <!-- Card 2: Gelombang Info Box with Green PMB BUKA Badge (Matching Screenshot 1) -->
+    <div class="bg-white rounded-2xl p-6 sm:p-7 border-l-4 border-l-[#0b3d82] border-y border-r border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h2 class="text-base sm:text-lg font-bold text-[#0b3d82] font-display">
+                {{ $prospek->gelombang ?? 'Gelombang 1 Beasiswa Rektor' }}
+            </h2>
+            <div class="text-xs text-slate-500 mt-1 space-y-0.5">
+                <p>Tahun Akademik 2027/2028</p>
+                <p>Periode: 01 Sep 2026 - 30 Oct 2026</p>
             </div>
+        </div>
+
+        <div class="flex flex-col sm:items-end gap-1">
+            <span class="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-bold bg-[#15803d] text-white tracking-wide shadow-xs">
+                PMB BUKA
+            </span>
+            <span class="text-[11px] text-[#ca8a04] font-semibold">
+                7 hari tersisa
+            </span>
         </div>
     </div>
 
-    <!-- Registration Overview Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- 1. Nomor Registrasi -->
-        <div class="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider">No. Registrasi</span>
-                <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <!-- Card 3: 4 Action Grid Cards with Big Circular Icons (Matching Screenshot 1) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- 1. Form Pendaftaran -->
+        <a href="{{ route('pmb.akun.profil') }}"
+           class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between">
+            <div class="w-18 h-18 rounded-full bg-[#16a34a] text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
+                    Form Pendaftaran
+                </h3>
+                <span class="text-xs text-slate-500 mt-1 block">
+                    {{ $isFormFilled ? 'Sudah Diselesaikan' : 'Lengkapi Sekarang' }}
+                </span>
+            </div>
+        </a>
+
+        <!-- 2. Tes Potensi Akademik -->
+        <a href="{{ route('pmb.akun.ujian') }}"
+           class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between cursor-pointer">
+            <div class="w-18 h-18 rounded-full {{ $isUjianDone ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
             </div>
-            <span class="text-lg font-black text-slate-900 font-display block">
-                {{ $prospek->no_registrasi ?? '-' }}
-            </span>
-            <span class="text-[11px] text-slate-500 mt-1 block">
-                {{ $prospek->gelombang ?? 'Gelombang 1' }}
-            </span>
-        </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
+                    Tes Potensi Akademik
+                </h3>
+                <span class="text-xs text-slate-500 mt-1 block">
+                    {{ $isUjianDone ? 'Ujian Telah Selesai' : 'Silahkan Mengikuti Ujian' }}
+                </span>
+            </div>
+        </a>
 
-        <!-- 2. Status Pembayaran -->
-        <div class="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider">Biaya Formulir</span>
-                <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        <!-- 3. Pembayaran -->
+        <a href="{{ route('pmb.akun.bayar') }}"
+           class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between">
+            <div class="w-18 h-18 rounded-full {{ $isPaid ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                 </svg>
             </div>
-            @php
-                $isPaid = ($transaksiAktif?->payment_status ?? '') === \App\Models\Transaksi::STATUS_VERIFIED;
-            @endphp
-            <div class="flex items-center gap-2">
-                @if($isPaid)
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        LUNAS (Verified)
-                    </span>
-                @else
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        Belum Lunas (Rp 300.000)
-                    </span>
-                @endif
+            <div>
+                <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
+                    Pembayaran
+                </h3>
+                <span class="text-xs text-slate-500 mt-1 block">
+                    {{ $isPaid ? 'Lunas Terverifikasi' : 'Silahkan Lakukan Pembayaran' }}
+                </span>
             </div>
-            <a href="{{ route('pmb.akun.bayar') }}" class="text-[11px] text-blue-600 hover:underline mt-1.5 block font-semibold">
-                {{ $isPaid ? 'Lihat Bukti Bayar &rarr;' : 'Bayar Sekarang &rarr;' }}
-            </a>
-        </div>
+        </a>
 
-        <!-- 3. Kelengkapan Berkas -->
-        <div class="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider">Status Berkas</span>
-                <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <!-- 4. Upload Dokumen -->
+        <a href="{{ route('pmb.akun.upload-dokumen') }}"
+           class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between cursor-pointer">
+            <div class="w-18 h-18 rounded-full {{ $isBerkasUploaded ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
             </div>
-            @php
-                $berkasStatus = $prospek->status_berkas ?? 'Belum Upload';
-            @endphp
             <div>
-                @if($berkasStatus === 'Sudah Upload')
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Sudah Lengkap
-                    </span>
-                @elseif($berkasStatus === 'Pending')
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        Sedang Diverifikasi
-                    </span>
-                @else
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                        Belum Upload
-                    </span>
-                @endif
+                <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
+                    Upload Dokumen
+                </h3>
+                <span class="text-xs text-slate-500 mt-1 block">
+                    {{ $isBerkasUploaded ? 'Sudah Diupload' : ($uploadedDocsCount > 0 ? "{$uploadedDocsCount}/7 Diupload" : 'Silahkan Upload Dokumen') }}
+                </span>
             </div>
-            <span class="text-[11px] text-slate-500 mt-1.5 block">Dokumen Ijazah/Rapor</span>
-        </div>
+        </a>
+    </div>
 
-        <!-- 4. Status Ujian Seleksi -->
-        <div class="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider">Ujian Seleksi</span>
-                <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                </svg>
+    <!-- Section: Status Progress Pendaftaran (Matching Screenshot 2) -->
+    <div class="mt-8 space-y-4">
+        <h2 class="text-lg font-bold text-slate-800 font-display flex items-center gap-2">
+            <span>Status Progress Pendaftaran</span>
+        </h2>
+
+        <div class="space-y-3">
+            <!-- Step 1: Registrasi Akun (Done) -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 border-l-4 border-l-[#16a34a] border-y border-r border-slate-200/90 shadow-2xs flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-[#16a34a] text-white flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900 font-display">Registrasi Akun</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Akun berhasil dibuat pada {{ $user->created_at ? $user->created_at->format('d M Y') : '05 Oct 2026' }}
+                        </p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 rounded-md text-xs font-bold bg-[#dcfce7] text-[#15803d]">
+                    Selesai
+                </span>
             </div>
-            @php
-                $ujianStatus = $prospek->status_ujian ?? 'Belum Mengerjakan';
-            @endphp
-            <div>
-                @if($ujianStatus === 'Sudah Mengerjakan')
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Selesai (Skor: {{ $prospek->nilai_ujian ?? 'Lulus' }})
-                    </span>
-                @else
-                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                        Belum Ujian
-                    </span>
-                @endif
+
+            <!-- Step 2: Form Pendaftaran (Done) -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 border-l-4 border-l-[#16a34a] border-y border-r border-slate-200/90 shadow-2xs flex items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-[#16a34a] text-white flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900 font-display">Form Pendaftaran</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Data pendaftaran berhasil disubmit pada {{ ($prospek?->created_at ?? now())->format('d M Y H:i') }}
+                        </p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 rounded-md text-xs font-bold bg-[#dcfce7] text-[#15803d]">
+                    Selesai
+                </span>
             </div>
-            <span class="text-[11px] text-slate-500 mt-1.5 block">Tes Potensi Akademik Online</span>
+
+            <!-- Step 3: Tes Potensi Akademik (Berlangsung / Selesai) -->
+            <a href="{{ route('pmb.akun.ujian') }}"
+               class="bg-white rounded-2xl p-4 sm:p-5 border-l-4 {{ $isUjianDone ? 'border-l-[#16a34a]' : 'border-l-[#0b3d82]' }} border-y border-r border-slate-200/90 shadow-2xs flex items-center justify-between gap-4 hover:bg-slate-50 transition cursor-pointer">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full {{ $isUjianDone ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900 font-display">Tes Potensi Akademik</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Silakan ikuti Tes Potensi Akademik (15 soal, 45 menit)
+                        </p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 rounded-md text-xs font-bold {{ $isUjianDone ? 'bg-[#dcfce7] text-[#15803d]' : 'bg-[#dbeafe] text-[#1d4ed8]' }}">
+                    {{ $isUjianDone ? 'Selesai' : 'Berlangsung' }}
+                </span>
+            </a>
+
+            <!-- Step 4: Upload Dokumen (Berlangsung / Selesai) -->
+            <a href="{{ route('pmb.akun.upload-dokumen') }}"
+               class="bg-white rounded-2xl p-4 sm:p-5 border-l-4 {{ $isBerkasUploaded ? 'border-l-[#16a34a]' : 'border-l-[#0b3d82]' }} border-y border-r border-slate-200/90 shadow-2xs flex items-center justify-between gap-4 hover:bg-slate-50 transition cursor-pointer">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full {{ $isBerkasUploaded ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900 font-display">Upload Dokumen</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Silakan upload dokumen pendukung yang diperlukan ({{ $uploadedDocsCount }}/7 diupload)
+                        </p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 rounded-md text-xs font-bold {{ $isBerkasUploaded ? 'bg-[#dcfce7] text-[#15803d]' : 'bg-[#dbeafe] text-[#1d4ed8]' }}">
+                    {{ $isBerkasUploaded ? 'Selesai' : 'Berlangsung' }}
+                </span>
+            </a>
         </div>
     </div>
 
-    <!-- Main Grid: Registration Details & Next Action Checklist -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Column 1 & 2: Informasi Detail Pendaftar -->
-        <div class="lg:col-span-2 space-y-6">
-
-            <!-- Detail Pendaftaran Card -->
-            <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-2xs">
-                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-                    <div>
-                        <h2 class="text-base font-bold text-slate-900 font-display">Ringkasan Data Pendaftaran</h2>
-                        <p class="text-xs text-slate-500">Data pribadi dan program studi pilihan Anda</p>
-                    </div>
-                    <a href="{{ route('pmb.akun.profil') }}" class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline">
-                        Edit Profil &rarr;
-                    </a>
-                </div>
-
-                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                        <span class="text-slate-400 font-semibold block text-[11px]">Nama Lengkap:</span>
-                        <span class="font-bold text-slate-800 text-sm mt-0.5 block">{{ $prospek->name ?? $user->name }}</span>
-                    </div>
-
-                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                        <span class="text-slate-400 font-semibold block text-[11px]">Email Terdaftar:</span>
-                        <span class="font-bold text-slate-800 text-sm mt-0.5 block">{{ $user->email }}</span>
-                    </div>
-
-                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                        <span class="text-slate-400 font-semibold block text-[11px]">Nomor WhatsApp:</span>
-                        <span class="font-bold text-slate-800 text-sm mt-0.5 block">{{ $prospek->whatsapp ?? '-' }}</span>
-                    </div>
-
-                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                        <span class="text-slate-400 font-semibold block text-[11px]">Asal Sekolah:</span>
-                        <span class="font-bold text-slate-800 text-sm mt-0.5 block">{{ $prospek->sekolah?->nama ?? 'Belum ditentukan' }}</span>
-                    </div>
-
-                    <div class="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-100">
-                        <span class="text-blue-600 font-bold block text-[11px] uppercase">Pilihan Prodi 1:</span>
-                        <span class="font-bold text-slate-900 text-sm mt-0.5 block">
-                            {{ $prospek->prodi?->nama ?? 'Belum memilih prodi' }}
-                        </span>
-                    </div>
-
-                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                        <span class="text-slate-400 font-semibold block text-[11px] uppercase">Pilihan Prodi 2:</span>
-                        <span class="font-bold text-slate-800 text-sm mt-0.5 block">
-                            {{ $prospek->prodiPilihan2?->nama ?? '-' }}
-                        </span>
-                    </div>
+    <!-- Quick Payment Link Card if unpaid -->
+    @if(!$isPaid)
+        <div class="bg-amber-50 rounded-2xl p-5 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">💳</span>
+                <div>
+                    <h4 class="text-sm font-bold text-amber-900">Pembayaran Biaya Formulir PMB (Rp 300.000)</h4>
+                    <p class="text-xs text-amber-700 mt-0.5">Selesaikan pembayaran secara aman via Midtrans Snap (QRIS atau Virtual Account).</p>
                 </div>
             </div>
-
-            <!-- Riwayat Transaksi Card -->
-            <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-2xs">
-                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-                    <div>
-                        <h2 class="text-base font-bold text-slate-900 font-display">Riwayat Tagihan & Pembayaran</h2>
-                        <p class="text-xs text-slate-500">Semua transaksi PMB yang terhubung ke akun Anda</p>
-                    </div>
-                    <a href="{{ route('pmb.akun.bayar') }}" class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline">
-                        Buka Portal Bayar &rarr;
-                    </a>
-                </div>
-
-                <div class="mt-4 divide-y divide-slate-100">
-                    @forelse($riwayatTransaksi as $tx)
-                        <div class="py-3 flex items-center justify-between text-xs">
-                            <div>
-                                <span class="font-bold text-slate-800 block">{{ $tx->kategori ?? 'Biaya Formulir PMB' }}</span>
-                                <span class="text-slate-400 text-[11px]">Order ID: {{ $tx->order_id ?? ('TRX-' . $tx->id) }} • {{ $tx->created_at->format('d M Y H:i') }}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="font-black text-slate-900 block font-display">Rp {{ number_format($tx->nominal, 0, ',', '.') }}</span>
-                                @if($tx->payment_status === \App\Models\Transaksi::STATUS_VERIFIED)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                        Verified Lunas
-                                    </span>
-                                @elseif($tx->payment_status === \App\Models\Transaksi::STATUS_REJECTED)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
-                                        Ditolak
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                                        Menunggu Pembayaran
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
-                    @empty
-                        <div class="py-6 text-center text-slate-400 text-xs">
-                            Belum ada riwayat transaksi pembayaran.
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-
+            <a href="{{ route('pmb.akun.bayar') }}"
+               class="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold bg-[#0b3d82] text-white hover:bg-[#082a5c] shadow-xs transition shrink-0">
+                Bayar Sekarang &rarr;
+            </a>
         </div>
-
-        <!-- Column 3: Checklist Langkah Berikutnya -->
-        <div class="space-y-6">
-
-            <!-- Next Steps Checklist Card -->
-            <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-2xs">
-                <h3 class="text-base font-bold text-slate-900 font-display mb-1">Langkah Pendaftaran Anda</h3>
-                <p class="text-xs text-slate-500 mb-5">Panduan tahapan yang perlu Anda selesaikan</p>
-
-                <div class="space-y-4 text-xs">
-                    <!-- Step 1: Buat Akun (Done) -->
-                    <div class="flex items-start gap-3">
-                        <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <span class="font-bold text-slate-800 block">Registrasi Akun PMB</span>
-                            <span class="text-emerald-600 text-[11px] font-medium">Selesai</span>
-                        </div>
-                    </div>
-
-                    <!-- Step 2: Bayar Formulir -->
-                    <div class="flex items-start gap-3">
-                        @if($isPaid)
-                            <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-800 block">Pembayaran Formulir Rp 300.000</span>
-                                <span class="text-emerald-600 text-[11px] font-medium">Lunas terverifikasi</span>
-                            </div>
-                        @else
-                            <div class="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                                2
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-900 block">Pembayaran Formulir Rp 300.000</span>
-                                <span class="text-amber-700 text-[11px] font-medium block">Segera selesaikan via Midtrans</span>
-                                <a href="{{ route('pmb.akun.bayar') }}" class="text-blue-600 font-bold hover:underline inline-block mt-1">
-                                    Bayar Sekarang &rarr;
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-
-                    <!-- Step 3: Pilih Program Studi -->
-                    <div class="flex items-start gap-3">
-                        @if($prospek->prodi_id)
-                            <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-800 block">Pilihan Program Studi</span>
-                                <span class="text-emerald-600 text-[11px] font-medium">{{ $prospek->prodi->nama }}</span>
-                            </div>
-                        @else
-                            <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                                3
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-800 block">Pilihan Program Studi</span>
-                                <a href="{{ route('pmb.akun.profil') }}" class="text-blue-600 font-semibold hover:underline block mt-0.5">
-                                    Tentukan Program Studi &rarr;
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-
-                    <!-- Step 4: Ujian & Seleksi -->
-                    <div class="flex items-start gap-3">
-                        @if(($prospek->status_ujian ?? '') === 'Sudah Mengerjakan')
-                            <div class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-800 block">Ujian Seleksi Online</span>
-                                <span class="text-emerald-600 text-[11px] font-medium">Selesai dikerjakan</span>
-                            </div>
-                        @else
-                            <div class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                                4
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-800 block">Ujian Seleksi Online</span>
-                                <span class="text-slate-400 text-[11px] block">Jadwal akan diumumkan setelah pembayaran</span>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <!-- WhatsApp Direct Help Card -->
-            <div class="p-6 rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md">
-                <span class="text-xs font-bold uppercase tracking-wider text-emerald-100 block mb-1">Butuh Bantuan?</span>
-                <h4 class="text-lg font-bold font-display leading-tight">Chat CS PMB UCIC</h4>
-                <p class="text-xs text-emerald-100 mt-2 leading-relaxed">
-                    Jika Anda memiliki kendala pembayaran, salah input data, atau pertanyaan beasiswa, tim kami siap membantu Anda.
-                </p>
-                <a href="https://api.whatsapp.com/send/?phone=6281216700519&text=Halo%20Admin%20PMB%20UCIC%2C%20saya%20{{ urlencode($user->name) }}%20(No%20Reg%3A%20{{ $prospek->no_registrasi ?? '-' }})%20ingin%20bertanya"
-                   target="_blank"
-                   class="mt-4 inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-white text-emerald-800 hover:bg-emerald-50 transition shadow-xs">
-                    <span>Chat CS PMB via WhatsApp</span>
-                </a>
-            </div>
-
-        </div>
-    </div>
+    @endif
 
 </div>
 @endsection

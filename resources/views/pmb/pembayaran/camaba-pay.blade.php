@@ -44,9 +44,7 @@
     <header class="bg-white border-b border-slate-200/80 sticky top-0 z-20 shadow-2xs">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center p-1.5 shadow-2xs shrink-0">
-                    <img src="{{ asset('images/logo-ucic.png') }}" alt="Logo UCIC" class="w-full h-full object-contain">
-                </div>
+                <img src="{{ asset('images/logo-no-text.png') }}" alt="Logo UCIC" class="h-10 w-auto object-contain shrink-0">
                 <div>
                     <h1 class="text-sm font-bold text-slate-900 leading-tight font-display">PMB Universitas CIC</h1>
                     <p class="text-[11px] text-slate-500">Portal Pembayaran Online Resmi</p>

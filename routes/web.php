@@ -69,9 +69,36 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
         Route::get('/status',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'status'])->name('status');
         Route::get('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('profil');
         Route::put('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('profil.update');
+        Route::get('/form-pendaftaran',  [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('form-pendaftaran');
+        Route::post('/form-pendaftaran', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('form-pendaftaran.update');
+        Route::put('/form-pendaftaran',  [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('form-pendaftaran.put');
+        Route::get('/ujian',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'ujian'])->name('ujian');
         Route::get('/bayar',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('bayar');
+        Route::get('/pembayaran', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('pembayaran');
         Route::get('/bantuan',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bantuan'])->name('bantuan');
+
+        // Upload Dokumen Persyaratan CAMABA
+        Route::get('/upload-dokumen',      [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'uploadDokumen'])->name('upload-dokumen');
+        Route::post('/upload-dokumen',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'storeDokumen'])->name('upload-dokumen.store');
+        Route::get('/dokumen/{type}/view', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'viewDokumen'])->name('dokumen.view');
+        Route::delete('/dokumen/{type}',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'deleteDokumen'])->name('dokumen.delete');
     });
+
+    // Alias redirect for user/pembayaran and user/upload-dokumen
+    Route::get('/user/pembayaran', function () {
+        return redirect()->route('pmb.akun.bayar');
+    });
+    Route::get('/user/upload-dokumen', function () {
+        return redirect()->route('pmb.akun.upload-dokumen');
+    });
+});
+
+Route::get('/user/pembayaran', function () {
+    return redirect()->route('pmb.akun.bayar');
+});
+
+Route::get('/user/upload-dokumen', function () {
+    return redirect()->route('pmb.akun.upload-dokumen');
 });
 
 // ──────────────────────────────────────────────────────────────────

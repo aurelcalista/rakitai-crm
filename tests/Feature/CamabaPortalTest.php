@@ -45,9 +45,11 @@ class CamabaPortalTest extends TestCase
         $response = $this->get(route('pmb.portal'));
 
         $response->assertStatus(200);
-        $response->assertSee('Universitas CIC');
+        $response->assertSee('Universitas Catur Insan Cendekia');
         $response->assertSee('Teknik Informatika');
-        $response->assertSee('Daftar Akun CAMABA');
+        $response->assertSee('Daftar Online Sekarang');
+        $response->assertSee('Login CAMABA');
+        $response->assertDontSee('CRM Admin');
     }
 
     /**
@@ -58,7 +60,7 @@ class CamabaPortalTest extends TestCase
         $response = $this->get(route('pmb.register'));
 
         $response->assertStatus(200);
-        $response->assertSee('Daftar Akun Baru');
+        $response->assertSee('REGISTRASI');
         $response->assertSee('Asal Sekolah');
     }
 
@@ -298,5 +300,116 @@ class CamabaPortalTest extends TestCase
             'nominal'    => 300000,
             'kategori'   => Transaksi::KATEGORI_DP_DAFTAR,
         ]);
+    }
+
+    /**
+     * Test 11: CAMABA dapat mengakses form pendaftaran online dan menyimpan data formulir lengkap (form_data).
+     */
+    public function test_camaba_can_access_form_pendaftaran_and_save_extended_form_data(): void
+    {
+        $camaba = User::create([
+            'name'     => 'Abdul Mughni Nugraha',
+            'email'    => 'nugie.abdul@gmail.com',
+            'role'     => 'Camaba',
+            'status'   => 'Aktif',
+            'password' => Hash::make('password123'),
+        ]);
+
+        $prospek = Prospek::create([
+            'user_id'         => $camaba->id,
+            'name'            => 'Abdul Mughni Nugraha',
+            'email'           => 'nugie.abdul@gmail.com',
+            'whatsapp'        => '085383222286',
+            'status'          => 'BARU',
+            'stage_number'    => 1,
+            'status_formulir' => 'Belum Isi',
+        ]);
+
+        $prodi1 = Prodi::where('kode', 'TI')->first();
+        $prodi2 = Prodi::where('kode', 'SI')->first();
+
+        // 1. Akses halaman form pendaftaran
+        $response = $this->actingAs($camaba)->get(route('pmb.akun.form-pendaftaran'));
+        $response->assertStatus(200);
+        $response->assertSee('FORM PENDAFTARAN ONLINE UCIC');
+        $response->assertSee('Data Calon Mahasiswa');
+        $response->assertSee('Data Mahasiswa');
+        $response->assertSee('Data Asal Pendidikan');
+
+        // 2. Submit form pendaftaran dengan field lengkap
+        $formDataPayload = [
+            'name'                  => 'Abdul Mughni Nugraha',
+            'whatsapp'              => '085383222286',
+            'asal_sekolah'          => 'SMKN 1 Cirebon',
+            'tempat_lahir'          => 'Cirebon',
+            'tanggal_lahir'         => '2006-10-22',
+            'nik'                   => '1234567891011123',
+            'jenis_kelamin'         => 'Laki-Laki',
+            'agama'                 => 'Islam',
+            'alamat'                => 'Jl. Kesambi Dalam No. 45',
+            'kelurahan_kecamatan'   => 'Sunyaragi, Kesambi',
+            'kota_provinsi'         => 'Kota Cirebon, Jawa Barat',
+            'kode_pos'              => '45133',
+            'jenis_sekolah'         => 'SMK',
+            'jurusan_sekolah'       => 'Kejuruan',
+            'keterangan_kejuruan'   => 'Rekayasa Perangkat Lunak',
+            'nisn'                  => '1243011845',
+            'tahun_lulus'           => '2026',
+            'nama_ibu_kandung'      => 'Siti Nurlaela',
+            'wa_ortu'               => '087755889911',
+            'prodi_id'              => $prodi1->id,
+            'prodi_pilihan_2_id'    => $prodi2->id,
+            'tipe_kelas'            => 'Reguler',
+            'informasi_pendaftaran' => 'Media Sosial UCIC',
+            'kode_referal'          => 'CIC-AGEN-123',
+            'minat_kuliah'          => 'ya',
+            'minat_miniclass'       => 'ya',
+        ];
+
+        $postResponse = $this->actingAs($camaba)->put(route('pmb.akun.profil.update'), $formDataPayload);
+        $postResponse->assertRedirect(route('pmb.akun.profil'));
+        $postResponse->assertSessionHas('success');
+
+        $prospek->refresh();
+        $this->assertEquals('Sudah Isi', $prospek->status_formulir);
+        $this->assertEquals($prodi1->id, $prospek->prodi_id);
+        $this->assertEquals($prodi2->id, $prospek->prodi_pilihan_2_id);
+        $this->assertEquals('+6287755889911', $prospek->wa_ortu);
+        $this->assertNotNull($prospek->form_data);
+        $this->assertEquals('1234567891011123', $prospek->form_data['nik']);
+        $this->assertEquals('Siti Nurlaela', $prospek->form_data['nama_ibu_kandung']);
+        $this->assertEquals('Rekayasa Perangkat Lunak', $prospek->form_data['keterangan_kejuruan']);
+    }
+
+    /**
+     * Test 12: CAMABA dapat mengakses halaman instruksi ujian TPA / CBT online.
+     */
+    public function test_camaba_can_access_ujian_tpa_instruction_page(): void
+    {
+        $camaba = User::create([
+            'name'     => 'Budi Santoso',
+            'email'    => 'budi@example.com',
+            'role'     => 'Camaba',
+            'status'   => 'Aktif',
+            'password' => Hash::make('password123'),
+        ]);
+
+        $prospek = Prospek::create([
+            'user_id'         => $camaba->id,
+            'name'            => 'Budi Santoso',
+            'email'           => 'budi@example.com',
+            'whatsapp'        => '081233445566',
+            'status'          => 'BARU',
+            'stage_number'    => 1,
+            'status_ujian'    => 'Belum Mengerjakan',
+        ]);
+
+        $response = $this->actingAs($camaba)->get(route('pmb.akun.ujian'));
+        $response->assertStatus(200);
+        $response->assertSee('Instruksi Ujian Online CBT');
+        $response->assertSee('Tes Potensi Akademik');
+        $response->assertSee('45 Menit');
+        $response->assertSee('15 Soal');
+        $response->assertSee('Mulai Ujian Sekarang');
     }
 }

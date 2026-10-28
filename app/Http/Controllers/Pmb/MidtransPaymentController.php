@@ -31,8 +31,13 @@ class MidtransPaymentController extends Controller
         $user = auth()->user();
         if ($user) {
             $userRole = strtolower($user->role ?? '');
-            $allowedRoles = ['admin', 'hm', 'cs', 'sales', 'spv'];
-            if (!in_array($userRole, $allowedRoles)) {
+            $allowedStaff = ['admin', 'hm', 'cs', 'sales', 'spv'];
+            $isStaff = in_array($userRole, $allowedStaff);
+            $isOwnCamaba = ($prospek->user_id == $user->id) ||
+                (!empty($prospek->email) && !empty($user->email) && strtolower($prospek->email) === strtolower($user->email)) ||
+                (!empty($prospek->whatsapp) && !empty($user->phone) && $prospek->whatsapp === $user->phone);
+
+            if (!$isStaff && !$isOwnCamaba) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda tidak memiliki hak akses untuk memproses pembayaran pendaftar ini.',
@@ -60,8 +65,30 @@ class MidtransPaymentController extends Controller
         }
 
         try {
-            // Dapatkan transaksi lokal yang ada atau buat baru (nominal diatur backend)
-            $transaksi = $this->midtransService->getOrCreateRegistrationTransaksi($prospek, $user);
+            $rawItems = $request->input('items', ['pendaftaran']);
+            if (!is_array($rawItems) || empty($rawItems)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
+                ], 422);
+            }
+
+            $calculated = MidtransService::calculateItems($rawItems);
+            if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
+                ], 422);
+            }
+
+            $forceNew = $request->boolean('fresh') || $request->boolean('new_order');
+            // Dapatkan transaksi lokal yang ada atau buat baru (nominal diatur backend otoritatif)
+            $transaksi = $this->midtransService->getOrCreateRegistrationTransaksi(
+                $prospek,
+                $user,
+                $forceNew,
+                $calculated['item_keys']
+            );
 
             // Dapatkan Snap Token dari Midtrans
             $snap = $this->midtransService->createSnapToken($transaksi);
@@ -103,6 +130,15 @@ class MidtransPaymentController extends Controller
             ], 404);
         }
 
+        // Jika belum verified, coba sinkronisasi status terbaru langsung dari Midtrans API
+        // (Verifikasi keamanan dilakukan otoritatif di backend via SHA-512 signature)
+        if ($transaksi->payment_status !== Transaksi::STATUS_VERIFIED) {
+            $synced = $this->midtransService->syncStatusFromMidtransApi($transaksi->order_id);
+            if ($synced) {
+                $transaksi = $synced;
+            }
+        }
+
         $paymentStatus = strtolower($transaksi->payment_status ?? 'pending');
         $isVerified = in_array($paymentStatus, [Transaksi::STATUS_VERIFIED, 'paid']);
         $isPending = in_array($paymentStatus, [Transaksi::STATUS_PENDING, 'pending']);
@@ -132,6 +168,13 @@ class MidtransPaymentController extends Controller
     {
         $transaksi = Transaksi::where('order_id', $orderId)->with(['prospek.prodi', 'prospek.sekolah'])->firstOrFail();
         $pendaftar = $transaksi->prospek;
+
+        if ($transaksi->payment_status !== Transaksi::STATUS_VERIFIED) {
+            $synced = $this->midtransService->syncStatusFromMidtransApi($transaksi->order_id);
+            if ($synced) {
+                $transaksi = $synced;
+            }
+        }
 
         return view('pmb.pembayaran.camaba-pay', compact('transaksi', 'pendaftar'));
     }

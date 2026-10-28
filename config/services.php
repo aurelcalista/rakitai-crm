@@ -42,9 +42,13 @@ return [
     ],
 
     'midtrans' => [
-    'server_key' => env('MIDTRANS_SERVER_KEY'),
-    'client_key' => env('MIDTRANS_CLIENT_KEY'),
-    'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+        'server_key'            => env('MIDTRANS_SERVER_KEY'),
+        'client_key'            => env('MIDTRANS_CLIENT_KEY'),
+        'is_production'         => env('MIDTRANS_IS_PRODUCTION', false),
+        'biaya_pendaftaran'     => env('MIDTRANS_BIAYA_PENDAFTARAN', 300000),
+        'finish_redirect_url'   => env('MIDTRANS_FINISH_REDIRECT_URL', env('MIDTRANS_FINISH_URL', env('MIDTRANS_REDIRECT_URL', 'http://127.0.0.1:8000/pmb/akun/bayar'))),
+        'unfinish_redirect_url' => env('MIDTRANS_UNFINISH_REDIRECT_URL', env('MIDTRANS_UNFINISH_URL', 'http://127.0.0.1:8000/pmb/akun/bayar')),
+        'error_redirect_url'    => env('MIDTRANS_ERROR_REDIRECT_URL', env('MIDTRANS_ERROR_URL', 'http://127.0.0.1:8000/pmb/akun/bayar')),
     ],
 
 ];
