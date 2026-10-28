@@ -216,7 +216,7 @@ class CamabaUploadDokumenTest extends TestCase
 
         $viewResponse = $this->actingAs($this->camaba)->get(route('pmb.akun.upload-dokumen'));
         $viewResponse->assertOk();
-        $viewResponse->assertSee('7 dari 7 dokumen telah berhasil diupload (100%)');
+        $viewResponse->assertSee('7 dari 7 dokumen telah berhasil diupload');
     }
 
     /**

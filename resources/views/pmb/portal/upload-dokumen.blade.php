@@ -3,40 +3,7 @@
 @section('title', 'Upload Dokumen Persyaratan - Portal PMB UCIC')
 
 @section('content')
-<div class="max-w-4xl mx-auto space-y-8 pb-16">
-
-    <!-- =================================================================== -->
-    <!-- 1. HEADER: UPLOAD DOKUMEN PERSYARATAN (Matching Screenshot 1)        -->
-    <!-- =================================================================== -->
-    <div class="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-sm text-center">
-        <!-- Cloud Upload Icon matching Screenshot 1 -->
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-50 text-[#0b3d82] flex items-center justify-center mb-4 shadow-2xs">
-            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-        </div>
-
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0b3d82] font-display tracking-tight">
-            Upload Dokumen Persyaratan
-        </h1>
-        <p class="text-xs sm:text-sm text-slate-600 mt-2 max-w-xl mx-auto leading-relaxed">
-            Lengkapi semua dokumen yang diperlukan untuk melanjutkan proses pendaftaran
-        </p>
-
-        <!-- Identitas Akun Pendaftar -->
-        <div class="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span class="text-slate-500 font-medium">Calon Mahasiswa:</span>
-            <strong class="text-slate-900 font-bold">{{ $prospek->name ?? $user->name }}</strong>
-            @if($prospek?->no_registrasi)
-                <span class="text-slate-300">|</span>
-                <span class="font-mono text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full font-semibold">
-                    No. Reg: {{ $prospek->no_registrasi }}
-                </span>
-            @endif
-        </div>
-
-        <div class="w-32 h-1 bg-[#0b3d82] mx-auto rounded-full mt-5"></div>
-    </div>
+<div class="max-w-4xl mx-auto space-y-8 pb-16 relative">
 
     <!-- Alert Notifikasi Sukses -->
     @if(session('success'))
@@ -75,74 +42,111 @@
     @endif
 
     <!-- =================================================================== -->
-    <!-- 2. CARD: PROGRESS UPLOAD DOKUMEN (Matching Screenshot 1)            -->
+    <!-- 1. KONTEN UTAMA ATAS (Persis Sesuai Screenshot 1)                    -->
+    <!-- Membungkus Header, Progress Upload Dokumen, dan Informasi Penting   -->
     <!-- =================================================================== -->
-    <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm text-center space-y-4">
-        <div class="flex items-center justify-center gap-2 text-base font-bold text-slate-800 font-display">
-            <svg class="w-5 h-5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            </svg>
-            <span>Progress Upload Dokumen</span>
+    <div class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-sm space-y-6">
+
+        <!-- Header: Icon Cloud Upload + Judul + Deskripsi -->
+        <div class="text-center space-y-2">
+            <div class="flex items-center justify-center gap-2.5 text-[#0b3d82]">
+                <svg class="w-7 h-7 sm:w-8 h-8 shrink-0 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0b3d82] font-display tracking-tight">
+                    Upload Dokumen Persyaratan
+                </h1>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+                Lengkapi semua dokumen yang diperlukan untuk melanjutkan proses pendaftaran
+            </p>
+
+            <!-- Identitas CAMABA -->
+            <div class="pt-2 flex flex-wrap items-center justify-center gap-2 text-xs">
+                <span class="text-slate-500 font-medium">Calon Mahasiswa:</span>
+                <strong class="text-slate-900 font-bold">{{ $prospek->name ?? $user->name }}</strong>
+                @if($prospek?->no_registrasi)
+                    <span class="text-slate-300">|</span>
+                    <span class="font-mono text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full font-semibold">
+                        No. Reg: {{ $prospek->no_registrasi }}
+                    </span>
+                @endif
+            </div>
         </div>
 
-        <!-- Progress Bar matching Screenshot 1 -->
-        <div class="w-full max-w-2xl mx-auto bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200/80">
-            <div class="bg-[#0b3d82] h-full rounded-full transition-all duration-500"
-                 style="width: {{ $progressPercentage }}%;"></div>
+        <!-- Garis Pemisah Tipis matching Screenshot 1 -->
+        <hr class="border-slate-200">
+
+        <!-- Box 1: Progress Upload Dokumen matching Screenshot 1 -->
+        <div class="bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-purple-50/40 rounded-2xl p-6 sm:p-7 border border-blue-100/60 text-center space-y-3.5">
+            <div class="flex items-center justify-center gap-2 text-sm sm:text-base font-bold text-slate-800 font-display">
+                <svg class="w-5 h-5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                <span>Progress Upload Dokumen</span>
+            </div>
+
+            <!-- Progress Bar Track matching Screenshot 1 -->
+            <div class="w-full max-w-2xl mx-auto bg-slate-200/80 rounded-full h-3.5 overflow-hidden">
+                <div class="bg-[#0b3d82] h-full rounded-full transition-all duration-500"
+                     style="width: {{ $progressPercentage }}%;"></div>
+            </div>
+
+            <!-- Teks Progres matching Screenshot 1 -->
+            <p class="text-xs sm:text-sm text-slate-600 font-medium">
+                {{ $uploadedCount }} dari {{ $totalDokumen }} dokumen telah berhasil diupload
+            </p>
         </div>
 
-        <p class="text-xs sm:text-sm text-slate-600 font-medium">
-            {{ $uploadedCount }} dari {{ $totalDokumen }} dokumen telah berhasil diupload ({{ $progressPercentage }}%)
-        </p>
+        <!-- Box 2: Informasi Penting matching Screenshot 1 -->
+        <div class="bg-[#e0f2fe] rounded-2xl p-6 sm:p-7 border border-[#bae6fd] space-y-3.5 text-left">
+            <div class="flex items-center gap-2 text-[#0b3d82] font-bold text-sm sm:text-base font-display">
+                <svg class="w-5 h-5 shrink-0 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Informasi Penting</span>
+            </div>
+
+            <!-- List Persyaratan dengan garis pemisah tipis matching Screenshot 1 -->
+            <ul class="divide-y divide-sky-200/70 text-xs sm:text-sm text-slate-700">
+                <li class="py-2.5 flex items-start gap-2.5 first:pt-1">
+                    <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Semua dokumen wajib diunggah sebelum melanjutkan</span>
+                </li>
+                <li class="py-2.5 flex items-start gap-2.5">
+                    <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Format file: JPG/PNG untuk foto, PDF untuk dokumen</span>
+                </li>
+                <li class="py-2.5 flex items-start gap-2.5">
+                    <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Ukuran maksimal: 2MB per file</span>
+                </li>
+                <li class="py-2.5 flex items-start gap-2.5">
+                    <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Pastikan dokumen jelas dan mudah dibaca</span>
+                </li>
+                <li class="py-2.5 flex items-start gap-2.5 last:pb-1">
+                    <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span>Ikuti format nama file yang telah ditentukan</span>
+                </li>
+            </ul>
+        </div>
+
     </div>
 
     <!-- =================================================================== -->
-    <!-- 3. CARD: INFORMASI PENTING (Matching Screenshot 1)                  -->
-    <!-- =================================================================== -->
-    <div class="bg-[#e0f2fe] rounded-3xl p-6 sm:p-8 border border-[#bae6fd] shadow-2xs space-y-3.5">
-        <div class="flex items-center gap-2.5 text-[#0b3d82] font-bold text-base font-display">
-            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <span>Informasi Penting</span>
-        </div>
-
-        <ul class="space-y-2 text-xs sm:text-sm text-slate-700">
-            <li class="flex items-start gap-2.5">
-                <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span>Semua dokumen wajib diunggah sebelum melanjutkan ke tahap seleksi berikutnya</span>
-            </li>
-            <li class="flex items-start gap-2.5">
-                <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span>Format file yang diperbolehkan: <strong class="text-slate-900">JPG/PNG</strong> untuk foto, <strong class="text-slate-900">PDF</strong> untuk berkas dokumen</span>
-            </li>
-            <li class="flex items-start gap-2.5">
-                <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span>Ukuran maksimal setiap file: <strong class="text-slate-900">2MB per file</strong></span>
-            </li>
-            <li class="flex items-start gap-2.5">
-                <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span>Pastikan dokumen hasil scan jelas, tidak buram, dan mudah dibaca oleh panitia verifikator</span>
-            </li>
-            <li class="flex items-start gap-2.5">
-                <svg class="w-4 h-4 text-[#0b3d82] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                <span>Ikuti format penamaan file yang telah ditentukan pada masing-masing persyaratan</span>
-            </li>
-        </ul>
-    </div>
-
-    <!-- =================================================================== -->
-    <!-- 4. DAFTAR KARTU DOKUMEN (Matching Screenshots 2, 3, 4, 5)           -->
+    <!-- 2. DAFTAR KARTU DOKUMEN (Matching Screenshots 2, 3, 4, 5)           -->
+    <!-- Border putus-putus (dashed), icon outline tanpa kotak, box abu-abu  -->
     <!-- =================================================================== -->
     <div class="space-y-6">
         @foreach($dokumenList as $key => $doc)
@@ -152,7 +156,8 @@
                 $docStatus = $docItem['status'] ?? 'Belum Diunggah';
             @endphp
 
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-5 transition hover:border-slate-300"
+            <!-- Kartu Dokumen Persyaratan dengan Dashed Border -->
+            <div class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-dashed border-slate-300 shadow-xs space-y-5 transition hover:border-[#0b3d82]"
                  x-data="{
                      fileName: '',
                      fileSelected: false,
@@ -168,44 +173,47 @@
                      }
                  }">
 
-                <!-- Header Kartu Dokumen: Icon & Nama Dokumen -->
+                <!-- Header Kartu: Icon Outline (Tanpa Box) & Nama Dokumen matching Screenshot 2, 3, 4, 5 -->
                 <div class="text-center space-y-2">
-                    <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-50 border border-slate-200/90 flex items-center justify-center text-slate-700 shadow-2xs">
+                    <div class="flex items-center justify-center text-slate-500 mb-1">
                         @if($doc['icon'] === 'user')
-                            <!-- Pas Foto Icon matching Screenshot 3 -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            <!-- Pas Foto Formal Outline Icon matching Screenshot 3 -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <circle cx="12" cy="12" r="9" stroke-width="1.8"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 11a3 3 0 100-6 3 3 0 000 6zm-4.5 7c.8-2 2.5-3 4.5-3s3.7 1 4.5 3"/>
                             </svg>
                         @elseif($doc['icon'] === 'id-card')
-                            <!-- KTP Icon matching Screenshot 2 -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                            <!-- KTP Outline Icon matching Screenshot 2 -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <rect x="3" y="6" width="18" height="12" rx="2" stroke-width="1.8"/>
+                                <circle cx="7" cy="11" r="1.5" stroke-width="1.8"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 10h6m-6 3h4"/>
                             </svg>
                         @elseif($doc['icon'] === 'users')
-                            <!-- KK Icon matching Screenshot 4 -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            <!-- KK Outline Icon matching Screenshot 4 -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                             </svg>
                         @elseif($doc['icon'] === 'document')
-                            <!-- Akta Kelahiran Icon matching Screenshot 5 -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            <!-- Akta Kelahiran Outline Icon matching Screenshot 5 -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                         @elseif($doc['icon'] === 'academic')
-                            <!-- Ijazah / SKL Icon -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path d="M12 14l9-5-9-5-9 5 9 5z"/>
-                                <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                            <!-- Ijazah / SKL Outline Icon -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
                             </svg>
                         @elseif($doc['icon'] === 'clipboard-list')
-                            <!-- Transkrip Nilai Icon -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            <!-- Transkrip Nilai Outline Icon -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                             </svg>
                         @else
-                            <!-- Surat Sehat / Pendukung Icon -->
-                            <svg class="w-7 h-7 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            <!-- Surat Keterangan Bebas Narkoba / Sehat Outline Icon -->
+                            <svg class="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                             </svg>
                         @endif
                     </div>
@@ -213,36 +221,34 @@
                     <h3 class="text-base sm:text-lg font-bold text-slate-900 font-display">
                         {{ $doc['title'] }}
                     </h3>
-                    <p class="text-xs text-slate-500">
+                    <p class="text-xs sm:text-sm text-slate-500">
                         {{ $doc['subtitle'] }}
                     </p>
 
-                    <!-- Status Dokumen Badge -->
-                    <div class="pt-1">
-                        @if(!$isUploaded)
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                                Belum Diunggah
-                            </span>
-                        @elseif($docStatus === 'Disetujui')
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                Disetujui
-                            </span>
-                        @elseif($docStatus === 'Ditolak')
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                                Ditolak
-                            </span>
-                        @else
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                Menunggu Verifikasi
-                            </span>
-                        @endif
-                    </div>
+                    <!-- Status Dokumen Badge jika sudah diunggah -->
+                    @if($isUploaded)
+                        <div class="pt-1">
+                            @if($docStatus === 'Disetujui')
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    Disetujui
+                                </span>
+                            @elseif($docStatus === 'Ditolak')
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    Ditolak
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Menunggu Verifikasi
+                                </span>
+                            @endif
+                        </div>
+                    @endif
                 </div>
 
-                <!-- Informasi Penolakan Dokumen jika ditolak -->
+                <!-- Informasi Penolakan Dokumen jika ditolak verifikator -->
                 @if($docStatus === 'Ditolak' && !empty($docItem['catatan']))
                     <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-left text-xs text-rose-800">
                         <strong class="font-bold block mb-0.5">Alasan Penolakan:</strong>
@@ -251,8 +257,8 @@
                     </div>
                 @endif
 
-                <!-- Persyaratan Box matching Screenshots 2, 3, 4, 5 -->
-                <div class="bg-slate-50/80 rounded-2xl p-4 sm:p-5 border border-slate-100 text-left space-y-1.5 text-xs text-slate-700">
+                <!-- Persyaratan Gray Box matching Screenshots 2, 3, 4, 5 -->
+                <div class="bg-[#f8fafc] rounded-xl p-4 sm:p-5 border border-slate-100 text-left space-y-2 text-xs text-slate-700">
                     <h4 class="font-bold text-[#0b3d82] text-xs">Persyaratan:</h4>
                     <ul class="space-y-1 pl-1">
                         @foreach($doc['requirements'] as $req)
@@ -264,11 +270,11 @@
                     </ul>
                 </div>
 
-                <!-- Tampilan Dokumen yang Sudah Diunggah -->
+                <!-- Tampilan File Dokumen yang Sudah Diunggah -->
                 @if($isUploaded)
-                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                         <div class="flex items-center gap-3 overflow-hidden">
-                            <div class="w-10 h-10 rounded-xl bg-blue-100 text-[#0b3d82] flex items-center justify-center shrink-0">
+                            <div class="w-10 h-10 rounded-lg bg-blue-100 text-[#0b3d82] flex items-center justify-center shrink-0">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
@@ -333,7 +339,7 @@
                         <div x-show="!fileSelected">
                             <button type="button"
                                     @click="triggerFile()"
-                                    class="w-full py-3.5 px-6 rounded-2xl font-bold text-sm bg-[#0b3d82] hover:bg-[#072b5c] text-white flex items-center justify-center gap-2.5 shadow-sm transition active:scale-[0.99] cursor-pointer">
+                                    class="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#0b3d82] hover:bg-[#072b5c] text-white flex items-center justify-center gap-2.5 shadow-sm transition active:scale-[0.99] cursor-pointer">
                                 <svg class="w-5 h-5 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                                 </svg>
@@ -342,7 +348,7 @@
                         </div>
 
                         <!-- Tampilan setelah file dipilih: Konfirmasi Upload -->
-                        <div x-show="fileSelected" class="space-y-3 bg-blue-50/60 p-4 rounded-2xl border border-blue-200 text-left">
+                        <div x-show="fileSelected" class="space-y-3 bg-blue-50/60 p-4 rounded-xl border border-blue-200 text-left">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="text-slate-600">File dipilih:</span>
                                 <button type="button" @click="fileSelected = false; fileName = ''; $refs.fileInput.value = ''" class="text-rose-600 hover:underline font-bold">
@@ -371,26 +377,38 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- 5. NAVIGASI BAWAH: KEMBALI KE FORM / DASHBOARD                      -->
+    <!-- 3. NAVIGASI BAWAH: KEMBALI KE FORM / DASHBOARD                      -->
     <!-- =================================================================== -->
     <div class="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
         <a href="{{ route('pmb.akun.dashboard') }}"
-           class="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs sm:text-sm text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition text-center shadow-2xs">
+           class="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs sm:text-sm text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition text-center shadow-2xs">
             &larr; Kembali ke Dashboard
         </a>
 
         <div class="flex items-center gap-3 w-full sm:w-auto">
             <a href="{{ route('pmb.akun.profil') }}"
-               class="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs sm:text-sm text-[#0b3d82] bg-blue-50 border border-blue-200 hover:bg-blue-100 transition text-center">
+               class="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs sm:text-sm text-[#0b3d82] bg-blue-50 border border-blue-200 hover:bg-blue-100 transition text-center">
                 Lihat Form Pendaftaran &rarr;
             </a>
 
             <a href="{{ route('pmb.akun.status') }}"
-               class="w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-xs sm:text-sm text-white bg-[#0b3d82] hover:bg-[#072b5c] transition text-center shadow-xs">
+               class="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#0b3d82] hover:bg-[#072b5c] transition text-center shadow-xs">
                 Cek Status Kelulusan
             </a>
         </div>
     </div>
+
+    <!-- =================================================================== -->
+    <!-- 4. FLOATING SCROLL TO TOP BUTTON (Matching Screenshots 2, 4, 5)     -->
+    <!-- =================================================================== -->
+    <button type="button"
+            onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+            class="fixed bottom-6 right-6 w-10 h-10 rounded-lg bg-[#0b3d82] hover:bg-[#072b5c] text-white flex items-center justify-center shadow-lg transition z-40 cursor-pointer"
+            title="Kembali ke atas">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+        </svg>
+    </button>
 
 </div>
 @endsection
