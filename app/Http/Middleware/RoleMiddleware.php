@@ -33,6 +33,11 @@ class RoleMiddleware
             }
 
             // Redirect to their own dashboard instead of raw 403
+            if ($userRole === 'camaba' && app('router')->has('pmb.akun.dashboard')) {
+                return redirect()->route('pmb.akun.dashboard')
+                    ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
+            }
+
             $sluggedRole = str_replace(' ', '-', $userRole);
             $redirectRoute = app('router')->has('dashboard.' . $userRole)
                 ? 'dashboard.' . $userRole

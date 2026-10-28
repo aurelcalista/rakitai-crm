@@ -12,7 +12,7 @@ class Prospek extends Model
     public const SOURCE_PRESENSI_SISWA = 'Presensi Siswa';
 
     protected $fillable = [
-        'name', 'email', 'no_registrasi', 'gelombang', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
+        'user_id', 'name', 'email', 'no_registrasi', 'gelombang', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
         'status', 'status_formulir', 'status_berkas', 'status_ujian', 'nilai_ujian', 'tanggal_ujian', 'minat_kuliah', 'minat_miniclass',
         'stage_number', 'notes',
         'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
@@ -732,6 +732,11 @@ class Prospek extends Model
     public function prodiPilihan2()
     {
         return $this->belongsTo(Prodi::class, 'prodi_pilihan_2_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function sales()

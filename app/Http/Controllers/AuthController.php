@@ -56,6 +56,7 @@ class AuthController extends Controller
             $role = strtolower($user->role);
 
             return match ($role) {
+                'camaba'                       => redirect()->route('pmb.akun.dashboard'),
                 'admin'                        => redirect()->route('dashboard.admin'),
                 'hm'                           => redirect()->route('dashboard.hm'),
                 'spv'                          => redirect()->route('dashboard.spv'),

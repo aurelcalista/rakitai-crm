@@ -37,6 +37,44 @@ Route::get('/presensi-corporate/terima-kasih', [\App\Http\Controllers\QuickConta
 Route::get('/presensi/terima-kasih', [\App\Http\Controllers\QuickContactController::class, 'terimaKasih'])->name('kontak-cepat.terima-kasih');
 
 // ──────────────────────────────────────────────────────────────────
+// PMB Online Payment & Midtrans Webhook (Public / CAMABA)
+// ──────────────────────────────────────────────────────────────────
+Route::prefix('pmb')->name('pmb.')->group(function () {
+    // Portal PMB Publik
+    Route::get('/portal', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'landing'])->name('portal');
+    Route::get('/bantuan', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bantuan'])->name('bantuan');
+
+    // Autentikasi CAMABA (Tamu / Guest)
+    Route::middleware('guest')->group(function () {
+        Route::get('/login',    [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showLoginForm'])->name('login');
+        Route::post('/login',   [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'login'])->name('login.post');
+        Route::get('/register', [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showRegisterForm'])->name('register');
+        Route::post('/register',[\App\Http\Controllers\Pmb\CamabaAuthController::class, 'register'])->name('register.post');
+    });
+
+    // Logout CAMABA
+    Route::post('/logout', [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'logout'])->name('logout');
+
+    // Webhook Notification Endpoint (Midtrans IPN)
+    Route::post('/midtrans/notification', [\App\Http\Controllers\Pmb\MidtransWebhookController::class, 'handleNotification'])->name('midtrans.notification');
+
+    // Halaman Pembayaran CAMABA & Status Transaksi
+    Route::get('/bayar/{order_id}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'showPaymentPage'])->name('bayar');
+    Route::get('/pembayaran/status/{order_id}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'status'])->name('pembayaran.status');
+    Route::post('/checkout/{prospek}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'checkout'])->name('checkout');
+
+    // Portal Akun CAMABA (Khusus Calon Mahasiswa yang Terautentikasi)
+    Route::middleware(['auth', 'role:Camaba'])->prefix('akun')->name('akun.')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/status',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'status'])->name('status');
+        Route::get('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('profil');
+        Route::put('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('profil.update');
+        Route::get('/bayar',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('bayar');
+        Route::get('/bantuan',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bantuan'])->name('bantuan');
+    });
+});
+
+// ──────────────────────────────────────────────────────────────────
 // Authenticated Routes (all roles)
 // ──────────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
@@ -63,6 +101,9 @@ Route::middleware('auth')->group(function () {
     // Unified role dashboard dispatcher
     Route::get('/dashboard', function () {
         $role = strtolower(auth()->user()->role ?? 'sales');
+        if ($role === 'camaba') {
+            return redirect()->route('pmb.akun.dashboard');
+        }
         if (in_array($role, ['data analyst', 'data-analyst', 'analyst'])) {
             return redirect()->route('dashboard.data-analyst');
         }
@@ -71,14 +112,14 @@ Route::middleware('auth')->group(function () {
 
     // Role-specific dashboard entry points
     Route::prefix('dashboard')->group(function () {
-        Route::get('/sales',        [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
-        Route::get('/cs',           [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
-        Route::get('/spv',          [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
-        Route::get('/hm',           [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
-        Route::get('/admin',        [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
-        Route::get('/eo',           [\App\Http\Controllers\Eo\DashboardController::class, 'index'])->name('dashboard.eo');
-        Route::get('/data-analyst', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard.data-analyst');
-        Route::get('/data analyst', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard.data analyst');
+        Route::middleware('role:Sales')->get('/sales',        [\App\Http\Controllers\Sales\DashboardController::class, 'index'])->name('dashboard.sales');
+        Route::middleware('role:CS')->get('/cs',              [CrmController::class, 'dashboardCs'])->name('dashboard.cs');
+        Route::middleware('role:SPV')->get('/spv',            [\App\Http\Controllers\Spv\DashboardController::class, 'index'])->name('dashboard.spv');
+        Route::middleware('role:HM')->get('/hm',              [CrmController::class, 'dashboardHm'])->name('dashboard.hm');
+        Route::middleware('role:Admin')->get('/admin',        [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard.admin');
+        Route::middleware('role:EO')->get('/eo',              [\App\Http\Controllers\Eo\DashboardController::class, 'index'])->name('dashboard.eo');
+        Route::middleware('role:Data Analyst')->get('/data-analyst', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard.data-analyst');
+        Route::middleware('role:Data Analyst')->get('/data analyst', [\App\Http\Controllers\Analyst\DataAnalystController::class, 'index'])->name('dashboard.data analyst');
     });
 
     // ──────────────────────────────────────────────────────────────

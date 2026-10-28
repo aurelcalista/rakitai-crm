@@ -684,6 +684,19 @@
                                 <span x-text="selectedTransaksi.rejection_reason"></span>
                             </div>
                         </template>
+
+                        <template x-if="selectedTransaksi.metode === 'MIDTRANS' && selectedTransaksi.order_id">
+                            <div class="p-3.5 bg-blue-50/80 rounded-xl border border-blue-200/80 flex items-center justify-between gap-3 text-xs">
+                                <div>
+                                    <span class="font-bold text-blue-900 block">Portal Bayar Midtrans:</span>
+                                    <span class="text-blue-700 text-[11px]">Buka halaman pembayaran online CAMABA</span>
+                                </div>
+                                <a :href="'{{ url('pmb/bayar') }}/' + selectedTransaksi.order_id" target="_blank" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-2xs transition inline-flex items-center gap-1 shrink-0">
+                                    <span>Buka Portal</span>
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                </a>
+                            </div>
+                        </template>
                     </div>
 
                     <div class="bg-slate-50 px-6 py-4 flex items-center justify-end border-t border-slate-100">

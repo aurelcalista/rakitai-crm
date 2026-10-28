@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/pmb/midtrans/notification', [\App\Http\Controllers\Pmb\MidtransWebhookController::class, 'handleNotification']);
+
 Route::prefix('v1')->group(function () {
     // Auth
     Route::post('/login', [\App\Http\Controllers\Api\AuthController::class, 'login']);

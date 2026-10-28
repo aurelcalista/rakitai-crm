@@ -579,5 +579,13 @@ class User extends Authenticatable
             ->withPivot('assigned_by_spv_id')
             ->withTimestamps();
     }
+
+    /**
+     * Prospek associated with this user (for Camaba role).
+     */
+    public function prospek()
+    {
+        return $this->hasOne(Prospek::class, 'user_id');
+    }
 }
 

@@ -46,10 +46,15 @@ class Transaksi extends Model
         'nominal',
         'detail_pembayaran',
         'tanggal',
+        'transaction_time',
         'notes',
         'academic_year_id',
         'metode_pembayaran',
+        'payment_type',
         'payment_status',
+        'fraud_status',
+        'snap_token',
+        'snap_redirect_url',
         'verified_by',
         'verified_at',
         'rejected_by',
@@ -154,9 +159,10 @@ class Transaksi extends Model
     }
 
     protected $casts = [
-        'tanggal'     => 'datetime',
-        'verified_at' => 'datetime',
-        'rejected_at' => 'datetime',
+        'tanggal'          => 'datetime',
+        'transaction_time' => 'datetime',
+        'verified_at'      => 'datetime',
+        'rejected_at'      => 'datetime',
     ];
 
     /**
