@@ -36,6 +36,36 @@
         userRole: '{{ strtolower(auth()->user()->role ?? '') }}',
         prospectsList: {{ json_encode($prospects) }},
         modalPresensiManual: {{ old('form_type') === 'presensi_manual' ? 'true' : 'false' }},
+
+        takeoverProspect(p, formEl) {
+            const name = p.name || p.pic || 'prospek ini';
+            const msg = 'Yakin ingin mengambil alih (take over) ' + name + '?';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Konfirmasi Takeover',
+                    text: msg,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#4f46e5',
+                    cancelButtonColor: '#94a3b8',
+                    confirmButtonText: 'Ya, Takeover',
+                    cancelButtonText: 'Batal',
+                    customClass: {
+                        popup: 'rounded-2xl shadow-xl border border-indigo-100',
+                        confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5',
+                        cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                    }
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        formEl.submit();
+                    }
+                });
+            } else {
+                if (confirm(msg)) {
+                    formEl.submit();
+                }
+            }
+        },
         
         isOwnProspect(p) {
             if (p.is_own === true) return true;
@@ -142,6 +172,25 @@
             return '/prospek/' + prospect.id;
         }
     }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
+
+        @if(session('success'))
+            <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>{{ session('success') }}</span>
+                </div>
+                <button type="button" @click="$el.closest('div').remove()" class="text-emerald-500 hover:text-emerald-700 font-bold text-base leading-none">&times;</button>
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs font-semibold shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>{{ session('error') }}</span>
+                </div>
+                <button type="button" @click="$el.closest('div').remove()" class="text-rose-500 hover:text-rose-700 font-bold text-base leading-none">&times;</button>
+            </div>
+        @endif
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -608,14 +657,17 @@
                                 <td class="py-4 px-3 text-slate-500 text-[11px]" x-text="prospect.last_activity"></td>
                                 <td class="py-4 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
-                                        <template x-if="prospect.is_presensi && prospect.status_takeover !== 'Sudah Di-takeover'">
-                                            <a 
-                                                :href="getProspectUrl(prospect)"
-                                                class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-2xs whitespace-nowrap"
-                                                title="Takeover Prospek Ini"
-                                            >
-                                                Takeover
-                                            </a>
+                                        <template x-if="prospect.status_takeover !== 'Sudah Di-takeover'">
+                                            <form :action="'{{ url('/prospek') }}/' + prospect.id + '/takeover'" method="POST" @submit.prevent="takeoverProspect(prospect, $el)" class="inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                                <button
+                                                    type="submit"
+                                                    class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-2xs whitespace-nowrap cursor-pointer"
+                                                    title="Takeover Prospek Ini"
+                                                >
+                                                    Takeover
+                                                </button>
+                                            </form>
                                         </template>
                                         <button 
                                             @click="selectedProspect = prospect; modalFollowUp = true"
@@ -717,6 +769,18 @@
                             >
                                 Detail
                             </a>
+                            <template x-if="prospect.status_takeover !== 'Sudah Di-takeover'">
+                                <form :action="'{{ url('/prospek') }}/' + prospect.id + '/takeover'" method="POST" @submit.prevent="takeoverProspect(prospect, $el)">
+                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                    <button 
+                                        type="submit"
+                                        class="py-2 px-3 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100 cursor-pointer"
+                                        title="Takeover Prospek"
+                                    >
+                                        Takeover
+                                    </button>
+                                </form>
+                            </template>
                             <button 
                                 type="button"
                                 @click="openDeleteProspectModal(prospect)"

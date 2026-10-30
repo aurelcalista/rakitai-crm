@@ -111,9 +111,41 @@ class QuickContactController extends Controller
             $notes .= ' | ' . $manualNotes;
         }
 
+        $formattedWa = \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']);
+
+        // Deduplication: cek apakah sudah ada prospek dengan nomor WA yang sama
+        $existing = Prospek::where('whatsapp', $formattedWa)->first();
+
+        if ($existing) {
+            // Update data prospek yang sudah ada dan catat sebagai timeline baru
+            $existing->update([
+                'pic'           => $validated['nama'],
+                'pic_phone'     => $formattedWa,
+                'wa_ortu'       => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null) ?: $existing->wa_ortu,
+                'asal_kelas'    => $validated['asal_kelas'] ?? $existing->asal_kelas,
+                'prodi_id'      => $validated['prodi_id'] === 'lainnya' ? $existing->prodi_id : ($validated['prodi_id'] ?? $existing->prodi_id),
+                'prodi_lainnya' => $validated['prodi_id'] === 'lainnya' ? ($validated['prodi_lainnya'] ?? $existing->prodi_lainnya) : $existing->prodi_lainnya,
+                'kelas'         => $validated['kelas'] ?? $existing->kelas,
+                'sekolah_id'    => $sekolahId ?: $existing->sekolah_id,
+                'wilayah_id'    => $wilayahId ?: $existing->wilayah_id,
+                'perusahaan_id' => $perusahaanId ?: $existing->perusahaan_id,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'   => $existing->id,
+                'user_id'      => null,
+                'title'        => 'Presensi Ulang – Data Diperbarui',
+                'notes'        => 'Calon mahasiswa melakukan presensi kembali melalui form Presensi Siswa. Data diperbarui tanpa membuat duplikat.' . ($notes ? ' | ' . $notes : ''),
+                'status_after' => $existing->status,
+                'time'         => now(),
+            ]);
+
+            return redirect()->route('kontak-cepat.terima-kasih');
+        }
+
         $prospek = Prospek::create([
             'name'             => $name,
-            'whatsapp'         => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+            'whatsapp'         => $formattedWa,
             'wa_ortu'          => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
             'pic'              => $validated['nama'],
             'pic_phone'        => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
@@ -194,9 +226,39 @@ class QuickContactController extends Controller
             $notes .= ' | ' . $manualNotes;
         }
 
+        $formattedWa = \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']);
+
+        // Deduplication: cek apakah sudah ada prospek dengan nomor WA yang sama
+        $existing = Prospek::where('whatsapp', $formattedWa)->first();
+
+        if ($existing) {
+            $existing->update([
+                'pic'           => $validated['nama'],
+                'pic_phone'     => $formattedWa,
+                'wa_ortu'       => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null) ?: $existing->wa_ortu,
+                'asal_kelas'    => $validated['asal_kelas'] ?? $existing->asal_kelas,
+                'prodi_id'      => $validated['prodi_id'] === 'lainnya' ? $existing->prodi_id : ($validated['prodi_id'] ?? $existing->prodi_id),
+                'prodi_lainnya' => $validated['prodi_id'] === 'lainnya' ? ($validated['prodi_lainnya'] ?? $existing->prodi_lainnya) : $existing->prodi_lainnya,
+                'kelas'         => $validated['kelas'] ?? $existing->kelas,
+                'perusahaan_id' => $perusahaanId ?: $existing->perusahaan_id,
+                'wilayah_id'    => $wilayahId ?: $existing->wilayah_id,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'   => $existing->id,
+                'user_id'      => null,
+                'title'        => 'Presensi Ulang (Corporate) – Data Diperbarui',
+                'notes'        => 'Calon mahasiswa melakukan presensi kembali melalui form Presensi Corporate. Data diperbarui tanpa membuat duplikat.',
+                'status_after' => $existing->status,
+                'time'         => now(),
+            ]);
+
+            return redirect()->route('kontak-cepat.terima-kasih-corporate');
+        }
+
         $prospek = Prospek::create([
             'name'             => $name,
-            'whatsapp'         => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+            'whatsapp'         => $formattedWa,
             'wa_ortu'          => \App\Support\WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
             'pic'              => $validated['nama'],
             'pic_phone'        => \App\Support\WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),

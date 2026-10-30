@@ -76,7 +76,7 @@ class CsProspectCreationTest extends TestCase
 
         $response->assertSessionHasNoErrors();
 
-        $created = Prospek::where('whatsapp', '08987654321')->first();
+        $created = Prospek::where('whatsapp', '+628987654321')->orWhere('whatsapp', '08987654321')->first();
         $this->assertNotNull($created);
         $this->assertEquals($cs->id, $created->cs_id);
         $this->assertNull($created->sales_id);

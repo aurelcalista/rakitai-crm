@@ -54,7 +54,8 @@ class ProspekPolicy
 
     /**
      * Takeover / Assignment.
-     * Prospek yang belum diambil alih dapat di-takeover oleh Sales, CS, SPV, HM, atau Admin.
+     * Prospek yang belum diambil alih dapat di-takeover oleh seluruh CS, Sales, SPV, HM, atau Admin.
+     * Seluruh user CS berwenang melakukan takeover prospek (termasuk dari Presensi Siswa/Event) tanpa batasan wilayah.
      */
     public function takeover(User $user, Prospek $prospek): bool
     {
@@ -65,20 +66,8 @@ class ProspekPolicy
 
         $role = strtolower($user->role);
 
-        if (in_array($role, ['admin', 'sales', 'spv', 'hm'])) {
-            return true;
-        }
-
-        if ($role === 'cs') {
-            // CS wilayah scope untuk presensi siswa jika wilayah sudah ditentukan
-            if ($prospek->isPresensiSiswa()
-                && $user->wilayah_id && $prospek->wilayah_id && $prospek->wilayah_id !== $user->wilayah_id) {
-                return false;
-            }
-            return true;
-        }
-
-        return false;
+        // Seluruh CS, Sales, SPV, HM, dan Admin berwenang melakukan takeover
+        return in_array($role, ['admin', 'sales', 'spv', 'hm', 'cs']);
     }
 
     /**
@@ -112,6 +101,6 @@ class ProspekPolicy
      */
     public function delete(User $user, Prospek $prospek): bool
     {
-        return in_array(strtolower($user->role), ['admin', 'spv', 'hm', 'sales', 'cs', 'eo']);
+        return in_array(strtolower($user->role), ['admin', 'spv', 'hm', 'sales', 'eo']);
     }
 }
