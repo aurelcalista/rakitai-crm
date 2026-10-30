@@ -518,9 +518,10 @@ class ProspectController extends Controller
         $newStatus = $validated['status'];
 
         // Prevent downgrading to Lost via this endpoint — use markLost instead
-        if ($newStatus === 'DINGIN') {
-            return redirect()->back()
-                ->withErrors(['status' => 'Gunakan tombol "Mark as Lost" untuk mengubah ke status Lost.']);
+        if ($newStatus === 'DINGIN' && strtolower(auth()->user()->role ?? '') === 'sales') {
+            // Sales dapat mengubah ke DINGIN — lanjutkan proses
+        } elseif ($newStatus === 'DINGIN') {
+            // non-Sales: DINGIN tetap diizinkan
         }
 
         if ($newStatus === 'LUNAS') {
@@ -604,10 +605,17 @@ class ProspectController extends Controller
         $userRole = strtolower($user->role);
         $prospekId = $prospek->id;
 
+        if (!\Illuminate\Support\Facades\Gate::allows('takeover', $prospek)) {
+            if ($prospek->status_takeover === 'Sudah Di-takeover' || !is_null($prospek->takeover_by_id)) {
+                $takenByName = $prospek->takeoverBy?->name ?? 'pengguna lain';
+                return redirect()->back()->with('error', 'Gagal Take Over: Prospek ini sudah di-takeover sebelumnya oleh ' . $takenByName . '.');
+            }
+            return redirect()->back()->with('error', 'Gagal Take Over: Anda tidak memiliki hak akses untuk melakukan take over pada prospek ini.');
+        }
+
         $result = DB::transaction(function () use ($prospekId, $user, $userId, $userRole) {
             // Atomic row locking to prevent race condition between concurrent requests
             $lead = Prospek::where('id', $prospekId)->lockForUpdate()->firstOrFail();
-            \Illuminate\Support\Facades\Gate::authorize('takeover', $lead);
 
             // Double takeover prevention
             if ($lead->status_takeover === 'Sudah Di-takeover' || !is_null($lead->takeover_by_id)) {

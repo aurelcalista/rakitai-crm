@@ -10,6 +10,7 @@ use App\Models\Perusahaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Support\WhatsAppHelper;
+use App\Rules\IndonesianWhatsApp;
 use Illuminate\Support\Facades\DB;
 
 class PresensiController extends Controller
@@ -99,14 +100,46 @@ class PresensiController extends Controller
             $notes .= ' | ' . $manualNotes;
         }
 
-        $prospek = DB::transaction(function () use ($validated, $request, $name, $sekolahId, $perusahaanId, $wilayahId, $manualNotes) {
+        $formattedWa = WhatsAppHelper::formatForDatabase($validated['no_whatsapp']);
+        $existing = Prospek::where('whatsapp', $formattedWa)->first();
+
+        if ($existing) {
+            $existing->update([
+                'pic'           => $validated['nama'],
+                'pic_phone'     => $formattedWa,
+                'wa_ortu'       => WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null) ?: $existing->wa_ortu,
+                'asal_kelas'    => $validated['asal_kelas'] ?? $existing->asal_kelas,
+                'prodi_id'      => $validated['prodi_id'] === 'lainnya' ? $existing->prodi_id : ($validated['prodi_id'] ?? $existing->prodi_id),
+                'prodi_lainnya' => $validated['prodi_id'] === 'lainnya' ? ($validated['prodi_lainnya'] ?? $existing->prodi_lainnya) : $existing->prodi_lainnya,
+                'kelas'         => $validated['kelas'] ?? $existing->kelas,
+                'sekolah_id'    => $sekolahId ?: $existing->sekolah_id,
+                'wilayah_id'    => $wilayahId ?: $existing->wilayah_id,
+                'perusahaan_id' => $perusahaanId ?: $existing->perusahaan_id,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'   => $existing->id,
+                'user_id'      => null,
+                'title'        => 'Presensi Siswa Masuk Kembali',
+                'notes'        => 'Data presensi siswa masuk kembali melalui API presensi sekolah. Data diperbarui tanpa membuat duplikat.' . ($notes ? ' | ' . $notes : ''),
+                'status_after' => $existing->status,
+                'time'         => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Prospek presensi sekolah berhasil diperbarui',
+                'data'    => $existing,
+            ], 200);
+        }
+
+        $prospek = DB::transaction(function () use ($validated, $request, $name, $sekolahId, $perusahaanId, $wilayahId, $manualNotes, $formattedWa, $notes) {
             // Create prospect
             $prospek = Prospek::create([
                 'name'             => $name,
-                'whatsapp'         => WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+                'whatsapp'         => $formattedWa,
                 'wa_ortu'          => WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
                 'pic'              => $validated['nama'],
-                'pic_phone'        => WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+                'pic_phone'        => $formattedWa,
                 'type'             => $validated['jenis_instansi'] === 'PT' ? 'Corporate' : 'Sekolah',
                 'sekolah_id'       => $sekolahId,
                 'wilayah_id'       => $wilayahId,
@@ -194,14 +227,45 @@ class PresensiController extends Controller
             $notes .= ' | ' . $manualNotes;
         }
 
-        $prospek = DB::transaction(function () use ($validated, $request, $name, $perusahaanId, $wilayahId, $manualNotes) {
+        $formattedWa = WhatsAppHelper::formatForDatabase($validated['no_whatsapp']);
+        $existing = Prospek::where('whatsapp', $formattedWa)->first();
+
+        if ($existing) {
+            $existing->update([
+                'pic'           => $validated['nama'],
+                'pic_phone'     => $formattedWa,
+                'wa_ortu'       => WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null) ?: $existing->wa_ortu,
+                'asal_kelas'    => $validated['asal_kelas'] ?? $existing->asal_kelas,
+                'prodi_id'      => $validated['prodi_id'] === 'lainnya' ? $existing->prodi_id : ($validated['prodi_id'] ?? $existing->prodi_id),
+                'prodi_lainnya' => $validated['prodi_id'] === 'lainnya' ? ($validated['prodi_lainnya'] ?? $existing->prodi_lainnya) : $existing->prodi_lainnya,
+                'kelas'         => $validated['kelas'] ?? $existing->kelas,
+                'wilayah_id'    => $wilayahId ?: $existing->wilayah_id,
+                'perusahaan_id' => $perusahaanId ?: $existing->perusahaan_id,
+            ]);
+
+            ProspekTimeline::create([
+                'prospek_id'   => $existing->id,
+                'user_id'      => null,
+                'title'        => 'Presensi Corporate Masuk Kembali',
+                'notes'        => 'Data presensi corporate masuk kembali melalui API presensi corporate. Data diperbarui tanpa membuat duplikat.' . ($notes ? ' | ' . $notes : ''),
+                'status_after' => $existing->status,
+                'time'         => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Prospek presensi corporate berhasil diperbarui',
+                'data'    => $existing,
+            ], 200);
+        }
+
+        $prospek = DB::transaction(function () use ($validated, $request, $name, $perusahaanId, $wilayahId, $manualNotes, $formattedWa, $notes) {
             // Create prospect
             $prospek = Prospek::create([
                 'name'             => $name,
-                'whatsapp'         => WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+                'whatsapp'         => $formattedWa,
                 'wa_ortu'          => WhatsAppHelper::formatForDatabase($validated['wa_ortu'] ?? null),
                 'pic'              => $validated['nama'],
-                'pic_phone'        => WhatsAppHelper::formatForDatabase($validated['no_whatsapp']),
+                'pic_phone'        => $formattedWa,
                 'type'             => 'Corporate',
                 'sekolah_id'       => null,
                 'wilayah_id'       => $wilayahId,

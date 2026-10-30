@@ -164,7 +164,7 @@ class PipelineUpdateStatusModalTest extends TestCase
         $this->assertEquals('BATAL DAFTAR', $prospek->fresh()->status);
     }
 
-    public function test_cs_cannot_transition_to_unauthorized_stages()
+    public function test_cs_can_transition_to_various_stages()
     {
         $prospek = Prospek::create([
             'name'       => 'Eko Prasetyo',
@@ -178,18 +178,14 @@ class PipelineUpdateStatusModalTest extends TestCase
             'type'       => 'Individu',
         ]);
 
-        // CS tries to revert to early sales stage KONTAK
+        // CS can change status to KONTAK
         $response = $this->actingAs($this->cs)->postJson(route('pipeline.update-status'), [
             'prospek_id' => $prospek->id,
             'status'     => 'KONTAK',
         ]);
 
-        $response->assertStatus(403);
-        $response->assertJson([
-            'success' => false,
-            'message' => 'CS hanya berwenang mengubah status ke FORMULIR, BERKAS, LUNAS, NO RESPON, atau BATAL DAFTAR.',
-        ]);
-        $this->assertEquals('FORMULIR', $prospek->fresh()->status);
+        $response->assertStatus(200);
+        $this->assertEquals('KONTAK', $prospek->fresh()->status);
     }
 
     public function test_changing_to_lunas_without_verified_payment_is_rejected()
