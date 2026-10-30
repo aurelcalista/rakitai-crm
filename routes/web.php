@@ -66,6 +66,7 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
     // Portal Akun CAMABA (Khusus Calon Mahasiswa yang Terautentikasi)
     Route::middleware(['auth', 'role:Camaba'])->prefix('akun')->name('akun.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/katalog',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'katalog'])->name('katalog');
         Route::get('/status',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'status'])->name('status');
         Route::get('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('profil');
         Route::put('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('profil.update');
@@ -91,6 +92,9 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
     Route::get('/user/upload-dokumen', function () {
         return redirect()->route('pmb.akun.upload-dokumen');
     });
+    Route::get('/katalog', function () {
+        return redirect()->route('pmb.akun.katalog');
+    })->middleware(['auth', 'role:Camaba']);
 });
 
 Route::get('/user/pembayaran', function () {
@@ -100,6 +104,10 @@ Route::get('/user/pembayaran', function () {
 Route::get('/user/upload-dokumen', function () {
     return redirect()->route('pmb.akun.upload-dokumen');
 });
+
+Route::get('/katalog', function () {
+    return redirect()->route('pmb.akun.katalog');
+})->middleware(['auth', 'role:Camaba']);
 
 // ──────────────────────────────────────────────────────────────────
 // Authenticated Routes (all roles)

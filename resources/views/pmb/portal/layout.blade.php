@@ -45,8 +45,8 @@
                    class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.status') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
                     Biaya
                 </a>
-                <a href="{{ route('pmb.portal') }}#prodi"
-                   class="transition hover:text-blue-600 text-slate-600">
+                <a href="{{ route('pmb.akun.katalog') }}"
+                   class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.katalog*') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
                     Katalog
                 </a>
                 <a href="{{ route('pmb.akun.dashboard') }}"
@@ -93,8 +93,8 @@
                class="block px-3 py-2 rounded-xl text-xs font-bold {{ request()->routeIs('pmb.akun.status') ? 'bg-blue-50 text-blue-700' : 'text-slate-700' }}">
                 Biaya
             </a>
-            <a href="{{ route('pmb.portal') }}#prodi"
-               class="block px-3 py-2 rounded-xl text-xs font-bold text-slate-700">
+            <a href="{{ route('pmb.akun.katalog') }}"
+               class="block px-3 py-2 rounded-xl text-xs font-bold {{ request()->routeIs('pmb.akun.katalog*') ? 'bg-blue-50 text-blue-700' : 'text-slate-700' }}">
                 Katalog
             </a>
             <a href="{{ route('pmb.akun.dashboard') }}"

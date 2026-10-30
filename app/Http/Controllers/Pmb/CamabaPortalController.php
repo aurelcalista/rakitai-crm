@@ -81,6 +81,132 @@ class CamabaPortalController extends Controller
     }
 
     /**
+     * Halaman Katalog Program Studi CAMABA.
+     */
+    public function katalog(Request $request): View
+    {
+        $user = Auth::user();
+        $prospek = $this->getCamabaProspek();
+
+        // Ambil seluruh prodi aktif dari database
+        $prodis = Prodi::where('status', 'Aktif')
+            ->orWhereNull('status')
+            ->orderBy('fakultas')
+            ->orderBy('nama')
+            ->get();
+
+        // Data deskripsi & metadata prodi resmi UCIC
+        $prodiDetails = [
+            'TI' => [
+                'deskripsi' => 'Menjadi ahli teknologi informasi dan rekayasa perangkat lunak siap kerja di era digital dengan fokus Artificial Intelligence (AI), Web, Cloud, dan Mobile Development.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Kom',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['Software Engineer', 'AI/ML Specialist', 'Full-stack Developer', 'Cloud Architect'],
+                'keunggulan' => 'Kurikulum berbasis AI & Industry 4.0, sertifikasi internasional, dan inkubator startup teknologi.',
+            ],
+            'SI' => [
+                'deskripsi' => 'Fokus pada analisis kebutuhan bisnis, perancangan arsitektur sistem informasi enterprise, manajemen basis data, dan tata kelola TI modern.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Kom',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['System Analyst', 'Database Administrator', 'IT Business Consultant', 'Data Analyst'],
+                'keunggulan' => 'Integrasi keahlian teknologi dan strategi bisnis industri terkemuka.',
+            ],
+            'DKV' => [
+                'deskripsi' => 'Mengembangkan talenta seni grafis, ilustrasi, UI/UX design, animasi digital, dan multimedia kreatif untuk industri media dan periklanan global.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Ds',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['UI/UX Designer', 'Creative Director', 'Motion Graphic Animator', 'Brand Strategist'],
+                'keunggulan' => 'Studio multimedia modern, portofolio nyata, dan jaringan agensi kreatif nasional.',
+            ],
+            'BD' => [
+                'deskripsi' => 'Mempersiapkan entrepreneur digital, analis pertumbuhan bisnis, dan ahli strategi e-commerce di era disrupsi teknologi.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Bns',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['Digital Business Specialist', 'E-Commerce Growth Manager', 'Growth Hacker', 'Tech Entrepreneur'],
+                'keunggulan' => 'Praktik langsung mendirikan dan mengelola startup digital dengan pendanaan inkubator.',
+            ],
+            'MNJ' => [
+                'deskripsi' => 'Mempersiapkan pemimpin bisnis dan profesional manajemen berwawasan global dengan kurikulum manajemen stratejik, keuangan, dan kewirausahaan.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.M',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['Operations Manager', 'Business Development', 'Financial Analyst', 'HR Consultant'],
+                'keunggulan' => 'Program leadership intensif, magang industri BUMN/Multinasional, dan studi kasus riil.',
+            ],
+            'AKT' => [
+                'deskripsi' => 'Mencetak akuntan profesional berintegritas tinggi dengan keahlian audit digital, akuntansi forensik, perpajakan, dan analisis laporan keuangan.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Ak',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['Auditor KAP / BPK', 'Tax Consultant', 'Corporate Accountant', 'Financial Controller'],
+                'keunggulan' => 'Laboratorium pasar modal & audit software, persiapan sertifikasi profesi akuntan.',
+            ],
+            'PKOR' => [
+                'deskripsi' => 'Mencetak sarjana pendidikan dan pelatih olahraga profesional berbasis sains keolahragaan modern, biomekanika, dan manajemen keatletan unggul.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Pd',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['Pelatih Olahraga Profesional', 'Guru PJOK', 'Sport Scientist', 'Instruktur Kebugaran'],
+                'keunggulan' => 'Fasilitas sport science mutakhir, kerjasama KONI & klub olahraga profesional.',
+            ],
+            'PMAT' => [
+                'deskripsi' => 'Mencetak pendidik matematika yang cerdas, inovatif, dan adaptif terhadap perkembangan teknologi pendidikan dan komputasi matematis.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'S.Pd',
+                'masa_studi' => '8 Semester (4 Tahun)',
+                'karir' => ['Guru Matematika Unggulan', 'Pengembang Kurikulum STEM', 'Peneliti Pendidikan', 'Edupreneur'],
+                'keunggulan' => 'Microteaching modern, integrasi software matematika (GeoGebra, MATLAB, Python).',
+            ],
+            'MB-D3' => [
+                'deskripsi' => 'Program vokasi terapan yang mencetak tenaga ahli madya siap kerja di bidang operasional bisnis ritel, perbankan, dan pemasaran modern.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'A.Md.M',
+                'masa_studi' => '6 Semester (3 Tahun)',
+                'karir' => ['Supervisor Operasional', 'Account Officer', 'Retail Branch Supervisor', 'Wirausahawan'],
+                'keunggulan' => '70% porsi praktik lapangan dan magang bersertifikat industri.',
+            ],
+            'S2-MNJ' => [
+                'deskripsi' => 'Program Magister Manajemen eksekutif berbasis pemecahan masalah industri nyata (tanpa kewajiban tesis konvensional) untuk para pemimpin dan manajer.',
+                'akreditasi' => 'Baik Sekali',
+                'gelar' => 'M.M',
+                'masa_studi' => '4 Semester (2 Tahun)',
+                'karir' => ['C-Level Executive', 'Senior Management Consultant', 'Direktur Perusahaan', 'Dosen Praktisi'],
+                'keunggulan' => 'Jadwal fleksibel untuk eksekutif, networking luas, dan kurikulum strategic leadership.',
+            ],
+        ];
+
+        // Enrich setiap prodi
+        $prodis->transform(function ($prodi) use ($prodiDetails) {
+            $code = strtoupper(trim($prodi->kode));
+            $detail = $prodiDetails[$code] ?? null;
+
+            $prodi->deskripsi = $detail['deskripsi'] ?? 'Program studi unggulan berakreditasi di Universitas Catur Insan Cendekia dengan kurikulum berbasis industri dan teknologi.';
+            $prodi->akreditasi = $detail['akreditasi'] ?? 'Baik Sekali';
+            $prodi->gelar = $detail['gelar'] ?? ($prodi->jenjang === 'S1' ? 'Sarjana' : ($prodi->jenjang === 'S2' ? 'Magister' : 'Ahli Madya'));
+            $prodi->masa_studi = $detail['masa_studi'] ?? ($prodi->jenjang === 'S1' ? '8 Semester (4 Tahun)' : ($prodi->jenjang === 'S2' ? '4 Semester (2 Tahun)' : '6 Semester (3 Tahun)'));
+            $prodi->karir = $detail['karir'] ?? ['Profesional Bidang Keahlian', 'Konsultan', 'Wirausahawan'];
+            $prodi->keunggulan = $detail['keunggulan'] ?? 'Kurikulum terapan berbasis teknologi terkini dan kemitraan industri.';
+            return $prodi;
+        });
+
+        // Daftar fakultas dan jenjang unik untuk filter
+        $fakultasList = $prodis->pluck('fakultas')->unique()->filter()->values()->all();
+        $jenjangList = $prodis->pluck('jenjang')->unique()->filter()->values()->all();
+
+        return view('pmb.portal.katalog', compact(
+            'user',
+            'prospek',
+            'prodis',
+            'fakultasList',
+            'jenjangList'
+        ));
+    }
+
+    /**
      * Halaman Status Pendaftaran CAMABA.
      */
     public function status(): View

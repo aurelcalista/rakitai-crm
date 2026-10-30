@@ -213,6 +213,28 @@
         </div>
     </div>
 
+    <!-- Quick Access Card: Katalog Program Studi -->
+    <div class="bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-slate-50 rounded-2xl p-5 border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+        <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-[#0b3d82] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-slate-900 font-display">Katalog Program Studi & Brosur UCIC</h4>
+                <p class="text-xs text-slate-600 mt-0.5">Jelajahi fakultas, jenjang pendidikan (S1, D3, S2), dan prospek karir setiap jurusan di UCIC.</p>
+            </div>
+        </div>
+        <a href="{{ route('pmb.akun.katalog') }}"
+           class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#0b3d82] text-white hover:bg-[#072b5c] shadow-xs transition shrink-0">
+            <span>Buka Katalog</span>
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+
     <!-- Quick Payment Link Card if unpaid -->
     @if(!$isPaid)
         <div class="bg-amber-50 rounded-2xl p-5 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
