@@ -129,6 +129,7 @@ class QuickContactController extends Controller
                 'sekolah_id'    => $sekolahId ?: $existing->sekolah_id,
                 'wilayah_id'    => $wilayahId ?: $existing->wilayah_id,
                 'perusahaan_id' => $perusahaanId ?: $existing->perusahaan_id,
+                'source'        => Prospek::SOURCE_PRESENSI_SISWA,
             ]);
 
             ProspekTimeline::create([

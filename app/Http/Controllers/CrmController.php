@@ -2019,6 +2019,7 @@ class CrmController extends Controller
                 'sekolah_id'    => $sekolahId ?: $existingProspek->sekolah_id,
                 'wilayah_id'    => $wilayahId ?: $existingProspek->wilayah_id,
                 'name'          => $name ?: $existingProspek->name,
+                'source'        => Prospek::SOURCE_PRESENSI_SISWA,
             ]);
 
             ProspekTimeline::create([
@@ -3148,20 +3149,7 @@ class CrmController extends Controller
                     ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
             }
 
-            if (strtolower(auth()->user()->role ?? '') === 'cs') {
-                $allowedCsStatuses = ['FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON', 'BATAL DAFTAR', 'BATAL', 'CANCEL'];
-                if (!in_array(strtoupper(trim((string)$newStatus)), $allowedCsStatuses)) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->withErrors(['status' => 'CS hanya berwenang mengubah status ke FORMULIR, BERKAS, LUNAS, NO RESPON, atau BATAL DAFTAR.']);
-                }
-            }
-
-            if (strtoupper($newStatus) === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['status' => 'Status LUNAS memerlukan verifikasi pembayaran (Beli Formulir & Pembayaran Termin 1) oleh CS.']);
-            }
+            // CS dan peran berwenang bebas mengubah ke status apa pun (tidak dibatasi harus mulai dari FORMULIR)
 
             $stagesMap = \App\Models\Prospek::getDynamicStagesMap();
             $prospek->status = $newStatus;

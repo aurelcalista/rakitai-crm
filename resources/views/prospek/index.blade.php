@@ -221,8 +221,7 @@
                     <span>Unduh Spreadsheet</span>
                 </a>
 
-                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
-                    @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs', 'admin']))
                     <button 
                         type="button" 
                         @click="modalPresensiManual = true"
@@ -233,7 +232,6 @@
                         </svg>
                         <span>Tambah Presensi Siswa</span>
                     </button>
-                    @endif
                     <button 
                         type="button" 
                         @click="modalTambahProspek = true"
