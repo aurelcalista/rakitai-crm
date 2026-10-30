@@ -15,6 +15,8 @@ Route::prefix('v1')->group(function () {
         // Prospek
         Route::get('/prospek', [\App\Http\Controllers\Api\ProspekController::class, 'index']);
         Route::post('/prospek', [\App\Http\Controllers\Api\ProspekController::class, 'store']);
+        Route::post('/presensi/sekolah', [\App\Http\Controllers\Api\PresensiController::class, 'storeSchool']);
+        Route::post('/presensi/korporasi', [\App\Http\Controllers\Api\PresensiController::class, 'storeCorporate']);
         Route::get('/prospek/{prospek}', [\App\Http\Controllers\Api\ProspekController::class, 'show']);
         Route::patch('/prospek/{prospek}/status', [\App\Http\Controllers\Api\ProspekController::class, 'updateStatus']);
 
