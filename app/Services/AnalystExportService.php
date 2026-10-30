@@ -122,7 +122,9 @@ class AnalystExportService
                 break;
         }
 
-        $filename = 'UCIC_CRM_Analyst_' . ucfirst($typeNormalized) . '_' . date('Ymd_His') . '.xlsx';
+        $filename = ($typeNormalized === 'all' || $typeNormalized === 'rekap_lengkap')
+            ? 'UCIC_CRM_Analyst_Laporan_Lengkap_MultiSheet_' . date('Ymd_His') . '.xlsx'
+            : 'UCIC_CRM_Analyst_' . ucfirst($typeNormalized) . '_' . date('Ymd_His') . '.xlsx';
 
         return response()->streamDownload(function () use ($spreadsheet) {
             $writer = new Xlsx($spreadsheet);
@@ -149,6 +151,8 @@ class AnalystExportService
             'Nama Calon Mahasiswa',
             'No WhatsApp',
             'Tipe',
+            'Kategori Prospek',
+            'Status Respons',
             'Status PRD Kanonis',
             'Status Pipeline Operasional',
             'Tahap Pipeline',
@@ -173,17 +177,24 @@ class AnalystExportService
 
         $query = $this->buildProspekQuery($params);
         $row = 2;
-        $stringCols = [1, 3, 15, 19]; // ID Prospek, No WhatsApp, Kode Sales, No. Registrasi
+        $stringCols = [1, 3, 17, 21]; // ID Prospek, No WhatsApp, Kode Sales, No. Registrasi
 
         $query->chunk(250, function ($prospeks) use ($sheet, &$row, $stringCols) {
             foreach ($prospeks as $p) {
                 $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
                 $institusiName = $p->sekolah?->nama ?: ($p->perusahaan?->nama ?: ($p->type === 'Sekolah' || $p->type === 'Corporate' ? $p->name : '-'));
+                
+                $isSudahRespons = in_array($p->status, ['PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'HANGAT', 'PANAS']) 
+                    || ($p->followUps && $p->followUps->whereNotIn('hasil', ['Tidak Dijawab', 'Belum Respon'])->count() > 0);
+                $statusRespons = $isSudahRespons ? 'Sudah Merespons' : 'Belum Merespons';
+
                 $values = [
                     $p->id,
                     $camabaName,
                     $p->whatsapp ?: '-',
                     $p->type,
+                    $p->category ?: 'Umum / Belum Dikategorikan',
+                    $statusRespons,
                     self::mapToPrdStatus($p->status),
                     $p->status,
                     (int) ($p->stage_number ?: 1),
@@ -223,67 +234,72 @@ class AnalystExportService
         $query = $this->buildProspekQuery($params);
         $total = (clone $query)->count();
 
-        $baruCount     = (clone $query)->whereIn('status', ['BARU', 'KONTAK'])->count();
-        $prospekCount  = (clone $query)->whereIn('status', ['PROSPEK', 'HOT PROSPEK', 'HANGAT', 'PANAS'])->count();
-        $formulirCount = (clone $query)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])->count();
-        $berkasCount   = (clone $query)->whereIn('status', ['BERKAS', 'CLOSING', 'LUNAS'])->count();
-        $lunasCount    = (clone $query)->where('status', 'LUNAS')->count();
-        $lostCount     = (clone $query)->whereIn('status', ['DINGIN', 'NO RESPON', 'CANCEL'])->count();
+        $sudahFollowUp = (clone $query)->where(function ($q) {
+            $q->where('prospeks.follow_up_count', '>', 0)
+              ->orHas('followUps');
+        })->count();
+
+        $formulirCount = (clone $query)->whereIn('prospeks.status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])->count();
+        $lunasCount    = (clone $query)->where('prospeks.status', 'LUNAS')->count();
+        $lostCount     = (clone $query)->whereIn('prospeks.status', ['DINGIN', 'NO RESPON', 'CANCEL'])->count();
+
+        $convProspekFollowup  = $total > 0 ? round(($sudahFollowUp / $total) * 100, 1) : 0;
+        $convFollowupFormulir = $sudahFollowUp > 0 ? round(($formulirCount / $sudahFollowUp) * 100, 1) : 0;
+        $convFormulirLunas    = $formulirCount > 0 ? round(($lunasCount / $formulirCount) * 100, 1) : 0;
+        $convTotalLunas       = $total > 0 ? round(($lunasCount / $total) * 100, 1) : 0;
 
         $headers = [
-            'Tahap Funnel',
+            'No',
+            'Tahap Funnel Standar PMB',
             'Status Operasional Terkait',
-            'Jumlah Prospek (Orang)',
+            'Jumlah Calon Mahasiswa',
             'Persentase dari Total (%)',
             'Konversi dari Tahap Sebelumnya (%)',
-            'Drop-off / Selisih (Orang)',
+            'Drop-off / Belum Lanjut (Orang)',
         ];
 
         $this->setupSheetHeader($sheet, $headers, 1);
 
         $dataRows = [
             [
-                '1. Kontak & Lead Masuk',
-                'BARU, KONTAK',
+                1,
+                '1. Total Prospek',
+                'Semua Lead Masuk (Baru, Presensi, Web, dsb)',
                 $total,
                 '100.0%',
                 '100.0%',
                 0
             ],
             [
-                '2. Audiensi & Prospek Aktif',
-                'PROSPEK, HANGAT, PANAS, FORMULIR+',
-                $prospekCount + $formulirCount,
-                $total > 0 ? round((($prospekCount + $formulirCount) / $total) * 100, 1) . '%' : '0%',
-                $total > 0 ? round((($prospekCount + $formulirCount) / $total) * 100, 1) . '%' : '0%',
-                max(0, $total - ($prospekCount + $formulirCount))
+                2,
+                '2. Sudah Follow-up',
+                'Telah Dihubungi Minimal 1x',
+                $sudahFollowUp,
+                $total > 0 ? round(($sudahFollowUp / $total) * 100, 1) . '%' : '0%',
+                $convProspekFollowup . '%',
+                max(0, $total - $sudahFollowUp)
             ],
             [
-                '3. Pembelian Formulir (Pendaftar)',
+                3,
+                '3. Pengisian Formulir',
                 'FORMULIR, BERKAS, CLOSING, LUNAS',
                 $formulirCount,
                 $total > 0 ? round(($formulirCount / $total) * 100, 1) . '%' : '0%',
-                ($prospekCount + $formulirCount) > 0 ? round(($formulirCount / ($prospekCount + $formulirCount)) * 100, 1) . '%' : '0%',
-                max(0, ($prospekCount + $formulirCount) - $formulirCount)
+                $convFollowupFormulir . '%',
+                max(0, $sudahFollowUp - $formulirCount)
             ],
             [
-                '4. Pemberkasan Dokumen',
-                'BERKAS, CLOSING, LUNAS',
-                $berkasCount,
-                $total > 0 ? round(($berkasCount / $total) * 100, 1) . '%' : '0%',
-                $formulirCount > 0 ? round(($berkasCount / $formulirCount) * 100, 1) . '%' : '0%',
-                max(0, $formulirCount - $berkasCount)
-            ],
-            [
-                '5. Mahasiswa Lunas Tahap 1 (Maba Resmi)',
-                'LUNAS, CLOSING',
+                4,
+                '4. Pembayaran Lunas',
+                'Mahasiswa Lunas Tahap 1 (Maba Resmi)',
                 $lunasCount,
                 $total > 0 ? round(($lunasCount / $total) * 100, 1) . '%' : '0%',
-                $berkasCount > 0 ? round(($lunasCount / $berkasCount) * 100, 1) . '%' : '0%',
-                max(0, $berkasCount - $lunasCount)
+                $convFormulirLunas . '%',
+                max(0, $formulirCount - $lunasCount)
             ],
             [
-                '6. Prospek Berhenti / Drop-off (Lost)',
+                5,
+                '5. Prospek Batal / Arsip (Lost)',
                 'DINGIN, NO RESPON, CANCEL',
                 $lostCount,
                 $total > 0 ? round(($lostCount / $total) * 100, 1) . '%' : '0%',
@@ -294,22 +310,22 @@ class AnalystExportService
 
         $row = 2;
         foreach ($dataRows as $item) {
-            $this->writeTableRow($sheet, $row, $item, []);
+            $this->writeTableRow($sheet, $row, $item, [1]);
             $row++;
         }
 
-        // Row tambahan untuk catatan ringkasan funnel
+        // Row tambahan untuk catatan ringkasan funnel konversi
         $row++;
-        $sheet->setCellValueExplicit('A' . $row, 'Konversi Total (Kontak ke Formulir):', DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit('B' . $row, $total > 0 ? round(($formulirCount / $total) * 100, 2) . '%' : '0%', DataType::TYPE_STRING);
-        $sheet->getStyle('A' . $row . ':B' . $row)->getFont()->setBold(true);
+        $sheet->setCellValueExplicit('B' . $row, 'Rasio Konversi Total (Prospek -> Beli Formulir):', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('D' . $row, $total > 0 ? round(($formulirCount / $total) * 100, 2) . '%' : '0%', DataType::TYPE_STRING);
+        $sheet->getStyle('B' . $row . ':D' . $row)->getFont()->setBold(true);
 
         $row++;
-        $sheet->setCellValueExplicit('A' . $row, 'Konversi Akhir (Kontak ke Lunas Resmi):', DataType::TYPE_STRING);
-        $sheet->setCellValueExplicit('B' . $row, $total > 0 ? round(($lunasCount / $total) * 100, 2) . '%' : '0%', DataType::TYPE_STRING);
-        $sheet->getStyle('A' . $row . ':B' . $row)->getFont()->setBold(true);
+        $sheet->setCellValueExplicit('B' . $row, 'Rasio Konversi Akhir (Prospek -> Pembayaran Lunas):', DataType::TYPE_STRING);
+        $sheet->setCellValueExplicit('D' . $row, $total > 0 ? round(($lunasCount / $total) * 100, 2) . '%' : '0%', DataType::TYPE_STRING);
+        $sheet->getStyle('B' . $row . ':D' . $row)->getFont()->setBold(true);
 
-        $this->finalizeTable($sheet, count($headers), 7, 1);
+        $this->finalizeTable($sheet, count($headers), 6, 1);
     }
 
     /**
@@ -416,23 +432,26 @@ class AnalystExportService
     }
 
     /**
-     * Export performa sales ke sheet XLSX.
+     * Export performa tim sales dan customer service ke sheet XLSX.
      */
     protected function exportPerformaSales(Spreadsheet $spreadsheet, array $params): void
     {
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Performa Sales');
+        $sheet->setTitle('Performa Tim Sales & CS');
 
         $headers = [
-            'ID Sales',
-            'Kode Pegawai',
-            'Nama Sales',
+            'Tipe Personel',
+            'ID User',
+            'Kode / Email',
+            'Nama Personel',
             'Wilayah Penugasan',
-            'Supervisor (SPV)',
-            'Total Kontak Ditangani',
+            'Supervisor / Peran',
+            'Kontak Handled',
             'Aktivitas Follow-Up',
-            'Jumlah Formulir',
-            'Mahasiswa Lunas (Closing)',
+            'Formulir',
+            'Closing / Lunas',
+            'Verifikasi Pembayaran (Tx)',
+            'Total Verifikasi (Rp)',
             'Rasio Konversi (%)'
         ];
 
@@ -443,9 +462,16 @@ class AnalystExportService
             ->with(['supervisor', 'wilayah'])
             ->get();
 
-        $row = 2;
-        $stringCols = [1, 2]; // ID Sales, Kode Pegawai
+        $csUsers = User::where('role', 'CS')
+            ->where('status', 'Aktif')
+            ->with(['wilayah'])
+            ->get();
 
+        $row = 2;
+        $stringCols = [2, 3]; // ID User, Kode/Email
+        $currencyCols = [12]; // Total Verifikasi Rp
+
+        // 1. TIM SALES LAPANGAN
         foreach ($salesUsers as $sales) {
             $prospekQuery = Prospek::where('sales_id', $sales->id);
             if (!empty($params['from_date'])) {
@@ -466,19 +492,64 @@ class AnalystExportService
             $konversi = $totalKontak > 0 ? round(($lunasCount / $totalKontak) * 100, 2) : 0;
 
             $values = [
+                'Sales Lapangan',
                 $sales->id,
                 $sales->kode ?: '-',
                 $sales->name,
                 $sales->wilayah?->nama ?: 'Lintas Wilayah',
-                $sales->supervisor?->name ?: '-',
+                $sales->supervisor?->name ?: 'Supervisor',
                 (int) $totalKontak,
                 (int) $followUpCount,
                 (int) $formulirCount,
                 (int) $lunasCount,
+                0,
+                0,
                 $konversi . '%'
             ];
 
-            $this->writeTableRow($sheet, $row, $values, $stringCols);
+            $this->writeTableRow($sheet, $row, $values, $stringCols, $currencyCols);
+            $row++;
+        }
+
+        // 2. TIM CUSTOMER SERVICE (CS)
+        foreach ($csUsers as $cs) {
+            $prospekQuery = Prospek::where('cs_id', $cs->id);
+            if (!empty($params['from_date'])) {
+                $prospekQuery->whereDate('created_at', '>=', $params['from_date']);
+            }
+            if (!empty($params['to_date'])) {
+                $prospekQuery->whereDate('created_at', '<=', $params['to_date']);
+            }
+            if (!empty($params['ta']) && $params['ta'] !== 'all') {
+                $prospekQuery->where('tahun_akademik', $params['ta']);
+            }
+
+            $totalKontak   = (clone $prospekQuery)->count();
+            $formulirCount = (clone $prospekQuery)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])->count();
+            $lunasCount    = (clone $prospekQuery)->where('status', 'LUNAS')->count();
+            $followUpCount = FollowUp::where('user_id', $cs->id)->count();
+            $verifikasiCount = Transaksi::where('verified_by', $cs->id)->count();
+            $verifikasiNominal = (float) Transaksi::where('verified_by', $cs->id)->sum('nominal');
+
+            $konversi = $totalKontak > 0 ? round(($lunasCount / $totalKontak) * 100, 2) : 0;
+
+            $values = [
+                'Customer Service',
+                $cs->id,
+                $cs->email ?: '-',
+                $cs->name,
+                $cs->wilayah?->nama ?: 'Centralized Inbound',
+                'Inbound CS',
+                (int) $totalKontak,
+                (int) $followUpCount,
+                (int) $formulirCount,
+                (int) $lunasCount,
+                (int) $verifikasiCount,
+                $verifikasiNominal,
+                $konversi . '%'
+            ];
+
+            $this->writeTableRow($sheet, $row, $values, $stringCols, $currencyCols);
             $row++;
         }
 
@@ -786,10 +857,39 @@ class AnalystExportService
 
         $query = $this->buildProspekQuery($params);
 
-        $totalProspek = (clone $query)->count();
+        $totalProspek  = (clone $query)->count();
+        $sudahFollowUp = (clone $query)->where(function ($q) {
+            $q->where('prospeks.follow_up_count', '>', 0)
+              ->orHas('followUps');
+        })->count();
+        $belumFollowUp = max(0, $totalProspek - $sudahFollowUp);
+
+        $sudahRespons = (clone $query)->where(function ($q) {
+            $q->whereIn('prospeks.status', ['PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'HANGAT', 'PANAS'])
+              ->orWhereHas('followUps', function ($fq) {
+                  $fq->where(function ($sq) {
+                      $sq->whereIn('hasil', ['Dijawab', 'Tertarik & Minta Brosur', 'Jadwalkan Kunjungan', 'FORMULIR'])
+                         ->orWhere(function ($ssq) {
+                             $ssq->whereNotNull('hasil')->whereNotIn('hasil', ['Tidak Dijawab', 'Belum Respon']);
+                         });
+                  });
+              });
+        })->count();
+        $belumRespons = max(0, $totalProspek - $sudahRespons);
+
         $formulir     = (clone $query)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])->count();
         $lunas        = (clone $query)->where('status', 'LUNAS')->count();
         $lost         = (clone $query)->whereIn('status', ['DINGIN', 'NO RESPON', 'CANCEL'])->count();
+
+        // Duplikat nomor WA
+        $duplicateWa = (clone $query)->whereNotNull('prospeks.whatsapp')->where('prospeks.whatsapp', '!=', '')
+            ->select('prospeks.whatsapp')->groupBy('prospeks.whatsapp')->havingRaw('COUNT(*) > 1')->count();
+
+        // Data belum lengkap
+        $incomplete = (clone $query)->where(function ($q) {
+            $q->whereNull('prospeks.whatsapp')->orWhere('prospeks.whatsapp', '')->orWhereNull('prospeks.prodi_id')
+              ->orWhereNull('prospeks.source')->orWhere(function ($sq) { $sq->whereNull('prospeks.sekolah_id')->whereNull('prospeks.perusahaan_id'); });
+        })->count();
 
         // Transaksi Valid
         $transaksiQuery = Transaksi::where(function ($q) {
@@ -815,20 +915,26 @@ class AnalystExportService
 
         $rows = [
             ['Total Kontak / Prospek Terdata', $totalProspek, 'Orang', 'Seluruh prospek unik yang masuk ke sistem CRM'],
+            ['Total Sudah Follow-Up', $sudahFollowUp, 'Orang', 'Prospek yang telah memiliki minimal 1 riwayat follow-up'],
+            ['Total Belum Follow-Up', $belumFollowUp, 'Orang', 'Prospek yang belum pernah dihubungi sama sekali'],
+            ['Total Sudah Merespons (Respons Positif)', $sudahRespons, 'Orang', 'Prospek yang aktif merespons atau berada di tahap prospek+'],
+            ['Total Belum Merespons (No Respon / Antrean)', $belumRespons, 'Orang', 'Prospek berstatus No Respon atau belum merespons'],
             ['Total Pembelian Formulir (Pendaftar)', $formulir, 'Orang', 'Prospek yang telah membeli formulir pendaftaran'],
             ['Total Mahasiswa Lunas Tahap 1 (Maba Resmi)', $lunas, 'Orang', 'Mahasiswa yang telah melunasi pembayaran tahap 1'],
             ['Total Prospek Batal / Arsip (Lost)', $lost, 'Orang', 'Prospek dengan status Dingin, No Respon, atau Batal'],
-            ['Rasio Konversi Kontak ke Formulir', $totalProspek > 0 ? round(($formulir / $totalProspek) * 100, 2) . '%' : '0%', 'Persentase', 'Tingkat konversi prospek menjadi pembeli formulir'],
-            ['Rasio Konversi Kontak ke Lunas', $totalProspek > 0 ? round(($lunas / $totalProspek) * 100, 2) . '%' : '0%', 'Persentase', 'Tingkat konversi prospek menjadi mahasiswa lunas resmi'],
-            ['Total Pendapatan Terverifikasi', $revenueValid, 'Rupiah', 'Total pendapatan pendaftaran dan termin 1 valid'],
+            ['Rasio Konversi Prospek ke Follow-Up', $totalProspek > 0 ? round(($sudahFollowUp / $totalProspek) * 100, 2) . '%' : '0%', 'Persentase', 'Tingkat jangkauan follow-up terhadap lead masuk'],
+            ['Rasio Konversi Follow-Up ke Formulir', $sudahFollowUp > 0 ? round(($formulir / $sudahFollowUp) * 100, 2) . '%' : '0%', 'Persentase', 'Tingkat efektivitas follow-up menghasilkan pendaftar formulir'],
+            ['Rasio Konversi Formulir ke Lunas', $formulir > 0 ? round(($lunas / $formulir) * 100, 2) . '%' : '0%', 'Persentase', 'Tingkat pelunasan dari pendaftar formulir'],
+            ['Rasio Konversi Total Prospek ke Lunas', $totalProspek > 0 ? round(($lunas / $totalProspek) * 100, 2) . '%' : '0%', 'Persentase', 'Tingkat konversi akhir prospek menjadi mahasiswa lunas resmi'],
+            ['Total Pendapatan Terverifikasi', $revenueValid, 'Rupiah', 'Total penerimaan pendaftaran dan registrasi yang telah divalidasi'],
+            ['Kontak Duplikat WhatsApp Terdeteksi', $duplicateWa, 'Nomor', 'Nomor telepon terdaftar lebih dari satu kali'],
+            ['Data Belum Lengkap (Profil Rendah)', $incomplete, 'Data', 'Prospek tanpa pilihan program studi atau asal sekolah/mitra'],
             ['Periode Analisis', $params['periode'] ?? 'Semua Periode', 'Rentang', 'Rentang tanggal filter data yang diterapkan'],
             ['Tahun Akademik', $params['ta'] ?? 'Semua TA', 'Akademik', 'Tahun akademik yang dievaluasi'],
             ['Waktu Ekspor Dibuat', date('Y-m-d H:i:s'), 'Waktu Server', 'Timestamp data diekstrak dari database'],
         ];
 
         $rowIdx = 2;
-        $currencyCols = [2]; // baris ke-7 (pendapatan) menggunakan format rupiah
-
         foreach ($rows as $item) {
             $isRevenueRow = ($item[0] === 'Total Pendapatan Terverifikasi');
             $this->writeTableRow($sheet, $rowIdx, $item, [], $isRevenueRow ? [2] : []);
@@ -1092,6 +1198,44 @@ class AnalystExportService
             }
         });
 
+        // D. Data Prospek Belum Merespons (No Respon / Butuh Intervensi Komunikasi)
+        $noResponQuery = (clone $this->buildProspekQuery($params))
+            ->where(function ($q) {
+                $q->where('status', 'NO RESPON')
+                  ->orWhere(function ($sub) {
+                      $sub->whereIn('status', ['BARU', 'KONTAK', 'DINGIN'])
+                          ->whereDoesntHave('followUps', function ($fq) {
+                              $fq->where(function ($sq) {
+                                  $sq->whereIn('hasil', ['Dijawab', 'Tertarik & Minta Brosur', 'Jadwalkan Kunjungan', 'FORMULIR'])
+                                     ->orWhere(function ($ssq) {
+                                         $ssq->whereNotNull('hasil')->whereNotIn('hasil', ['Tidak Dijawab', 'Belum Respon']);
+                                     });
+                              });
+                          });
+                  });
+            });
+
+        $noResponQuery->chunk(250, function ($prospeks) use ($sheet, &$row, $stringCols) {
+            foreach ($prospeks as $p) {
+                $camabaName = (!empty($p->pic) && $p->pic !== '-') ? $p->pic : $p->name;
+                $values = [
+                    'Belum Merespons (No Respon)',
+                    'Perlu Pendekatan Ulang',
+                    $p->id,
+                    $camabaName,
+                    $p->whatsapp ?: '-',
+                    self::mapToPrdStatus($p->status),
+                    $p->status,
+                    $p->sales?->name ?: 'Direct / Tanpa Sales',
+                    $p->wilayah?->nama ?: '-',
+                    $p->created_at ? $p->created_at->format('Y-m-d H:i') : '-',
+                    'Belum ada tanggapan positif atau berstatus no respon dari calon mahasiswa'
+                ];
+                $this->writeTableRow($sheet, $row, $values, $stringCols);
+                $row++;
+            }
+        });
+
         $this->finalizeTable($sheet, count($headers), max($row - 1, 1), 1);
     }
 
@@ -1128,27 +1272,32 @@ class AnalystExportService
         $spreadsheet->setActiveSheetIndexByName($sumberSheet->getTitle());
         $this->exportSumber($spreadsheet, $params);
 
-        // 7. Sheet Sekolah
+        // 7. Sheet Sekolah & Mitra
         $sekolahSheet = $spreadsheet->createSheet();
         $spreadsheet->setActiveSheetIndexByName($sekolahSheet->getTitle());
         $this->exportSekolah($spreadsheet, $params);
 
-        // 8. Sheet Target
+        // 8. Sheet Rekap Kunjungan
+        $kunjunganSheet = $spreadsheet->createSheet();
+        $spreadsheet->setActiveSheetIndexByName($kunjunganSheet->getTitle());
+        $this->exportKunjungan($spreadsheet, $params);
+
+        // 9. Sheet Target & Realisasi
         $targetSheet = $spreadsheet->createSheet();
         $spreadsheet->setActiveSheetIndexByName($targetSheet->getTitle());
         $this->exportTarget($spreadsheet, $params);
 
-        // 9. Sheet Follow-Up
+        // 10. Sheet Riwayat Follow-Up
         $fuSheet = $spreadsheet->createSheet();
         $spreadsheet->setActiveSheetIndexByName($fuSheet->getTitle());
         $this->exportFollowUp($spreadsheet, $params);
 
-        // 10. Sheet Timeline
+        // 11. Sheet Timeline Status
         $timelineSheet = $spreadsheet->createSheet();
         $spreadsheet->setActiveSheetIndexByName($timelineSheet->getTitle());
         $this->exportTimeline($spreadsheet, $params);
 
-        // 11. Sheet Kualitas Data
+        // 12. Sheet Audit Kualitas Data
         $auditSheet = $spreadsheet->createSheet();
         $spreadsheet->setActiveSheetIndexByName($auditSheet->getTitle());
         $this->exportKualitasData($spreadsheet, $params);
@@ -1189,7 +1338,7 @@ class AnalystExportService
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
-                    'color'       => ['rgb' => '94A3B8'],
+                    'color'       => ['rgb' => '64748B'],
                 ],
             ],
         ]);
@@ -1200,9 +1349,9 @@ class AnalystExportService
     }
 
     /**
-     * Helper tulis satu baris data dengan penanganan tipe data yang presisi.
+     * Helper tulis satu baris data dengan penanganan tipe data yang presisi & format angka rapi.
      */
-    protected function writeTableRow(Worksheet $sheet, int $row, array $values, array $stringColIndices = [], array $currencyColIndices = []): void
+    protected function writeTableRow(Worksheet $sheet, int $row, array $values, array $stringColIndices = [], array $currencyColIndices = [], array $centerColIndices = []): void
     {
         foreach ($values as $idx => $val) {
             $colIdx = $idx + 1;
@@ -1216,16 +1365,35 @@ class AnalystExportService
             } elseif (in_array($colIdx, $currencyColIndices, true) && is_numeric($val)) {
                 // Format angka mata uang / rupiah
                 $sheet->setCellValueExplicit($coord, (float) $val, DataType::TYPE_NUMERIC);
-                $sheet->getStyle($coord)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle($coord)->getNumberFormat()->setFormatCode('"Rp "#,##0');
+                $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             } elseif (is_numeric($val) && !is_string($val)) {
                 // Nilai numerik murni (misal integer hitungan)
                 $sheet->setCellValueExplicit($coord, $val, DataType::TYPE_NUMERIC);
+                $sheet->getStyle($coord)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             } else {
                 $sheet->setCellValueExplicit($coord, (string) ($val ?? '-'), DataType::TYPE_STRING);
+                if (is_string($val) && str_ends_with($val, '%')) {
+                    $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                } elseif (in_array($colIdx, $centerColIndices, true)) {
+                    $sheet->getStyle($coord)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                }
             }
         }
 
-        $sheet->getRowDimension($row)->setRowHeight(21);
+        // Soft zebra striping pada baris genap untuk keterbacaan tinggi
+        if ($row % 2 === 0) {
+            $lastColLetter = Coordinate::stringFromColumnIndex(count($values));
+            $sheet->getStyle("A{$row}:{$lastColLetter}{$row}")->applyFromArray([
+                'fill' => [
+                    'fillType'   => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'F8FAFC'],
+                ],
+            ]);
+        }
+
+        $sheet->getRowDimension($row)->setRowHeight(22);
     }
 
     /**
@@ -1241,6 +1409,7 @@ class AnalystExportService
                 'font' => [
                     'size' => 10,
                     'name' => 'Calibri',
+                    'color' => ['rgb' => '1E293B'],
                 ],
                 'borders' => [
                     'allBorders' => [
@@ -1343,7 +1512,12 @@ class AnalystExportService
             $query->where('prospeks.no_registrasi', 'like', '%' . trim($params['no_registrasi']) . '%');
         }
 
-        // 11. Scope filter (presensi, sudah_follow_up, belum_follow_up, duplikat_wa, incomplete)
+        // 11. Kategori filter (Kategori resmi CRM)
+        if (!empty($params['category']) && $params['category'] !== 'all') {
+            $query->where('prospeks.category', $params['category']);
+        }
+
+        // 12. Scope filter (presensi, sudah_follow_up, belum_follow_up, sudah_merespons, belum_merespons, duplikat_wa, incomplete)
         if (!empty($params['scope'])) {
             $scope = $params['scope'];
             if ($scope === 'presensi') {
@@ -1360,6 +1534,35 @@ class AnalystExportService
             } elseif ($scope === 'belum_follow_up') {
                 $query->where('prospeks.follow_up_count', 0)
                       ->whereNotIn('prospeks.status', ['LUNAS', 'CANCEL']);
+            } elseif ($scope === 'sudah_merespons') {
+                $query->where(function ($q) {
+                    $q->whereIn('prospeks.status', ['PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'HANGAT', 'PANAS'])
+                      ->orWhereHas('followUps', function ($fq) {
+                          $fq->where(function ($sq) {
+                              $sq->whereIn('hasil', ['Dijawab', 'Tertarik & Minta Brosur', 'Jadwalkan Kunjungan', 'FORMULIR'])
+                                 ->orWhere(function ($ssq) {
+                                     $ssq->whereNotNull('hasil')
+                                         ->whereNotIn('hasil', ['Tidak Dijawab', 'Belum Respon']);
+                                 });
+                          });
+                      });
+                });
+            } elseif ($scope === 'belum_merespons') {
+                $query->where(function ($q) {
+                    $q->where('prospeks.status', 'NO RESPON')
+                      ->orWhere(function ($sub) {
+                          $sub->whereIn('prospeks.status', ['BARU', 'KONTAK', 'DINGIN'])
+                              ->whereDoesntHave('followUps', function ($fq) {
+                                  $fq->where(function ($sq) {
+                                      $sq->whereIn('hasil', ['Dijawab', 'Tertarik & Minta Brosur', 'Jadwalkan Kunjungan', 'FORMULIR'])
+                                         ->orWhere(function ($ssq) {
+                                             $ssq->whereNotNull('hasil')
+                                                 ->whereNotIn('hasil', ['Tidak Dijawab', 'Belum Respon']);
+                                         });
+                                  });
+                              });
+                      });
+                });
             } elseif ($scope === 'duplikat_wa') {
                 $query->whereIn('prospeks.whatsapp', function ($sq) {
                     $sq->select('whatsapp')

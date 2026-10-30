@@ -44,6 +44,8 @@
                 convKontakFormulir: {{ $convKontakFormulir }},
                 convKontakLunas: {{ $convKontakLunas }},
                 convFormulirLunas: {{ $convFormulirLunas }},
+                convProspekFollowup: {{ $convProspekFollowup }},
+                convFollowupFormulir: {{ $convFollowupFormulir }},
                 totalRevenueValid: {{ $totalRevenueValid }},
                 transaksiFormulirNominal: {{ $transaksiFormulirNominal }},
                 transaksiFormulirCount: {{ $transaksiFormulirCount }},
@@ -51,13 +53,21 @@
                 transaksiTermin1Count: {{ $transaksiTermin1Count }},
                 sudahFollowUpCount: {{ $sudahFollowUpCount }},
                 belumFollowUpCount: {{ $belumFollowUpCount }},
+                sudahMeresponsCount: {{ $sudahMeresponsCount }},
+                belumMeresponsCount: {{ $belumMeresponsCount }},
                 duplicateWaCount: {{ $duplicateWaCount }},
                 incompleteDataCount: {{ $incompleteDataCount }},
             },
             initialCharts: {{ json_encode($chartsData) }},
             initialFunnel: {{ json_encode($funnelData) }},
             initialPeriod: {{ json_encode($periodComparison) }},
+            initialPembayaranPerProdi: {{ json_encode($pembayaranPerProdi) }},
+            initialTransaksiList: {{ json_encode($transaksiList) }},
             initialSales: {{ json_encode($salesList) }},
+            initialCs: {{ json_encode($csList) }},
+            initialStatusSummary: {{ json_encode($statusSummary) }},
+            initialCategorySummary: {{ json_encode($categorySummary) }},
+            initialTypeSummary: {{ json_encode($typeSummary) }},
             initialSumber: {{ json_encode($sumberAnalysis) }},
             initialTopChannel: {{ json_encode($topChannel) }},
             initialTopSekolah: {{ json_encode($topSekolah) }},
@@ -104,19 +114,38 @@
 
             <!-- Quick Action Toolbar -->
             <div class="flex flex-wrap items-center gap-2">
-                <!-- Dropdown Ekspor Excel -->
-                <div x-data="{ openExport: false }" class="relative">
-                    <button 
-                        @click="openExport = !openExport" 
-                        class="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition shadow-xs flex items-center gap-2 cursor-pointer"
-                    >
-                        <svg class="w-4 h-4 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>Ekspor Excel (.xlsx)</span>
-                        <svg class="w-3.5 h-3.5 ml-0.5 text-emerald-200 transition-transform duration-200" :class="{ 'rotate-180': openExport }" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
+                <!-- Tombol & Dropdown Ekspor Excel Multi-Sheet -->
+                <div x-data="{ openExport: false }" class="relative inline-flex items-center">
+                    <!-- Segmented Split Button -->
+                    <div class="inline-flex items-stretch h-10 rounded-xl bg-emerald-600 shadow-xs border border-emerald-700/30 overflow-hidden divide-x divide-emerald-500/50">
+                        <!-- Tombol Utama: Langsung Download 1 File Excel Berisi Semua Sheet -->
+                        <a 
+                            :href="getExportUrl('all')" 
+                            class="inline-flex items-center gap-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition cursor-pointer select-none"
+                            title="Klik untuk langsung mengunduh 1 file Excel lengkap dengan seluruh sheet terpisah"
+                        >
+                            <svg class="w-4 h-4 text-emerald-100 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span class="whitespace-nowrap">Ekspor Excel (.xlsx)</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-800/80 text-emerald-100 font-black uppercase tracking-wider whitespace-nowrap">Semua Sheet</span>
+                        </a>
 
+                        <!-- Tombol Caret: Buka Pilihan Ekspor Sheet Spesifik -->
+                        <button 
+                            type="button"
+                            @click="openExport = !openExport" 
+                            class="inline-flex items-center justify-center px-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white transition cursor-pointer"
+                            title="Pilih sheet spesifik jika hanya ingin mengunduh satu kategori"
+                            :aria-expanded="openExport"
+                        >
+                            <svg class="w-3.5 h-3.5 text-emerald-100 transition-transform duration-200" :class="{ 'rotate-180': openExport }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Dropdown Menu Pilihan Ekspor -->
                     <div 
                         x-show="openExport" 
                         @click.away="openExport = false" 
@@ -126,17 +155,41 @@
                         x-transition:leave="transition ease-in duration-100"
                         x-transition:leave-start="opacity-100 scale-100"
                         x-transition:leave-end="opacity-0 scale-95"
-                        class="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-xs text-slate-700 max-h-[85vh] overflow-y-auto"
+                        class="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 text-xs text-slate-700 max-h-[85vh] overflow-y-auto"
                         style="display: none;"
                     >
-                        <div class="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">Pilih Kategori Ekspor Excel</div>
+                        <!-- Pilihan Utama: Semua Sheet Dalam 1 File -->
+                        <a 
+                            :href="getExportUrl('all')" 
+                            class="flex items-start gap-3 p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 hover:from-emerald-100 hover:to-teal-100 border-b border-emerald-200/80 transition rounded-t-2xl group cursor-pointer"
+                        >
+                            <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-bold text-slate-900 group-hover:text-emerald-900 flex items-center gap-1.5">
+                                    <span>Download Semua Laporan</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-600 text-white font-black uppercase">1 File Multi-Sheet</span>
+                                </div>
+                                <div class="text-[10px] text-slate-500 group-hover:text-emerald-700 mt-0.5 leading-relaxed">
+                                    1 file Excel (.xlsx) dengan 12 sheet terpisah: Ringkasan, Prospek, Funnel, Transaksi, Tim Sales & CS, Mitra, Kunjungan, Target, Audit Kualitas, dll.
+                                </div>
+                            </div>
+                        </a>
+
+                        <div class="px-3.5 py-1.5 text-[9.5px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/70">
+                            Atau Ekspor Satu Sheet Tertentu:
+                        </div>
+
                         <a :href="getExportUrl('prospek')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-blue-500"></span>
                             <span>Data Prospek & Gelombang</span>
                         </a>
                         <a :href="getExportUrl('funnel')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                            <span>Rekapitulasi Funnel PMB</span>
+                            <span>Rekapitulasi Funnel PMB (4 Tahap)</span>
                         </a>
                         <a :href="getExportUrl('transaksi')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -144,7 +197,7 @@
                         </a>
                         <a :href="getExportUrl('performa_sales')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-                            <span>Performa Sales & SPV</span>
+                            <span>Performa Tim Sales & CS</span>
                         </a>
                         <a :href="getExportUrl('sumber')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
@@ -154,7 +207,7 @@
                             <span class="w-2 h-2 rounded-full bg-rose-500"></span>
                             <span>Sekolah & Perusahaan Mitra</span>
                         </a>
-                        <a href="{{ route('export.kunjungan') }}" target="_blank" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-sky-50 text-sky-800 transition font-medium">
+                        <a :href="getExportUrl('kunjungan')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-sky-50 text-sky-800 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-sky-500"></span>
                             <span>Rekap Kunjungan (Semua Role)</span>
                         </a>
@@ -169,12 +222,12 @@
                         </a>
                         <a :href="getExportUrl('kualitas_data')" class="flex items-center gap-2.5 px-3.5 py-2 hover:bg-slate-50 transition font-medium">
                             <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                            <span>Audit Kualitas Data</span>
+                            <span>Audit Kualitas Data (Respons & Kelengkapan)</span>
                         </a>
                     </div>
                 </div>
 
-                <a href="{{ route('analyst.prospek.index') }}" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition flex items-center gap-1.5 border border-slate-200/80">
+                <a href="{{ route('analyst.prospek.index') }}" class="h-10 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition inline-flex items-center gap-1.5 border border-slate-200/80">
                     <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                     </svg>
@@ -184,7 +237,7 @@
                 <button 
                     type="button" 
                     @click="window.print()"
-                    class="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    class="h-10 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                     <svg class="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -571,10 +624,10 @@
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h3 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Funnel Konversi 5 Tahap PMB UCIC</h3>
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Funnel Konversi 4 Tahap PMB UCIC</h3>
                             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Standar PMB</span>
                         </div>
-                        <p class="text-xs text-slate-500 mt-0.5">Penelusuran perjalanan calon mahasiswa dari kontak awal, formulir, berkas, hingga pelunasan Termin 1.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Penelusuran perjalanan calon mahasiswa: Total Prospek &rarr; Sudah Follow-up &rarr; Pengisian Formulir &rarr; Pembayaran Lunas.</p>
                     </div>
                 </div>
                 <div class="text-left sm:text-right text-xs bg-rose-50/80 px-3 py-2 rounded-xl border border-rose-100 shrink-0">
@@ -614,7 +667,7 @@
                             <div class="mt-2 flex items-center justify-between text-[10.5px] text-slate-400 font-medium pt-1.5 border-t border-slate-200/40">
                                 <span class="flex items-center gap-1.5">
                                     <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-                                    <span>Status berhenti / tidak merespons pada tahap ini:</span>
+                                    <span>Selisih belum lanjut ke tahap berikutnya:</span>
                                 </span>
                                 <span class="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md" x-text="Number(f.drop_count).toLocaleString('id-ID') + ' prospek'"></span>
                             </div>
@@ -623,22 +676,22 @@
                 </template>
             </div>
 
-            <!-- Conversion Ratios Summary -->
+            <!-- Conversion Ratios Summary (3 Tahapan Transisi) -->
             <div class="mt-5 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-center">
                 <div class="p-4 bg-gradient-to-br from-blue-50/70 via-white to-white rounded-xl border border-blue-100 shadow-2xs">
-                    <span class="text-[11px] text-blue-700 font-bold uppercase tracking-wider block mb-1">Kontak → Beli Formulir</span>
-                    <span class="text-2xl font-black text-blue-950" x-text="metrics.convKontakFormulir + '%'">{{ $convKontakFormulir }}%</span>
-                    <span class="text-[10px] text-blue-600 block mt-1">Efektivitas pendekatan awal</span>
+                    <span class="text-[11px] text-blue-700 font-bold uppercase tracking-wider block mb-1">Prospek &rarr; Sudah Follow-Up</span>
+                    <span class="text-2xl font-black text-blue-950" x-text="(metrics.convProspekFollowup ?? {{ $convProspekFollowup }}) + '%'">{{ $convProspekFollowup }}%</span>
+                    <span class="text-[10px] text-blue-600 block mt-1">Efektivitas penjangkauan awal</span>
                 </div>
                 <div class="p-4 bg-gradient-to-br from-purple-50/70 via-white to-white rounded-xl border border-purple-100 shadow-2xs">
-                    <span class="text-[11px] text-purple-700 font-bold uppercase tracking-wider block mb-1">Formulir → Lunas Termin 1</span>
-                    <span class="text-2xl font-black text-purple-950" x-text="metrics.convFormulirLunas + '%'">{{ $convFormulirLunas }}%</span>
-                    <span class="text-[10px] text-purple-600 block mt-1">Konversi pendaftar ke registrasi</span>
+                    <span class="text-[11px] text-purple-700 font-bold uppercase tracking-wider block mb-1">Follow-Up &rarr; Beli Formulir</span>
+                    <span class="text-2xl font-black text-purple-950" x-text="(metrics.convFollowupFormulir ?? {{ $convFollowupFormulir }}) + '%'">{{ $convFollowupFormulir }}%</span>
+                    <span class="text-[10px] text-purple-600 block mt-1">Konversi pendekatan ke formulir</span>
                 </div>
                 <div class="p-4 bg-gradient-to-br from-emerald-50/70 via-white to-white rounded-xl border border-emerald-100 shadow-2xs">
-                    <span class="text-[11px] text-emerald-700 font-bold uppercase tracking-wider block mb-1">Kontak → Lunas Maba Resmi</span>
-                    <span class="text-2xl font-black text-emerald-950" x-text="metrics.convKontakLunas + '%'">{{ $convKontakLunas }}%</span>
-                    <span class="text-[10px] text-emerald-600 block mt-1">Rasio akhir closing PMB</span>
+                    <span class="text-[11px] text-emerald-700 font-bold uppercase tracking-wider block mb-1">Formulir &rarr; Pembayaran Lunas</span>
+                    <span class="text-2xl font-black text-emerald-950" x-text="metrics.convFormulirLunas + '%'">{{ $convFormulirLunas }}%</span>
+                    <span class="text-[10px] text-emerald-600 block mt-1">Rasio closing pendaftar ke lunas</span>
                 </div>
             </div>
         </div>
@@ -708,15 +761,25 @@
                 </div>
             </div>
 
-            <!-- Card 2: Pendaftar & Pembayaran Valid -->
-            <div class="crm-card bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <!-- Card 2: Pendaftar & Pembayaran Masuk (Tersaring) -->
+            <div class="crm-card bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between" x-data="{ transaksiTab: 'prodi' }">
                 <div>
-                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                            <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span>Pendaftar & Pembayaran Masuk (Tersaring)</span>
-                        </h3>
-                        <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified CS</span>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4 gap-2 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Pendaftar & Pembayaran Masuk</span>
+                            </h3>
+                            <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified CS</span>
+                        </div>
+                        <a 
+                            href="{{ route('analyst.export', array_merge(request()->query(), ['type' => 'transaksi'])) }}" 
+                            class="text-[10.5px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition flex items-center gap-1 cursor-pointer"
+                            title="Unduh seluruh data transaksi pendaftar & pembayaran terverifikasi (.xlsx)"
+                        >
+                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Unduh Transaksi (.xlsx)</span>
+                        </a>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 mb-4">
@@ -732,19 +795,70 @@
                         </div>
                     </div>
 
-                    <div>
-                        <div class="text-[11px] font-bold text-slate-700 mb-2 uppercase tracking-wider">Penerimaan Berdasarkan Program Studi:</div>
-                        <div class="space-y-2">
-                            <template x-for="(p, idx) in pembayaranPerProdi" :key="idx">
-                                <div class="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100">
-                                    <span class="font-semibold text-slate-800" x-text="p.nama_prodi"></span>
-                                    <span class="font-extrabold text-slate-900" x-text="'Rp ' + Number(p.total_nominal).toLocaleString('id-ID')"></span>
-                                </div>
-                            </template>
-                            <template x-if="pembayaranPerProdi.length === 0">
-                                <div class="text-center py-3 text-xs text-slate-400">Belum ada transaksi pembayaran pada filter ini.</div>
-                            </template>
+                    <!-- Toggle Tab: Rekap per Prodi vs Rincian Transaksi Pendaftar -->
+                    <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                        <div class="flex items-center gap-1.5 p-0.5 bg-slate-100 rounded-lg border border-slate-200/60 text-xs">
+                            <button 
+                                type="button" 
+                                @click="transaksiTab = 'prodi'" 
+                                :class="transaksiTab === 'prodi' ? 'bg-white text-slate-900 font-bold shadow-2xs' : 'text-slate-500 hover:text-slate-800 font-medium'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer"
+                            >
+                                Rekap per Prodi
+                            </button>
+                            <button 
+                                type="button" 
+                                @click="transaksiTab = 'list'" 
+                                :class="transaksiTab === 'list' ? 'bg-white text-emerald-700 font-bold shadow-2xs' : 'text-slate-500 hover:text-slate-800 font-medium'"
+                                class="px-2.5 py-1 rounded-md transition cursor-pointer flex items-center gap-1"
+                            >
+                                <span>Rincian Transaksi Pendaftar</span>
+                                <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-100 text-emerald-800" x-text="transaksiList.length">{{ count($transaksiList) }}</span>
+                            </button>
                         </div>
+                        <span class="text-[10px] text-slate-400 font-medium" x-show="transaksiTab === 'prodi'">Berdasarkan Prodi</span>
+                        <span class="text-[10px] text-slate-400 font-medium" x-show="transaksiTab === 'list'">Data Riil Terverifikasi</span>
+                    </div>
+
+                    <!-- Tab 1: Penerimaan Berdasarkan Program Studi -->
+                    <div x-show="transaksiTab === 'prodi'" class="space-y-2">
+                        <template x-for="(p, idx) in pembayaranPerProdi" :key="idx">
+                            <div class="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                <span class="font-semibold text-slate-800" x-text="p.nama_prodi"></span>
+                                <span class="font-extrabold text-slate-900" x-text="'Rp ' + Number(p.total_nominal).toLocaleString('id-ID')"></span>
+                            </div>
+                        </template>
+                        <template x-if="pembayaranPerProdi.length === 0">
+                            <div class="text-center py-3 text-xs text-slate-400">Belum ada transaksi pembayaran pada filter ini.</div>
+                        </template>
+                    </div>
+
+                    <!-- Tab 2: Rincian Transaksi Pendaftar -->
+                    <div x-show="transaksiTab === 'list'" class="space-y-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+                        <template x-for="t in transaksiList" :key="t.id">
+                            <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-bold text-slate-900 truncate" x-text="t.nama_prospek"></span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold" :class="t.jenis === 'Beli Formulir' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'" x-text="t.jenis"></span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-2">
+                                        <span x-text="t.prodi_nama"></span>
+                                        <span>•</span>
+                                        <span class="font-medium text-slate-600" x-text="t.metode"></span>
+                                        <span>•</span>
+                                        <span class="text-slate-400" x-text="'CS: ' + t.verifier_name"></span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <span class="font-black text-slate-900 block" x-text="'Rp ' + Number(t.nominal).toLocaleString('id-ID')"></span>
+                                    <span class="text-[9.5px] text-slate-400 block" x-text="t.tanggal"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="transaksiList.length === 0">
+                            <div class="text-center py-4 text-xs text-slate-400">Belum ada rincian data transaksi pada filter ini.</div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -762,9 +876,9 @@
         @endif
 
         <!-- ============================================================== -->
-        <!-- SECTION 5: KINERJA SALES & TIM PENANGANAN                      -->
+        <!-- SECTION 5: KINERJA SALES & TIM CS PENANGANAN                   -->
         <!-- ============================================================== -->
-        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs">
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs" x-data="{ performaTab: 'sales' }">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 shadow-xs">
@@ -774,15 +888,38 @@
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h3 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Evaluasi Performa Tim Sales & Penugasan</h3>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200" x-text="salesList.length + ' Personel'">{{ count($salesList) }} Personel</span>
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Evaluasi Performa Tim Frontline & Penugasan</h3>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200" x-text="performaTab === 'sales' ? salesList.length + ' Personel Sales' : csList.length + ' Personel CS'">{{ count($salesList) }} Personel</span>
                         </div>
-                        <p class="text-xs text-slate-500 mt-0.5">Analisis kuantitas kontak, intensitas follow-up, waktu respon awal, dan rasio konversi per Sales.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Analisis kuantitas prospek, intensitas follow-up, kecepatan respon, verifikasi pembayaran, dan rasio konversi per personel.</p>
                     </div>
+                </div>
+
+                <!-- Tab Switcher: Sales vs CS -->
+                <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-center">
+                    <button 
+                        type="button" 
+                        @click="performaTab = 'sales'" 
+                        :class="performaTab === 'sales' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                        class="px-3 py-1.5 rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5"
+                    >
+                        <span>Tim Sales Lapangan</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-blue-50 text-blue-700 border border-blue-200" x-text="salesList.length">{{ count($salesList) }}</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        @click="performaTab = 'cs'" 
+                        :class="performaTab === 'cs' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                        class="px-3 py-1.5 rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5"
+                    >
+                        <span>Tim CS (Customer Service)</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[9px] bg-purple-50 text-purple-700 border border-purple-200" x-text="csList.length">{{ count($csList) }}</span>
+                    </button>
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- Tabel 1: Tim Sales Lapangan -->
+            <div x-show="performaTab === 'sales'" class="overflow-x-auto">
                 <table class="w-full text-xs text-left">
                     <thead class="bg-slate-50/90 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200/80">
                         <tr>
@@ -839,6 +976,68 @@
                         </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Tabel 2: Tim CS (Customer Service) -->
+            <div x-show="performaTab === 'cs'" class="overflow-x-auto">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-purple-50/60 text-purple-800 font-bold uppercase text-[10px] border-b border-purple-100">
+                        <tr>
+                            <th class="py-3 px-3.5">Customer Service (CS)</th>
+                            <th class="py-3 px-3">Wilayah Penugasan</th>
+                            <th class="py-3 px-3 text-center">Prospek Handled</th>
+                            <th class="py-3 px-3 text-center">Aktivitas Follow-Up</th>
+                            <th class="py-3 px-3 text-center">Respon Pertama</th>
+                            <th class="py-3 px-3 text-center">Formulir</th>
+                            <th class="py-3 px-3 text-center">Closing / Lunas</th>
+                            <th class="py-3 px-3 text-center">Verifikasi Pembayaran</th>
+                            <th class="py-3 px-3 text-center">Rasio Konversi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <template x-for="cs in csList" :key="cs.id">
+                            <tr class="hover:bg-purple-50/30 transition">
+                                <td class="py-3 px-3.5">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 text-purple-700 font-bold text-xs flex items-center justify-center shrink-0 uppercase" x-text="(cs.name || 'CS').substring(0, 2)"></div>
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-slate-900 truncate" x-text="cs.name"></div>
+                                            <div class="text-[10px] text-slate-400 font-mono" x-text="cs.email || '-'"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-3 text-slate-600 font-medium" x-text="cs.wilayah || '-'"></td>
+                                <td class="py-3 px-3 text-center font-bold text-slate-800 text-sm" x-text="Number(cs.total_kontak).toLocaleString('id-ID')"></td>
+                                <td class="py-3 px-3 text-center">
+                                    <span class="inline-block px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold text-[11px]" x-text="Number(cs.follow_up_count).toLocaleString('id-ID') + 'x'"></span>
+                                </td>
+                                <td class="py-3 px-3 text-center">
+                                    <template x-if="cs.avg_response_hours !== null">
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold" :class="cs.avg_response_hours <= 2 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'" x-text="cs.avg_response_hours + ' Jam'"></span>
+                                    </template>
+                                    <template x-if="cs.avg_response_hours === null">
+                                        <span class="text-slate-400 text-[10px]">-</span>
+                                    </template>
+                                </td>
+                                <td class="py-3 px-3 text-center font-bold text-purple-700 text-sm" x-text="Number(cs.formulir_count).toLocaleString('id-ID')"></td>
+                                <td class="py-3 px-3 text-center font-black text-emerald-700 text-sm" x-text="Number(cs.lunas_count).toLocaleString('id-ID')"></td>
+                                <td class="py-3 px-3 text-center">
+                                    <div class="font-bold text-slate-900" x-text="Number(cs.verifikasi_count).toLocaleString('id-ID') + ' Tx'"></div>
+                                    <div class="text-[9.5px] text-emerald-600 font-semibold" x-text="'Rp ' + Number(cs.verifikasi_nominal || 0).toLocaleString('id-ID')"></div>
+                                </td>
+                                <td class="py-3 px-3 text-center">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-black" :class="cs.konversi >= 10 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : (cs.konversi >= 5 ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-slate-100 text-slate-700')" x-text="cs.konversi + '%'"></span>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="csList.length === 0">
+                            <tr>
+                                <td colspan="9" class="text-center py-8 text-slate-400">Belum ada data CS yang terdaftar pada filter ini.</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- ============================================================== -->
@@ -1240,16 +1439,16 @@
                             <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                             <span>Integritas & Kualitas Data CRM</span>
                         </h3>
-                        <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Audit Read-Only</span>
+                        <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Audit & Monitoring Leads</span>
                     </div>
                 </div>
 
                 <!-- Status Volume & Follow-Up Prospek (Klik untuk Lihat Data Terfilter) -->
-                <div class="grid grid-cols-2 gap-3 mb-3 text-center">
+                <div class="grid grid-cols-3 gap-2.5 mb-2.5 text-center">
                     <a 
                         :href="getProspekScopeUrl(null)" 
                         href="{{ route('analyst.prospek.index') }}"
-                        class="group p-3 bg-blue-50/70 hover:bg-blue-100/80 active:bg-blue-100 rounded-xl border border-blue-200/80 hover:border-blue-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        class="group p-2.5 bg-blue-50/70 hover:bg-blue-100/80 active:bg-blue-100 rounded-xl border border-blue-200/80 hover:border-blue-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
                         title="Klik untuk melihat seluruh data prospek"
                     >
                         <div>
@@ -1257,33 +1456,29 @@
                                 <span class="text-[10px] font-bold text-blue-700 uppercase">Total Prospek</span>
                                 <svg class="w-3 h-3 text-blue-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                             </div>
-                            <span class="text-xl font-black text-blue-950 block mt-0.5" x-text="Number(metrics.totalProspekUnik).toLocaleString('id-ID')">{{ number_format($totalProspekUnik) }}</span>
+                            <span class="text-lg font-black text-blue-950 block mt-0.5" x-text="Number(metrics.totalProspekUnik).toLocaleString('id-ID')">{{ number_format($totalProspekUnik) }}</span>
                         </div>
-                        <span class="text-[9.5px] text-blue-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Semua Lead &rarr;</span>
+                        <span class="text-[9px] text-blue-600 block mt-1 font-semibold group-hover:underline">Semua Lead &rarr;</span>
                     </a>
                     <a 
                         :href="getProspekScopeUrl('sudah_follow_up')" 
                         href="{{ route('analyst.prospek.index', ['scope' => 'sudah_follow_up']) }}"
-                        class="group p-3 bg-emerald-50/70 hover:bg-emerald-100/80 active:bg-emerald-100 rounded-xl border border-emerald-200/80 hover:border-emerald-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        class="group p-2.5 bg-sky-50/70 hover:bg-sky-100/80 active:bg-sky-100 rounded-xl border border-sky-200/80 hover:border-sky-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
                         title="Klik untuk melihat data prospek yang sudah di-follow up"
                     >
                         <div>
                             <div class="flex items-center justify-center gap-1">
-                                <span class="text-[10px] font-bold text-emerald-700 uppercase">Sudah Follow-Up</span>
-                                <svg class="w-3 h-3 text-emerald-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                <span class="text-[10px] font-bold text-sky-700 uppercase">Sudah Follow-Up</span>
+                                <svg class="w-3 h-3 text-sky-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                             </div>
-                            <span class="text-xl font-black text-emerald-950 block mt-0.5" x-text="Number(metrics.sudahFollowUpCount).toLocaleString('id-ID')">{{ number_format($sudahFollowUpCount) }}</span>
+                            <span class="text-lg font-black text-sky-950 block mt-0.5" x-text="Number(metrics.sudahFollowUpCount).toLocaleString('id-ID')">{{ number_format($sudahFollowUpCount) }}</span>
                         </div>
-                        <span class="text-[9.5px] text-emerald-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Lihat yang Sudah &rarr;</span>
+                        <span class="text-[9px] text-sky-600 block mt-1 font-semibold group-hover:underline">Sudah Dihubungi &rarr;</span>
                     </a>
-                </div>
-
-                <!-- Audit Kualitas Data CRM (Klik untuk Lihat Data Terfilter) -->
-                <div class="grid grid-cols-3 gap-3 mb-4 text-center">
                     <a 
                         :href="getProspekScopeUrl('belum_follow_up')" 
                         href="{{ route('analyst.prospek.index', ['scope' => 'belum_follow_up']) }}"
-                        class="group p-3 bg-amber-50/70 hover:bg-amber-100/80 active:bg-amber-100 rounded-xl border border-amber-200/80 hover:border-amber-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        class="group p-2.5 bg-amber-50/70 hover:bg-amber-100/80 active:bg-amber-100 rounded-xl border border-amber-200/80 hover:border-amber-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
                         title="Klik untuk melihat data prospek yang belum di-follow up"
                     >
                         <div>
@@ -1291,39 +1486,76 @@
                                 <span class="text-[10px] font-bold text-amber-700 uppercase">Belum Follow-Up</span>
                                 <svg class="w-3 h-3 text-amber-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                             </div>
-                            <span class="text-xl font-black text-amber-950 block mt-0.5" x-text="Number(metrics.belumFollowUpCount).toLocaleString('id-ID')">{{ number_format($belumFollowUpCount) }}</span>
+                            <span class="text-lg font-black text-amber-950 block mt-0.5" x-text="Number(metrics.belumFollowUpCount).toLocaleString('id-ID')">{{ number_format($belumFollowUpCount) }}</span>
                         </div>
-                        <span class="text-[9.5px] text-amber-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Lihat Siapa Saja &rarr;</span>
+                        <span class="text-[9px] text-amber-600 block mt-1 font-semibold group-hover:underline">Belum Disentuh &rarr;</span>
                     </a>
+                </div>
+
+                <!-- Audit Respon Prospek & Kualitas Data CRM (Klik untuk Lihat Data Terfilter) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center">
+                    <a 
+                        :href="getProspekScopeUrl('sudah_merespons')" 
+                        href="{{ route('analyst.prospek.index', ['scope' => 'sudah_merespons']) }}"
+                        class="group p-2.5 bg-emerald-50/70 hover:bg-emerald-100/80 active:bg-emerald-100 rounded-xl border border-emerald-200/80 hover:border-emerald-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat calon mahasiswa yang sudah merespons follow-up"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[9.5px] font-bold text-emerald-700 uppercase">Sudah Respons</span>
+                                <svg class="w-3 h-3 text-emerald-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-base font-black text-emerald-950 block mt-0.5" x-text="Number(metrics.sudahMeresponsCount).toLocaleString('id-ID')">{{ number_format($sudahMeresponsCount) }}</span>
+                        </div>
+                        <span class="text-[8.5px] text-emerald-600 block mt-0.5 font-semibold group-hover:underline">Respons Aktif &rarr;</span>
+                    </a>
+
+                    <a 
+                        :href="getProspekScopeUrl('belum_merespons')" 
+                        href="{{ route('analyst.prospek.index', ['scope' => 'belum_merespons']) }}"
+                        class="group p-2.5 bg-rose-50/70 hover:bg-rose-100/80 active:bg-rose-100 rounded-xl border border-rose-200/80 hover:border-rose-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        title="Klik untuk melihat calon mahasiswa yang belum merespons (No Respon / Belum Dihubungi)"
+                    >
+                        <div>
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="text-[9.5px] font-bold text-rose-700 uppercase">Belum Respons</span>
+                                <svg class="w-3 h-3 text-rose-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                            <span class="text-base font-black text-rose-950 block mt-0.5" x-text="Number(metrics.belumMeresponsCount).toLocaleString('id-ID')">{{ number_format($belumMeresponsCount) }}</span>
+                        </div>
+                        <span class="text-[8.5px] text-rose-600 block mt-0.5 font-semibold group-hover:underline">No Respon &rarr;</span>
+                    </a>
+
                     <a 
                         :href="getProspekScopeUrl('duplikat_wa')" 
                         href="{{ route('analyst.prospek.index', ['scope' => 'duplikat_wa']) }}"
-                        class="group p-3 bg-rose-50/70 hover:bg-rose-100/80 active:bg-rose-100 rounded-xl border border-rose-200/80 hover:border-rose-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        class="group p-2.5 bg-purple-50/70 hover:bg-purple-100/80 active:bg-purple-100 rounded-xl border border-purple-200/80 hover:border-purple-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
                         title="Klik untuk melihat nomor WhatsApp duplikat"
                     >
                         <div>
                             <div class="flex items-center justify-center gap-1">
-                                <span class="text-[10px] font-bold text-rose-700 uppercase">Duplikat Nomor</span>
-                                <svg class="w-3 h-3 text-rose-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                <span class="text-[9.5px] font-bold text-purple-700 uppercase">Duplikat Nomor</span>
+                                <svg class="w-3 h-3 text-purple-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                             </div>
-                            <span class="text-xl font-black text-rose-950 block mt-0.5" x-text="Number(metrics.duplicateWaCount).toLocaleString('id-ID')">{{ number_format($duplicateWaCount) }}</span>
+                            <span class="text-base font-black text-purple-950 block mt-0.5" x-text="Number(metrics.duplicateWaCount).toLocaleString('id-ID')">{{ number_format($duplicateWaCount) }}</span>
                         </div>
-                        <span class="text-[9.5px] text-rose-600 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Nomor Berulang &rarr;</span>
+                        <span class="text-[8.5px] text-purple-600 block mt-0.5 font-semibold group-hover:underline">WA Ganda &rarr;</span>
                     </a>
+
                     <a 
                         :href="getProspekScopeUrl('incomplete')" 
                         href="{{ route('analyst.prospek.index', ['scope' => 'incomplete']) }}"
-                        class="group p-3 bg-slate-50 hover:bg-slate-100/90 active:bg-slate-100 rounded-xl border border-slate-200/90 hover:border-slate-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
+                        class="group p-2.5 bg-slate-50 hover:bg-slate-100/90 active:bg-slate-100 rounded-xl border border-slate-200/90 hover:border-slate-300 transition duration-150 flex flex-col justify-between shadow-2xs hover:shadow-xs hover:-translate-y-0.5 cursor-pointer block"
                         title="Klik untuk melihat data prospek yang belum lengkap"
                     >
                         <div>
                             <div class="flex items-center justify-center gap-1">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">Data Belum Lengkap</span>
+                                <span class="text-[9.5px] font-bold text-slate-500 uppercase">Data Kurang</span>
                                 <svg class="w-3 h-3 text-slate-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                             </div>
-                            <span class="text-xl font-black text-slate-900 block mt-0.5" x-text="Number(metrics.incompleteDataCount).toLocaleString('id-ID')">{{ number_format($incompleteDataCount) }}</span>
+                            <span class="text-base font-black text-slate-900 block mt-0.5" x-text="Number(metrics.incompleteDataCount).toLocaleString('id-ID')">{{ number_format($incompleteDataCount) }}</span>
                         </div>
-                        <span class="text-[9.5px] text-slate-400 block mt-1 font-semibold group-hover:underline flex items-center justify-center gap-0.5">Tanpa Mitra/Prodi &rarr;</span>
+                        <span class="text-[8.5px] text-slate-500 block mt-0.5 font-semibold group-hover:underline">Incomplete &rarr;</span>
                     </a>
                 </div>
 
@@ -1345,66 +1577,174 @@
                 </div>
             </div>
 
-            <!-- Segmentasi Pendaftar (Domisili, Kelas, Jalur, Gelombang) -->
-            <div class="crm-card bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <!-- Segmentasi Pendaftar & Summary Kategori CRM -->
+            <div class="crm-card bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs" x-data="{ segTab: 'status' }">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 mb-4">
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Segmentasi Pendaftar</h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Pengelompokan calon mahasiswa berdasarkan kelas, jalur, gelombang, dan wilayah</p>
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Segmentasi & Kategori Pendaftar</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Ringkasan status tahapan CRM, kategori, dan dimensi pendaftar</p>
+                    </div>
+
+                    <!-- Tab Switcher -->
+                    <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-center text-xs">
+                        <button 
+                            type="button" 
+                            @click="segTab = 'status'" 
+                            :class="segTab === 'status' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                            class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                        >
+                            Status Tahapan
+                        </button>
+                        <button 
+                            type="button" 
+                            @click="segTab = 'kategori'" 
+                            :class="segTab === 'kategori' ? 'bg-white text-purple-700 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                            class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                        >
+                            Kategori CRM
+                        </button>
+                        <button 
+                            type="button" 
+                            @click="segTab = 'dimensi'" 
+                            :class="segTab === 'dimensi' ? 'bg-white text-teal-700 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 font-medium'"
+                            class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+                        >
+                            Kelas & Domisili
+                        </button>
                     </div>
                 </div>
 
-                <!-- Kelas & Jalur Grid -->
-                <div class="grid grid-cols-2 gap-3 mb-4">
-                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80">
-                        <span class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Kelas Mahasiswa:</span>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="font-semibold text-slate-700">Reguler:</span>
-                            <span class="font-extrabold text-slate-900" x-text="Number(segmentasiKelas.Reguler).toLocaleString('id-ID') + ' Calon'">{{ number_format($segmentasiKelas['Reguler']) }} Calon</span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs mt-1">
-                            <span class="font-semibold text-slate-700">Karyawan:</span>
-                            <span class="font-extrabold text-slate-900" x-text="Number(segmentasiKelas.Karyawan).toLocaleString('id-ID') + ' Calon'">{{ number_format($segmentasiKelas['Karyawan']) }} Calon</span>
-                        </div>
-                    </div>
-                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80">
-                        <span class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Jalur Pendaftaran:</span>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="font-semibold text-slate-700">Melalui Sales:</span>
-                            <span class="font-extrabold text-slate-900" x-text="Number(segmentasiJalur.sales).toLocaleString('id-ID') + ' Lead'">{{ number_format($segmentasiJalur['sales']) }} Lead</span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs mt-1">
-                            <span class="font-semibold text-slate-700">Mandiri / CS:</span>
-                            <span class="font-extrabold text-slate-900" x-text="Number(segmentasiJalur.direct).toLocaleString('id-ID') + ' Lead'">{{ number_format($segmentasiJalur['direct']) }} Lead</span>
-                        </div>
+                <!-- Tab 1: Status Tahapan Pipeline Resmi CRM -->
+                <div x-show="segTab === 'status'" class="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <template x-for="st in statusSummary" :key="st.status">
+                            <a 
+                                :href="getProspekStatusUrl(st.status)" 
+                                class="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300 transition block group cursor-pointer"
+                                title="Klik untuk memfilter prospek berdasarkan status ini"
+                            >
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="font-bold text-slate-800 group-hover:text-blue-700 transition" x-text="st.status"></span>
+                                    <span class="font-black text-slate-900" x-text="Number(st.count).toLocaleString('id-ID') + ' (' + st.pct + '%)'"></span>
+                                </div>
+                                <div class="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
+                                    <div 
+                                        class="h-1.5 rounded-full transition-all duration-300" 
+                                        :class="{
+                                            'bg-blue-500': ['BARU', 'KONTAK'].includes(st.status),
+                                            'bg-indigo-500': ['PROSPEK', 'HOT PROSPEK'].includes(st.status),
+                                            'bg-purple-500': ['FORMULIR', 'BERKAS'].includes(st.status),
+                                            'bg-emerald-500': ['LUNAS', 'CLOSING'].includes(st.status),
+                                            'bg-rose-500': st.status === 'NO RESPON',
+                                            'bg-slate-400': !['BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'LUNAS', 'CLOSING', 'NO RESPON'].includes(st.status)
+                                        }"
+                                        :style="'width: ' + Math.min(100, Math.max(st.pct, 2)) + '%'"
+                                    ></div>
+                                </div>
+                            </a>
+                        </template>
                     </div>
                 </div>
 
-                <!-- Segmentasi Gelombang Pendaftaran -->
-                <template x-if="segmentasiGelombang.length > 0">
-                    <div class="mb-4 p-3 bg-teal-50/60 rounded-xl border border-teal-100">
-                        <span class="text-[10px] font-bold uppercase text-teal-700 block mb-1.5">Distribusi Gelombang Pendaftaran:</span>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                            <template x-for="gel in segmentasiGelombang" :key="gel.gelombang">
-                                <div class="bg-white p-2 rounded-lg border border-teal-200/70">
-                                    <span class="font-bold text-slate-800 block text-[11px]" x-text="gel.gelombang"></span>
-                                    <span class="font-extrabold text-teal-700 text-sm" x-text="Number(gel.total).toLocaleString('id-ID') + ' Pendaftar'"></span>
+                <!-- Tab 2: Kategori & Tipe Aktual CRM -->
+                <div x-show="segTab === 'kategori'" class="space-y-4 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                    <div>
+                        <span class="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Kategori Prospek CRM:</span>
+                        <div class="space-y-2">
+                            <template x-for="cat in categorySummary" :key="cat.nama">
+                                <a 
+                                    :href="getProspekCategoryUrl(cat.nama)" 
+                                    class="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300 transition block group cursor-pointer"
+                                    title="Klik untuk memfilter prospek berdasarkan kategori ini"
+                                >
+                                    <div class="flex items-center justify-between text-xs mb-1">
+                                        <span class="font-bold text-slate-800 group-hover:text-purple-700 transition" x-text="cat.nama"></span>
+                                        <span class="font-black text-slate-900" x-text="Number(cat.count).toLocaleString('id-ID') + ' (' + cat.pct + '%)'"></span>
+                                    </div>
+                                    <div class="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
+                                        <div class="bg-purple-500 h-1.5 rounded-full" :style="'width: ' + Math.min(100, Math.max(cat.pct, 2)) + '%'"></div>
+                                    </div>
+                                </a>
+                            </template>
+                            <template x-if="categorySummary.length === 0">
+                                <div class="text-center py-3 text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                    Belum ada kategori prospek khusus pada data yang difilter.
                                 </div>
                             </template>
                         </div>
                     </div>
-                </template>
 
-                <!-- Distribusi Wilayah Domisili Top 5 -->
-                <div>
-                    <div class="text-[11px] font-bold text-slate-700 mb-2 uppercase tracking-wider">Distribusi Wilayah Domisili Pendaftar:</div>
-                    <div class="space-y-2">
-                        <template x-for="wil in segmentasiWilayah" :key="wil.nama_wilayah">
-                            <div class="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100">
-                                <span class="font-semibold text-slate-800" x-text="wil.nama_wilayah"></span>
-                                <span class="font-bold text-slate-900" x-text="Number(wil.total).toLocaleString('id-ID') + ' Calon'"></span>
+                    <div>
+                        <span class="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Tipe Pendaftar:</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <template x-for="typ in typeSummary" :key="typ.nama">
+                                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                                    <span class="text-[11px] font-bold text-slate-600 block truncate" x-text="typ.nama"></span>
+                                    <span class="text-sm font-black text-slate-900 block mt-0.5" x-text="Number(typ.count).toLocaleString('id-ID')"></span>
+                                    <span class="text-[9.5px] text-slate-400 block" x-text="typ.pct + '% Total'"></span>
+                                </div>
+                            </template>
+                            <template x-if="typeSummary.length === 0">
+                                <div class="col-span-3 text-center py-2 text-xs text-slate-400">Belum ada data tipe.</div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Dimensi Kelas, Jalur, Gelombang & Wilayah -->
+                <div x-show="segTab === 'dimensi'" class="space-y-3 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                    <!-- Kelas & Jalur Grid -->
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Kelas Mahasiswa:</span>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-semibold text-slate-700">Reguler:</span>
+                                <span class="font-extrabold text-slate-900" x-text="Number(segmentasiKelas.Reguler).toLocaleString('id-ID') + ' Calon'">{{ number_format($segmentasiKelas['Reguler']) }} Calon</span>
                             </div>
-                        </template>
+                            <div class="flex items-center justify-between text-xs mt-1">
+                                <span class="font-semibold text-slate-700">Karyawan:</span>
+                                <span class="font-extrabold text-slate-900" x-text="Number(segmentasiKelas.Karyawan).toLocaleString('id-ID') + ' Calon'">{{ number_format($segmentasiKelas['Karyawan']) }} Calon</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Jalur Pendaftaran:</span>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-semibold text-slate-700">Melalui Sales:</span>
+                                <span class="font-extrabold text-slate-900" x-text="Number(segmentasiJalur.sales).toLocaleString('id-ID') + ' Lead'">{{ number_format($segmentasiJalur['sales']) }} Lead</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs mt-1">
+                                <span class="font-semibold text-slate-700">Mandiri / CS:</span>
+                                <span class="font-extrabold text-slate-900" x-text="Number(segmentasiJalur.direct).toLocaleString('id-ID') + ' Lead'">{{ number_format($segmentasiJalur['direct']) }} Lead</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Segmentasi Gelombang Pendaftaran -->
+                    <template x-if="segmentasiGelombang.length > 0">
+                        <div class="p-2.5 bg-teal-50/60 rounded-xl border border-teal-100">
+                            <span class="text-[10px] font-bold uppercase text-teal-700 block mb-1.5">Gelombang Pendaftaran:</span>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                                <template x-for="gel in segmentasiGelombang" :key="gel.gelombang">
+                                    <div class="bg-white p-2 rounded-lg border border-teal-200/70">
+                                        <span class="font-bold text-slate-800 block text-[11px]" x-text="gel.gelombang"></span>
+                                        <span class="font-extrabold text-teal-700 text-xs" x-text="Number(gel.total).toLocaleString('id-ID') + ' Pendaftar'"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Distribusi Wilayah Domisili Top 5 -->
+                    <div>
+                        <div class="text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Distribusi Wilayah Domisili:</div>
+                        <div class="space-y-1.5">
+                            <template x-for="wil in segmentasiWilayah" :key="wil.nama_wilayah">
+                                <div class="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                    <span class="font-semibold text-slate-800" x-text="wil.nama_wilayah"></span>
+                                    <span class="font-bold text-slate-900" x-text="Number(wil.total).toLocaleString('id-ID') + ' Calon'"></span>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1424,7 +1764,13 @@
                 funnelData: config.initialFunnel,
                 chartsData: config.initialCharts,
                 periodComparison: config.initialPeriod,
-                salesList: config.initialSales,
+                pembayaranPerProdi: config.initialPembayaranPerProdi || [],
+                transaksiList: config.initialTransaksiList || [],
+                salesList: config.initialSales || [],
+                csList: config.initialCs || [],
+                statusSummary: config.initialStatusSummary || [],
+                categorySummary: config.initialCategorySummary || [],
+                typeSummary: config.initialTypeSummary || [],
                 sumberAnalysis: config.initialSumber,
                 topChannel: config.initialTopChannel,
                 topSekolah: config.initialTopSekolah,
@@ -1481,6 +1827,48 @@
                     }
                 },
 
+                getProspekStatusUrl(status) {
+                    try {
+                        const url = new URL('{{ route('analyst.prospek.index') }}', window.location.origin);
+                        const form = this.$refs.filterForm;
+                        if (form) {
+                            const formData = new FormData(form);
+                            for (const [key, val] of formData.entries()) {
+                                if (val && val !== 'all' && key !== '_token' && key !== 'ajax' && key !== 'status') {
+                                    url.searchParams.set(key, val);
+                                }
+                            }
+                        }
+                        if (status) {
+                            url.searchParams.set('status', status);
+                        }
+                        return url.toString();
+                    } catch(e) {
+                        return '{{ route('analyst.prospek.index') }}' + (status ? '?status=' + encodeURIComponent(status) : '');
+                    }
+                },
+
+                getProspekCategoryUrl(cat) {
+                    try {
+                        const url = new URL('{{ route('analyst.prospek.index') }}', window.location.origin);
+                        const form = this.$refs.filterForm;
+                        if (form) {
+                            const formData = new FormData(form);
+                            for (const [key, val] of formData.entries()) {
+                                if (val && val !== 'all' && key !== '_token' && key !== 'ajax' && key !== 'category') {
+                                    url.searchParams.set(key, val);
+                                }
+                            }
+                        }
+                        if (cat) {
+                            url.searchParams.set('category', cat);
+                        }
+                        return url.toString();
+                    } catch(e) {
+                        return '{{ route('analyst.prospek.index') }}' + (cat ? '?category=' + encodeURIComponent(cat) : '');
+                    }
+                },
+
                 initDashboard() {
                     this.$nextTick(() => {
                         this.renderCharts();
@@ -1513,7 +1901,13 @@
                             this.funnelData = data.funnelData;
                             this.chartsData = data.chartsData;
                             this.periodComparison = data.periodComparison;
-                            this.salesList = data.salesList;
+                            this.pembayaranPerProdi = data.pembayaranPerProdi || [];
+                            this.transaksiList = data.transaksiList || [];
+                            this.salesList = data.salesList || [];
+                            this.csList = data.csList || [];
+                            this.statusSummary = data.statusSummary || [];
+                            this.categorySummary = data.categorySummary || [];
+                            this.typeSummary = data.typeSummary || [];
                             this.sumberAnalysis = data.sumberAnalysis;
                             this.topChannel = data.topChannel;
                             this.topSekolah = data.topSekolah;
@@ -1610,14 +2004,17 @@
                     // 2. Funnel Chart
                     const funnelCtx = document.getElementById('funnelChartCanvas');
                     if (funnelCtx) {
+                        const funnelLabels = (this.chartsData.funnel && this.chartsData.funnel.labels && this.chartsData.funnel.labels.length) 
+                            ? this.chartsData.funnel.labels 
+                            : ['1. Total Prospek', '2. Sudah Follow-Up', '3. Pengisian Formulir', '4. Pembayaran Lunas'];
                         this.charts.funnel = new Chart(funnelCtx, {
                             type: 'bar',
                             data: {
-                                labels: ['1. Lead Masuk', '2. Audiensi/Hangat', '3. Beli Formulir', '4. Pemberkasan', '5. Maba Lunas'],
+                                labels: funnelLabels,
                                 datasets: [{
                                     label: 'Jumlah Prospek',
-                                    data: this.chartsData.funnel.counts,
-                                    backgroundColor: ['#3b82f6', '#6366f1', '#a855f7', '#f59e0b', '#10b981'],
+                                    data: this.chartsData.funnel ? this.chartsData.funnel.counts : [],
+                                    backgroundColor: ['#3b82f6', '#0284c7', '#9333ea', '#059669'],
                                     borderRadius: 6
                                 }]
                             },
@@ -1719,7 +2116,10 @@
 
                     // Update Funnel Chart
                     if (this.charts.funnel) {
-                        this.charts.funnel.data.datasets[0].data = this.chartsData.funnel.counts;
+                        if (this.chartsData.funnel && this.chartsData.funnel.labels) {
+                            this.charts.funnel.data.labels = this.chartsData.funnel.labels;
+                        }
+                        this.charts.funnel.data.datasets[0].data = this.chartsData.funnel ? this.chartsData.funnel.counts : [];
                         this.charts.funnel.update();
                     }
 
