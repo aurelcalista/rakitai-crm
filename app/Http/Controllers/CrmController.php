@@ -1639,7 +1639,18 @@ class CrmController extends Controller
 
             $salesBaseQuery = \App\Models\Prospek::where(function ($q) use ($user) {
                 $q->where('sales_id', $user->id)
-                  ->orWhere('owner_id', $user->id);
+                  ->orWhere('owner_id', $user->id)
+                  ->orWhere('takeover_by_id', $user->id)
+                  ->orWhere('source', \App\Models\Prospek::SOURCE_PRESENSI_SISWA)
+                  ->orWhere('source', 'Presensi Siswa')
+                  ->orWhere('source', 'like', '%presensi%');
+
+                if ($user->wilayah_id) {
+                    $q->orWhere(function ($wq) use ($user) {
+                        $wq->where('wilayah_id', $user->wilayah_id)
+                           ->whereNull('sales_id');
+                    });
+                }
             });
 
             // 1. Prospek Diinput oleh Sales ini

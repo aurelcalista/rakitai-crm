@@ -44,6 +44,49 @@
                             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                                 {{ number_format($prospeks->total()) }} Calon Terdaftar
                             </span>
+                            @if(request('scope') === 'sudah_follow_up')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span>Scope: Sudah Follow-Up</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-emerald-600 hover:text-emerald-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @elseif(request('scope') === 'belum_follow_up')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    <span>Scope: Belum Follow-Up (Perlu Tindak Lanjut)</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-amber-600 hover:text-amber-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @elseif(request('scope') === 'sudah_merespons')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                                    <span>Scope: Sudah Merespons</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-teal-600 hover:text-teal-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @elseif(request('scope') === 'belum_merespons')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-50 text-orange-900 border border-orange-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                                    <span>Scope: Belum Merespons</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-orange-600 hover:text-orange-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @elseif(request('scope') === 'duplikat_wa')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                    <span>Scope: Duplikat Nomor WA</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-rose-600 hover:text-rose-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @elseif(request('scope') === 'incomplete')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                                    <span>Scope: Data Belum Lengkap</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-purple-600 hover:text-purple-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @elseif(request('scope') === 'presensi')
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span>Scope: Presensi Siswa</span>
+                                    <a href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" class="ml-1 text-emerald-600 hover:text-emerald-950 font-black" title="Hapus filter scope">&times;</a>
+                                </span>
+                            @endif
                         </div>
                         <p class="text-xs sm:text-sm text-slate-500 mt-1">Audit terpusat data calon mahasiswa dari seluruh role & wilayah untuk verifikasi pelaporan tanpa mutasi data.</p>
                     </div>
@@ -84,11 +127,11 @@
             @endif
 
             <!-- Scope Switcher Tabs -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200/60">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl overflow-x-auto max-w-full border border-slate-200/60 scrollbar-thin">
                     <a 
-                        href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null]))) }}" 
-                        class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ !request('scope') ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                        href="{{ route('analyst.prospek.index', array_filter(array_merge(request()->query(), ['scope' => null, 'page' => 1]))) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ !request('scope') ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
                     >
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -96,13 +139,67 @@
                         <span>Semua Prospek</span>
                     </a>
                     <a 
-                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'presensi'])) }}" 
-                        class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {{ request('scope') === 'presensi' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'sudah_follow_up', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'sudah_follow_up' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
                     >
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'sudah_follow_up' ? 'text-emerald-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>Presensi Siswa Sekolah</span>
+                        <span>Sudah Follow-Up</span>
+                    </a>
+                    <a 
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'belum_follow_up', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'belum_follow_up' ? 'bg-white text-amber-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                    >
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'belum_follow_up' ? 'text-amber-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Belum Follow-Up</span>
+                    </a>
+                    <a 
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'sudah_merespons', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'sudah_merespons' ? 'bg-white text-teal-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                    >
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'sudah_merespons' ? 'text-teal-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <span>Sudah Merespons</span>
+                    </a>
+                    <a 
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'belum_merespons', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'belum_merespons' ? 'bg-white text-orange-800 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                    >
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'belum_merespons' ? 'text-orange-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                        <span>Belum Merespons</span>
+                    </a>
+                    <a 
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'duplikat_wa', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'duplikat_wa' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                    >
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'duplikat_wa' ? 'text-rose-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span>Duplikat WA</span>
+                    </a>
+                    <a 
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'incomplete', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'incomplete' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                    >
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'incomplete' ? 'text-purple-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>Data Belum Lengkap</span>
+                    </a>
+                    <a 
+                        href="{{ route('analyst.prospek.index', array_merge(request()->query(), ['scope' => 'presensi', 'page' => 1])) }}" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 {{ request('scope') === 'presensi' ? 'bg-white text-teal-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800' }}"
+                    >
+                        <svg class="w-3.5 h-3.5 {{ request('scope') === 'presensi' ? 'text-teal-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span>Presensi Siswa</span>
                     </a>
                 </div>
 
@@ -255,8 +352,19 @@
 
             <!-- Row 3: Dimensi Penugasan & Saluran -->
             <div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Dimensi Penugasan, Kelas & Saluran</span>
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5 text-xs">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Dimensi Penugasan, Kategori, Kelas & Saluran</span>
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-3.5 text-xs">
+                    <!-- Kategori Lead CRM -->
+                    <div class="space-y-1">
+                        <label class="block text-[11px] font-bold text-slate-700">Kategori Lead</label>
+                        <select name="category" onchange="this.form.submit()" class="w-full px-3 py-2.5 rounded-xl bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition">
+                            <option value="all">Semua Kategori</option>
+                            @foreach($categoryOptions ?? [] as $cat)
+                                <option value="{{ $cat }}" {{ ($filters['category'] ?? '') === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- Kelas -->
                     <div class="space-y-1">
                         <label class="block text-[11px] font-bold text-slate-700">Kelas Mahasiswa</label>
@@ -280,7 +388,7 @@
 
                     <!-- Gelombang -->
                     <div class="space-y-1">
-                        <label class="block text-[11px] font-bold text-slate-700">Gelombang Pendaftaran</label>
+                        <label class="block text-[11px] font-bold text-slate-700">Gelombang PMB</label>
                         <select name="gelombang" onchange="this.form.submit()" class="w-full px-3 py-2.5 rounded-xl bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition">
                             <option value="all">Semua Gelombang</option>
                             @foreach($gelombangOptions as $g)
