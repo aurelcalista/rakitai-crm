@@ -93,4 +93,62 @@ class SalesProspectMetricsTest extends TestCase
         $response->assertSee('Aktivitas & Metrik Prospek CS');
         $response->assertViewHas('csMetrics');
     }
+
+    public function test_sales_metrics_includes_presensi_siswa_and_corporate_prospects()
+    {
+        $wilayah = \App\Models\Wilayah::create(['kode' => 'W1', 'nama' => 'Wilayah Demo', 'level' => 'Provinsi', 'status' => 'Aktif']);
+        $sales = User::factory()->create(['role' => 'Sales', 'name' => 'Sales Demo', 'wilayah_id' => $wilayah->id]);
+
+        // 1. Prospek manual (sekolah)
+        Prospek::create([
+            'name'         => 'Prospek Manual Sekolah',
+            'type'         => 'Sekolah',
+            'pic'          => 'Budi',
+            'whatsapp'     => '081234567801',
+            'status'       => 'BARU',
+            'stage_number' => 1,
+            'sales_id'     => $sales->id,
+            'owner_id'     => $sales->id,
+        ]);
+
+        // 2. Presensi Siswa (source = Presensi Siswa, sales_id = null)
+        $pPresensi = Prospek::create([
+            'name'         => 'MAN 1 Cirebon',
+            'type'         => 'Sekolah',
+            'pic'          => 'Abdulah',
+            'whatsapp'     => '081234567802',
+            'status'       => 'BARU',
+            'stage_number' => 1,
+            'source'       => Prospek::SOURCE_PRESENSI_SISWA,
+            'sales_id'     => null,
+            'owner_id'     => null,
+        ]);
+
+        // 3. Prospek Corporate
+        Prospek::create([
+            'name'         => 'PT Maju Bersama',
+            'type'         => 'Corporate',
+            'pic'          => 'Direktur HR',
+            'whatsapp'     => '081234567803',
+            'status'       => 'BARU',
+            'stage_number' => 1,
+            'sales_id'     => $sales->id,
+            'owner_id'     => $sales->id,
+        ]);
+
+        $response = $this->actingAs($sales)->get(route('sales.prospek.index'));
+        $response->assertStatus(200);
+
+        // Check metrics: all 3 should be counted in diinput!
+        $response->assertViewHas('salesMetrics', function ($metrics) {
+            return $metrics['diinput'] === 3;
+        });
+
+        // Also test via CrmController (route prospek.index)
+        $crmResponse = $this->actingAs($sales)->get(route('prospek.index'));
+        $crmResponse->assertStatus(200);
+        $crmResponse->assertViewHas('salesMetrics', function ($metrics) {
+            return $metrics['diinput'] === 3;
+        });
+    }
 }
