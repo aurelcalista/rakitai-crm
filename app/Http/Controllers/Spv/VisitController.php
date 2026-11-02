@@ -121,7 +121,7 @@ class VisitController extends Controller
             'catatan'                  => 'nullable|string|max:2000',
             'hasil'                    => 'nullable|string|max:2000',
             'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
-            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'                     => 'nullable|image|mimes:jpg,jpeg|max:5120',
             'potensi_mahasiswa'        => 'nullable|string|max:255',
             'detail_potensi_mahasiswa' => 'nullable|string|max:500',
             'kesediaan_training_ai'    => 'nullable|boolean',

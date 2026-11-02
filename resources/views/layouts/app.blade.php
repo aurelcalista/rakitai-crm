@@ -3403,7 +3403,7 @@ x-init="
                             @click="!photoPreview && document.getElementById('foto_upload').click()"
                         >
                             <!-- File input is always in DOM -->
-                            <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @click.stop @change="
+                            <input type="file" id="foto_upload" name="foto" accept=".jpg,.jpeg,image/jpeg" class="sr-only" @click.stop @change="
                                 const file = $event.target.files[0];
                                 if (file) {
                                     const reader = new FileReader();

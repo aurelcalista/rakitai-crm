@@ -203,7 +203,7 @@
                                 type="file" 
                                 id="avatar-file-input" 
                                 name="avatar" 
-                                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" 
+                                accept=".jpg,.jpeg,image/jpeg" 
                                 class="hidden" 
                                 @change="onFileChange($event)"
                             >

@@ -1137,7 +1137,7 @@ class CrmController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'subtitle' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'image' => 'nullable|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         \App\Models\MasterData::updateOrCreate(
@@ -1178,7 +1178,7 @@ class CrmController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'subtitle' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'image' => 'nullable|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         \App\Models\MasterData::updateOrCreate(
@@ -2780,7 +2780,7 @@ class CrmController extends Controller
             'pic_name'       => 'required|string|max:255',
             'pic_whatsapp'   => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'catatan'        => 'nullable|string|max:2000',
-            'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'           => 'nullable|image|mimes:jpg,jpeg|max:5120',
             'dosen_pemateri' => 'nullable|string|max:255',
             'dosen_id'       => 'nullable|exists:users,id',
         ]);
@@ -2882,7 +2882,7 @@ class CrmController extends Controller
             'catatan'                  => 'nullable|string|max:2000',
             'hasil'                    => 'nullable|string|max:2000',
             'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
-            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'                     => 'nullable|image|mimes:jpg,jpeg|max:5120',
             'potensi_mahasiswa'        => 'nullable|string|max:255',
             'detail_potensi_mahasiswa' => 'nullable|string|max:500',
             'kesediaan_training_ai'    => 'nullable|boolean',
@@ -3595,7 +3595,7 @@ class CrmController extends Controller
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
             'phone'         => 'nullable|string|max:20',
-            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
+            'avatar'        => 'nullable|image|mimes:jpg,jpeg|max:3072',
             'remove_avatar' => 'nullable',
         ]);
 
