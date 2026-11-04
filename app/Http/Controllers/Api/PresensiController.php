@@ -39,12 +39,12 @@ class PresensiController extends Controller
             'no_whatsapp'       => ['required', 'string', 'max:25', new IndonesianWhatsApp(allowEmpty: false)],
             'wa_ortu'           => ['nullable', 'string', 'max:25', new IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas'        => 'nullable|string|max:255',
-            'prodi_id'          => 'required|string',
+            'prodi_id' => ['required','string','exclude_if:prodi_id,lainnya','exists:prodis,id'],
             'prodi_lainnya'     => 'nullable|required_if:prodi_id,lainnya|string|max:255',
             'kelas'             => 'required|in:Reguler,Karyawan',
         ]);
 
-        if ($validated['jenis_instansi'] === 'Sekolah' && empty($validated['sekolah_id']) && empty($request->sekolah_manual)) {
+        if ($validated['jenis_instansi'] === 'Sekolah' && empty($validated['sekolah_id']) && empty($validated['sekolah_manual'])) {
             return response()->json(['message' => 'Nama sekolah wajib dipilih atau diisi manual jika belum terdaftar.'], 422);
         }
 
@@ -62,8 +62,8 @@ class PresensiController extends Controller
                     $sekolahId = $sekolah->id;
                     $wilayahId = $sekolah->wilayah_id;
                 }
-            } elseif (!empty($request->sekolah_manual)) {
-                $manualName = trim($request->sekolah_manual);
+            } elseif (!empty($validated['sekolah_manual'])) {
+                $manualName = trim($validated['sekolah_manual']);
                 $matched = Sekolah::whereRaw('LOWER(nama) = ?', [strtolower($manualName)])->first();
                 if ($matched) {
                     $name = $matched->nama;
@@ -89,9 +89,9 @@ class PresensiController extends Controller
                     $perusahaanId = $perusahaan->id;
                     $wilayahId = $perusahaan->wilayah_id;
                 }
-            } elseif (!empty($request->perusahaan_manual)) {
-                $name = trim($request->perusahaan_manual) ?: $validated['nama'];
-                $manualNotes = 'Perusahaan (Belum Terdaftar): ' . trim($request->perusahaan_manual);
+            } elseif (!empty($validated['perusahaan_manual'])) {
+                $name = trim($validated['perusahaan_manual']) ?: $validated['nama'];
+                $manualNotes = 'Perusahaan (Belum Terdaftar): ' . trim($validated['perusahaan_manual']);
             }
         }
 
@@ -200,7 +200,7 @@ class PresensiController extends Controller
             'no_whatsapp'       => ['required', 'string', 'max:25', new IndonesianWhatsApp(allowEmpty: false)],
             'wa_ortu'           => ['nullable', 'string', 'max:25', new IndonesianWhatsApp(allowEmpty: true)],
             'asal_kelas'        => 'nullable|string|max:255',
-            'prodi_id'          => 'required|string',
+            'prodi_id' => ['required','string','exclude_if:prodi_id,lainnya','exists:prodis,id'],
             'prodi_lainnya'     => 'nullable|required_if:prodi_id,lainnya|string|max:255',
             'kelas'             => 'required|in:Reguler,Karyawan',
         ]);
@@ -217,8 +217,8 @@ class PresensiController extends Controller
                 $perusahaanId = $perusahaan->id;
                 $wilayahId = $perusahaan->wilayah_id;
             }
-        } elseif (!empty($request->perusahaan_manual)) {
-            $name = trim($request->perusahaan_manual);
+        } elseif (!empty($validated['perusahaan_manual'])) {
+            $name = trim($validated['perusahaan_manual']);
             $manualNotes = 'Perusahaan (Belum Terdaftar): ' . $name;
         }
 
