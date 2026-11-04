@@ -1137,7 +1137,7 @@ class CrmController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'subtitle' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'image' => 'nullable|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         \App\Models\MasterData::updateOrCreate(
@@ -1178,7 +1178,7 @@ class CrmController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'subtitle' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'image' => 'nullable|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         \App\Models\MasterData::updateOrCreate(
@@ -2009,6 +2009,7 @@ class CrmController extends Controller
                 'sekolah_id'    => $sekolahId ?: $existingProspek->sekolah_id,
                 'wilayah_id'    => $wilayahId ?: $existingProspek->wilayah_id,
                 'name'          => $name ?: $existingProspek->name,
+                'source'        => Prospek::SOURCE_PRESENSI_SISWA,
             ]);
 
             ProspekTimeline::create([
@@ -2769,7 +2770,7 @@ class CrmController extends Controller
             'pic_name'       => 'required|string|max:255',
             'pic_whatsapp'   => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'catatan'        => 'nullable|string|max:2000',
-            'foto'           => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'           => 'nullable|image|mimes:jpg,jpeg|max:5120',
             'dosen_pemateri' => 'nullable|string|max:255',
             'dosen_id'       => 'nullable|exists:users,id',
         ]);
@@ -2871,7 +2872,7 @@ class CrmController extends Controller
             'catatan'                  => 'nullable|string|max:2000',
             'hasil'                    => 'nullable|string|max:2000',
             'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
-            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'                     => 'nullable|image|mimes:jpg,jpeg|max:5120',
             'potensi_mahasiswa'        => 'nullable|string|max:255',
             'detail_potensi_mahasiswa' => 'nullable|string|max:500',
             'kesediaan_training_ai'    => 'nullable|boolean',
@@ -3138,20 +3139,7 @@ class CrmController extends Controller
                     ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
             }
 
-            if (strtolower(auth()->user()->role ?? '') === 'cs') {
-                $allowedCsStatuses = ['FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON', 'BATAL DAFTAR', 'BATAL', 'CANCEL'];
-                if (!in_array(strtoupper(trim((string)$newStatus)), $allowedCsStatuses)) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->withErrors(['status' => 'CS hanya berwenang mengubah status ke FORMULIR, BERKAS, LUNAS, NO RESPON, atau BATAL DAFTAR.']);
-                }
-            }
-
-            if (strtoupper($newStatus) === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['status' => 'Status LUNAS memerlukan verifikasi pembayaran (Beli Formulir & Pembayaran Termin 1) oleh CS.']);
-            }
+            // CS dan peran berwenang bebas mengubah ke status apa pun (tidak dibatasi harus mulai dari FORMULIR)
 
             $stagesMap = \App\Models\Prospek::getDynamicStagesMap();
             $prospek->status = $newStatus;
@@ -3597,7 +3585,7 @@ class CrmController extends Controller
         $validated = $request->validate([
             'name'          => 'required|string|max:255',
             'phone'         => 'nullable|string|max:20',
-            'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:3072',
+            'avatar'        => 'nullable|image|mimes:jpg,jpeg|max:3072',
             'remove_avatar' => 'nullable',
         ]);
 

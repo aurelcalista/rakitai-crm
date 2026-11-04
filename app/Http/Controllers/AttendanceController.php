@@ -213,7 +213,7 @@ class AttendanceController extends Controller
 
         $rules = [
             'status' => 'required|in:Hadir,Izin,Sakit',
-            'photo' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'photo' => 'required|image|mimes:jpg,jpeg|max:5120',
             'notes' => 'nullable|max:300',
         ];
 

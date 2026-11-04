@@ -165,4 +165,96 @@ class CsProspectCreationTest extends TestCase
         $resShowMeiFie = $this->actingAs($csMeiFie)->get(route('prospek.show', $prospekYuda->id));
         $resShowMeiFie->assertOk();
     }
+
+    public function test_cs_b_visibility_of_cs_a_prospects_across_tabs_and_pages()
+    {
+        $wilayah = Wilayah::create(['nama' => 'Wilayah 1', 'kode' => 'W1', 'status' => 'Aktif']);
+        $ta = TahunAkademik::create(['nama' => '2026/2027', 'is_active' => true]);
+
+        $csA = User::factory()->create([
+            'name' => 'CS Alpha',
+            'role' => 'CS',
+            'wilayah_id' => $wilayah->id,
+            'status' => 'Aktif',
+        ]);
+
+        $csB = User::factory()->create([
+            'name' => 'CS Beta',
+            'role' => 'CS',
+            'wilayah_id' => $wilayah->id,
+            'status' => 'Aktif',
+        ]);
+
+        // CS A inputs a prospect via prospek.store (status BARU)
+        $resStore = $this->actingAs($csA)->post(route('prospek.store'), [
+            'type' => 'Individu',
+            'name' => 'Prospek Dari CS Alpha',
+            'pic' => 'Prospek Dari CS Alpha',
+            'whatsapp' => '81299990001',
+            'status' => 'BARU',
+            'cs_id' => $csA->id,
+        ]);
+        $resStore->assertSessionHasNoErrors();
+
+        // 1. Check in CS A's prospek.index
+        $resCsA = $this->actingAs($csA)->get(route('prospek.index'));
+        $resCsA->assertOk()->assertSee('Prospek Dari CS Alpha');
+
+        // 2. Check in CS B's prospek.index (Semua Prospek / default)
+        $resCsB = $this->actingAs($csB)->get(route('prospek.index'));
+        $resCsB->assertOk()->assertSee('Prospek Dari CS Alpha');
+
+        // 3. Check in CS B's scope=own (Should NOT be in Prospek Saya CS B!)
+        $resCsBOwn = $this->actingAs($csB)->get(route('prospek.index', ['scope' => 'own']));
+        $resCsBOwn->assertOk()->assertDontSee('Prospek Dari CS Alpha');
+
+        // 4. Check in CS B's scope=others (SHOULD be in Prospek CS Lain!)
+        $resCsBOthers = $this->actingAs($csB)->get(route('prospek.index', ['scope' => 'others']));
+        $resCsBOthers->assertOk()->assertSee('Prospek Dari CS Alpha');
+
+        // 5. Check in CS B's follow-up page
+        $resCsBFu = $this->actingAs($csB)->get(route('follow-up.index'));
+        $resCsBFu->assertOk()->assertSee('Prospek Dari CS Alpha');
+
+        // Test Scenario 2: Prospek dibuat oleh Sales di tahap awal (BARU, cs_id = null, source = Sosmed)
+        $sales = User::factory()->create([
+            'name' => 'Sales Lapangan 2',
+            'role' => 'Sales',
+            'wilayah_id' => $wilayah->id,
+            'status' => 'Aktif',
+        ]);
+
+        $prospekSales = Prospek::create([
+            'name' => 'Prospek Sales Awal',
+            'pic' => 'Prospek Sales Awal',
+            'whatsapp' => '+6281299990002',
+            'type' => 'Individu',
+            'status' => 'BARU',
+            'stage_number' => 1,
+            'source' => 'Sosmed',
+            'sales_id' => $sales->id,
+            'owner_id' => $sales->id,
+            'cs_id' => null,
+            'wilayah_id' => $wilayah->id,
+            'academic_year_id' => $ta->id,
+        ]);
+
+        // Check: Can CS A see it?
+        $resCsASales = $this->actingAs($csA)->get(route('prospek.index'));
+        // Check: Can CS B see it?
+        $resCsBSales = $this->actingAs($csB)->get(route('prospek.index'));
+        $this->assertFalse(str_contains($resCsASales->getContent(), 'Prospek Sales Awal'), 'CS A should NOT see early sales prospect before handover or presensi');
+        $this->assertFalse(str_contains($resCsBSales->getContent(), 'Prospek Sales Awal'), 'CS B should NOT see early sales prospect before handover or presensi');
+
+        // Now CS A takes over or CS A is assigned cs_id
+        $prospekSales->update(['cs_id' => $csA->id, 'takeover_by_id' => $csA->id, 'status_takeover' => 'Sudah Di-takeover']);
+
+        // Check again: CS A sees it
+        $resCsASalesAfter = $this->actingAs($csA)->get(route('prospek.index'));
+        $this->assertTrue(str_contains($resCsASalesAfter->getContent(), 'Prospek Sales Awal'));
+
+        // Check again: CS B sees it in prospek.index (Semua Prospek)
+        $resCsBSalesAfter = $this->actingAs($csB)->get(route('prospek.index'));
+        $this->assertTrue(str_contains($resCsBSalesAfter->getContent(), 'Prospek Sales Awal'));
+    }
 }

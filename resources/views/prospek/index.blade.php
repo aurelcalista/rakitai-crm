@@ -229,23 +229,22 @@
                     <span>Unduh Spreadsheet</span>
                 </a>
 
-                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
-                    {{-- Import Massal Data Prospek Spreadsheet (Khusus CS & Admin) --}}
-                    @if(in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
-                    <button 
-                        type="button" 
-                        @click="modalImportProspek = true"
-                        class="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
-                        title="Import Massal Prospek dari Google Sheets / Excel (.xlsx, .csv)"
-                    >
-                        <svg class="w-4 h-4 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                        <span>Import Spreadsheet</span>
-                    </button>
-                    @endif
+                {{-- Import Massal Data Prospek Spreadsheet (Khusus CS & Admin) --}}
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+                <button 
+                    type="button" 
+                    @click="modalImportProspek = true"
+                    class="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    title="Import Massal Prospek dari Google Sheets / Excel (.xlsx, .csv)"
+                >
+                    <svg class="w-4 h-4 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Import Spreadsheet</span>
+                </button>
+                @endif
 
-                    @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs', 'admin']))
                     <button 
                         type="button" 
                         @click="modalPresensiManual = true"
@@ -256,7 +255,6 @@
                         </svg>
                         <span>Tambah Presensi Siswa</span>
                     </button>
-                    @endif
                     <button 
                         type="button" 
                         @click="modalTambahProspek = true"

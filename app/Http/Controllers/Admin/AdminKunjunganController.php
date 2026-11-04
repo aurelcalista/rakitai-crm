@@ -77,7 +77,7 @@ class AdminKunjunganController extends Controller
             'catatan'          => 'nullable|string',
             'status'           => 'required|in:Menunggu,Proses,Selesai',
             'dosen_pemateri'   => 'nullable|string|max:255',
-            'foto'             => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'             => 'nullable|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         if ($request->hasFile('foto') && $request->file('foto')->isValid()) {
