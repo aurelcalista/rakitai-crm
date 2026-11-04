@@ -36,6 +36,7 @@
         userRole: '{{ strtolower(auth()->user()->role ?? '') }}',
         prospectsList: {{ json_encode($prospects) }},
         modalPresensiManual: {{ old('form_type') === 'presensi_manual' ? 'true' : 'false' }},
+        modalImportProspek: false,
 
         takeoverProspect(p, formEl) {
             const name = p.name || p.pic || 'prospek ini';
@@ -77,15 +78,20 @@
         },
         isOtherProspect(p) {
             if (this.isOwnProspect(p)) return false;
-            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
-                const hasOtherCs = Boolean((p.cs_id && p.cs_id != this.authUserId) || (p.owner_id && p.owner_id != this.authUserId && p.cs_name && p.cs_name !== '-') || (p.takeover_by_id && p.takeover_by_id != this.authUserId));
-                return Boolean(p.is_other === true || hasOtherCs);
-            }
-            const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-') || p.takeover_by_id);
-            return Boolean(p.is_other === true || hasSalesOwner);
+            return true;
         },
         isPresensiSiswa(p) {
             return Boolean(p.is_presensi === true || (p.source && p.source.toLowerCase().includes('presensi')));
+        },
+        isImportedProspect(p) {
+            return Boolean(
+                p.is_imported === true || 
+                (p.source && (
+                    p.source.toLowerCase().includes('import') || 
+                    p.source.toLowerCase().includes('sheet') || 
+                    p.source.toLowerCase().includes('excel')
+                ))
+            );
         },
         updateUrlScope(scope) {
             this.selectedScope = scope;
@@ -132,6 +138,8 @@
                     matchScope = this.isOtherProspect(p);
                 } else if (this.selectedScope === 'presensi') {
                     matchScope = this.isPresensiSiswa(p);
+                } else if (this.selectedScope === 'imported') {
+                    matchScope = this.isImportedProspect(p);
                 }
                 
                 return matchSearch && matchStatus && matchType && matchTakeover && matchGelombang && matchScope;
@@ -220,6 +228,21 @@
                     </svg>
                     <span>Unduh Spreadsheet</span>
                 </a>
+
+                {{-- Import Massal Data Prospek Spreadsheet (Khusus CS & Admin) --}}
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+                <button 
+                    type="button" 
+                    @click="modalImportProspek = true"
+                    class="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    title="Import Massal Prospek dari Google Sheets / Excel (.xlsx, .csv)"
+                >
+                    <svg class="w-4 h-4 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Import Spreadsheet</span>
+                </button>
+                @endif
 
                 @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs', 'admin']))
                     <button 
@@ -409,6 +432,17 @@
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
                           :class="selectedScope === 'presensi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/70 text-slate-600'"
                           x-text="prospectsList.filter(p => isPresensiSiswa(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('imported')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'imported' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Data Diimpor</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'imported' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isImportedProspect(p)).length"></span>
                 </button>
             </div>
             
@@ -611,6 +645,9 @@
                                         </template>
                                         <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.is_presensi">
                                             <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 text-[9px]">Presensi Siswa</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 font-medium" x-show="isImportedProspect(prospect)">
+                                            <span class="inline-flex items-center gap-1 text-indigo-700 font-semibold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200 text-[9px]">Hasil Import</span>
                                         </div>
                                     </div>
                                 </td>
@@ -1170,6 +1207,11 @@
                 </div>
             </div>
         </div>
+
+        {{-- MODAL IMPORT MASSAL DATA PROSPEK (GOOGLE SHEETS / EXCEL) --}}
+        @if(in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+            @include('prospek._modal-import')
+        @endif
 
     </div>
 
