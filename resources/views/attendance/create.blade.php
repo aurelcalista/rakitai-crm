@@ -135,7 +135,7 @@
                             type="file" 
                             name="photo" 
                             id="photo" 
-                            accept="image/jpeg,image/png,image/jpg" 
+                            accept=".jpg,.jpeg,image/jpeg" 
                             required 
                             x-ref="photoInput" 
                             @change="handleFile($event)"

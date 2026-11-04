@@ -160,6 +160,25 @@
             <span class="text-slate-900">{{ $prospect['name'] }}</span>
         </div>
 
+        @if(session('success'))
+            <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>{{ session('success') }}</span>
+                </div>
+                <button type="button" @click="$el.closest('div').remove()" class="text-emerald-500 hover:text-emerald-700 font-bold text-base leading-none">&times;</button>
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs font-semibold shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>{{ session('error') }}</span>
+                </div>
+                <button type="button" @click="$el.closest('div').remove()" class="text-rose-500 hover:text-rose-700 font-bold text-base leading-none">&times;</button>
+            </div>
+        @endif
+
         <!-- Detail Header Card -->
         <div class="crm-card bg-white p-5 sm:p-6">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-100">
@@ -250,7 +269,7 @@
                         class="px-3.5 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                     >
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                        <span>Re-alokasi Sales</span>
+                        <span>Re-alokasi</span>
                     </button>
                     @endcan
 
@@ -949,8 +968,8 @@
                 >
                     <div class="flex items-center justify-between pb-4 border-b border-slate-100">
                         <div>
-                            <h3 class="text-base font-bold text-slate-900">Re-alokasi Prospek ke Sales Lain</h3>
-                            <p class="text-xs text-slate-500">Pindahkan penugasan prospek ke personil sales lain dalam tim Anda.</p>
+                            <h3 class="text-base font-bold text-slate-900">Re-alokasi Prospek ke Sales / CS</h3>
+                            <p class="text-xs text-slate-500">Pindahkan penugasan prospek ke personil Sales atau CS lain.</p>
                         </div>
                         <button @click="modalRealokasi = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -960,19 +979,32 @@
                     <form action="{{ route('prospek.realokasi', $prospect['id']) }}" method="POST" class="mt-5 space-y-4">
                         @csrf
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Sales Saat Ini</label>
-                            <input type="text" readonly value="{{ $prospect['takeover_sales'] ?? 'Belum Ditugaskan' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-semibold cursor-not-allowed">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Handler Saat Ini</label>
+                            <input type="text" readonly value="{{ $prospect['active_takeover'] ?? 'Belum Ditugaskan' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-semibold cursor-not-allowed">
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Sales Baru (Penerima Tugas) *</label>
-                            <select name="sales_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition bg-white font-medium">
-                                <option value="">-- Pilih Sales Anggota Tim --</option>
-                                @foreach($salesTeam as $st)
-                                    <option value="{{ $st->id }}" {{ (isset($prospekModel) && $prospekModel->sales_id == $st->id) ? 'disabled' : '' }}>
-                                        {{ $st->name }} ({{ $st->email }}) {{ (isset($prospekModel) && $prospekModel->sales_id == $st->id) ? '- (Saat ini)' : '' }}
-                                    </option>
-                                @endforeach
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Alihkan ke Personil (Sales / CS) *</label>
+                            <select name="user_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition bg-white font-medium">
+                                <option value="">-- Pilih Personil Penerima Tugas --</option>
+                                @if($salesTeam->isNotEmpty())
+                                <optgroup label="── Sales ──">
+                                    @foreach($salesTeam as $st)
+                                        <option value="{{ $st->id }}" {{ (isset($prospekModel) && $prospekModel->sales_id == $st->id) ? 'disabled' : '' }}>
+                                            {{ $st->name }} (Sales) {{ (isset($prospekModel) && $prospekModel->sales_id == $st->id) ? '- (Saat ini)' : '' }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                                @endif
+                                @if(isset($csTeam) && $csTeam->isNotEmpty())
+                                <optgroup label="── CS ──">
+                                    @foreach($csTeam as $ct)
+                                        <option value="{{ $ct->id }}" {{ (isset($prospekModel) && $prospekModel->cs_id == $ct->id) ? 'disabled' : '' }}>
+                                            {{ $ct->name }} (CS) {{ (isset($prospekModel) && $prospekModel->cs_id == $ct->id) ? '- (Saat ini)' : '' }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                                @endif
                             </select>
                         </div>
 

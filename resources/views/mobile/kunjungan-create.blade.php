@@ -416,7 +416,7 @@
                     <input 
                         type="file" 
                         name="foto" 
-                        accept="image/*" 
+                        accept=".jpg,.jpeg,image/jpeg" 
                         required 
                         @change="handlePhotoChange($event)"
                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

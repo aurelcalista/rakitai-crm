@@ -115,7 +115,7 @@ class VisitController extends Controller
             'tanggal'        => 'required|date',
             'waktu'          => 'required|date_format:H:i',
             'catatan'        => 'nullable|string|max:2000',
-            'foto'           => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // 5MB max
+            'foto'           => 'required|image|mimes:jpg,jpeg|max:5120', // 5MB max
             'lat'            => 'required|numeric',
             'lng'            => 'required|numeric',
             'dosen_id'       => 'nullable|exists:users,id',
@@ -429,7 +429,7 @@ class VisitController extends Controller
         $request->validate([
             'kehadiran' => 'required|in:Hadir,Tidak Hadir',
             'catatan'   => 'nullable|string|max:2000',
-            'foto'      => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'      => 'nullable|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         $event = \App\Models\Event::findOrFail($eventId);
@@ -487,7 +487,7 @@ class VisitController extends Controller
             'catatan'                  => 'nullable|string|max:2000',
             'hasil'                    => 'nullable|string|max:2000',
             'status'                   => 'nullable|string|in:Menunggu,Proses,Selesai',
-            'foto'                     => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'                     => 'nullable|image|mimes:jpg,jpeg|max:5120',
             'potensi_mahasiswa'        => 'nullable|string|max:255',
             'detail_potensi_mahasiswa' => 'nullable|string|max:500',
             'kesediaan_training_ai'    => 'nullable|boolean',

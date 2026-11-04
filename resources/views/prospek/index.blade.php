@@ -36,6 +36,37 @@
         userRole: '{{ strtolower(auth()->user()->role ?? '') }}',
         prospectsList: {{ json_encode($prospects) }},
         modalPresensiManual: {{ old('form_type') === 'presensi_manual' ? 'true' : 'false' }},
+        modalImportProspek: false,
+
+        takeoverProspect(p, formEl) {
+            const name = p.name || p.pic || 'prospek ini';
+            const msg = 'Yakin ingin mengambil alih (take over) ' + name + '?';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Konfirmasi Takeover',
+                    text: msg,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#4f46e5',
+                    cancelButtonColor: '#94a3b8',
+                    confirmButtonText: 'Ya, Takeover',
+                    cancelButtonText: 'Batal',
+                    customClass: {
+                        popup: 'rounded-2xl shadow-xl border border-indigo-100',
+                        confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5',
+                        cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                    }
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        formEl.submit();
+                    }
+                });
+            } else {
+                if (confirm(msg)) {
+                    formEl.submit();
+                }
+            }
+        },
         
         isOwnProspect(p) {
             if (p.is_own === true) return true;
@@ -47,15 +78,20 @@
         },
         isOtherProspect(p) {
             if (this.isOwnProspect(p)) return false;
-            if (this.userRole && this.userRole.toLowerCase() === 'cs') {
-                const hasOtherCs = Boolean((p.cs_id && p.cs_id != this.authUserId) || (p.owner_id && p.owner_id != this.authUserId && p.cs_name && p.cs_name !== '-') || (p.takeover_by_id && p.takeover_by_id != this.authUserId));
-                return Boolean(p.is_other === true || hasOtherCs);
-            }
-            const hasSalesOwner = Boolean(p.sales_id || (p.owner_id && p.owner_id !== '-') || p.takeover_by_id);
-            return Boolean(p.is_other === true || hasSalesOwner);
+            return true;
         },
         isPresensiSiswa(p) {
             return Boolean(p.is_presensi === true || (p.source && p.source.toLowerCase().includes('presensi')));
+        },
+        isImportedProspect(p) {
+            return Boolean(
+                p.is_imported === true || 
+                (p.source && (
+                    p.source.toLowerCase().includes('import') || 
+                    p.source.toLowerCase().includes('sheet') || 
+                    p.source.toLowerCase().includes('excel')
+                ))
+            );
         },
         updateUrlScope(scope) {
             this.selectedScope = scope;
@@ -102,6 +138,8 @@
                     matchScope = this.isOtherProspect(p);
                 } else if (this.selectedScope === 'presensi') {
                     matchScope = this.isPresensiSiswa(p);
+                } else if (this.selectedScope === 'imported') {
+                    matchScope = this.isImportedProspect(p);
                 }
                 
                 return matchSearch && matchStatus && matchType && matchTakeover && matchGelombang && matchScope;
@@ -143,6 +181,25 @@
         }
     }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
 
+        @if(session('success'))
+            <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>{{ session('success') }}</span>
+                </div>
+                <button type="button" @click="$el.closest('div').remove()" class="text-emerald-500 hover:text-emerald-700 font-bold text-base leading-none">&times;</button>
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs font-semibold shadow-xs">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-rose-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>{{ session('error') }}</span>
+                </div>
+                <button type="button" @click="$el.closest('div').remove()" class="text-rose-500 hover:text-rose-700 font-bold text-base leading-none">&times;</button>
+            </div>
+        @endif
+
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
@@ -172,8 +229,22 @@
                     <span>Unduh Spreadsheet</span>
                 </a>
 
-                @if(in_array(auth()->user()->role ?? '', ['Sales', 'CS', 'Admin']))
-                    @if(in_array(auth()->user()->role ?? '', ['CS', 'Admin', 'Sales']))
+                {{-- Import Massal Data Prospek Spreadsheet (Khusus CS & Admin) --}}
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+                <button 
+                    type="button" 
+                    @click="modalImportProspek = true"
+                    class="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition flex items-center gap-2 cursor-pointer"
+                    title="Import Massal Prospek dari Google Sheets / Excel (.xlsx, .csv)"
+                >
+                    <svg class="w-4 h-4 text-indigo-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Import Spreadsheet</span>
+                </button>
+                @endif
+
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs', 'admin']))
                     <button 
                         type="button" 
                         @click="modalPresensiManual = true"
@@ -184,7 +255,6 @@
                         </svg>
                         <span>Tambah Presensi Siswa</span>
                     </button>
-                    @endif
                     <button 
                         type="button" 
                         @click="modalTambahProspek = true"
@@ -362,6 +432,17 @@
                     <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
                           :class="selectedScope === 'presensi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200/70 text-slate-600'"
                           x-text="prospectsList.filter(p => isPresensiSiswa(p)).length"></span>
+                </button>
+                <button 
+                    type="button" 
+                    @click="updateUrlScope('imported')" 
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+                    :class="selectedScope === 'imported' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                >
+                    <span>Data Diimpor</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold"
+                          :class="selectedScope === 'imported' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200/70 text-slate-600'"
+                          x-text="prospectsList.filter(p => isImportedProspect(p)).length"></span>
                 </button>
             </div>
             
@@ -565,6 +646,9 @@
                                         <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.is_presensi">
                                             <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 text-[9px]">Presensi Siswa</span>
                                         </div>
+                                        <div class="text-[10px] text-slate-400 font-medium" x-show="isImportedProspect(prospect)">
+                                            <span class="inline-flex items-center gap-1 text-indigo-700 font-semibold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200 text-[9px]">Hasil Import</span>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="py-4 px-3">
@@ -608,14 +692,17 @@
                                 <td class="py-4 px-3 text-slate-500 text-[11px]" x-text="prospect.last_activity"></td>
                                 <td class="py-4 px-4 text-right">
                                     <div class="flex items-center justify-end gap-1">
-                                        <template x-if="prospect.is_presensi && prospect.status_takeover !== 'Sudah Di-takeover'">
-                                            <a 
-                                                :href="getProspectUrl(prospect)"
-                                                class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-2xs whitespace-nowrap"
-                                                title="Takeover Prospek Ini"
-                                            >
-                                                Takeover
-                                            </a>
+                                        <template x-if="prospect.status_takeover !== 'Sudah Di-takeover'">
+                                            <form :action="'{{ url('/prospek') }}/' + prospect.id + '/takeover'" method="POST" @submit.prevent="takeoverProspect(prospect, $el)" class="inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                                <button
+                                                    type="submit"
+                                                    class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[11px] transition shadow-2xs whitespace-nowrap cursor-pointer"
+                                                    title="Takeover Prospek Ini"
+                                                >
+                                                    Takeover
+                                                </button>
+                                            </form>
                                         </template>
                                         <button 
                                             @click="selectedProspect = prospect; modalFollowUp = true"
@@ -717,6 +804,18 @@
                             >
                                 Detail
                             </a>
+                            <template x-if="prospect.status_takeover !== 'Sudah Di-takeover'">
+                                <form :action="'{{ url('/prospek') }}/' + prospect.id + '/takeover'" method="POST" @submit.prevent="takeoverProspect(prospect, $el)">
+                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                    <button 
+                                        type="submit"
+                                        class="py-2 px-3 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100 cursor-pointer"
+                                        title="Takeover Prospek"
+                                    >
+                                        Takeover
+                                    </button>
+                                </form>
+                            </template>
                             <button 
                                 type="button"
                                 @click="openDeleteProspectModal(prospect)"
@@ -1108,6 +1207,11 @@
                 </div>
             </div>
         </div>
+
+        {{-- MODAL IMPORT MASSAL DATA PROSPEK (GOOGLE SHEETS / EXCEL) --}}
+        @if(in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'admin']))
+            @include('prospek._modal-import')
+        @endif
 
     </div>
 

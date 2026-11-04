@@ -663,7 +663,7 @@
                         <input
                             type="file"
                             name="foto"
-                            accept="image/*"
+                            accept=".jpg,.jpeg,image/jpeg"
                             x-ref="fotoInput"
                             class="hidden"
                             required

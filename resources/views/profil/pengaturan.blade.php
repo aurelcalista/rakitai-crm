@@ -103,7 +103,7 @@
                             </label>
                         </div>
                     @endif
-                    <input type="file" name="image" accept="image/*" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                    <input type="file" name="image" accept=".jpg,.jpeg,image/jpeg" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                 </div>
 
                 <div class="pt-3 border-t border-slate-100 flex items-center justify-end">
@@ -143,7 +143,7 @@
                             </label>
                         </div>
                     @endif
-                    <input type="file" name="image" accept="image/*" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                    <input type="file" name="image" accept=".jpg,.jpeg,image/jpeg" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                 </div>
 
                 <div class="pt-3 border-t border-slate-100 flex items-center justify-end">

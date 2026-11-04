@@ -48,7 +48,7 @@ class VisitController extends Controller
         $validated = $request->validate([
             'prodi_id'       => 'required|exists:prodis,id',
             'tanggal'        => 'required|date',
-            'foto'           => 'required|image|max:5120',
+            'foto'           => 'required|image|mimes:jpg,jpeg|max:5120',
             'lat'            => 'required|numeric',
             'lng'            => 'required|numeric',
             'prospek_id'     => 'nullable|exists:prospeks,id',

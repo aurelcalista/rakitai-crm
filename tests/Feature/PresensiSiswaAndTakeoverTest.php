@@ -110,8 +110,8 @@ class PresensiSiswaAndTakeoverTest extends TestCase
             'jenis_instansi' => 'Sekolah',
             'sekolah_id' => $sekolah->id,
             'nama' => 'Ahmad Siswa',
-            'no_whatsapp' => '081234567890',
-            'wa_ortu' => '081234567899',
+            'no_whatsapp' => '81234567890',
+            'wa_ortu' => '81234567899',
             'asal_kelas' => 'XII RPL 1',
             'prodi_id' => (string) $this->prodi->id,
             'kelas' => 'Reguler',
@@ -120,7 +120,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $response = $this->post('/presensi', $payload);
         $response->assertRedirect(route('kontak-cepat.terima-kasih'));
 
-        $prospek = Prospek::where('whatsapp', '081234567890')->first();
+        $prospek = Prospek::where('whatsapp', '+6281234567890')->first();
         $this->assertNotNull($prospek);
         $this->assertEquals('Ahmad Siswa', $prospek->pic);
         $this->assertEquals(Prospek::SOURCE_PRESENSI_SISWA, $prospek->source);
@@ -151,7 +151,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
             'jenis_instansi' => 'Sekolah',
             'sekolah_id' => $sekolah->id,
             'nama' => 'Bambang Siswa',
-            'no_whatsapp' => '082211223344',
+            'no_whatsapp' => '82211223344',
             'asal_kelas' => 'XII IPA',
             'prodi_id' => (string) $this->prodi->id,
             'kelas' => 'Reguler',
@@ -160,7 +160,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $response = $this->post('/presensi', $payload);
         $response->assertRedirect(route('kontak-cepat.terima-kasih'));
 
-        $prospek = Prospek::where('whatsapp', '082211223344')->first();
+        $prospek = Prospek::where('whatsapp', '+6282211223344')->first();
         $this->assertNotNull($prospek);
         $this->assertEquals($sekolah->id, $prospek->sekolah_id);
         $this->assertNull($prospek->wilayah_id);
@@ -175,7 +175,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
             'jenis_instansi' => 'Sekolah',
             'sekolah_manual' => 'SMA Swasta Pelita Baru',
             'nama' => 'Citra Siswi',
-            'no_whatsapp' => '083344556677',
+            'no_whatsapp' => '83344556677',
             'asal_kelas' => 'XII IPS 2',
             'prodi_id' => (string) $this->prodi->id,
             'kelas' => 'Reguler',
@@ -190,7 +190,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $this->assertNull($newSchool->wilayah_id, 'Wilayah/kota harus NULL untuk dilengkapi Admin');
         $this->assertEquals('Aktif', $newSchool->status);
 
-        $prospek = Prospek::where('whatsapp', '083344556677')->first();
+        $prospek = Prospek::where('whatsapp', '+6283344556677')->first();
         $this->assertNotNull($prospek);
         $this->assertEquals('SMA Swasta Pelita Baru', $prospek->name);
         $this->assertEquals('Citra Siswi', $prospek->pic);
@@ -214,7 +214,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
             'jenis_instansi' => 'Sekolah',
             'sekolah_id' => $sekolah->id,
             'nama' => 'Dodi Siswa',
-            'no_whatsapp' => '085566778899',
+            'no_whatsapp' => '85566778899',
             'prodi_id' => (string) $this->prodi->id,
             'kelas' => 'Reguler',
         ];
@@ -222,7 +222,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $response = $this->post('/presensi', $payload);
         $response->assertRedirect(route('kontak-cepat.terima-kasih'));
 
-        $prospek = Prospek::where('whatsapp', '085566778899')->first();
+        $prospek = Prospek::where('whatsapp', '+6285566778899')->first();
         $this->assertNotNull($prospek);
 
         // Harus tetap Sistem (owner_id = null) dan TIDAK otomatis ditugaskan ke salesA
@@ -354,9 +354,9 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $this->assertTrue(Gate::forUser($this->csB)->allows('view', $pPresensiBandung));
         $this->assertTrue(Gate::forUser($this->csB)->allows('takeover', $pPresensiBandung));
 
-        // CS A (Cirebon) can view Presensi Siswa in Bandung (open view per user requirement), but cannot takeover
+        // CS A (Cirebon) can view Presensi Siswa in Bandung and also takeover (seluruh CS berwenang takeover)
         $this->assertTrue(Gate::forUser($this->csA)->allows('view', $pPresensiBandung));
-        $this->assertFalse(Gate::forUser($this->csA)->allows('takeover', $pPresensiBandung));
+        $this->assertTrue(Gate::forUser($this->csA)->allows('takeover', $pPresensiBandung));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -544,14 +544,14 @@ class PresensiSiswaAndTakeoverTest extends TestCase
             'academic_year_id' => $this->ta->id,
         ]);
 
-        // CS A (Cirebon) mencoba takeover prospek Bandung
+        // Seluruh CS (termasuk CS A Cirebon) berwenang takeover prospek Presensi Siswa lintas wilayah
         $response = $this->actingAs($this->csA)->post(route('prospek.takeover', $prospek->id));
-        $response->assertStatus(403);
+        $response->assertSessionHas('success');
 
         $prospek->refresh();
-        $this->assertNull($prospek->cs_id);
-        $this->assertNull($prospek->takeover_by_id);
-        $this->assertEquals('Belum Di-takeover', $prospek->status_takeover);
+        $this->assertEquals($this->csA->id, $prospek->cs_id);
+        $this->assertEquals($this->csA->id, $prospek->takeover_by_id);
+        $this->assertEquals('Sudah Di-takeover', $prospek->status_takeover);
     }
 
     /** Skenario Form Corporate Presensi */
@@ -567,7 +567,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $payload = [
             'perusahaan_id' => $perusahaan->id,
             'nama' => 'Mario PIC',
-            'no_whatsapp' => '081899887766',
+            'no_whatsapp' => '81899887766',
             'asal_kelas' => 'Staff IT',
             'prodi_id' => (string) $this->prodi->id,
             'kelas' => 'Karyawan',
@@ -576,7 +576,7 @@ class PresensiSiswaAndTakeoverTest extends TestCase
         $response = $this->post('/presensi-corporate', $payload);
         $response->assertRedirect(route('kontak-cepat.terima-kasih-corporate'));
 
-        $prospek = Prospek::where('whatsapp', '081899887766')->first();
+        $prospek = Prospek::where('whatsapp', '+6281899887766')->first();
         $this->assertNotNull($prospek);
         $this->assertEquals(Prospek::SOURCE_PRESENSI_SISWA, $prospek->source);
         $this->assertEquals('Corporate', $prospek->type);

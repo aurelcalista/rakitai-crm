@@ -68,59 +68,74 @@ class DataAnalystController extends Controller
         $lunasCount = (clone $baseQuery)->where('status', 'LUNAS')->count();
         $lostCount = (clone $baseQuery)->whereIn('status', ['DINGIN', 'NO RESPON', 'CANCEL'])->count();
 
-        // Konversi
+        // Follow-Up & Responsiveness Metrics (Dihitung dari Awal)
+        $belumFollowUpCount = (clone $baseQuery)
+            ->where('follow_up_count', 0)
+            ->whereNotIn('status', ['LUNAS', 'CANCEL'])
+            ->count();
+
+        $sudahFollowUpCount = (clone $baseQuery)->where(function ($q) {
+            $q->where('follow_up_count', '>', 0)
+              ->orHas('followUps');
+        })->count();
+
+        // Sudah Merespons vs Belum Merespons
+        $sudahMeresponsCount = (clone $baseQuery)->where(function ($q) {
+            $q->whereIn('prospeks.status', ['PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS', 'HANGAT', 'PANAS'])
+              ->orWhereHas('followUps', function ($fq) {
+                  $fq->where(function ($sq) {
+                      $sq->whereIn('hasil', ['Dijawab', 'Tertarik & Minta Brosur', 'Jadwalkan Kunjungan', 'FORMULIR'])
+                         ->orWhere(function ($ssq) {
+                             $ssq->whereNotNull('hasil')
+                                 ->whereNotIn('hasil', ['Tidak Dijawab', 'Belum Respon']);
+                         });
+                  });
+              });
+        })->count();
+
+        $belumMeresponsCount = max(0, $totalProspekUnik - $sudahMeresponsCount);
+
+        // Konversi Funnel 4 Tahap Utama
+        $convProspekFollowup = $totalProspekUnik > 0 ? round(($sudahFollowUpCount / $totalProspekUnik) * 100, 1) : 0;
+        $convFollowupFormulir = $sudahFollowUpCount > 0 ? round(($formulirCount / $sudahFollowUpCount) * 100, 1) : 0;
+        $convFormulirLunas = $formulirCount > 0 ? round(($lunasCount / $formulirCount) * 100, 1) : 0;
         $convKontakFormulir = $totalProspekUnik > 0 ? round(($formulirCount / $totalProspekUnik) * 100, 1) : 0;
         $convKontakLunas = $totalProspekUnik > 0 ? round(($lunasCount / $totalProspekUnik) * 100, 1) : 0;
-        $convFormulirLunas = $formulirCount > 0 ? round(($lunasCount / $formulirCount) * 100, 1) : 0;
 
         // ──────────────────────────────────────────────────────────────
-        // 2. FUNNEL PMB LENGKAP
+        // 2. FUNNEL PMB (TOTAL PROSPEK, SUDAH FOLLOW-UP, FORMULIR, LUNAS)
         // ──────────────────────────────────────────────────────────────
-        $stageBaru = (clone $baseQuery)->whereIn('status', ['BARU', 'KONTAK'])->count();
-        $stageHangat = (clone $baseQuery)->whereIn('status', ['PROSPEK', 'HOT PROSPEK', 'HANGAT', 'PANAS'])->count();
-        $stageFormulir = $formulirCount;
-        $stageBerkas = $berkasCount;
-        $stageLunas = $lunasCount;
-
         $funnelData = [
             [
-                'stage' => '1. Kontak / Lead Masuk',
-                'sub' => 'Registrasi kontak baru & inbound lead',
+                'stage' => '1. Total Prospek',
+                'sub' => 'Seluruh data calon mahasiswa / lead terdaftar',
                 'count' => $totalProspekUnik,
                 'pct_total' => 100,
-                'drop_count' => (clone $baseQuery)->whereIn('status', ['DINGIN', 'NO RESPON'])->count(),
+                'drop_count' => max(0, $totalProspekUnik - $sudahFollowUpCount),
                 'color' => 'blue',
             ],
             [
-                'stage' => '2. Audiensi & Prospek Aktif',
-                'sub' => 'Prospek hangat/panas dalam follow-up',
-                'count' => $stageHangat + $stageFormulir,
-                'pct_total' => $totalProspekUnik > 0 ? round((($stageHangat + $stageFormulir) / $totalProspekUnik) * 100) : 0,
-                'drop_count' => (clone $baseQuery)->whereIn('status', ['DINGIN', 'NO RESPON'])->where('stage_number', '<=', 4)->count(),
+                'stage' => '2. Sudah Follow-up',
+                'sub' => 'Prospek yang telah dihubungi oleh tim penanganan',
+                'count' => $sudahFollowUpCount,
+                'pct_total' => $totalProspekUnik > 0 ? round(($sudahFollowUpCount / $totalProspekUnik) * 100) : 0,
+                'drop_count' => max(0, $sudahFollowUpCount - $formulirCount),
                 'color' => 'indigo',
             ],
             [
-                'stage' => '3. Pembelian Formulir',
-                'sub' => 'Calon mahasiswa membeli formulir pendaftaran',
-                'count' => $stageFormulir,
-                'pct_total' => $totalProspekUnik > 0 ? round(($stageFormulir / $totalProspekUnik) * 100) : 0,
-                'drop_count' => (clone $baseQuery)->where('status', 'CANCEL')->count(),
+                'stage' => '3. Pengisian Formulir',
+                'sub' => 'Calon mahasiswa membeli / mengisi formulir PMB',
+                'count' => $formulirCount,
+                'pct_total' => $totalProspekUnik > 0 ? round(($formulirCount / $totalProspekUnik) * 100) : 0,
+                'drop_count' => max(0, $formulirCount - $lunasCount),
                 'color' => 'purple',
             ],
             [
-                'stage' => '4. Pemberkasan Dokumen',
-                'sub' => 'Pengumpulan berkas persyaratan PMB',
-                'count' => $stageBerkas,
-                'pct_total' => $totalProspekUnik > 0 ? round(($stageBerkas / $totalProspekUnik) * 100) : 0,
-                'drop_count' => max(0, $stageFormulir - $stageBerkas),
-                'color' => 'amber',
-            ],
-            [
-                'stage' => '5. Mahasiswa Lunas Tahap 1',
-                'sub' => 'Maba resmi (Registrasi & Termin 1 Terverifikasi)',
-                'count' => $stageLunas,
-                'pct_total' => $totalProspekUnik > 0 ? round(($stageLunas / $totalProspekUnik) * 100) : 0,
-                'drop_count' => max(0, $stageBerkas - $stageLunas),
+                'stage' => '4. Pembayaran Lunas',
+                'sub' => 'Mahasiswa baru resmi (Registrasi & Termin 1 Lunas)',
+                'count' => $lunasCount,
+                'pct_total' => $totalProspekUnik > 0 ? round(($lunasCount / $totalProspekUnik) * 100) : 0,
+                'drop_count' => 0,
                 'color' => 'emerald',
             ],
         ];
@@ -158,6 +173,31 @@ class DataAnalystController extends Controller
             ->orderByDesc('total_nominal')
             ->take(6)
             ->get();
+
+        // Rincian Transaksi Pendaftar & Pembayaran Terverifikasi (Monitoring & Evaluasi Data Analyst)
+        $transaksiList = (clone $transaksiQuery)
+            ->with(['prospek.prodi', 'prospek.sales', 'verifier'])
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->take(20)
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'id'                => $t->id,
+                    'prospek_id'        => $t->prospek_id,
+                    'nama_prospek'      => $t->prospek?->camaba_name ?: ($t->prospek?->name ?? 'Calon Mahasiswa'),
+                    'no_registrasi'     => $t->prospek?->no_registrasi ?: '-',
+                    'jenis'             => $t->jenis,
+                    'nominal'           => (float) $t->nominal,
+                    'metode'            => $t->metode_label,
+                    'status'            => $t->payment_status ?: 'verified',
+                    'verifier_name'     => $t->verifier?->name ?: 'CS / Kasir',
+                    'sales_name'        => $t->prospek?->sales?->name ?: '-',
+                    'prodi_nama'        => $t->prospek?->prodi?->nama ?: ($t->prospek?->prodi_lainnya ?: '-'),
+                    'tanggal'           => $t->tanggal ? Carbon::parse($t->tanggal)->format('d M Y') : '-',
+                ];
+            })
+            ->values();
 
         // ──────────────────────────────────────────────────────────────
         // 4. PERFORMA SALES & TIM (100% DINAMIS TERFILTER)
@@ -215,6 +255,72 @@ class DataAnalystController extends Controller
                 ];
             })
             ->sortByDesc('lunas_count')
+            ->values();
+
+        // ──────────────────────────────────────────────────────────────
+        // 4b. PERFORMA SELURUH TIM CS (CUSTOMER SERVICE)
+        // ──────────────────────────────────────────────────────────────
+        $csQuery = User::where('role', 'CS')
+            ->where('status', 'Aktif')
+            ->with(['wilayah']);
+
+        if (!empty($filters['wilayah_id']) && $filters['wilayah_id'] !== 'all') {
+            $wId = $filters['wilayah_id'];
+            $csQuery->where(function ($q) use ($wId) {
+                $q->where('wilayah_id', $wId)
+                  ->orWhereHas('activeWilayahes', fn($wq) => $wq->where('wilayah_id', $wId));
+            });
+        }
+
+        $csList = $csQuery->get()
+            ->map(function ($cs) use ($baseQuery, $diffRaw) {
+                // Prospek yang dialihkan/ditangani oleh CS ini
+                $csProspeks = (clone $baseQuery)->where('cs_id', $cs->id);
+
+                $totalKontak = (clone $csProspeks)->count();
+                $formulir = (clone $csProspeks)->whereIn('status', ['FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS'])->count();
+                $lunas = (clone $csProspeks)->where('status', 'LUNAS')->count();
+
+                // Follow up yang dilakukan oleh CS ini
+                $followUpCount = FollowUp::where('user_id', $cs->id)
+                    ->whereIn('prospek_id', (clone $baseQuery)->select('prospeks.id'))
+                    ->count();
+
+                // Kecepatan respon CS sejak handover
+                $firstCsFollowUps = FollowUp::where('user_id', $cs->id)
+                    ->join('prospeks', 'follow_ups.prospek_id', '=', 'prospeks.id')
+                    ->whereIn('follow_ups.prospek_id', (clone $csProspeks)->select('prospeks.id'))
+                    ->selectRaw($diffRaw)
+                    ->value('avg_hours');
+
+                $avgResponseHours = $firstCsFollowUps !== null ? round((float) $firstCsFollowUps, 1) : null;
+                $konversi = $totalKontak > 0 ? round(($lunas / $totalKontak) * 100, 1) : 0;
+
+                // Verifikasi Pembayaran Transaksi oleh CS ini
+                $verifikasiCount = Transaksi::where('verified_by', $cs->id)
+                    ->whereIn('prospek_id', (clone $baseQuery)->select('prospeks.id'))
+                    ->count();
+                $verifikasiNominal = Transaksi::where('verified_by', $cs->id)
+                    ->whereIn('prospek_id', (clone $baseQuery)->select('prospeks.id'))
+                    ->sum('nominal');
+
+                return [
+                    'id'                 => $cs->id,
+                    'name'               => $cs->name,
+                    'email'              => $cs->email,
+                    'wilayah'            => $cs->wilayah?->nama ?: 'Centralized Inbound',
+                    'total_kontak'       => $totalKontak,
+                    'follow_up_count'    => $followUpCount,
+                    'avg_response_hours' => $avgResponseHours,
+                    'formulir_count'     => $formulir,
+                    'lunas_count'        => $lunas,
+                    'verifikasi_count'          => $verifikasiCount,
+                    'verifikasi_nominal'        => (float) $verifikasiNominal,
+                    'total_verifikasi_nominal'  => (float) $verifikasiNominal,
+                    'konversi'                  => $konversi,
+                ];
+            })
+            ->sortByDesc('verifikasi_count')
             ->values();
 
         // ──────────────────────────────────────────────────────────────
@@ -371,11 +477,6 @@ class DataAnalystController extends Controller
         // ──────────────────────────────────────────────────────────────
         // 7. AKTIVITAS & KUALITAS DATA OPERASIONAL
         // ──────────────────────────────────────────────────────────────
-        $belumFollowUpCount = (clone $baseQuery)
-            ->where('follow_up_count', 0)
-            ->whereNotIn('status', ['LUNAS', 'CANCEL'])
-            ->count();
-
         // Duplikat nomor WhatsApp dalam hasil filter
         $duplicateWaCount = (clone $baseQuery)
             ->whereNotNull('whatsapp')
@@ -420,8 +521,56 @@ class DataAnalystController extends Controller
         $periodComparison = $this->calculatePeriodComparison($filters);
 
         // ──────────────────────────────────────────────────────────────
-        // 10. SEGMENTASI PENDAFTAR (TERMASUK GELOMBANG)
+        // 10. SEGMENTASI PENDAFTAR (TERMASUK GELOMBANG & KATEGORI CRM)
         // ──────────────────────────────────────────────────────────────
+        // Summary Status Prospek (8 Pipeline Utama Resmi CRM + Arsip/Batal)
+        $statusMasterList = ['BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON', 'DINGIN', 'CANCEL'];
+        $statusSummary = [];
+        foreach ($statusMasterList as $st) {
+            $countSt = (clone $baseQuery)->where('status', $st)->count();
+            if ($countSt > 0 || in_array($st, ['BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK', 'FORMULIR', 'BERKAS', 'LUNAS', 'NO RESPON'])) {
+                $statusSummary[] = [
+                    'status' => $st,
+                    'count'  => $countSt,
+                    'pct'    => $totalProspekUnik > 0 ? round(($countSt / $totalProspekUnik) * 100, 1) : 0,
+                ];
+            }
+        }
+
+        // Summary Kategori Prospek (Kategori yang ada di CRM)
+        $categorySummary = (clone $baseQuery)
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->selectRaw('category, COUNT(id) as total')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($row) use ($totalProspekUnik) {
+                return [
+                    'nama'  => $row->category,
+                    'count' => (int) $row->total,
+                    'pct'   => $totalProspekUnik > 0 ? round(($row->total / $totalProspekUnik) * 100, 1) : 0,
+                ];
+            })
+            ->values();
+
+        // Summary Tipe Prospek (Individu, Sekolah, Corporate)
+        $typeSummary = (clone $baseQuery)
+            ->whereNotNull('type')
+            ->where('type', '!=', '')
+            ->selectRaw('type, COUNT(id) as total')
+            ->groupBy('type')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($row) use ($totalProspekUnik) {
+                return [
+                    'nama'  => $row->type,
+                    'count' => (int) $row->total,
+                    'pct'   => $totalProspekUnik > 0 ? round(($row->total / $totalProspekUnik) * 100, 1) : 0,
+                ];
+            })
+            ->values();
+
         // Segmentasi Prodi
         $segmentasiProdi = (clone $baseQuery)
             ->leftJoin('prodis', 'prospeks.prodi_id', '=', 'prodis.id')
@@ -489,12 +638,17 @@ class DataAnalystController extends Controller
                     'convKontakFormulir'      => $convKontakFormulir,
                     'convKontakLunas'         => $convKontakLunas,
                     'convFormulirLunas'       => $convFormulirLunas,
+                    'convProspekFollowup'     => $convProspekFollowup,
+                    'convFollowupFormulir'    => $convFollowupFormulir,
                     'totalRevenueValid'       => $totalRevenueValid,
                     'transaksiFormulirNominal'=> $transaksiFormulirNominal,
                     'transaksiFormulirCount'  => $transaksiFormulirCount,
                     'transaksiTermin1Nominal' => $transaksiTermin1Nominal,
                     'transaksiTermin1Count'   => $transaksiTermin1Count,
                     'belumFollowUpCount'      => $belumFollowUpCount,
+                    'sudahFollowUpCount'      => $sudahFollowUpCount,
+                    'sudahMeresponsCount'     => $sudahMeresponsCount,
+                    'belumMeresponsCount'     => $belumMeresponsCount,
                     'duplicateWaCount'        => $duplicateWaCount,
                     'incompleteDataCount'     => $incompleteDataCount,
                 ],
@@ -502,7 +656,12 @@ class DataAnalystController extends Controller
                 'chartsData'            => $chartsData,
                 'periodComparison'      => $periodComparison,
                 'pembayaranPerProdi'    => $pembayaranPerProdi,
+                'transaksiList'         => $transaksiList,
                 'salesList'             => $salesList,
+                'csList'                => $csList,
+                'statusSummary'         => $statusSummary,
+                'categorySummary'       => $categorySummary,
+                'typeSummary'           => $typeSummary,
                 'sumberAnalysis'        => $sumberAnalysis,
                 'topChannel'            => $topChannel,
                 'totalSekolah'          => $totalSekolah,
@@ -529,6 +688,8 @@ class DataAnalystController extends Controller
             'convKontakFormulir',
             'convKontakLunas',
             'convFormulirLunas',
+            'convProspekFollowup',
+            'convFollowupFormulir',
             'funnelData',
             'transaksiFormulirCount',
             'transaksiFormulirNominal',
@@ -536,7 +697,12 @@ class DataAnalystController extends Controller
             'transaksiTermin1Nominal',
             'totalRevenueValid',
             'pembayaranPerProdi',
+            'transaksiList',
             'salesList',
+            'csList',
+            'statusSummary',
+            'categorySummary',
+            'typeSummary',
             'sumberAnalysis',
             'topChannel',
             'lowestChannel',
@@ -547,6 +713,9 @@ class DataAnalystController extends Controller
             'topSekolah',
             'rekapKunjungan',
             'belumFollowUpCount',
+            'sudahFollowUpCount',
+            'sudahMeresponsCount',
+            'belumMeresponsCount',
             'duplicateWaCount',
             'incompleteDataCount',
             'recentFollowUps',
@@ -575,17 +744,6 @@ class DataAnalystController extends Controller
 
         $query = $this->exportService->buildProspekQuery($filters);
 
-        // Scope filter
-        if ($request->filled('scope')) {
-            if ($request->scope === 'presensi') {
-                $query->where(function ($pq) {
-                    $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
-                       ->orWhere('source', 'Presensi Siswa')
-                       ->orWhere('source', 'like', '%presensi%');
-                });
-            }
-        }
-
         // Search text (nama, whatsapp, pic, no_registrasi, gelombang)
         if ($request->filled('search')) {
             $search = '%' . trim($request->search) . '%';
@@ -607,6 +765,7 @@ class DataAnalystController extends Controller
         $salesOptions = User::where('role', 'Sales')->where('status', 'Aktif')->orderBy('name')->get();
         $gelombangOptions = MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('nama')->get();
         $sourceOptions = Prospek::SOURCES;
+        $categoryOptions = Prospek::whereNotNull('category')->where('category', '!=', '')->distinct()->orderBy('category')->pluck('category')->toArray();
 
         return view('analyst.prospek', compact(
             'prospeks',
@@ -616,7 +775,8 @@ class DataAnalystController extends Controller
             'taOptions',
             'salesOptions',
             'gelombangOptions',
-            'sourceOptions'
+            'sourceOptions',
+            'categoryOptions'
         ));
     }
 
@@ -681,7 +841,9 @@ class DataAnalystController extends Controller
             'no_registrasi'  => $request->get('no_registrasi'),
             'source'         => $request->get('source'),
             'status'         => $request->get('status'),
+            'category'       => $request->get('category'),
             'sales_id'       => $request->get('sales_id'),
+            'scope'          => $request->get('scope'),
             'search'         => $request->get('search'),
             'periode_target' => $request->get('periode_target', $request->get('periode', 'bulanan')),
         ];

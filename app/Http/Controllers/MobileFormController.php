@@ -217,7 +217,7 @@ class MobileFormController extends Controller
             'pic_whatsapp' => ['required', 'string', 'max:25', new \App\Rules\IndonesianWhatsApp(allowEmpty: false)],
             'lat'          => 'required|numeric',
             'lng'          => 'required|numeric',
-            'foto'         => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
+            'foto'         => 'required|image|mimes:jpg,jpeg|max:5120',
         ]);
 
         $fotoPath = null;

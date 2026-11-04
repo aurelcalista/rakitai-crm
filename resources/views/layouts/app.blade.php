@@ -2667,6 +2667,9 @@ x-init="
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Sumber Prospek *</label>
                                 <select name="source" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     <option value="">-- Pilih Sumber --</option>
+                                    @if(!$sumberProspekList->contains('nama', 'Presensi Siswa'))
+                                        <option value="Presensi Siswa" {{ old('source') === 'Presensi Siswa' ? 'selected' : '' }}>Presensi Siswa</option>
+                                    @endif
                                     @foreach($sumberProspekList as $sumber)
                                         <option value="{{ $sumber->nama }}" {{ old('source') == $sumber->nama ? 'selected' : '' }}>{{ $sumber->nama }}</option>
                                     @endforeach
@@ -3520,7 +3523,7 @@ x-init="
                             @click="!photoPreview && document.getElementById('foto_upload').click()"
                         >
                             <!-- File input is always in DOM -->
-                            <input type="file" id="foto_upload" name="foto" accept="image/*" class="sr-only" @click.stop @change="
+                            <input type="file" id="foto_upload" name="foto" accept=".jpg,.jpeg,image/jpeg" class="sr-only" @click.stop @change="
                                 const file = $event.target.files[0];
                                 if (file) {
                                     const reader = new FileReader();
