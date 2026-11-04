@@ -351,12 +351,17 @@ Route::middleware('auth')->group(function () {
     });
 
     // ──────────────────────────────────────────────────────────────
-    // CS Verifikasi Pembayaran (CS, Admin, HM)
+    // CS Verifikasi Pembayaran & Massal Import Prospek (CS, Admin)
     // ──────────────────────────────────────────────────────────────
     Route::middleware(['role:CS,Admin,HM'])->prefix('cs')->name('cs.')->group(function () {
         Route::get('/verifikasi',                           [\App\Http\Controllers\Cs\VerifikasiController::class, 'index'])->name('verifikasi.index');
         Route::post('/verifikasi/{transaksi}/verify',       [\App\Http\Controllers\Cs\VerifikasiController::class, 'verify'])->name('verifikasi.verify');
         Route::post('/verifikasi/{transaksi}/reject',       [\App\Http\Controllers\Cs\VerifikasiController::class, 'reject'])->name('verifikasi.reject');
+
+        // Import Massal Data Prospek dari Google Sheets / Excel
+        Route::post('/prospek/import/preview',              [\App\Http\Controllers\Cs\ProspectImportController::class, 'preview'])->name('prospek.import.preview');
+        Route::post('/prospek/import/process',              [\App\Http\Controllers\Cs\ProspectImportController::class, 'process'])->name('prospek.import.process');
+        Route::get('/prospek/import/template',              [\App\Http\Controllers\Cs\ProspectImportController::class, 'template'])->name('prospek.import.template');
     });
 
 

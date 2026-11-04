@@ -1263,32 +1263,7 @@ class CrmController extends Controller
                     }
                 });
             } elseif ($role === 'cs') {
-                $query->where(function ($q) use ($user) {
-                    $q->where(function ($mainQ) use ($user) {
-                        $mainQ->where(function ($sq) use ($user) {
-                            $sq->where('cs_id', $user->id)
-                               ->orWhere('owner_id', $user->id)
-                               ->orWhere('takeover_by_id', $user->id)
-                               ->orWhereNotNull('cs_id')
-                               ->orWhereHas('owner', function ($oq) {
-                                   $oq->whereIn('role', ['CS', 'cs']);
-                               })
-                               ->orWhere(function ($st) {
-                                   $st->where('stage_number', '>=', 5)
-                                      ->orWhereIn('status', [
-                                          'FORMULIR', 'BERKAS', 'CLOSING', 'LUNAS',
-                                          '05 FORMULIR', '06 BERKAS', '07 CLOSING', '08 LUNAS'
-                                      ]);
-                               });
-                        });
-                    })
-                    // Semua CS dapat melihat prospek Presensi Siswa tanpa batasan wilayah
-                    ->orWhere(function ($pq) {
-                        $pq->where('source', Prospek::SOURCE_PRESENSI_SISWA)
-                           ->orWhere('source', 'Presensi Siswa')
-                           ->orWhere('source', 'like', '%presensi%');
-                    });
-                });
+                // CS di CRM UCIC bersifat global & sentral – dapat melihat seluruh prospek (970/970) tanpa pembatasan stage
             } elseif (in_array($role, ['hm', 'eo'])) {
                 if ($role === 'hm') {
                     $hmMemberIds = $user->hmMemberIds();
@@ -1376,6 +1351,15 @@ class CrmController extends Controller
                        ->orWhere('source', 'Presensi Siswa')
                        ->orWhere('source', 'like', '%presensi%');
                 });
+            } elseif ($request->scope === 'imported') {
+                $query->where(function ($iq) {
+                    $iq->where('source', 'like', '%import%')
+                       ->orWhere('source', 'like', '%sheet%')
+                       ->orWhere('source', 'like', '%excel%')
+                       ->orWhereHas('timelines', function ($tq) {
+                           $tq->where('title', 'like', '%import%');
+                       });
+                });
             }
         }
 
@@ -1441,8 +1425,13 @@ class CrmController extends Controller
                 }
             }
 
-            $sekolahNama = $p->sekolah?->nama ?? ($p->type === 'Sekolah' && $p->name !== $p->pic ? $p->name : '-');
+            $sekolahNama = $p->sekolah?->nama ?? ($p->type === 'Sekolah' && !empty($p->name) && $p->name !== $p->pic ? $p->name : ($p->type === 'Corporate' ? ($p->perusahaan?->nama ?? ($p->name !== $p->pic ? $p->name : '-')) : '-'));
             $wilayahNama = $p->sekolah?->wilayah?->nama ?? $p->wilayah?->nama ?? 'Belum Diisi';
+
+            $isImported = (bool) (
+                (!empty($p->source) && (stripos($p->source, 'import') !== false || stripos($p->source, 'sheet') !== false || stripos($p->source, 'excel') !== false))
+                || ($p->relationLoaded('timelines') && $p->timelines->contains(fn($tl) => stripos((string)$tl->title, 'import') !== false))
+            );
 
             return [
                 'id' => $p->id,
@@ -1451,7 +1440,7 @@ class CrmController extends Controller
                 'gelombang' => $p->gelombang ?? '',
                 'type' => $p->type,
                 'kelas' => $p->kelas ?: 'Reguler',
-                'sekolah_name' => $p->type === 'Sekolah' ? $sekolahNama : ($p->type === 'Corporate' ? ($p->perusahaan ? $p->perusahaan->nama : ($p->name !== $p->pic ? $p->name : '-')) : '-'),
+                'sekolah_name' => $p->sekolah?->nama ?? ($p->type === 'Corporate' ? ($p->perusahaan?->nama ?? '-') : $sekolahNama),
                 'wilayah_name' => $wilayahNama,
                 'sales_id' => $p->sales_id,
                 'owner_id' => $p->owner_id,
@@ -1480,6 +1469,7 @@ class CrmController extends Controller
                 'takeover_by_role' => $p->takeoverBy?->role ?? null,
                 'takeover_at' => $p->takeover_at ? $p->takeover_at->format('d M Y, H:i') : null,
                 'is_presensi' => $p->isPresensiSiswa(),
+                'is_imported' => $isImported,
                 'last_activity' => $p->updated_at->diffForHumans(),
                 'potential' => $p->potential ?? '-',
                 'source' => $p->source ?? '-',
