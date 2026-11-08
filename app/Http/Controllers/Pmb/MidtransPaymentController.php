@@ -65,29 +65,36 @@ class MidtransPaymentController extends Controller
         }
 
         try {
-            $rawItems = $request->input('items', ['pendaftaran']);
-            if (!is_array($rawItems) || empty($rawItems)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
-                ], 422);
-            }
-
-            $calculated = MidtransService::calculateItems($rawItems);
-            if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
-                ], 422);
-            }
-
+            $category = $request->input('category', $request->input('kategori', Transaksi::KATEGORI_PENDAFTARAN));
+            $normalizedCategory = Transaksi::normalizeCategory($category);
             $forceNew = $request->boolean('fresh') || $request->boolean('new_order');
-            // Dapatkan transaksi lokal yang ada atau buat baru (nominal diatur backend otoritatif)
-            $transaksi = $this->midtransService->getOrCreateRegistrationTransaksi(
+
+            $selectedKeys = [];
+            if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN && $request->has('items')) {
+                $rawItems = $request->input('items');
+                if (!is_array($rawItems) || empty($rawItems)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
+                    ], 422);
+                }
+                $calculated = MidtransService::calculateItems($rawItems);
+                if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
+                    ], 422);
+                }
+                $selectedKeys = $calculated['item_keys'];
+            }
+
+            // Dapatkan transaksi lokal yang ada atau buat baru secara aman dan atomik
+            $transaksi = $this->midtransService->createCategoryTransaksi(
                 $prospek,
+                $normalizedCategory,
                 $user,
                 $forceNew,
-                $calculated['item_keys']
+                $selectedKeys
             );
 
             // Dapatkan Snap Token dari Midtrans
@@ -96,6 +103,7 @@ class MidtransPaymentController extends Controller
             return response()->json([
                 'success'           => true,
                 'order_id'          => $transaksi->order_id,
+                'kategori'          => $transaksi->kategori,
                 'snap_token'        => $snap['token'],
                 'snap_redirect_url' => $snap['redirect_url'],
                 'client_key'        => (string) config('services.midtrans.client_key'),

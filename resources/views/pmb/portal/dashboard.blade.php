@@ -238,15 +238,19 @@
     <!-- Quick Payment Link Card if unpaid -->
     @if(!$isPaid)
         <div class="bg-amber-50 rounded-2xl p-5 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <span class="text-2xl">💳</span>
+            <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                    </svg>
+                </div>
                 <div>
-                    <h4 class="text-sm font-bold text-amber-900">Pembayaran Biaya Formulir PMB (Rp 300.000)</h4>
+                    <h4 class="text-sm font-bold text-amber-900 font-display">Pembayaran Biaya Formulir PMB (Rp 300.000)</h4>
                     <p class="text-xs text-amber-700 mt-0.5">Selesaikan pembayaran secara aman via Midtrans Snap (QRIS atau Virtual Account).</p>
                 </div>
             </div>
             <a href="{{ route('pmb.akun.bayar') }}"
-               class="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-bold bg-[#0b3d82] text-white hover:bg-[#082a5c] shadow-xs transition shrink-0">
+               class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold bg-[#0b3d82] text-white hover:bg-[#082a5c] shadow-xs transition shrink-0">
                 Bayar Sekarang &rarr;
             </a>
         </div>

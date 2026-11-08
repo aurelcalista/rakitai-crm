@@ -386,21 +386,55 @@ class CamabaPortalController extends Controller
                 ->with('error', 'Data pendaftaran Anda belum terhubung. Silakan hubungi admin PMB.');
         }
 
-        // Dapatkan transaksi pendaftaran (Rp 300.000) yang terhubung ke prospek
+        // Ambil status untuk 3 kategori pembayaran: DP, Biaya Pendaftaran, Pelunasan
+        $categoriesStatus = MidtransService::getAllCategoriesStatus($prospek);
+        $totalTagihan = MidtransService::getTotalTagihan($prospek);
+        $sisaPelunasan = MidtransService::calculateRemainingPelunasan($prospek);
+
+        // Ambil rekening bank aktif dari database (bukan hardcoded)
+        $bankAccounts = \App\Models\BankAccount::active()->orderBy('bank_name')->get();
+
+        // Tentukan transaksi aktif untuk ditampilkan di form/Snap
         $forceNew = $request->boolean('fresh') || $request->boolean('new_order');
         $requestedOrderId = $request->query('order_id');
+        $requestedCategory = $request->query('category', $request->query('kategori'));
         $transaksi = null;
+
         if ($requestedOrderId && !$forceNew) {
             $transaksi = $prospek->transaksis()->where('order_id', $requestedOrderId)->first();
         }
 
-        if (!$transaksi) {
-            $transaksi = $midtransService->getOrCreateRegistrationTransaksi($prospek, $user, $forceNew);
+        if (!$transaksi && $requestedCategory) {
+            $catStatus = MidtransService::getCategoryPaymentStatus($prospek, $requestedCategory);
+            if ($catStatus['transaksi']) {
+                $transaksi = $catStatus['transaksi'];
+            } elseif ($catStatus['can_pay']) {
+                try {
+                    $transaksi = $midtransService->createCategoryTransaksi($prospek, $requestedCategory, $user, $forceNew);
+                } catch (\Throwable $e) {}
+            }
         }
 
-        // Jika transaksi belum verified, lakukan sinkronisasi status langsung dari backend Midtrans API
-        // Verifikasi dilakukan secara otoritatif oleh backend via signature SHA-512 (bukan percaya query string browser)
-        if ($transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED) {
+        // Fallback: cari transaksi pending terbaru milik prospek ini
+        if (!$transaksi) {
+            $transaksi = $prospek->transaksis()
+                ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING)
+                ->latest('id')
+                ->first();
+        }
+
+        // Jika belum ada transaksi sama sekali, siapkan transaksi pendaftaran default
+        if (!$transaksi) {
+            try {
+                $transaksi = $midtransService->getOrCreateRegistrationTransaksi($prospek, $user, $forceNew);
+            } catch (\Throwable $e) {
+                // Jika pendaftaran sudah lunas, ambil transaksi verified terakhir
+                $transaksi = $prospek->transaksis()->latest('id')->first();
+            }
+        }
+
+        // Jika transaksi belum verified dan ada order_id, lakukan sinkronisasi status langsung dari backend Midtrans API
+        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED) {
             $synced = $midtransService->syncStatusFromMidtransApi($transaksi->order_id);
             if ($synced) {
                 $transaksi = $synced;
@@ -408,19 +442,32 @@ class CamabaPortalController extends Controller
         }
 
         // Jika token Snap belum ada dan belum verified, buat token
-        if ($transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED && empty($transaksi->snap_token)) {
-            $midtransService->createSnapToken($transaksi);
-            $transaksi->refresh();
+        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED && empty($transaksi->snap_token)) {
+            try {
+                $midtransService->createSnapToken($transaksi);
+                $transaksi->refresh();
+            } catch (\Throwable $e) {}
         }
 
         $riwayatTransaksi = $prospek->transaksis()
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $initialItems = MidtransService::resolveInitialItems($transaksi);
-        $initialTotal = (int) $transaksi->nominal ?: 300000;
+        $initialItems = $transaksi ? MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => true, 'perlengkapan' => false, 'dpp' => false];
+        $initialTotal = $transaksi ? ((int) $transaksi->nominal ?: 300000) : 300000;
 
-        return view('pmb.portal.pembayaran', compact('user', 'prospek', 'transaksi', 'riwayatTransaksi', 'initialItems', 'initialTotal'));
+        return view('pmb.portal.pembayaran', compact(
+            'user',
+            'prospek',
+            'transaksi',
+            'riwayatTransaksi',
+            'initialItems',
+            'initialTotal',
+            'categoriesStatus',
+            'totalTagihan',
+            'sisaPelunasan',
+            'bankAccounts'
+        ));
     }
 
     /**

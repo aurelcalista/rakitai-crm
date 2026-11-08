@@ -125,7 +125,7 @@
              pdfUrl: '{{ asset('documents/rincian-biaya-pmb-ucic-2027.pdf') }}',
              pageNum: 1,
              numPages: 1,
-             scale: 1.3,
+             scale: 1.4,
              isLoading: true,
              useCanvas: true,
              isFullscreen: false,
@@ -138,7 +138,9 @@
                          self.pdfDoc = pdf;
                          self.numPages = pdf.numPages;
                          self.isLoading = false;
-                         self.renderPage(self.pageNum);
+                         self.$nextTick(() => {
+                             self.fitToWidth();
+                         });
                      }).catch(function(err) {
                          console.warn('PDF.js canvas fallback to native frame:', err);
                          self.useCanvas = false;
@@ -148,6 +150,26 @@
                      self.useCanvas = false;
                      self.isLoading = false;
                  }
+
+                 window.addEventListener('resize', () => {
+                     if (self.useCanvas && self.pdfDoc) {
+                         self.fitToWidth();
+                     }
+                 });
+             },
+             fitToWidth() {
+                 if (!this.pdfDoc) return;
+                 const self = this;
+                 const container = document.getElementById('pdf-viewport-container');
+                 const availWidth = container ? Math.max(320, container.clientWidth - (window.innerWidth < 640 ? 20 : 48)) : 850;
+
+                 this.pdfDoc.getPage(this.pageNum).then(function(page) {
+                     const unscaled = page.getViewport({ scale: 1.0 });
+                     let optimal = availWidth / unscaled.width;
+                     optimal = Math.max(0.7, Math.min(optimal, 2.2));
+                     self.scale = Math.round(optimal * 10) / 10;
+                     self.renderPage(self.pageNum);
+                 });
              },
              renderPage(num) {
                  if (!this.pdfDoc) return;
@@ -155,11 +177,16 @@
                  const canvas = document.getElementById('pdf-canvas');
                  if (!canvas) return;
                  const ctx = canvas.getContext('2d');
+                 const pixelRatio = window.devicePixelRatio || 1;
 
                  this.pdfDoc.getPage(num).then(function(page) {
                      const viewport = page.getViewport({ scale: self.scale });
-                     canvas.height = viewport.height;
-                     canvas.width = viewport.width;
+                     canvas.height = viewport.height * pixelRatio;
+                     canvas.width = viewport.width * pixelRatio;
+                     canvas.style.height = viewport.height + 'px';
+                     canvas.style.width = viewport.width + 'px';
+
+                     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
                      const renderContext = {
                          canvasContext: ctx,
@@ -169,7 +196,7 @@
                  });
              },
              zoomIn() {
-                 if (this.scale < 2.5) {
+                 if (this.scale < 3.0) {
                      this.scale = Math.round((this.scale + 0.2) * 10) / 10;
                      this.renderPage(this.pageNum);
                  }
@@ -181,8 +208,7 @@
                  }
              },
              resetZoom() {
-                 this.scale = 1.3;
-                 this.renderPage(this.pageNum);
+                 this.fitToWidth();
              },
              prevPage() {
                  if (this.pageNum > 1) {
@@ -334,21 +360,21 @@
         <!-- CANVAS / PDF DOCUMENT VIEWPORT (LATAR BELAKANG PUTIH RESMI)     -->
         <!-- =============================================================== -->
         <div id="pdf-viewport-container"
-             class="bg-slate-100 rounded-2xl p-3 sm:p-6 overflow-auto border border-slate-200 flex flex-col items-center justify-start min-h-[550px] max-h-[850px] shadow-inner relative">
+             class="bg-slate-100 rounded-2xl p-2 sm:p-4 lg:p-6 overflow-y-auto overflow-x-auto border border-slate-200/90 flex flex-col items-center justify-start min-h-[500px] sm:min-h-[650px] lg:min-h-[800px] max-h-[920px] shadow-inner relative w-full">
 
             <!-- Loading Spinner State -->
-            <div x-show="isLoading" class="py-24 text-center space-y-3">
+            <div x-show="isLoading" class="py-32 text-center space-y-3">
                 <div class="w-10 h-10 border-4 border-[#0b3d82] border-t-transparent rounded-full animate-spin mx-auto"></div>
                 <p class="text-xs font-semibold text-slate-600">Memuat Dokumen Biaya Kuliah Resmi UCIC...</p>
             </div>
 
             <!-- Canvas Viewport (PDF.js Engine) -->
-            <div x-show="!isLoading && useCanvas" class="w-full flex justify-center overflow-x-auto">
-                <canvas id="pdf-canvas" class="bg-white shadow-lg rounded-lg border border-slate-200/90 max-w-full h-auto"></canvas>
+            <div x-show="!isLoading && useCanvas" class="w-full flex justify-center py-2 overflow-x-auto">
+                <canvas id="pdf-canvas" class="bg-white shadow-lg rounded-xl border border-slate-200/90 max-w-full h-auto transition-all"></canvas>
             </div>
 
             <!-- Fallback Native Embed if PDF.js is unavailable -->
-            <div x-show="!isLoading && !useCanvas" class="w-full h-[650px]">
+            <div x-show="!isLoading && !useCanvas" class="w-full min-h-[500px] sm:min-h-[650px] lg:min-h-[800px] h-[800px]">
                 <iframe src="{{ asset('documents/rincian-biaya-pmb-ucic-2027.pdf') }}#toolbar=0"
                         title="Dokumen Biaya Kuliah UCIC"
                         class="w-full h-full rounded-xl border border-slate-300 bg-white"></iframe>

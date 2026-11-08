@@ -214,11 +214,22 @@ class MidtransService
             return $items;
         }
 
-        // Fallback jika custom nominal
+        // Fallback sesuai kategori jika custom nominal
+        $itemTitle = match ($transaksi->kategori) {
+            Transaksi::KATEGORI_DP => 'Down Payment (DP) PMB UCIC',
+            Transaksi::KATEGORI_PELUNASAN => 'Pelunasan Biaya Kuliah PMB UCIC',
+            default => 'Biaya Pendaftaran PMB UCIC',
+        };
+        $itemId = match ($transaksi->kategori) {
+            Transaksi::KATEGORI_DP => 'PMB-DP',
+            Transaksi::KATEGORI_PELUNASAN => 'PMB-PELUNASAN',
+            default => 'PMB-FORMULIR',
+        };
+
         return [
             [
-                'id'       => 'PMB-FORMULIR',
-                'name'     => 'Biaya Pendaftaran PMB UCIC',
+                'id'       => $itemId,
+                'name'     => $itemTitle,
                 'price'    => $grossAmount,
                 'quantity' => 1,
             ],
@@ -234,11 +245,285 @@ class MidtransService
     }
 
     /**
-     * Dapatkan tagihan pendaftaran yang sudah ada atau buat transaksi lokal baru.
-     * Mencegah transaksi ganda (idempotent):
-     * 1. Jika sudah lunas / verified, tolak pembuatan tagihan baru.
-     * 2. Jika sudah ada tagihan pending yang belum kadaluarsa dengan nominal yang sama, reuse transaksi tersebut (kecuali $forceNew = true).
-     * 3. Jika belum ada atau nominal berbeda, buat transaksi baru dengan status pending.
+     * Ambil nominal resmi Down Payment (DP) PMB UCIC (default Rp 500.000).
+     */
+    public static function getBiayaDP(): int
+    {
+        return (int) config('services.midtrans.biaya_dp', 500000);
+    }
+
+    /**
+     * Dapatkan total tagihan pendaftaran & kuliah calon mahasiswa.
+     * Menggunakan UKT/SPP program studi pilihan jika ada, atau batas standar konfigurasi.
+     */
+    public static function getTotalTagihan(Prospek $prospek): int
+    {
+        if ($prospek->prodi) {
+            $prodiUkt = (int) ($prospek->prodi->ukt ?: $prospek->prodi->spp ?: 0);
+            if ($prodiUkt > 0) {
+                return $prodiUkt + self::getBiayaPendaftaran();
+            }
+        }
+
+        return (int) config('services.midtrans.total_tagihan_standar', 5000000);
+    }
+
+    /**
+     * Hitung sisa tagihan untuk pembayaran Pelunasan:
+     * Formula: Total Tagihan - Seluruh Pembayaran yang Terverifikasi.
+     *
+     * Pastikan:
+     * - Pembayaran pending TIDAK mengurangi sisa tagihan.
+     * - Pembayaran gagal / ditolak TIDAK mengurangi sisa tagihan.
+     * - Pembayaran yang sudah diverifikasi TIDAK dihitung dua kali.
+     * - Tidak boleh menghasilkan nominal negatif.
+     */
+    public static function calculateRemainingPelunasan(Prospek $prospek): int
+    {
+        $totalTagihan = self::getTotalTagihan($prospek);
+
+        // Hanya transaksi yang berstatus VERIFIED yang mengurangi sisa tagihan
+        // Kecualikan transaksi pelunasan yang sudah verified itu sendiri saat menghitung sisa tagihan
+        $totalVerified = (int) $prospek->transaksis()
+            ->where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->where('kategori', '!=', Transaksi::KATEGORI_PELUNASAN)
+            ->sum('nominal');
+
+        $remaining = $totalTagihan - $totalVerified;
+        return max(0, $remaining);
+    }
+
+    /**
+     * Periksa status pembayaran suatu kategori secara independen untuk seorang calon mahasiswa.
+     *
+     * @return array{
+     *     category: string,
+     *     status: string, // 'LUNAS' | 'MENUNGGU PEMBAYARAN' | 'GAGAL / EXPIRED' | 'BELUM DIBAYAR'
+     *     status_code: string, // 'verified' | 'pending' | 'failed' | 'unpaid'
+     *     nominal: int,
+     *     nominal_formatted: string,
+     *     can_pay: bool,
+     *     transaksi: ?Transaksi
+     * }
+     */
+    public static function getCategoryPaymentStatus(Prospek $prospek, string $category): array
+    {
+        $normalized = Transaksi::normalizeCategory($category);
+        $aliases = Transaksi::getCategoryAliases($normalized);
+
+        // 1. Cek apakah sudah ada transaksi yang terverifikasi (LUNAS)
+        $verifiedTrx = $prospek->transaksis()
+            ->where('payment_status', Transaksi::STATUS_VERIFIED)
+            ->where(function ($q) use ($aliases) {
+                $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+            })
+            ->latest('id')
+            ->first();
+
+        if ($verifiedTrx) {
+            $nominal = (int) $verifiedTrx->nominal;
+            return [
+                'category'          => $normalized,
+                'status'            => 'LUNAS',
+                'status_code'       => 'verified',
+                'nominal'           => $nominal,
+                'nominal_formatted' => 'Rp ' . number_format($nominal, 0, ',', '.'),
+                'can_pay'           => false,
+                'transaksi'         => $verifiedTrx,
+            ];
+        }
+
+        // 2. Cek apakah ada transaksi pending yang aktif
+        $pendingTrx = $prospek->transaksis()
+            ->where('payment_status', Transaksi::STATUS_PENDING)
+            ->where(function ($q) use ($aliases) {
+                $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+            })
+            ->latest('id')
+            ->first();
+
+        if ($pendingTrx) {
+            $nominal = (int) $pendingTrx->nominal;
+            return [
+                'category'          => $normalized,
+                'status'            => 'MENUNGGU PEMBAYARAN',
+                'status_code'       => 'pending',
+                'nominal'           => $nominal,
+                'nominal_formatted' => 'Rp ' . number_format($nominal, 0, ',', '.'),
+                'can_pay'           => false,
+                'transaksi'         => $pendingTrx,
+            ];
+        }
+
+        // 3. Tentukan nominal untuk kategori ini
+        $nominal = match ($normalized) {
+            Transaksi::KATEGORI_DP => self::getBiayaDP(),
+            Transaksi::KATEGORI_PELUNASAN => self::calculateRemainingPelunasan($prospek),
+            default => self::getBiayaPendaftaran(),
+        };
+
+        // 4. Cek apakah transaksi terakhir ditolak / expired
+        $rejectedTrx = $prospek->transaksis()
+            ->where('payment_status', Transaksi::STATUS_REJECTED)
+            ->where(function ($q) use ($aliases) {
+                $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+            })
+            ->latest('id')
+            ->first();
+
+        if ($rejectedTrx) {
+            return [
+                'category'          => $normalized,
+                'status'            => 'GAGAL / EXPIRED',
+                'status_code'       => 'failed',
+                'nominal'           => $nominal,
+                'nominal_formatted' => 'Rp ' . number_format($nominal, 0, ',', '.'),
+                'can_pay'           => true,
+                'transaksi'         => $rejectedTrx,
+            ];
+        }
+
+        // 5. Belum pernah dibayar
+        $canPay = ($normalized === Transaksi::KATEGORI_PELUNASAN) ? ($nominal > 0) : true;
+        return [
+            'category'          => $normalized,
+            'status'            => 'BELUM DIBAYAR',
+            'status_code'       => 'unpaid',
+            'nominal'           => $nominal,
+            'nominal_formatted' => 'Rp ' . number_format($nominal, 0, ',', '.'),
+            'can_pay'           => $canPay,
+            'transaksi'         => null,
+        ];
+    }
+
+    /**
+     * Dapatkan ringkasan status 3 kategori pembayaran (DP, Pendaftaran, Pelunasan).
+     */
+    public static function getAllCategoriesStatus(Prospek $prospek): array
+    {
+        return [
+            Transaksi::KATEGORI_PENDAFTARAN => self::getCategoryPaymentStatus($prospek, Transaksi::KATEGORI_PENDAFTARAN),
+            Transaksi::KATEGORI_DP          => self::getCategoryPaymentStatus($prospek, Transaksi::KATEGORI_DP),
+            Transaksi::KATEGORI_PELUNASAN   => self::getCategoryPaymentStatus($prospek, Transaksi::KATEGORI_PELUNASAN),
+        ];
+    }
+
+    /**
+     * Buat atau ambil tagihan pembayaran kategori PMB secara aman, terverifikasi backend, dan anti race-condition.
+     * SETIAP KATEGORI PEMBAYARAN HANYA BOLEH DIBAYAR SATU KALI.
+     */
+    public function createCategoryTransaksi(
+        Prospek $prospek,
+        string $category = Transaksi::KATEGORI_PENDAFTARAN,
+        ?User $user = null,
+        bool $forceNew = false,
+        array $selectedItemKeys = []
+    ): Transaksi {
+        $normalizedCategory = Transaksi::normalizeCategory($category);
+        $aliases = Transaksi::getCategoryAliases($normalizedCategory);
+        $savedCategory = ($category === Transaksi::KATEGORI_DP_DAFTAR) ? Transaksi::KATEGORI_DP_DAFTAR : $normalizedCategory;
+
+        return DB::transaction(function () use ($prospek, $normalizedCategory, $savedCategory, $aliases, $user, $forceNew, $selectedItemKeys) {
+            // Row-level lock untuk prospek guna mencegah 2 request checkout bersamaan (Scenario 20)
+            $lockedProspek = Prospek::where('id', $prospek->id)->lockForUpdate()->first();
+            if (!$lockedProspek) {
+                $lockedProspek = $prospek;
+            }
+
+            // 1. Cek apakah sudah pernah lunas/terverifikasi
+            $existingVerified = $lockedProspek->transaksis()
+                ->where('payment_status', Transaksi::STATUS_VERIFIED)
+                ->where(function ($q) use ($aliases) {
+                    $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingVerified) {
+                throw new InvalidArgumentException("Pembayaran kategori {$normalizedCategory} untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas dan terverifikasi sah. Tidak dapat melakukan checkout kembali.");
+            }
+
+            // 2. Cek apakah ada tagihan pending yang sedang aktif untuk kategori ini
+            $existingPending = $lockedProspek->transaksis()
+                ->where('payment_status', Transaksi::STATUS_PENDING)
+                ->where(function ($q) use ($aliases) {
+                    $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+                })
+                ->latest('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingPending) {
+                if ($forceNew) {
+                    throw new InvalidArgumentException("Terdapat transaksi {$normalizedCategory} yang masih menunggu pembayaran (Order ID: {$existingPending->order_id}). Selesaikan atau tunggu transaksi tersebut sebelum membuat tagihan baru.");
+                }
+                return $existingPending;
+            }
+
+            // 3. Tentukan nominal dan rincian transaksi secara otoritatif di backend
+            $aktifTa = TahunAkademik::getAktif();
+            $nominal = 0;
+            $detail = '';
+            $jenis = $normalizedCategory;
+
+            if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN) {
+                if (!empty($selectedItemKeys)) {
+                    $calculated = self::calculateItems($selectedItemKeys);
+                    $nominal = $calculated['total'];
+                    $detail = $calculated['summary'];
+                } else {
+                    $nominal = self::getBiayaPendaftaran();
+                    $detail = 'Biaya Pendaftaran PMB UCIC';
+                }
+                $jenis = 'Beli Formulir';
+            } elseif ($normalizedCategory === Transaksi::KATEGORI_DP) {
+                $nominal = self::getBiayaDP();
+                $detail = 'Pembayaran Down Payment (DP) PMB UCIC';
+                $jenis = 'DP/Konversi';
+            } elseif ($normalizedCategory === Transaksi::KATEGORI_PELUNASAN) {
+                $sisaTagihan = self::calculateRemainingPelunasan($lockedProspek);
+                if ($sisaTagihan <= 0) {
+                    throw new InvalidArgumentException("Seluruh tagihan kuliah telah lunas. Tidak ada sisa tagihan pelunasan untuk calon mahasiswa '{$lockedProspek->name}'.");
+                }
+                $nominal = $sisaTagihan;
+                $detail = 'Pelunasan Biaya Kuliah PMB UCIC';
+                $jenis = 'Pelunasan';
+            }
+
+            if ($nominal <= 0) {
+                throw new InvalidArgumentException("Nominal pembayaran tidak valid untuk kategori {$normalizedCategory}.");
+            }
+
+            // 4. Buat Order ID unik dan aman
+            $catCode = match ($normalizedCategory) {
+                Transaksi::KATEGORI_DP => 'DP',
+                Transaksi::KATEGORI_PELUNASAN => 'LUNAS',
+                default => 'REG',
+            };
+            $orderId = 'PMB-UCIC-' . $lockedProspek->id . '-' . $catCode . '-' . time() . rand(10, 99);
+            while (Transaksi::where('order_id', $orderId)->exists()) {
+                $orderId = 'PMB-UCIC-' . $lockedProspek->id . '-' . $catCode . '-' . time() . rand(100, 999);
+            }
+
+            return Transaksi::create([
+                'order_id'          => $orderId,
+                'prospek_id'        => $lockedProspek->id,
+                'user_id'           => $user?->id,
+                'jenis'             => $jenis,
+                'kategori'          => $savedCategory,
+                'nominal'           => $nominal,
+                'detail_pembayaran' => $detail,
+                'metode_pembayaran' => 'MIDTRANS',
+                'payment_status'    => Transaksi::STATUS_PENDING,
+                'tanggal'           => now(),
+                'notes'             => "Pembayaran {$normalizedCategory} PMB online via Midtrans Snap.",
+                'academic_year_id'  => $aktifTa?->id,
+            ]);
+        });
+    }
+
+    /**
+     * Dapatkan tagihan pendaftaran yang sudah ada atau buat transaksi lokal baru (Backward compatibility).
      *
      * @param array<string|int, mixed> $selectedItemKeys
      */
@@ -248,66 +533,13 @@ class MidtransService
         bool $forceNew = false,
         array $selectedItemKeys = ['pendaftaran']
     ): Transaksi {
-        // 1. Cek apakah sudah pernah lunas/terverifikasi
-        $existingVerified = $prospek->transaksis()
-            ->where('payment_status', Transaksi::STATUS_VERIFIED)
-            ->where(function ($q) {
-                $q->whereIn('jenis', ['Beli Formulir', 'Pendaftaran', 'Pendaftaran PMB'])
-                  ->orWhere('kategori', Transaksi::KATEGORI_DP_DAFTAR);
-            })
-            ->first();
-
-        if ($existingVerified) {
-            throw new InvalidArgumentException("Biaya pendaftaran untuk calon mahasiswa '{$prospek->name}' sudah lunas dan terverifikasi sah.");
-        }
-
-        $calculated = self::calculateItems($selectedItemKeys);
-        if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
-            throw new InvalidArgumentException('Silakan pilih minimal satu komponen biaya pembayaran.');
-        }
-
-        // 2. Cek apakah sudah ada tagihan pending Midtrans yang aktif dengan nominal yang sama (jika tidak diminta $forceNew)
-        if (!$forceNew) {
-            $existingPending = $prospek->transaksis()
-                ->where('payment_status', Transaksi::STATUS_PENDING)
-                ->where('metode_pembayaran', 'MIDTRANS')
-                ->where('nominal', $calculated['total'])
-                ->where(function ($q) {
-                    $q->whereIn('jenis', ['Beli Formulir', 'Pendaftaran', 'Pendaftaran PMB'])
-                      ->orWhere('kategori', Transaksi::KATEGORI_DP_DAFTAR);
-                })
-                ->latest('tanggal')
-                ->first();
-
-            if ($existingPending) {
-                return $existingPending;
-            }
-        }
-
-        // 3. Buat transaksi baru dengan nominal otoritatif dari kalkulasi backend
-        $nominal = $calculated['total'];
-        $aktifTa = TahunAkademik::getAktif();
-
-        // Buat order_id yang unik dan sesuai standar Midtrans (max 50 chars, alfanumerik & strip)
-        $orderId = 'PMB-UCIC-' . $prospek->id . '-' . time() . rand(10, 99);
-        while (Transaksi::where('order_id', $orderId)->exists()) {
-            $orderId = 'PMB-UCIC-' . $prospek->id . '-' . time() . rand(100, 999);
-        }
-
-        return Transaksi::create([
-            'order_id'          => $orderId,
-            'prospek_id'        => $prospek->id,
-            'user_id'           => $user?->id,
-            'jenis'             => 'Beli Formulir',
-            'kategori'          => Transaksi::KATEGORI_DP_DAFTAR,
-            'nominal'           => $nominal,
-            'detail_pembayaran' => $calculated['summary'],
-            'metode_pembayaran' => 'MIDTRANS',
-            'payment_status'    => Transaksi::STATUS_PENDING,
-            'tanggal'           => now(),
-            'notes'             => 'Pembayaran pendaftaran PMB online via Midtrans Snap (' . implode(', ', $calculated['item_keys']) . ').',
-            'academic_year_id'  => $aktifTa?->id,
-        ]);
+        return $this->createCategoryTransaksi(
+            $prospek,
+            Transaksi::KATEGORI_DP_DAFTAR,
+            $user,
+            $forceNew,
+            $selectedItemKeys
+        );
     }
 
     /**
@@ -579,6 +811,9 @@ class MidtransService
                     'payment_type' => $paymentType,
                 ]);
 
+                // Notifikasi ke seluruh role yang berwenang (Admin, CS, HM, SPV, Sales)
+                PaymentNotificationService::notifyAllRoles($transaksi, 'verified');
+
                 return [
                     'status'         => 'success',
                     'order_id'       => $transaksi->order_id,
@@ -595,6 +830,8 @@ class MidtransService
                     'fraud_status'     => $fraudStatus,
                     'transaction_time' => isset($payload['transaction_time']) ? Carbon::parse($payload['transaction_time']) : now(),
                 ]);
+
+                PaymentNotificationService::notifyAllRoles($transaksi, 'pending');
 
                 return [
                     'status'         => 'pending',
@@ -648,6 +885,9 @@ class MidtransService
                         'time'       => now(),
                     ]);
                 }
+
+                $eventType = ($transactionStatus === 'expire') ? 'expired' : 'failed';
+                PaymentNotificationService::notifyAllRoles($transaksi, $eventType);
 
                 return [
                     'status'         => 'failed',
