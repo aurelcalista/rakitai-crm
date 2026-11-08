@@ -24,18 +24,58 @@ class Transaksi extends Model
     const STATUS_VERIFIED = 'verified';
     const STATUS_REJECTED = 'rejected';
 
-    // Kategori transaksi (Requirement J)
+    // Kategori transaksi resmi PMB & Legacy
+    const KATEGORI_DP              = 'DP';
+    const KATEGORI_PENDAFTARAN     = 'Biaya Pendaftaran';
+    const KATEGORI_PELUNASAN       = 'Pelunasan';
     const KATEGORI_DP_DAFTAR       = 'DP Daftar';
     const KATEGORI_DP_PERLENGKAPAN = 'DP Perlengkapan';
     const KATEGORI_LUNAS           = 'Lunas';
     const KATEGORI_KELUAR          = 'Keluar';
 
     const KATEGORI_LIST = [
+        self::KATEGORI_DP,
+        self::KATEGORI_PENDAFTARAN,
+        self::KATEGORI_PELUNASAN,
         self::KATEGORI_DP_DAFTAR,
         self::KATEGORI_DP_PERLENGKAPAN,
         self::KATEGORI_LUNAS,
         self::KATEGORI_KELUAR,
     ];
+
+    /**
+     * Normalisasi kategori pembayaran ke standar resmi PMB.
+     */
+    public static function normalizeCategory(?string $category): string
+    {
+        $cat = strtolower(trim((string) $category));
+        if (in_array($cat, ['dp', 'dp perlengkapan', 'down payment', 'dp/konversi', 'termin 1'])) {
+            return self::KATEGORI_DP;
+        }
+        if (in_array($cat, ['pendaftaran', 'biaya pendaftaran', 'dp daftar', 'beli formulir', 'formulir'])) {
+            return self::KATEGORI_PENDAFTARAN;
+        }
+        if (in_array($cat, ['pelunasan', 'lunas', 'termin 2', 'ukt'])) {
+            return self::KATEGORI_PELUNASAN;
+        }
+        return self::KATEGORI_PENDAFTARAN;
+    }
+
+    /**
+     * Dapatkan daftar alias kategori untuk pencocokan transaksi lama & baru.
+     *
+     * @return array<string>
+     */
+    public static function getCategoryAliases(string $category): array
+    {
+        $normalized = self::normalizeCategory($category);
+        return match ($normalized) {
+            self::KATEGORI_DP => [self::KATEGORI_DP, self::KATEGORI_DP_PERLENGKAPAN, 'DP/Konversi', 'Pembayaran Termin 1'],
+            self::KATEGORI_PENDAFTARAN => [self::KATEGORI_PENDAFTARAN, 'Pendaftaran', 'Beli Formulir', 'Pendaftaran PMB', self::KATEGORI_DP_DAFTAR],
+            self::KATEGORI_PELUNASAN => [self::KATEGORI_PELUNASAN, self::KATEGORI_LUNAS, 'Pembayaran Termin 2', 'UKT'],
+            default => [$category],
+        };
+    }
 
     protected $fillable = [
         'order_id',
@@ -71,6 +111,13 @@ class Transaksi extends Model
                     $model->academic_year_id = $aktif->id;
                 }
             }
+            if (empty($model->jenis)) {
+                $model->jenis = match ($model->kategori) {
+                    self::KATEGORI_DP => 'DP/Konversi',
+                    self::KATEGORI_PELUNASAN => 'Pelunasan',
+                    default => 'Beli Formulir',
+                };
+            }
             if (empty($model->order_id)) {
                 $pid = $model->prospek_id ?: rand(100, 999);
                 $model->order_id = 'PMB-UCIC-' . $pid . '-' . time() . rand(10, 99);
@@ -79,79 +126,11 @@ class Transaksi extends Model
 
         static::created(function ($transaksi) {
             try {
-                $prospek = $transaksi->prospek;
-                if (!$prospek) return;
-
-                $auth = auth()->user();
-                $actorName = $auth ? "{$auth->name} ({$auth->role})" : "Sistem";
-                $nominalText = 'Rp ' . number_format((float)$transaksi->nominal, 0, ',', '.');
-
-                $sales = $prospek->sales ?? ($prospek->sales_id ? \App\Models\User::find($prospek->sales_id) : null);
-                $spv = $sales?->supervisor ?? ($prospek->wilayah_id ? \App\Models\User::where('role', 'SPV')->where('wilayah_id', $prospek->wilayah_id)->first() : null);
-                $cs = $prospek->cs ?? ($prospek->cs_id ? \App\Models\User::find($prospek->cs_id) : null);
-
-                $isNeedVerification  = $transaksi->payment_status === self::STATUS_PENDING;
-
-                // 1. Notifikasi ke Sales (hanya jika yang input bukan Sales pemilik)
-                if ($sales && (!$auth || $auth->id !== $sales->id)) {
-                    $salesMsg = $isNeedVerification
-                        ? "Transaksi {$transaksi->jenis} sebesar {$nominalText} untuk '{$prospek->name}' sedang menunggu verifikasi CS."
-                        : "Pembayaran sebesar {$nominalText} ({$transaksi->jenis}) tercatat untuk prospek '{$prospek->name}' oleh {$actorName}.";
-                    $sales->notify(new \App\Notifications\CrmActivityNotification(
-                        title: $isNeedVerification ? "Menunggu Verifikasi CS" : "Pembayaran Masuk",
-                        message: $salesMsg,
-                        type: $isNeedVerification ? 'warning' : 'success',
-                        link: '/prospek',
-                        icon: '',
-                        senderName: $auth?->name,
-                        senderRole: $auth?->role,
-                        action: 'transaksi_created_sales'
-                    ));
-                }
-
-                // 2. Notifikasi ke SPV
-                if ($spv && (!$auth || $auth->id !== $spv->id)) {
-                    $spv->notify(new \App\Notifications\CrmActivityNotification(
-                        title: "Pembayaran Masuk Tim",
-                        message: "Pembayaran {$nominalText} ({$transaksi->jenis}) diterima untuk '{$prospek->name}' (Sales: " . ($sales?->name ?? '-') . ").",
-                        type: 'success',
-                        link: '/spv/pipeline',
-                        icon: '',
-                        senderName: $auth?->name,
-                        senderRole: $auth?->role,
-                        action: 'transaksi_created_spv'
-                    ));
-                }
-
-                // 3. Notifikasi ke CS — seluruh CS aktif menerima notifikasi antrean verifikasi pembayaran
-                if ($isNeedVerification) {
-                    $csList = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->get();
-                    if ($csList->isEmpty()) {
-                        $csList = \App\Models\User::where('role', 'CS')->get();
-                    }
-                } else {
-                    $csList = $cs ? collect([$cs]) : \App\Models\User::where('role', 'CS')->get();
-                }
-
-                $metodeName = self::METODE_PEMBAYARAN[$transaksi->metode_pembayaran] ?? ($transaksi->metode_pembayaran ?: 'Transfer Bank / Online');
-                $csMsg = $isNeedVerification
-                    ? "Ada pembayaran {$transaksi->jenis} yang perlu diverifikasi dari Sales " . ($sales?->name ?? $actorName) . " untuk calon mahasiswa '{$prospek->name}', nominal {$nominalText} via {$metodeName}."
-                    : "Pembayaran {$nominalText} ({$transaksi->jenis}) tervalidasi untuk prospek '{$prospek->name}'.";
-
-                foreach ($csList as $targetCs) {
-                    if (!$auth || $auth->id !== $targetCs->id) {
-                        $targetCs->notify(new \App\Notifications\CrmActivityNotification(
-                            title: $isNeedVerification ? "Verifikasi Pembayaran Diperlukan" : "Pembayaran Siswa CS",
-                            message: $csMsg,
-                            type: $isNeedVerification ? 'warning' : 'success',
-                            link: route('cs.verifikasi.index'),
-                            icon: '',
-                            senderName: $auth?->name,
-                            senderRole: $auth?->role,
-                            action: $isNeedVerification ? 'verifikasi_pembayaran_cs' : 'transaksi_created_cs'
-                        ));
-                    }
-                }
+                // Notifikasi resmi ke seluruh role yang berwenang (Admin, CS, HM, SPV, Sales)
+                \App\Services\PaymentNotificationService::notifyAllRoles(
+                    $transaksi,
+                    $transaksi->payment_status === self::STATUS_VERIFIED ? 'verified' : 'pending'
+                );
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Error sending transaksi notification: ' . $e->getMessage());
             }

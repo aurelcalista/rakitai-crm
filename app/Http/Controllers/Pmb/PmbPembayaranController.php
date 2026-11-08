@@ -127,6 +127,9 @@ class PmbPembayaranController extends Controller
             if ($prospek && $prospek->status !== 'LUNAS') {
                 $prospek->update(['status' => 'LUNAS']);
             }
+
+            // Notifikasi ke seluruh role yang berwenang
+            \App\Services\PaymentNotificationService::notifyAllRoles($transaksi, 'verified');
         }
 
         return redirect()->back()->with('success', "Transaksi {$transaksi->order_id} berhasil diverifikasi!");
@@ -157,6 +160,8 @@ class PmbPembayaranController extends Controller
                 'notes' => "Pembayaran Order ID {$transaksi->order_id} ditolak oleh {$user->name} ({$user->role}). Alasan: {$request->rejection_reason}",
                 'time' => now(),
             ]);
+
+            \App\Services\PaymentNotificationService::notifyAllRoles($transaksi, 'rejected');
         }
 
         return redirect()->back()->with('error', "Transaksi {$transaksi->order_id} telah ditolak/dibatalkan.");

@@ -58,7 +58,7 @@ class NotificationController extends Controller
             return response()->json(['unreadCount' => 0, 'notifications' => []]);
         }
 
-        $rawNotifications = $user->notifications()->limit(20)->get();
+        $rawNotifications = $user->notifications()->latest()->limit(50)->get();
         $unreadCount = $user->unreadNotifications()->count();
         $notifications = $rawNotifications->map(function ($notif) {
             return [

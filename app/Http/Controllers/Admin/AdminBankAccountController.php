@@ -75,6 +75,19 @@ class AdminBankAccountController extends Controller
     {
         $bankAccount = BankAccount::findOrFail($id);
         $name = $bankAccount->bank_name . ' (' . $bankAccount->account_number . ')';
+
+        // Validasi: Cegah penghapusan jika nomor rekening sudah pernah digunakan dalam riwayat transaksi
+        $isUsedInTransaksi = \App\Models\Transaksi::where('notes', 'like', "%{$bankAccount->account_number}%")
+            ->orWhere('detail_pembayaran', 'like', "%{$bankAccount->account_number}%")
+            ->exists();
+
+        if ($isUsedInTransaksi) {
+            return redirect()->route('admin.bank-accounts.index')->with(
+                'error',
+                "Rekening {$name} tidak dapat dihapus karena sudah tercatat dalam riwayat transaksi PMB. Silakan nonaktifkan status rekening agar tidak tampil pada calon mahasiswa baru."
+            );
+        }
+
         $bankAccount->delete();
 
         return redirect()->route('admin.bank-accounts.index')->with('success', "Rekening bank {$name} berhasil dihapus.");
