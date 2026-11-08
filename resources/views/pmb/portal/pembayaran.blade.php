@@ -10,10 +10,32 @@
         $clientKey = (string) config('services.midtrans.client_key');
     @endphp
     <script src="{{ $snapJsUrl }}" data-client-key="{{ $clientKey }}"></script>
+    <style>
+        #snap-container {
+            width: 100% !important;
+            min-height: 560px !important;
+            display: flex;
+            justify-content: center;
+        }
+        #snap-container iframe {
+            width: 100% !important;
+            min-height: 560px !important;
+            border-radius: 1rem;
+        }
+        iframe#snap-midtrans {
+            z-index: 999999 !important;
+        }
+    </style>
 @endpush
 
 @php
+    $paidItems = $paidItems ?? (\App\Services\MidtransService::resolvePaidItems($prospek ?? null));
     $initialItems = $initialItems ?? ($transaksi ? \App\Services\MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => true, 'perlengkapan' => false, 'dpp' => false]);
+    foreach ($paidItems as $_k => $_p) {
+        if ($_p) {
+            $initialItems[$_k] = false;
+        }
+    }
     $initialTotal = $initialTotal ?? ($transaksi ? ((int) $transaksi->nominal ?: 300000) : 300000);
     $activeCategory = $transaksi ? \App\Models\Transaksi::normalizeCategory($transaksi->kategori) : \App\Models\Transaksi::KATEGORI_PENDAFTARAN;
 @endphp
@@ -31,13 +53,31 @@
          loading: false,
          pollingInterval: null,
          selectedMethod: 'online',
+         snapEmbedModalOpen: false,
          manualModalOpen: false,
          offlineModalOpen: false,
+         detailPendingModalOpen: false,
+         selectedPending: {
+             id: null,
+             orderId: '',
+             kategori: '',
+             detail: '',
+             nominal: 0,
+             nominalFormatted: '',
+             tanggal: '',
+             metode: '',
+             snapToken: ''
+         },
          selectedBankId: {{ $bankAccounts->first()?->id ?? 0 }},
+         paidItems: {
+             perlengkapan: {{ !empty($paidItems['perlengkapan']) ? 'true' : 'false' }},
+             pendaftaran: {{ !empty($paidItems['pendaftaran']) ? 'true' : 'false' }},
+             dpp: {{ !empty($paidItems['dpp']) ? 'true' : 'false' }}
+         },
          items: {
-             perlengkapan: {{ !empty($initialItems['perlengkapan']) ? 'true' : 'false' }},
-             pendaftaran: {{ !empty($initialItems['pendaftaran']) ? 'true' : 'false' }},
-             dpp: {{ !empty($initialItems['dpp']) ? 'true' : 'false' }}
+             perlengkapan: {{ (!empty($initialItems['perlengkapan']) && empty($paidItems['perlengkapan'])) ? 'true' : 'false' }},
+             pendaftaran: {{ (!empty($initialItems['pendaftaran']) && empty($paidItems['pendaftaran'])) ? 'true' : 'false' }},
+             dpp: {{ (!empty($initialItems['dpp']) && empty($paidItems['dpp'])) ? 'true' : 'false' }}
          },
          prices: {
              perlengkapan: 600000,
@@ -57,9 +97,9 @@
          get total() {
              if (this.activeCategory === 'Biaya Pendaftaran') {
                  let sum = 0;
-                 if (this.items.perlengkapan) sum += this.prices.perlengkapan;
-                 if (this.items.pendaftaran) sum += this.prices.pendaftaran;
-                 if (this.items.dpp) sum += this.prices.dpp;
+                 if (this.items.perlengkapan && !this.paidItems.perlengkapan) sum += this.prices.perlengkapan;
+                 if (this.items.pendaftaran && !this.paidItems.pendaftaran) sum += this.prices.pendaftaran;
+                 if (this.items.dpp && !this.paidItems.dpp) sum += this.prices.dpp;
                  return sum;
              }
              return this.categoryNominals[this.activeCategory] || 0;
@@ -68,12 +108,143 @@
              num = Number(num) || 0;
              return 'Rp ' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
          },
+         copiedId: null,
+         copyText(text, id) {
+             if (!text) return;
+             if (navigator.clipboard && window.isSecureContext) {
+                 navigator.clipboard.writeText(text);
+             } else {
+                 const textArea = document.createElement('textarea');
+                 textArea.value = text;
+                 textArea.style.position = 'fixed';
+                 textArea.style.left = '-999999px';
+                 textArea.style.top = '-999999px';
+                 document.body.appendChild(textArea);
+                 textArea.focus();
+                 textArea.select();
+                 document.execCommand('copy');
+                 textArea.remove();
+             }
+             this.copiedId = id;
+             setTimeout(() => {
+                 if (this.copiedId === id) this.copiedId = null;
+             }, 2000);
+         },
          selectCategory(cat) {
              this.activeCategory = cat;
              this.snapToken = null;
          },
          onItemChange() {
+             if (this.paidItems.perlengkapan) this.items.perlengkapan = false;
+             if (this.paidItems.pendaftaran) this.items.pendaftaran = false;
+             if (this.paidItems.dpp) this.items.dpp = false;
              this.snapToken = null;
+         },
+
+         openDetailPending(item) {
+             this.selectedPending = item;
+             this.detailPendingModalOpen = true;
+         },
+
+         openSnapPay(token, orderId) {
+             const targetOrderId = orderId || this.orderId;
+             const targetToken = token || (targetOrderId === this.orderId ? this.snapToken : '');
+
+             if (targetOrderId) {
+                 this.orderId = targetOrderId;
+             }
+             if (targetToken) {
+                 this.snapToken = targetToken;
+             }
+
+             if (!targetToken && targetOrderId) {
+                 window.location.href = '{{ url('/pmb/bayar') }}/' + targetOrderId;
+                 return;
+             }
+
+             if (!targetToken) {
+                 this.payCategoryNow(this.activeCategory);
+                 return;
+             }
+
+             if (!window.snap) {
+                 window.location.href = '{{ url('/pmb/bayar') }}/' + targetOrderId;
+                 return;
+             }
+
+             this.showSnapModal(targetToken);
+         },
+
+         showSnapModal(token) {
+             const targetToken = token || this.snapToken;
+             if (!targetToken) return;
+
+             this.snapToken = targetToken;
+             this.snapEmbedModalOpen = true;
+
+             this.$nextTick(() => {
+                 const container = document.getElementById('snap-container');
+                 if (container) {
+                     container.innerHTML = '';
+                 }
+
+                 const self = this;
+                 if (window.snap && typeof window.snap.embed === 'function') {
+                     try {
+                         window.snap.embed(targetToken, {
+                             embedId: 'snap-container',
+                             onSuccess: function(result) {
+                                 self.snapEmbedModalOpen = false;
+                                 self.status = 'verified';
+                                 setTimeout(() => window.location.reload(), 1500);
+                             },
+                             onPending: function(result) {
+                                 self.startPolling();
+                             },
+                             onError: function(result) {
+                                 alert('Pembayaran belum berhasil diselesaikan. Silakan coba kembali.');
+                             },
+                             onClose: function() {
+                                 self.closeSnapModal();
+                             }
+                         });
+                         return;
+                     } catch (err) {
+                         console.warn('Snap embed fallback to pay:', err);
+                     }
+                 }
+
+                 if (window.snap && typeof window.snap.pay === 'function') {
+                     self.snapEmbedModalOpen = false;
+                     window.snap.pay(targetToken, {
+                         onSuccess: function(result) {
+                             self.status = 'verified';
+                             setTimeout(() => window.location.reload(), 1500);
+                         },
+                         onPending: function(result) {
+                             self.startPolling();
+                         },
+                         onError: function(result) {
+                             alert('Pembayaran tidak berhasil diselesaikan. Silakan coba kembali.');
+                         },
+                         onClose: function() {
+                             self.checkStatusOnce();
+                         }
+                     });
+                 }
+             });
+         },
+
+         closeSnapModal() {
+             this.snapEmbedModalOpen = false;
+             if (window.snap && typeof window.snap.hide === 'function') {
+                 try { window.snap.hide(); } catch (e) {}
+             }
+             const container = document.getElementById('snap-container');
+             if (container) {
+                 container.innerHTML = '';
+             }
+             this.checkStatusOnce();
          },
 
          async handleAction(categoryOverride = null) {
@@ -111,7 +282,7 @@
              const payload = {
                  category: cat,
                  kategori: cat,
-                 fresh: true
+                 fresh: false
              };
 
              if (cat === 'Biaya Pendaftaran') {
@@ -152,22 +323,7 @@
                  return;
              }
 
-             const self = this;
-             window.snap.pay(this.snapToken, {
-                 onSuccess: function(result) {
-                     self.status = 'verified';
-                     setTimeout(() => window.location.reload(), 1500);
-                 },
-                 onPending: function(result) {
-                     self.startPolling();
-                 },
-                 onError: function(result) {
-                     alert('Pembayaran tidak berhasil diselesaikan. Silakan coba kembali.');
-                 },
-                 onClose: function() {
-                     self.checkStatusOnce();
-                 }
-             });
+             this.showSnapModal(this.snapToken);
          },
 
          startPolling() {
@@ -415,10 +571,15 @@
 
         <!-- Khusus Kategori Biaya Pendaftaran: Opsi Checklist Komponen Biaya -->
         <div x-show="activeCategory === 'Biaya Pendaftaran'" class="space-y-2.5 pt-2 border-t border-slate-100">
-            <span class="text-xs font-bold text-slate-700 block mb-1">Rincian Komponen Biaya Pendaftaran:</span>
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 block mb-1">Rincian Komponen Biaya Pendaftaran:</span>
+                <span class="text-[11px] text-slate-400">Pilih komponen yang ingin dibayar</span>
+            </div>
 
             <!-- 1. Perlengkapan -->
-            <label class="flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:bg-slate-50 transition cursor-pointer select-none">
+            <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
+                   :class="paidItems.perlengkapan ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-85' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
+                   @click="if (paidItems.perlengkapan) { $event.preventDefault(); return false; }">
                 <div class="flex items-center gap-3">
                     <input type="checkbox"
                            id="check-perlengkapan"
@@ -426,18 +587,37 @@
                            data-price="600000"
                            x-model="items.perlengkapan"
                            @change="onItemChange()"
-                           {{ !empty($initialItems['perlengkapan']) ? 'checked' : '' }}
-                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] cursor-pointer">
+                           :disabled="paidItems.perlengkapan"
+                           {{ !empty($paidItems['perlengkapan']) ? 'disabled' : '' }}
+                           {{ (!empty($initialItems['perlengkapan']) && empty($paidItems['perlengkapan'])) ? 'checked' : '' }}
+                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400">
                     <div>
-                        <span class="text-sm font-semibold text-slate-800 block">Biaya Perlengkapan Kuliah</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-semibold text-slate-800 block">Biaya Perlengkapan Kuliah</span>
+                            <template x-if="paidItems.perlengkapan">
+                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    Sudah Dibayar (Lunas)
+                                </span>
+                            </template>
+                            @if(!empty($paidItems['perlengkapan']))
+                                <span x-show="!$data" class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    ✓ Sudah Dibayar (Lunas)
+                                </span>
+                            @endif
+                        </div>
                         <span class="text-[11px] text-slate-400">Jas almamater, atribut, dan paket perlengkapan mahasiswa</span>
                     </div>
                 </div>
-                <span class="text-sm font-semibold text-slate-700">Rp 600.000</span>
+                <div class="text-right">
+                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.perlengkapan ? 'line-through text-slate-400' : ''">Rp 600.000</span>
+                </div>
             </label>
 
             <!-- 2. Pendaftaran (Official PMB Fee - Rp 300.000) -->
-            <label class="flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:bg-slate-50 transition cursor-pointer select-none">
+            <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
+                   :class="paidItems.pendaftaran ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-85' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
+                   @click="if (paidItems.pendaftaran) { $event.preventDefault(); return false; }">
                 <div class="flex items-center gap-3">
                     <input type="checkbox"
                            id="check-pendaftaran"
@@ -445,18 +625,37 @@
                            data-price="300000"
                            x-model="items.pendaftaran"
                            @change="onItemChange()"
-                           {{ !empty($initialItems['pendaftaran']) ? 'checked' : '' }}
-                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] cursor-pointer">
+                           :disabled="paidItems.pendaftaran"
+                           {{ !empty($paidItems['pendaftaran']) ? 'disabled' : '' }}
+                           {{ (!empty($initialItems['pendaftaran']) && empty($paidItems['pendaftaran'])) ? 'checked' : '' }}
+                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400">
                     <div>
-                        <span class="text-sm font-bold text-slate-900 block">Biaya Pendaftaran PMB Resmi</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-bold text-slate-900 block">Biaya Pendaftaran PMB Resmi</span>
+                            <template x-if="paidItems.pendaftaran">
+                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    Sudah Dibayar (Lunas)
+                                </span>
+                            </template>
+                            @if(!empty($paidItems['pendaftaran']))
+                                <span x-show="!$data" class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    ✓ Sudah Dibayar (Lunas)
+                                </span>
+                            @endif
+                        </div>
                         <span class="text-[11px] text-slate-400">Formulir pendaftaran online & ujian seleksi</span>
                     </div>
                 </div>
-                <span class="text-sm font-bold text-slate-900">Rp 300.000</span>
+                <div class="text-right">
+                    <span class="text-sm font-bold text-slate-900" :class="paidItems.pendaftaran ? 'line-through text-slate-400' : ''">Rp 300.000</span>
+                </div>
             </label>
 
             <!-- 3. DPP -->
-            <label class="flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:bg-slate-50 transition cursor-pointer select-none">
+            <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
+                   :class="paidItems.dpp ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-85' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
+                   @click="if (paidItems.dpp) { $event.preventDefault(); return false; }">
                 <div class="flex items-center gap-3">
                     <input type="checkbox"
                            id="check-dpp"
@@ -464,14 +663,31 @@
                            data-price="500000"
                            x-model="items.dpp"
                            @change="onItemChange()"
-                           {{ !empty($initialItems['dpp']) ? 'checked' : '' }}
-                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] cursor-pointer">
+                           :disabled="paidItems.dpp"
+                           {{ !empty($paidItems['dpp']) ? 'disabled' : '' }}
+                           {{ (!empty($initialItems['dpp']) && empty($paidItems['dpp'])) ? 'checked' : '' }}
+                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400">
                     <div>
-                        <span class="text-sm font-semibold text-slate-800 block">DPP (Dana Pengembangan Pendidikan)</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-semibold text-slate-800 block">DPP (Dana Pengembangan Pendidikan)</span>
+                            <template x-if="paidItems.dpp">
+                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    Sudah Dibayar (Lunas)
+                                </span>
+                            </template>
+                            @if(!empty($paidItems['dpp']))
+                                <span x-show="!$data" class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    ✓ Sudah Dibayar (Lunas)
+                                </span>
+                            @endif
+                        </div>
                         <span class="text-[11px] text-slate-400">Termin awal pengembangan sarana prasarana</span>
                     </div>
                 </div>
-                <span class="text-sm font-semibold text-slate-700">Rp 500.000</span>
+                <div class="text-right">
+                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.dpp ? 'line-through text-slate-400' : ''">Rp 500.000</span>
+                </div>
             </label>
         </div>
 
@@ -491,20 +707,45 @@
                                value="online"
                                x-model="selectedMethod"
                                class="w-4 h-4 mt-0.5 text-[#0b3d82] focus:ring-[#0b3d82] border-slate-300 cursor-pointer">
-                        <div class="space-y-1">
-                            <span class="text-sm font-bold text-slate-900 block font-display">
-                                Bayar Online Otomatis (Midtrans Snap)
-                            </span>
+                        <div class="space-y-1 w-full">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-bold text-slate-900 block font-display">
+                                    Bayar Online Otomatis (Midtrans Snap)
+                                </span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-[#0b3d82] border border-blue-200">
+                                    Verifikasi Otomatis
+                                </span>
+                            </div>
                             <p class="text-xs text-slate-500 leading-relaxed">
-                                Pembayaran terverifikasi otomatis via Virtual Account (BCA, Mandiri, BRI, BNI), QRIS, GoPay, ShopeePay, dan Kartu Kredit.
+                                @php
+                                    $activeBankNames = $bankAccounts->map(function($b) {
+                                        return preg_replace('/^(Bank|PT\.?\s*Bank)\s+/i', '', $b->bank_name);
+                                    })->unique()->values();
+                                    $vaListText = $activeBankNames->isNotEmpty() 
+                                        ? $activeBankNames->implode(', ') 
+                                        : 'Rekening Bank Resmi';
+                                @endphp
+                                Pembayaran terverifikasi otomatis via Virtual Account ({{ $vaListText }}).
                             </p>
                             <div class="pt-2 flex flex-wrap items-center gap-1.5">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-[#0b3d82]">Midtrans Snap</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">QRIS</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">BCA VA</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">BRI VA</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">Mandiri VA</span>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">GoPay</span>
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#0b3d82] text-white shadow-2xs flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Midtrans Snap
+                                </span>
+
+                                @forelse($bankAccounts as $bank)
+                                    @php
+                                        $cleanBankName = preg_replace('/^(Bank|PT\.?\s*Bank)\s+/i', '', $bank->bank_name);
+                                    @endphp
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-[#0b3d82] border border-blue-200 flex items-center gap-1">
+                                        <svg class="w-2.5 h-2.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                                        {{ $cleanBankName }} VA
+                                    </span>
+                                @empty
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-500">
+                                        Belum ada rekening aktif di Admin
+                                    </span>
+                                @endforelse
                             </div>
                         </div>
                     </div>
@@ -530,23 +771,57 @@
                                 Transfer manual via ATM/M-Banking langsung ke rekening resmi yayasan/universitas.
                             </p>
 
-                            <!-- Daftar Rekening Aktif dari Database -->
+                            <!-- Daftar Rekening Aktif dari Database (UI Selaras Master Rekening Bank Admin) -->
                             <div x-show="selectedMethod === 'transfer_manual'" x-cloak class="pt-3 space-y-2 mt-2">
-                                <p class="text-xs font-semibold text-slate-800">Daftar Rekening Resmi PMB UCIC (Aktif):</p>
+                                <div class="flex items-center justify-between">
+                                    <p class="text-xs font-bold text-slate-800">Daftar Rekening Resmi PMB UCIC (Aktif):</p>
+                                    <span class="text-[10px] text-slate-500">{{ $bankAccounts->count() }} Rekening Terdaftar</span>
+                                </div>
                                 
                                 @forelse($bankAccounts as $bank)
-                                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                        <div>
-                                            <span class="font-bold text-slate-900 block text-sm">{{ $bank->bank_name }}</span>
-                                            <span class="text-slate-500 text-[11px]">A/N: <strong class="text-slate-700">{{ $bank->account_name }}</strong></span>
-                                            @if($bank->notes)
-                                                <p class="text-[10px] text-slate-400 mt-0.5">{{ $bank->notes }}</p>
-                                            @endif
+                                    <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs hover:border-blue-300 transition text-xs space-y-2">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="flex items-center gap-2.5">
+                                                <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-[11px] border border-purple-100 shrink-0">
+                                                    {{ strtoupper(substr($bank->bank_name, 0, 3)) }}
+                                                </div>
+                                                <div>
+                                                    <span class="font-extrabold text-slate-900 block text-xs">{{ $bank->bank_name }}</span>
+                                                    <span class="text-slate-500 text-[11px]">A/N: <strong class="text-slate-800">{{ $bank->account_name }}</strong></span>
+                                                </div>
+                                            </div>
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                                Aktif
+                                            </span>
                                         </div>
-                                        <div class="sm:text-right">
-                                            <span class="text-[#0b3d82] font-mono font-bold text-sm select-all">{{ $bank->account_number }}</span>
-                                            <span class="text-[10px] text-slate-400 block">Salin nomor rekening</span>
+
+                                        <div class="flex items-center justify-between bg-slate-50/90 px-3 py-2 rounded-xl border border-slate-100">
+                                            <span class="text-[#0b3d82] font-mono font-bold text-sm tracking-wide select-all">{{ $bank->account_number }}</span>
+                                            <button 
+                                                type="button" 
+                                                @click="copyText('{{ $bank->account_number }}', 'opt2_{{ $bank->id }}')" 
+                                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                                :class="copiedId === 'opt2_{{ $bank->id }}' ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'"
+                                                title="Salin nomor rekening"
+                                            >
+                                                <template x-if="copiedId === 'opt2_{{ $bank->id }}'">
+                                                    <span class="flex items-center gap-1">
+                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                        Tersalin!
+                                                    </span>
+                                                </template>
+                                                <template x-if="copiedId !== 'opt2_{{ $bank->id }}'">
+                                                    <span class="flex items-center gap-1">
+                                                        <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                                        Salin
+                                                    </span>
+                                                </template>
+                                            </button>
                                         </div>
+
+                                        @if($bank->notes)
+                                            <p class="text-[10px] text-slate-400 pl-1">{{ $bank->notes }}</p>
+                                        @endif
                                     </div>
                                 @empty
                                     <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
@@ -611,7 +886,19 @@
 
             <!-- Order info & security notice -->
             <div class="mt-4 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2">
-                <span>Order ID Aktif: <strong class="text-slate-800" x-text="orderId || '-'">{{ $transaksi?->order_id ?? '-' }}</strong></span>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span>Order ID Aktif: <strong class="text-slate-800" x-text="orderId || '-'">{{ $transaksi?->order_id ?? '-' }}</strong></span>
+                    <template x-if="status !== 'verified' && snapToken">
+                        <button type="button"
+                                @click="openSnapPay(snapToken, orderId)"
+                                class="text-xs font-bold text-[#0b3d82] hover:underline cursor-pointer inline-flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                            <svg class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            <span>Buka Form Bayar</span>
+                        </button>
+                    </template>
+                </div>
                 <span class="inline-flex items-center gap-1.5 text-blue-700 font-semibold">
                     <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -664,7 +951,25 @@
                                 <span>•</span>
                                 <span>{{ $tx->created_at->format('d M Y, H:i') }} WIB</span>
                                 <span>•</span>
-                                <span>Metode: <strong class="text-slate-700">{{ $tx->payment_type ?: ($tx->metode_pembayaran ?: 'Midtrans Snap') }}</strong></span>
+                                @php
+                                    $txPaymentType = strtolower($tx->payment_type ?? '');
+                                    $txRawMetode = strtoupper($tx->metode_pembayaran ?? '');
+                                    $txMetodeLabel = match(true) {
+                                        str_contains($txPaymentType, 'echannel') || str_contains($txPaymentType, 'mandiri') => 'Mandiri VA',
+                                        str_contains($txPaymentType, 'bca') => 'BCA VA',
+                                        str_contains($txPaymentType, 'bni') => 'BNI VA',
+                                        str_contains($txPaymentType, 'bri') => 'BRI VA',
+                                        str_contains($txPaymentType, 'qris') => 'QRIS',
+                                        str_contains($txPaymentType, 'gopay') => 'GoPay',
+                                        $txRawMetode === 'MIDTRANS' => 'Virtual Account',
+                                        $txRawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
+                                        $txRawMetode === 'TRANSFER_MANUAL' => 'Transfer Manual',
+                                        $txRawMetode === 'OFFLINE' => 'Tunai / Kasir',
+                                        !empty($tx->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($tx->metode_pembayaran))),
+                                        default => 'Transfer Bank',
+                                    };
+                                @endphp
+                                <span>Metode: <strong class="text-slate-700">{{ $txMetodeLabel }}</strong></span>
                             </div>
                         </div>
 
@@ -691,11 +996,77 @@
                                     </span>
                                 @endif
                             </div>
+
+                            @if($tx->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED && $tx->payment_status !== \App\Models\Transaksi::STATUS_REJECTED)
+                                <div class="mt-2.5 flex flex-wrap sm:justify-end items-center gap-1.5">
+                                    <button type="button"
+                                            @click="payCategoryNow('{{ $tx->kategori ?: $tx->jenis }}')"
+                                            class="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-[#0b3d82] hover:bg-[#082a5c] transition cursor-pointer flex items-center gap-1 shadow-2xs">
+                                        <svg class="w-3.5 h-3.5 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                        <span>Bayar Sekarang</span>
+                                    </button>
+
+                                    <button type="button"
+                                            @click="openDetailPending({
+                                                id: {{ $tx->id }},
+                                                orderId: '{{ $tx->order_id ?: ('TRX-' . $tx->id) }}',
+                                                kategori: '{{ $tx->kategori ?? 'Pendaftaran' }}',
+                                                detail: '{{ addslashes($tx->detail_pembayaran ?: ($tx->kategori ?: 'Biaya PMB')) }}',
+                                                nominal: {{ (int) $tx->nominal }},
+                                                nominalFormatted: 'Rp {{ number_format($tx->nominal, 0, ',', '.') }}',
+                                                tanggal: '{{ $tx->created_at->format('d M Y, H:i') }} WIB',
+                                                metode: '{{ $txMetodeLabel }}',
+                                                snapToken: '{{ $tx->snap_token ?? '' }}'
+                                            })"
+                                            class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        <span>Lihat Rekening</span>
+                                    </button>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
             </div>
         @endif
+    </div>
+
+    <!-- Modal Snap Embed: Form Pembayaran Proporsional, Luas & Rapi (Anti-Memanjang) -->
+    <div x-show="snapEmbedModalOpen" x-cloak 
+         class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+         style="z-index: 99999;">
+        <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto transition-all"
+             style="max-height: 92vh;"
+             @click.away="closeSnapModal()">
+            <!-- Top Bar Dialog -->
+            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-100 text-[#0b3d82] flex items-center justify-center font-bold text-xs">
+                        PMB
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-900 font-display">Pilih Metode Pembayaran UCIC</h4>
+                        <p class="text-[10px] text-slate-500">Virtual Account (BCA, Mandiri, BNI, BRI), QRIS, GoPay & Kartu Kredit</p>
+                    </div>
+                </div>
+                <button type="button" 
+                        @click="closeSnapModal()" 
+                        class="w-8 h-8 rounded-full bg-slate-200/70 hover:bg-slate-300 text-slate-600 hover:text-slate-900 flex items-center justify-center text-sm font-bold transition cursor-pointer"
+                        title="Tutup Form">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Snap Embed Container -->
+            <div class="p-2 sm:p-4 bg-white flex justify-center overflow-y-auto" style="min-height: 560px;">
+                <div id="snap-container" class="w-full max-w-lg min-h-[560px]"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Konfirmasi Transfer Manual (Dynamic Bank Accounts dari Database) -->
@@ -711,23 +1082,54 @@
                 <p class="text-xs text-slate-500 mt-1">Silakan transfer nominal tagihan ke salah satu rekening resmi kampus UCIC berikut:</p>
             </div>
 
-            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
                 @forelse($bankAccounts as $bank)
-                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
-                        <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
-                            <span class="text-slate-500">Bank Tujuan</span>
-                            <strong class="text-slate-900 font-bold">{{ $bank->bank_name }}</strong>
+                    <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs space-y-2 text-xs">
+                        <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-[10px] border border-purple-100 shrink-0">
+                                    {{ strtoupper(substr($bank->bank_name, 0, 3)) }}
+                                </div>
+                                <strong class="text-slate-900 font-bold text-xs">{{ $bank->bank_name }}</strong>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Rekening Aktif
+                            </span>
                         </div>
-                        <div class="flex justify-between items-center pb-1.5 border-b border-slate-200">
-                            <span class="text-slate-500">Nomor Rekening</span>
-                            <strong class="text-[#0b3d82] font-mono font-bold text-sm select-all">{{ $bank->account_number }}</strong>
+
+                        <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block uppercase tracking-wider font-semibold">Nomor Rekening</span>
+                                <strong class="text-[#0b3d82] font-mono font-bold text-sm select-all">{{ $bank->account_number }}</strong>
+                            </div>
+                            <button 
+                                type="button" 
+                                @click="copyText('{{ $bank->account_number }}', 'modal_{{ $bank->id }}')" 
+                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                :class="copiedId === 'modal_{{ $bank->id }}' ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'"
+                                title="Salin nomor rekening"
+                            >
+                                <template x-if="copiedId === 'modal_{{ $bank->id }}'">
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        Tersalin!
+                                    </span>
+                                </template>
+                                <template x-if="copiedId !== 'modal_{{ $bank->id }}'">
+                                    <span class="flex items-center gap-1">
+                                        <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                        Salin
+                                    </span>
+                                </template>
+                            </button>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-500">Atas Nama</span>
-                            <strong class="text-slate-900 font-bold">{{ $bank->account_name }}</strong>
+
+                        <div class="flex justify-between items-center text-[11px] pt-0.5">
+                            <span class="text-slate-500">Atas Nama:</span>
+                            <strong class="text-slate-800 font-semibold">{{ $bank->account_name }}</strong>
                         </div>
                         @if($bank->notes)
-                            <p class="text-[10px] text-slate-500 pt-1 border-t border-slate-200">{{ $bank->notes }}</p>
+                            <p class="text-[10px] text-slate-400 pt-1 border-t border-slate-100">{{ $bank->notes }}</p>
                         @endif
                     </div>
                 @empty
@@ -797,6 +1199,120 @@
         </div>
     </div>
 
+
+    <!-- Modal Detail Tagihan Belum Dibayar (Fitur Seperti Shopee 'Belum Dibayar') -->
+    <div x-show="detailPendingModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-4" @click.away="detailPendingModalOpen = false">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 font-display">Tagihan Belum Dibayar</h3>
+                        <p class="text-xs text-slate-500">Rincian tagihan & nomor rekening resmi UCIC</p>
+                    </div>
+                </div>
+                <button type="button" @click="detailPendingModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Info Order & Status -->
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">Order ID:</span>
+                    <span class="font-mono font-bold text-slate-900" x-text="selectedPending.orderId || '-'"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">Kategori / Rincian:</span>
+                    <span class="font-semibold text-slate-800" x-text="selectedPending.detail || selectedPending.kategori || '-'"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">Waktu Dibuat:</span>
+                    <span class="text-slate-700" x-text="selectedPending.tanggal || '-'"></span>
+                </div>
+                <div class="pt-2 border-t border-slate-200/80 flex items-center justify-between text-sm">
+                    <span class="font-bold text-slate-800">Total Pembayaran:</span>
+                    <span class="font-extrabold text-[#0b3d82] font-display text-base" x-text="selectedPending.nominalFormatted || '-'"></span>
+                </div>
+            </div>
+
+            <!-- Action Buka Form Midtrans Snap (Jika ada token) -->
+            <template x-if="selectedPending.snapToken">
+                <div class="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-200 flex items-center justify-between gap-3">
+                    <div class="text-xs">
+                        <span class="font-bold text-slate-900 block">Bayar Otomatis (Midtrans Snap)</span>
+                        <span class="text-[11px] text-slate-500">Buka kembali popup pembayaran resmi UCIC</span>
+                    </div>
+                    <button type="button"
+                            @click="payCategoryNow(selectedPending.kategori || activeCategory); detailPendingModalOpen = false;"
+                            class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#0b3d82] hover:bg-[#082a5c] transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0">
+                        <svg class="w-3.5 h-3.5 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span>Buka Form Bayar</span>
+                    </button>
+                </div>
+            </template>
+
+            <!-- Daftar Rekening Bank Kampus UCIC (Dinamis dari Admin) -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-800">Daftar Rekening Resmi Kampus UCIC:</span>
+                    <span class="text-[10px] text-slate-400">Salin rekening jika transfer manual</span>
+                </div>
+                <div class="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    @forelse($bankAccounts as $bank)
+                        <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-900">{{ $bank->bank_name }}</span>
+                                <span class="text-[11px] text-slate-500">A/N: <strong class="text-slate-800">{{ $bank->account_name }}</strong></span>
+                            </div>
+                            <div class="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                                <span class="font-mono font-bold text-sm text-[#0b3d82] select-all">{{ $bank->account_number }}</span>
+                                <button type="button"
+                                        @click="copyText('{{ $bank->account_number }}', 'pending_{{ $bank->id }}')"
+                                        class="px-2 py-0.5 rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                        :class="copiedId === 'pending_{{ $bank->id }}' ? 'bg-emerald-600 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'">
+                                    <template x-if="copiedId === 'pending_{{ $bank->id }}'">
+                                        <span class="flex items-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            Tersalin!
+                                        </span>
+                                    </template>
+                                    <template x-if="copiedId !== 'pending_{{ $bank->id }}'">
+                                        <span class="flex items-center gap-1">
+                                            <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                            Salin
+                                        </span>
+                                    </template>
+                                </button>
+                            </div>
+                            @if($bank->notes)
+                                <p class="text-[10px] text-slate-400">{{ $bank->notes }}</p>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="p-3 bg-slate-50 rounded-xl text-center text-xs text-slate-500">
+                            Tidak ada rekening aktif yang terdaftar.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="pt-2 flex items-center gap-2">
+                <button type="button"
+                        @click="detailPendingModalOpen = false"
+                        class="w-full py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 @endsection
 
@@ -812,7 +1328,7 @@
 
             var sum = 0;
             checkboxes.forEach(function(cb) {
-                if (cb.checked) {
+                if (cb.checked && !cb.disabled) {
                     sum += parseInt(cb.getAttribute('data-price') || '0', 10);
                 }
             });

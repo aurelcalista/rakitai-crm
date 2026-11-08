@@ -154,6 +154,59 @@ class MidtransService
     }
 
     /**
+     * Tentukan item-item pendaftaran mana saja yang sudah lunas/terverifikasi untuk prospek ini.
+     *
+     * @return array{perlengkapan: bool, pendaftaran: bool, dpp: bool}
+     */
+    public static function resolvePaidItems(?Prospek $prospek): array
+    {
+        $paid = [
+            'perlengkapan' => false,
+            'pendaftaran'  => false,
+            'dpp'          => false,
+        ];
+
+        if (!$prospek) {
+            return $paid;
+        }
+
+        // 1. Cek semua transaksi yang sudah terverifikasi (lunas)
+        $verifiedTransaksis = $prospek->transaksis()
+            ->whereIn('payment_status', [
+                Transaksi::STATUS_VERIFIED,
+                'Paid', 'paid', 'verified', 'settlement', 'capture', 'success'
+            ])
+            ->get();
+
+        foreach ($verifiedTransaksis as $vt) {
+            $itemsInTrx = self::resolveInitialItems($vt);
+            if (!empty($itemsInTrx['perlengkapan'])) {
+                $paid['perlengkapan'] = true;
+            }
+            if (!empty($itemsInTrx['pendaftaran'])) {
+                $paid['pendaftaran'] = true;
+            }
+            if (!empty($itemsInTrx['dpp'])) {
+                $paid['dpp'] = true;
+            }
+
+            // Normalisasi kategori / jenis
+            $normCat = Transaksi::normalizeCategory($vt->kategori ?: $vt->jenis);
+            if ($normCat === Transaksi::KATEGORI_PENDAFTARAN || in_array($vt->jenis, ['Beli Formulir', 'Pendaftaran', 'Biaya Pendaftaran'])) {
+                $paid['pendaftaran'] = true;
+            }
+        }
+
+        // 2. Cek apakah status kategori pendaftaran sudah verified
+        $catStatus = self::getCategoryPaymentStatus($prospek, Transaksi::KATEGORI_PENDAFTARAN);
+        if (($catStatus['status_code'] ?? '') === 'verified') {
+            $paid['pendaftaran'] = true;
+        }
+
+        return $paid;
+    }
+
+    /**
      * Susun rincian item_details Snap berdasarkan rincian biaya aktual transaksi.
      * Memastikan sum(price * quantity) === gross_amount sesuai spesifikasi Midtrans API.
      *
@@ -440,7 +493,17 @@ class MidtransService
                 ->first();
 
             if ($existingVerified) {
-                throw new InvalidArgumentException("Pembayaran kategori {$normalizedCategory} untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas dan terverifikasi sah. Tidak dapat melakukan checkout kembali.");
+                // Untuk pendaftaran: periksa apakah ada item tambahan (perlengkapan/dpp) yang belum lunas
+                if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN && !empty($selectedItemKeys)) {
+                    $paidItems = self::resolvePaidItems($lockedProspek);
+                    $unpaidKeys = array_values(array_filter($selectedItemKeys, fn($k) => empty($paidItems[$k])));
+                    if (empty($unpaidKeys)) {
+                        throw new InvalidArgumentException("Seluruh komponen pembayaran pendaftaran yang dipilih sudah lunas dan terverifikasi sah.");
+                    }
+                    $selectedItemKeys = $unpaidKeys;
+                } else {
+                    throw new InvalidArgumentException("Pembayaran kategori {$normalizedCategory} untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas dan terverifikasi sah. Tidak dapat melakukan checkout kembali.");
+                }
             }
 
             // 2. Cek apakah ada tagihan pending yang sedang aktif untuk kategori ini
@@ -543,6 +606,81 @@ class MidtransService
     }
 
     /**
+     * Map nama bank atau metode dari BankAccount ke kode channel pembayaran Midtrans Snap.
+     *
+     * @param string $bankName
+     * @return string|null
+     */
+    public static function mapBankNameToMidtransChannel(string $bankName): ?string
+    {
+        $clean = strtolower(trim($bankName));
+        $clean = preg_replace('/^(bank|pt\.?\s*bank)\s+/i', '', $clean);
+        $clean = trim($clean);
+
+        if (str_contains($clean, 'mandiri')) {
+            return 'echannel'; // Midtrans Mandiri Bill Payment / VA
+        }
+        if (str_contains($clean, 'bca')) {
+            return 'bca_va';
+        }
+        if (str_contains($clean, 'bni')) {
+            return 'bni_va';
+        }
+        if (str_contains($clean, 'bri')) {
+            return 'bri_va';
+        }
+        if (str_contains($clean, 'permata')) {
+            return 'permata_va';
+        }
+        if (str_contains($clean, 'cimb')) {
+            return 'cimb_va';
+        }
+        if (str_contains($clean, 'danamon')) {
+            return 'danamon_va';
+        }
+        if (str_contains($clean, 'qris')) {
+            return 'qris';
+        }
+        if (str_contains($clean, 'gopay')) {
+            return 'gopay';
+        }
+        if (str_contains($clean, 'shopee')) {
+            return 'shopeepay';
+        }
+
+        // Default VA untuk bank lainnya di Indonesia via ATM Bersama / Prima / ALTO
+        return 'other_va';
+    }
+
+    /**
+     * Tentukan channel pembayaran Midtrans yang diaktifkan secara dinamis
+     * berdasarkan daftar rekening bank yang aktif di Admin.
+     *
+     * @return array<string>
+     */
+    public static function resolveEnabledPayments(): array
+    {
+        try {
+            $activeBanks = \App\Models\BankAccount::active()->get();
+            if ($activeBanks->isEmpty()) {
+                return [];
+            }
+
+            $channels = [];
+            foreach ($activeBanks as $bank) {
+                $channel = self::mapBankNameToMidtransChannel($bank->bank_name);
+                if ($channel && !in_array($channel, $channels, true)) {
+                    $channels[] = $channel;
+                }
+            }
+
+            return $channels;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
      * Susun payload parameter Snap API dengan konfigurasi redirect callbacks dinamis.
      * Mencegah redirect ke domain default IANA (example.com).
      * Callback selalu mengarah ke URL lokal resmi: http://127.0.0.1:8000/pmb/akun/bayar
@@ -612,17 +750,32 @@ class MidtransService
 
     /**
      * Buat atau ambil Snap Token dari Midtrans.
-     * Jika transaksi lokal sudah memiliki snap_token valid, langsung gunakan kembali tanpa memanggil API berulang.
+     * Jika transaksi lokal sudah memiliki snap_token valid dan tidak diminta force fresh,
+     * langsung gunakan kembali tanpa memanggil API berulang.
      *
      * @return array{token: string, redirect_url: ?string}
      */
-    public function createSnapToken(Transaksi $transaksi): array
+    public function createSnapToken(Transaksi $transaksi, bool $forceFresh = false): array
     {
-        if (!empty($transaksi->snap_token)) {
+        if (!$forceFresh && !empty($transaksi->snap_token)) {
             return [
                 'token'        => $transaksi->snap_token,
                 'redirect_url' => $transaksi->snap_redirect_url,
             ];
+        }
+
+        // Jika forceFresh pada transaksi pending yang sudah ber-token:
+        // Buat Order ID baru agar Midtrans API menerima payload enabled_payments terbaru tanpa duplicate order ID error
+        if ($forceFresh && !empty($transaksi->snap_token) && $transaksi->payment_status !== Transaksi::STATUS_VERIFIED) {
+            $baseOrderId = preg_replace('/-\d{10,}$/', '', $transaksi->order_id);
+            $newOrderId = $baseOrderId . '-' . time() . rand(10, 99);
+            while (Transaksi::where('order_id', $newOrderId)->exists()) {
+                $newOrderId = $baseOrderId . '-' . time() . rand(100, 999);
+            }
+            $transaksi->order_id = $newOrderId;
+            $transaksi->snap_token = null;
+            $transaksi->snap_redirect_url = null;
+            $transaksi->save();
         }
 
         self::configure();

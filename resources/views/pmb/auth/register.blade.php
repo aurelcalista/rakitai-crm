@@ -116,22 +116,16 @@
             <!-- Nomor HP Aktif -->
             <div class="text-left mb-3.5">
                 <label for="whatsapp" class="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Nomor HP Aktif <span class="text-rose-500">*</span>
+                    Nomor WhatsApp / HP Aktif <span class="text-rose-500">*</span>
                 </label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <input type="tel"
-                           id="whatsapp"
-                           name="whatsapp"
-                           value="{{ old('whatsapp') }}"
-                           required
-                           placeholder="Contoh: 08123456789"
-                           class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-[#004b99] focus:ring-1 focus:ring-[#004b99] transition placeholder:text-slate-400 text-slate-800">
-                </div>
+                <x-input-whatsapp
+                    name="whatsapp"
+                    id="whatsapp"
+                    :value="old('whatsapp')"
+                    required
+                    placeholder="81234567890"
+                    class="bg-white border-slate-200"
+                />
             </div>
 
             <!-- Asal Sekolah -->

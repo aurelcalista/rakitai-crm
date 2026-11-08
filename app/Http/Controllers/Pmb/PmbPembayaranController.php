@@ -13,6 +13,22 @@ class PmbPembayaranController extends Controller
 {
     public function index(Request $request): View
     {
+        // Auto-sync pending Midtrans transactions with Midtrans Server API
+        if (!app()->runningUnitTests()) {
+            $pendingSyncCandidates = Transaksi::where('payment_status', Transaksi::STATUS_PENDING)
+                ->whereNotNull('order_id')
+                ->latest('id')
+                ->take(5)
+                ->get();
+
+            $midtransService = app(\App\Services\MidtransService::class);
+            foreach ($pendingSyncCandidates as $cand) {
+                try {
+                    $midtransService->syncStatusFromMidtransApi($cand->order_id);
+                } catch (\Throwable $e) {}
+            }
+        }
+
         $query = Transaksi::with(['prospek.prodi', 'user']);
 
         // Search (Order ID, Nama pendaftar, Email)
@@ -167,6 +183,23 @@ class PmbPembayaranController extends Controller
         return redirect()->back()->with('error', "Transaksi {$transaksi->order_id} telah ditolak/dibatalkan.");
     }
 
+    public function sync(Request $request, $id, \App\Services\MidtransService $midtransService)
+    {
+        $transaksi = Transaksi::findOrFail($id);
+        if (empty($transaksi->order_id)) {
+            return redirect()->back()->with('error', "Transaksi tidak memiliki Order ID Midtrans.");
+        }
+
+        $synced = $midtransService->syncStatusFromMidtransApi($transaksi->order_id);
+
+        if ($synced && $synced->payment_status === Transaksi::STATUS_VERIFIED) {
+            return redirect()->back()->with('success', "Status transaksi {$transaksi->order_id} berhasil disinkronkan langsung dari Midtrans: LUNAS (VERIFIED)!");
+        }
+
+        $transaksi->refresh();
+        return redirect()->back()->with('info', "Status transaksi {$transaksi->order_id} di Midtrans saat ini: " . strtoupper($transaksi->payment_status) . ".");
+    }
+
     public function export(Request $request): StreamedResponse
     {
         $query = Transaksi::with(['prospek.prodi']);
@@ -221,9 +254,33 @@ class PmbPembayaranController extends Controller
             $no = 1;
             foreach ($transaksis as $t) {
                 $statusLabel = match (strtolower($t->payment_status ?? 'pending')) {
-                    'verified', 'paid' => 'Paid',
-                    'rejected', 'failed' => 'Failed',
+                    'verified', 'paid', 'success', 'settlement', 'capture' => 'Berhasil',
+                    'rejected', 'failed', 'batal', 'expire', 'deny', 'cancel' => 'Gagal',
                     default => 'Pending',
+                };
+
+                $rawMetode = strtoupper($t->metode_pembayaran ?? '');
+                $paymentType = strtolower($t->payment_type ?? '');
+
+                $metodeLabel = match(true) {
+                    str_contains($paymentType, 'echannel') || str_contains($paymentType, 'mandiri') => 'Mandiri VA',
+                    str_contains($paymentType, 'bca') => 'BCA VA',
+                    str_contains($paymentType, 'bni') => 'BNI VA',
+                    str_contains($paymentType, 'bri') => 'BRI VA',
+                    str_contains($paymentType, 'permata') => 'Permata VA',
+                    str_contains($paymentType, 'cimb') => 'CIMB VA',
+                    str_contains($paymentType, 'danamon') => 'Danamon VA',
+                    str_contains($paymentType, 'qris') => 'QRIS',
+                    str_contains($paymentType, 'gopay') => 'GoPay',
+                    str_contains($paymentType, 'shopee') => 'ShopeePay',
+                    str_contains($paymentType, 'credit_card') => 'Kartu Kredit',
+                    str_contains($paymentType, 'bank_transfer') || str_contains($paymentType, 'va') => 'Virtual Account',
+                    $rawMetode === 'MIDTRANS' => 'Virtual Account',
+                    $rawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
+                    $rawMetode === 'TRANSFER_MANUAL' || str_contains($rawMetode, 'MANUAL') => 'Transfer Manual',
+                    $rawMetode === 'OFFLINE' => 'Tunai / Kasir',
+                    !empty($t->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($t->metode_pembayaran))),
+                    default => 'Transfer Bank',
                 };
 
                 fputcsv($handle, [
@@ -233,7 +290,7 @@ class PmbPembayaranController extends Controller
                     $t->prospek?->email ?? '-',
                     $t->nominal,
                     $t->detail_pembayaran ?? $t->jenis,
-                    $t->metode_pembayaran ?? 'OFFLINE',
+                    $metodeLabel,
                     $statusLabel,
                     $t->tanggal ? \Carbon\Carbon::parse($t->tanggal)->format('d M Y, H:i') : '-',
                     $t->rejection_reason ?? '-',

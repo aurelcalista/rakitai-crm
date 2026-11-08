@@ -78,7 +78,18 @@ class MidtransPaymentController extends Controller
                         'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
                     ], 422);
                 }
-                $calculated = MidtransService::calculateItems($rawItems);
+
+                // Saring komponen yang sudah lunas
+                $paidItems = MidtransService::resolvePaidItems($prospek);
+                $unpaidItems = array_values(array_filter($rawItems, fn($k) => empty($paidItems[$k])));
+                if (empty($unpaidItems)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Seluruh komponen biaya yang dipilih sudah lunas terverifikasi.',
+                    ], 422);
+                }
+
+                $calculated = MidtransService::calculateItems($unpaidItems);
                 if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
                     return response()->json([
                         'success' => false,
@@ -97,8 +108,8 @@ class MidtransPaymentController extends Controller
                 $selectedKeys
             );
 
-            // Dapatkan Snap Token dari Midtrans
-            $snap = $this->midtransService->createSnapToken($transaksi);
+            // Dapatkan Snap Token dari Midtrans (selalu pastikan sinkron dengan metode pembayaran aktif di Admin)
+            $snap = $this->midtransService->createSnapToken($transaksi, true);
 
             return response()->json([
                 'success'           => true,

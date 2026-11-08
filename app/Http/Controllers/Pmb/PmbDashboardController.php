@@ -36,6 +36,21 @@ class PmbDashboardController extends Controller
         $sudahUjian = Prospek::where('status_ujian', 'Sudah Mengerjakan')->count();
 
         // 2. Pembayaran Statistics
+        if (!app()->runningUnitTests()) {
+            $pendingCandidates = Transaksi::where('payment_status', Transaksi::STATUS_PENDING)
+                ->whereNotNull('order_id')
+                ->latest('id')
+                ->take(5)
+                ->get();
+
+            $midtransService = app(\App\Services\MidtransService::class);
+            foreach ($pendingCandidates as $cand) {
+                try {
+                    $midtransService->syncStatusFromMidtransApi($cand->order_id);
+                } catch (\Throwable $e) {}
+            }
+        }
+
         $transaksiVerified = Transaksi::whereIn('payment_status', [Transaksi::STATUS_VERIFIED, 'Paid', 'paid', 'verified']);
         $totalNominalDiterima = (float) $transaksiVerified->sum('nominal');
         $countBerhasil = $transaksiVerified->count();

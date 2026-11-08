@@ -29,20 +29,20 @@
     <div class="bg-white rounded-2xl p-6 sm:p-7 border-l-4 border-l-[#0b3d82] border-y border-r border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h2 class="text-base sm:text-lg font-bold text-[#0b3d82] font-display">
-                {{ $prospek->gelombang ?? 'Gelombang 1 Beasiswa Rektor' }}
+                {{ $prospek->gelombang ?? ($tahunAkademik ? 'Gelombang 1 - ' . $tahunAkademik->nama : 'Gelombang 1 PMB') }}
             </h2>
             <div class="text-xs text-slate-500 mt-1 space-y-0.5">
-                <p>Tahun Akademik 2027/2028</p>
-                <p>Periode: 01 Sep 2026 - 30 Oct 2026</p>
+                <p>{{ $tahunAkademik ? 'Tahun Akademik ' . $tahunAkademik->nama : 'Tahun Akademik ' . date('Y') . '/' . (date('Y') + 1) }}</p>
+                <p>Periode: {{ $periodeText ?? 'Sep 2026 - Okt 2026' }}</p>
             </div>
         </div>
 
         <div class="flex flex-col sm:items-end gap-1">
-            <span class="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-bold bg-[#15803d] text-white tracking-wide shadow-xs">
-                PMB BUKA
+            <span class="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-bold {{ ($isPmbBuka ?? true) ? 'bg-[#15803d]' : 'bg-slate-500' }} text-white tracking-wide shadow-xs">
+                {{ ($isPmbBuka ?? true) ? 'PMB BUKA' : 'PMB DITUTUP' }}
             </span>
-            <span class="text-[11px] text-[#ca8a04] font-semibold">
-                7 hari tersisa
+            <span class="text-[11px] {{ ($isPmbBuka ?? true) ? 'text-[#ca8a04]' : 'text-slate-400' }} font-semibold">
+                {{ $sisaHariText ?? 'Pendaftaran Dibuka' }}
             </span>
         </div>
     </div>
@@ -246,7 +246,7 @@
                 </div>
                 <div>
                     <h4 class="text-sm font-bold text-amber-900 font-display">Pembayaran Biaya Formulir PMB (Rp 300.000)</h4>
-                    <p class="text-xs text-amber-700 mt-0.5">Selesaikan pembayaran secara aman via Midtrans Snap (QRIS atau Virtual Account).</p>
+                    <p class="text-xs text-amber-700 mt-0.5">Selesaikan pembayaran secara aman via Midtrans Snap (Virtual Account bank resmi).</p>
                 </div>
             </div>
             <a href="{{ route('pmb.akun.bayar') }}"

@@ -97,10 +97,17 @@ class CamabaAuthController extends Controller
      */
     public function register(Request $request)
     {
+        // Standardize WhatsApp input into canonical +628xxxxxxxx format
+        if ($request->has('whatsapp') && $request->filled('whatsapp')) {
+            $request->merge([
+                'whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->input('whatsapp'))
+            ]);
+        }
+
         $validated = $request->validate([
             'name'                  => 'required|string|min:2|max:255',
             'email'                 => 'required|email|max:255',
-            'whatsapp'              => ['required', 'string', 'regex:/^(\+62|62|0)[0-9]{8,14}$/'],
+            'whatsapp'              => ['required', 'string', 'regex:/^\+628[0-9]{8,12}$/'],
             'asal_sekolah'          => 'required|string|min:2|max:255',
             'password'              => ['required', 'confirmed', Password::min(8)],
             'minat_kuliah'          => 'nullable|string|in:ya,tidak',
@@ -111,7 +118,7 @@ class CamabaAuthController extends Controller
             'email.required'        => 'Email aktif wajib diisi.',
             'email.email'           => 'Format email tidak valid.',
             'whatsapp.required'     => 'Nomor WhatsApp / HP wajib diisi.',
-            'whatsapp.regex'        => 'Format nomor WhatsApp tidak valid (contoh: 081234567890).',
+            'whatsapp.regex'        => 'Nomor WhatsApp wajib menggunakan format Indonesia (+62) yang valid (contoh: +6281234567890).',
             'asal_sekolah.required' => 'Asal sekolah wajib diisi.',
             'asal_sekolah.min'      => 'Asal sekolah minimal 2 karakter.',
             'password.required'     => 'Password wajib diisi.',
@@ -130,6 +137,35 @@ class CamabaAuthController extends Controller
         }
 
         $formattedPhone = \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']);
+        $digits = \App\Support\WhatsAppHelper::normalizeForDisplay($validated['whatsapp']);
+        $possiblePhones = array_unique(array_filter([
+            $formattedPhone,
+            $validated['whatsapp'],
+            '0' . $digits,
+            '62' . $digits,
+            '+62' . $digits,
+            $digits,
+        ]));
+
+        // Cek apakah nomor WhatsApp sudah terdaftar pada akun User lain
+        $existingPhoneUser = User::whereIn('phone', $possiblePhones)->first();
+        if ($existingPhoneUser) {
+            return back()->withErrors([
+                'whatsapp' => 'Nomor WhatsApp / HP ini sudah terdaftar. Silakan gunakan nomor lain atau masuk ke akun Anda.',
+            ])->withInput($request->except(['password', 'password_confirmation']));
+        }
+
+        // Cek apakah nomor WhatsApp sudah digunakan oleh akun calon mahasiswa (prospek) lain
+        $existingPhoneProspek = Prospek::where(function ($q) use ($possiblePhones) {
+            $q->whereIn('whatsapp', $possiblePhones)
+              ->orWhereIn('pic_phone', $possiblePhones);
+        })->whereNotNull('user_id')->first();
+
+        if ($existingPhoneProspek) {
+            return back()->withErrors([
+                'whatsapp' => 'Nomor WhatsApp / HP ini sudah terdaftar pada akun calon mahasiswa lain.',
+            ])->withInput($request->except(['password', 'password_confirmation']));
+        }
 
         // Jalankan transaksi database untuk integritas data User & Prospek
         $user = DB::transaction(function () use ($validated, $emailClean, $formattedPhone) {
@@ -147,23 +183,20 @@ class CamabaAuthController extends Controller
             $sekolah = Sekolah::where('nama', 'like', trim($validated['asal_sekolah']))->first();
             $sekolahId = $sekolah?->id;
 
-            // 3. Hubungkan dengan Prospek CRM jika pendaftar sudah ada sebelumnya di CRM via email / phone
-            $prospek = Prospek::where(function ($q) use ($emailClean, $formattedPhone) {
-                $q->where('email', $emailClean)
-                  ->orWhere('whatsapp', $formattedPhone)
-                  ->orWhere('pic_phone', $formattedPhone);
-            })->first();
+            // 3. Hubungkan dengan Prospek CRM HANYA jika ada pendaftar CRM yang belum memiliki akun (user_id IS NULL) dengan email yang sama
+            $prospek = Prospek::where('email', $emailClean)
+                ->whereNull('user_id')
+                ->first();
 
             $minatKuliah = $validated['minat_kuliah'] ?? 'ya';
             $minatMiniclass = $validated['minat_miniclass'] ?? 'tidak';
 
             if ($prospek) {
-                // Link existing prospek to newly created user
+                // Hubungkan prospek CRM yang belum bertuan ke akun user baru ini
                 $prospek->user_id = $user->id;
-                $prospek->email = $emailClean;
-                if (empty($prospek->whatsapp)) {
-                    $prospek->whatsapp = $formattedPhone;
-                }
+                $prospek->name = trim($validated['name']);
+                $prospek->whatsapp = $formattedPhone;
+                $prospek->pic_phone = $formattedPhone;
                 if (!$prospek->sekolah_id && $sekolahId) {
                     $prospek->sekolah_id = $sekolahId;
                 }
@@ -176,28 +209,33 @@ class CamabaAuthController extends Controller
                 $nextNum = Prospek::whereYear('created_at', $year)->count() + 1;
                 $noRegistrasi = 'PMB-' . $year . '-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
+                // Dapatkan Tahun Akademik aktif secara dinamis
+                $activeTa = \App\Models\TahunAkademik::getAktif();
+                $gelombangName = $activeTa ? 'Gelombang 1 - ' . $activeTa->nama : 'Gelombang 1';
+
                 // Buat record Prospek baru secara aman
                 $prospek = Prospek::create([
-                    'user_id'         => $user->id,
-                    'name'            => trim($validated['name']),
-                    'email'           => $emailClean,
-                    'whatsapp'        => $formattedPhone,
-                    'pic_phone'       => $formattedPhone,
-                    'pic'             => trim($validated['name']),
-                    'type'            => 'Individu',
-                    'category'        => 'PMB Online',
-                    'source'          => 'Website PMB',
-                    'status'          => 'BARU',
-                    'status_formulir' => 'Belum Isi',
-                    'status_berkas'   => 'Belum Upload',
-                    'status_ujian'    => 'Belum Mengerjakan',
-                    'stage_number'    => 1,
-                    'gelombang'       => 'Gelombang 1',
-                    'no_registrasi'   => $noRegistrasi,
-                    'sekolah_id'      => $sekolahId,
-                    'minat_kuliah'    => $minatKuliah,
-                    'minat_miniclass' => $minatMiniclass,
-                    'notes'           => 'Pendaftaran mandiri via Portal PMB Online. Asal sekolah: ' . trim($validated['asal_sekolah']),
+                    'user_id'          => $user->id,
+                    'academic_year_id' => $activeTa?->id,
+                    'name'             => trim($validated['name']),
+                    'email'            => $emailClean,
+                    'whatsapp'         => $formattedPhone,
+                    'pic_phone'        => $formattedPhone,
+                    'pic'              => trim($validated['name']),
+                    'type'             => 'Individu',
+                    'category'         => 'PMB Online',
+                    'source'           => 'Website PMB',
+                    'status'           => 'BARU',
+                    'status_formulir'  => 'Belum Isi',
+                    'status_berkas'    => 'Belum Upload',
+                    'status_ujian'     => 'Belum Mengerjakan',
+                    'stage_number'     => 1,
+                    'gelombang'        => $gelombangName,
+                    'no_registrasi'    => $noRegistrasi,
+                    'sekolah_id'       => $sekolahId,
+                    'minat_kuliah'     => $minatKuliah,
+                    'minat_miniclass'  => $minatMiniclass,
+                    'notes'            => 'Pendaftaran mandiri via Portal PMB Online. Asal sekolah: ' . trim($validated['asal_sekolah']),
                 ]);
             }
 

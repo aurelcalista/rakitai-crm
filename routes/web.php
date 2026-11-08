@@ -460,6 +460,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/pembayaran/export',              [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'export'])->name('pembayaran.export');
         Route::post('/pembayaran/{id}/verify',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'verify'])->name('pembayaran.verify');
         Route::post('/pembayaran/{id}/reject',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'reject'])->name('pembayaran.reject');
+        Route::post('/pembayaran/{id}/sync',          [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'sync'])->name('pembayaran.sync');
 
         // Data Admin PMB (HANYA untuk Admin & HM, CS DILARANG AKSES)
         Route::middleware(['role:Admin,HM'])->group(function () {

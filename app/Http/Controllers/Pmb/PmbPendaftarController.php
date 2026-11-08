@@ -64,22 +64,20 @@ class PmbPendaftarController extends Controller
         })->count();
         $sudahUploadBerkas = Prospek::where('status_berkas', 'Sudah Upload')->count();
 
-        // Dropdown filter options
+        // Dropdown filter options (Dinamis dari Database & Master Data)
         $prodis = Prodi::orderBy('nama', 'asc')->get();
-        $gelombangList = Prospek::whereNotNull('gelombang')
+        $gelombangFromDB = Prospek::whereNotNull('gelombang')
             ->distinct()
             ->pluck('gelombang')
             ->filter()
             ->values();
 
-        if (!$gelombangList->contains('- Data Lama')) {
-            $gelombangList->prepend('- Data Lama');
-        }
-        if (!$gelombangList->contains('Gelombang 1')) {
-            $gelombangList->push('Gelombang 1');
-        }
-        if (!$gelombangList->contains('Gelombang 2')) {
-            $gelombangList->push('Gelombang 2');
+        $taGelombangs = \App\Models\TahunAkademik::pluck('nama')
+            ->map(fn($nama) => 'Gelombang 1 - ' . $nama);
+
+        $gelombangList = $gelombangFromDB->merge($taGelombangs)->unique()->values();
+        if ($gelombangList->isEmpty()) {
+            $gelombangList = collect(['Gelombang 1', 'Gelombang 2']);
         }
 
         // Sorting & Pagination
@@ -158,6 +156,15 @@ class PmbPendaftarController extends Controller
 
         $pendaftar = Prospek::findOrFail($id);
         $nama = $pendaftar->name;
+
+        // Hapus akun login Camaba jika ada agar tidak tertinggal sebagai orphan user
+        if ($pendaftar->user_id) {
+            $camabaUser = \App\Models\User::find($pendaftar->user_id);
+            if ($camabaUser && strtolower($camabaUser->role) === 'camaba') {
+                $camabaUser->delete();
+            }
+        }
+
         $pendaftar->delete();
 
         return redirect()->route('pmb.pendaftar.index')->with('success', "Data pendaftar {$nama} berhasil dihapus.");

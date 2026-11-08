@@ -7,7 +7,9 @@ use App\Models\Prodi;
 use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use App\Models\Sekolah;
+use App\Models\TahunAkademik;
 use App\Services\MidtransService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,7 @@ class CamabaPortalController extends Controller
 {
     /**
      * Dapatkan record Prospek terkait akun CAMABA yang sedang login.
+     * Menjamin isolasi penuh antar calon mahasiswa (setiap akun memiliki Prospek mandiri).
      */
     protected function getCamabaProspek(): ?Prospek
     {
@@ -28,14 +31,71 @@ class CamabaPortalController extends Controller
             return null;
         }
 
-        // Cari via relasi user_id, fallback ke email jika belum terlink
-        $prospek = $user->prospek;
-        if (!$prospek) {
-            $prospek = Prospek::where('email', strtolower($user->email))->first();
-            if ($prospek && !$prospek->user_id) {
+        $userEmail = strtolower(trim((string) $user->email));
+
+        // 1. Cari via relasi user_id yang email-nya cocok dengan akun user ini
+        $prospek = Prospek::where('user_id', $user->id)
+            ->where(function ($q) use ($userEmail) {
+                if (!empty($userEmail)) {
+                    $q->where('email', $userEmail)
+                      ->orWhereNull('email')
+                      ->orWhere('email', '');
+                }
+            })
+            ->first();
+
+        // 2. Self-healing: jika ada prospek dengan email yang sama dan belum memiliki user_id, hubungkan
+        if (!$prospek && !empty($userEmail)) {
+            $prospek = Prospek::where('email', $userEmail)
+                ->whereNull('user_id')
+                ->first();
+            if ($prospek) {
                 $prospek->user_id = $user->id;
                 $prospek->save();
             }
+        }
+
+        // 3. Self-healing: jika prospek dengan email user ini salah terhubung ke user_id lain yang berbeda email
+        if (!$prospek && !empty($userEmail)) {
+            $wronglyLinked = Prospek::where('email', $userEmail)->first();
+            if ($wronglyLinked && $wronglyLinked->user_id !== $user->id) {
+                $otherUser = $wronglyLinked->user_id ? User::find($wronglyLinked->user_id) : null;
+                if (!$otherUser || strtolower(trim((string) $otherUser->email)) !== $userEmail) {
+                    $wronglyLinked->user_id = $user->id;
+                    $wronglyLinked->save();
+                    $prospek = $wronglyLinked;
+                }
+            }
+        }
+
+        // 4. Fallback: jika user role Camaba belum memiliki prospek sendiri yang sesuai, buatkan prospek baru yang fresh
+        if (!$prospek && strtolower((string) $user->role) === 'camaba') {
+            $year = date('Y');
+            $nextNum = Prospek::whereYear('created_at', $year)->count() + 1;
+            $noRegistrasi = 'PMB-' . $year . '-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            $activeTa = \App\Models\TahunAkademik::getAktif();
+            $gelombangName = $activeTa ? 'Gelombang 1 - ' . $activeTa->nama : 'Gelombang 1';
+
+            $prospek = Prospek::create([
+                'user_id'          => $user->id,
+                'academic_year_id' => $activeTa?->id,
+                'name'             => $user->name,
+                'email'            => $userEmail,
+                'whatsapp'         => $user->phone ?? '',
+                'pic_phone'        => $user->phone ?? '',
+                'pic'              => $user->name,
+                'type'             => 'Individu',
+                'category'         => 'PMB Online',
+                'source'           => 'Website PMB',
+                'status'           => 'BARU',
+                'status_formulir'  => 'Belum Isi',
+                'status_berkas'    => 'Belum Upload',
+                'status_ujian'     => 'Belum Mengerjakan',
+                'stage_number'     => 1,
+                'gelombang'        => $gelombangName,
+                'no_registrasi'    => $noRegistrasi,
+                'notes'            => 'Pendaftaran mandiri akun Camaba.',
+            ]);
         }
 
         return $prospek;
@@ -67,6 +127,19 @@ class CamabaPortalController extends Controller
         $riwayatTransaksi = collect();
 
         if ($prospek) {
+            // Auto sync pending transaction with Midtrans if any
+            $pendingTrx = $prospek->transaksis()
+                ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING)
+                ->whereNotNull('order_id')
+                ->latest('id')
+                ->first();
+
+            if ($pendingTrx && !app()->runningUnitTests()) {
+                try {
+                    app(MidtransService::class)->syncStatusFromMidtransApi($pendingTrx->order_id);
+                } catch (\Throwable $e) {}
+            }
+
             $riwayatTransaksi = $prospek->transaksis()
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -77,7 +150,40 @@ class CamabaPortalController extends Controller
                 ->first();
         }
 
-        return view('pmb.portal.dashboard', compact('user', 'prospek', 'transaksiAktif', 'riwayatTransaksi'));
+        // Tahun Akademik & Periode Gelombang Dinamis
+        $tahunAkademik = TahunAkademik::getAktif();
+        $currentYear = (int) date('Y');
+
+        // Jika ada Tahun Akademik aktif, gunakan tahunnya (contoh: "2027/2028" -> 2027)
+        if ($tahunAkademik && preg_match('/^(\d{4})/', $tahunAkademik->nama, $matches)) {
+            $baseYear = (int) $matches[1];
+        } else {
+            $baseYear = $currentYear;
+        }
+
+        $startDate = Carbon::create($baseYear, 1, 1)->startOfDay();
+        $endDate = Carbon::create($baseYear, 10, 31)->endOfDay();
+        if (now()->gt($endDate) && $baseYear === $currentYear) {
+            $endDate = Carbon::create($baseYear + 1, 10, 31)->endOfDay();
+        }
+
+        $isPmbBuka = now()->lte($endDate);
+        $daysRemaining = now()->diffInDays($endDate, false);
+        $sisaHariText = $daysRemaining > 0 
+            ? $daysRemaining . ' hari tersisa' 
+            : ($daysRemaining === 0 ? 'Hari terakhir pendaftaran' : 'Pendaftaran ditutup');
+        $periodeText = $startDate->isoFormat('D MMM Y') . ' - ' . $endDate->isoFormat('D MMM Y');
+
+        return view('pmb.portal.dashboard', compact(
+            'user', 
+            'prospek', 
+            'transaksiAktif', 
+            'riwayatTransaksi',
+            'tahunAkademik',
+            'isPmbBuka',
+            'sisaHariText',
+            'periodeText'
+        ));
     }
 
     /**
@@ -246,9 +352,20 @@ class CamabaPortalController extends Controller
         $user = Auth::user();
         $prospek = $this->getCamabaProspek();
 
+        if ($request->has('whatsapp') && $request->filled('whatsapp')) {
+            $request->merge([
+                'whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->input('whatsapp'))
+            ]);
+        }
+        if ($request->has('wa_ortu') && $request->filled('wa_ortu')) {
+            $request->merge([
+                'wa_ortu' => \App\Support\WhatsAppHelper::prepareForValidation($request->input('wa_ortu'))
+            ]);
+        }
+
         $validated = $request->validate([
             'name'                  => 'required|string|min:2|max:255',
-            'whatsapp'              => ['required', 'string', 'regex:/^(\+62|62|0)[0-9]{8,14}$/'],
+            'whatsapp'              => ['required', 'string', 'regex:/^\+628[0-9]{8,12}$/'],
             'asal_sekolah'          => 'nullable|string|max:255',
             'nama_sekolah'          => 'nullable|string|max:255',
             'prodi_id'              => 'nullable|exists:prodis,id',
@@ -282,11 +399,46 @@ class CamabaPortalController extends Controller
         ], [
             'name.required'                 => 'Nama lengkap wajib diisi.',
             'whatsapp.required'             => 'Nomor WhatsApp wajib diisi.',
-            'whatsapp.regex'                => 'Format nomor WhatsApp tidak valid.',
+            'whatsapp.regex'                => 'Nomor WhatsApp wajib menggunakan format Indonesia (+62) yang valid (contoh: +6281234567890).',
             'prodi_pilihan_2_id.different' => 'Pilihan program studi kedua tidak boleh sama dengan pilihan pertama.',
         ]);
 
         $formattedPhone = \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']);
+        $digits = \App\Support\WhatsAppHelper::normalizeForDisplay($validated['whatsapp']);
+        $possiblePhones = array_unique(array_filter([
+            $formattedPhone,
+            $validated['whatsapp'],
+            '0' . $digits,
+            '62' . $digits,
+            '+62' . $digits,
+            $digits,
+        ]));
+
+        // Cek apakah nomor WhatsApp sudah digunakan oleh akun User lain
+        $existingPhoneUser = User::whereIn('phone', $possiblePhones)
+            ->where('id', '!=', $user->id)
+            ->first();
+        if ($existingPhoneUser) {
+            return back()->withErrors([
+                'whatsapp' => 'Nomor WhatsApp / HP ini sudah digunakan oleh akun lain.',
+            ])->withInput();
+        }
+
+        // Cek juga pada prospek lain yang terikat ke akun user berbeda
+        $existingPhoneProspek = Prospek::where(function ($q) use ($possiblePhones) {
+            $q->whereIn('whatsapp', $possiblePhones)
+              ->orWhereIn('pic_phone', $possiblePhones);
+        })
+        ->whereNotNull('user_id')
+        ->where('user_id', '!=', $user->id)
+        ->first();
+
+        if ($existingPhoneProspek) {
+            return back()->withErrors([
+                'whatsapp' => 'Nomor WhatsApp / HP ini sudah digunakan oleh akun calon mahasiswa lain.',
+            ])->withInput();
+        }
+
         $schoolName = trim($validated['nama_sekolah'] ?? $validated['asal_sekolah'] ?? '');
 
         // Kumpulkan data tambahan untuk disimpan ke kolom json form_data
@@ -441,10 +593,11 @@ class CamabaPortalController extends Controller
             }
         }
 
-        // Jika token Snap belum ada dan belum verified, buat token
-        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED && empty($transaksi->snap_token)) {
+        // Jika token Snap belum ada atau diminta fresh pada transaksi belum verified, buat token
+        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED) {
+            $needFresh = $request->boolean('fresh') || empty($transaksi->snap_token);
             try {
-                $midtransService->createSnapToken($transaksi);
+                $midtransService->createSnapToken($transaksi, $needFresh);
                 $transaksi->refresh();
             } catch (\Throwable $e) {}
         }
@@ -453,8 +606,28 @@ class CamabaPortalController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $paidItems = MidtransService::resolvePaidItems($prospek);
+
         $initialItems = $transaksi ? MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => true, 'perlengkapan' => false, 'dpp' => false];
-        $initialTotal = $transaksi ? ((int) $transaksi->nominal ?: 300000) : 300000;
+
+        // Pastikan item yang sudah pernah lunas tidak tercentang di initialItems
+        foreach ($paidItems as $itemKey => $isPaid) {
+            if ($isPaid) {
+                $initialItems[$itemKey] = false;
+            }
+        }
+
+        // Hitung total awal dari item yang masih dicentang dan belum lunas
+        $initialTotal = 0;
+        if (!empty($initialItems['perlengkapan']) && empty($paidItems['perlengkapan'])) {
+            $initialTotal += 600000;
+        }
+        if (!empty($initialItems['pendaftaran']) && empty($paidItems['pendaftaran'])) {
+            $initialTotal += 300000;
+        }
+        if (!empty($initialItems['dpp']) && empty($paidItems['dpp'])) {
+            $initialTotal += 500000;
+        }
 
         return view('pmb.portal.pembayaran', compact(
             'user',
@@ -463,6 +636,7 @@ class CamabaPortalController extends Controller
             'riwayatTransaksi',
             'initialItems',
             'initialTotal',
+            'paidItems',
             'categoriesStatus',
             'totalTagihan',
             'sisaPelunasan',

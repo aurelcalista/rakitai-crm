@@ -542,9 +542,27 @@
                                             default => 'bg-amber-50 text-amber-700 border-amber-200'
                                         };
                                         $statusBadge = match(strtolower($trx->payment_status ?? 'pending')) {
-                                            'verified', 'paid' => 'Paid',
-                                            'rejected', 'failed', 'batal' => 'Failed',
+                                            'verified', 'paid', 'success', 'settlement', 'capture' => 'Berhasil',
+                                            'rejected', 'failed', 'batal', 'expire', 'deny', 'cancel' => 'Gagal',
                                             default => 'Pending'
+                                        };
+
+                                        $rawMetode = strtoupper($trx->metode_pembayaran ?? '');
+                                        $paymentType = strtolower($trx->payment_type ?? '');
+                                        $metodeTrx = match(true) {
+                                            str_contains($paymentType, 'echannel') || str_contains($paymentType, 'mandiri') => 'Mandiri VA',
+                                            str_contains($paymentType, 'bca') => 'BCA VA',
+                                            str_contains($paymentType, 'bni') => 'BNI VA',
+                                            str_contains($paymentType, 'bri') => 'BRI VA',
+                                            str_contains($paymentType, 'permata') => 'Permata VA',
+                                            str_contains($paymentType, 'qris') => 'QRIS',
+                                            str_contains($paymentType, 'gopay') => 'GoPay',
+                                            $rawMetode === 'MIDTRANS' => 'Virtual Account',
+                                            $rawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
+                                            $rawMetode === 'TRANSFER_MANUAL' => 'Transfer Manual',
+                                            $rawMetode === 'OFFLINE' => 'Tunai / Kasir',
+                                            !empty($trx->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($trx->metode_pembayaran))),
+                                            default => 'Transfer Bank',
                                         };
                                     @endphp
                                     <div class="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -556,7 +574,7 @@
                                                 </span>
                                             </div>
                                             <p class="text-slate-500 text-[11px] mt-0.5">
-                                                {{ $trx->detail_pembayaran ?: ($trx->jenis ?? 'Pendaftaran PMB') }} â€¢ {{ $trx->metode_pembayaran ?? 'OFFLINE' }}
+                                                {{ $trx->detail_pembayaran ?: ($trx->jenis ?? 'Pendaftaran PMB') }} • {{ $metodeTrx }}
                                             </p>
                                         </div>
                                         <div class="text-right sm:shrink-0">
