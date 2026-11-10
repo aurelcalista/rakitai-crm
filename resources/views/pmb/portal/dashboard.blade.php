@@ -7,7 +7,7 @@
 
     @php
         $isPaid = ($transaksiAktif?->payment_status ?? '') === \App\Models\Transaksi::STATUS_VERIFIED;
-        $isFormFilled = !empty($prospek->prodi_id) || ($prospek->status_formulir ?? '') === 'Sudah Isi';
+        $isFormFilled = !empty($prospek->prodi_id) && ($prospek->status_formulir ?? '') === 'Sudah Isi';
         $isUjianDone = ($prospek->status_ujian ?? '') === 'Sudah Mengerjakan';
         $berkasData = is_array($prospek?->berkas_data) ? $prospek->berkas_data : [];
         $uploadedDocsCount = count(array_filter($berkasData, fn($d) => !empty($d['file_path'])));
@@ -21,7 +21,13 @@
         </h1>
         <p class="text-slate-600 text-sm mt-3 max-w-2xl mx-auto leading-relaxed">
             Halo <strong class="text-slate-900 font-bold">{{ $prospek->name ?? $user->name }}</strong>,
-            pendaftaran Anda sudah berhasil disubmit! 📝 Silakan lanjutkan ke tahap pembayaran untuk menyelesaikan proses pendaftaran.
+            @if($isPaid)
+                seluruh pembayaran pendaftaran Anda telah berhasil diverifikasi! 🎉
+            @elseif($isFormFilled)
+                formulir pendaftaran dan pilihan program studi Anda sudah lengkap! 📝 Silakan lanjutkan ke tahap pembayaran untuk menyelesaikan proses pendaftaran.
+            @else
+                akun pendaftaran Anda sudah aktif! 📝 <strong>Silakan lengkapi Formulir Pendaftaran dan pilih Program Studi</strong> terlebih dahulu agar rincian biaya perkuliahan dapat disesuaikan.
+            @endif
         </p>
     </div>
 
@@ -52,17 +58,23 @@
         <!-- 1. Form Pendaftaran -->
         <a href="{{ route('pmb.akun.profil') }}"
            class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between">
-            <div class="w-18 h-18 rounded-full bg-[#16a34a] text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
-                <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M5 13l4 4L19 7"/>
-                </svg>
+            <div class="w-18 h-18 rounded-full {{ $isFormFilled ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                @if($isFormFilled)
+                    <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M5 13l4 4L19 7"/>
+                    </svg>
+                @else
+                    <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                @endif
             </div>
             <div>
                 <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
                     Form Pendaftaran
                 </h3>
-                <span class="text-xs text-slate-500 mt-1 block">
-                    {{ $isFormFilled ? 'Sudah Diselesaikan' : 'Lengkapi Sekarang' }}
+                <span class="text-xs {{ $isFormFilled ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold' }} mt-1 block">
+                    {{ $isFormFilled ? 'Sudah Diselesaikan' : 'Wajib Diisi Dahulu' }}
                 </span>
             </div>
         </a>
@@ -86,22 +98,42 @@
         </a>
 
         <!-- 3. Pembayaran -->
-        <a href="{{ route('pmb.akun.bayar') }}"
-           class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between">
-            <div class="w-18 h-18 rounded-full {{ $isPaid ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
-                <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                </svg>
-            </div>
-            <div>
-                <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
-                    Pembayaran
-                </h3>
-                <span class="text-xs text-slate-500 mt-1 block">
-                    {{ $isPaid ? 'Lunas Terverifikasi' : 'Silahkan Lakukan Pembayaran' }}
-                </span>
-            </div>
-        </a>
+        @if(!$isFormFilled)
+            <a href="{{ route('pmb.akun.profil') }}"
+               title="Harap lengkapi formulir pendaftaran dan pilih program studi terlebih dahulu"
+               class="group bg-slate-50/70 rounded-3xl p-7 border border-dashed border-slate-300 shadow-2xs hover:border-amber-400 hover:bg-amber-50/30 transition text-center flex flex-col items-center justify-between cursor-pointer">
+                <div class="w-18 h-18 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-700 font-display">
+                        Pembayaran
+                    </h3>
+                    <span class="text-xs text-amber-600 font-bold mt-1 block">
+                        Isi Formulir Dahulu
+                    </span>
+                </div>
+            </a>
+        @else
+            <a href="{{ route('pmb.akun.bayar') }}"
+               class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between">
+                <div class="w-18 h-18 rounded-full {{ $isPaid ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
+                    <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 group-hover:text-[#0b3d82] transition font-display">
+                        Pembayaran
+                    </h3>
+                    <span class="text-xs {{ $isPaid ? 'text-emerald-600 font-semibold' : 'text-slate-500' }} mt-1 block">
+                        {{ $isPaid ? 'Lunas Terverifikasi' : 'Silahkan Lakukan Pembayaran' }}
+                    </span>
+                </div>
+            </a>
+        @endif
 
         <!-- 4. Upload Dokumen -->
         <a href="{{ route('pmb.akun.upload-dokumen') }}"
@@ -235,8 +267,26 @@
         </a>
     </div>
 
-    <!-- Quick Payment Link Card if unpaid -->
-    @if(!$isPaid)
+    <!-- Quick Action Step Guide Card -->
+    @if(!$isFormFilled)
+        <div class="bg-blue-50 rounded-2xl p-5 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-blue-100 text-[#0b3d82] flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900 font-display">Langkah 1: Lengkapi Formulir & Pilih Program Studi</h4>
+                    <p class="text-xs text-slate-600 mt-0.5">Pilih program studi yang Anda minati agar rincian biaya kuliah dapat dihitung secara akurat.</p>
+                </div>
+            </div>
+            <a href="{{ route('pmb.akun.profil') }}"
+               class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold bg-[#0b3d82] text-white hover:bg-[#082a5c] shadow-xs transition shrink-0">
+                Lengkapi Formulir &rarr;
+            </a>
+        </div>
+    @elseif(!$isPaid)
         <div class="bg-amber-50 rounded-2xl p-5 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
                 <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
@@ -245,8 +295,8 @@
                     </svg>
                 </div>
                 <div>
-                    <h4 class="text-sm font-bold text-amber-900 font-display">Pembayaran Biaya Formulir PMB (Rp 300.000)</h4>
-                    <p class="text-xs text-amber-700 mt-0.5">Selesaikan pembayaran secara aman via Midtrans Snap (Virtual Account bank resmi).</p>
+                    <h4 class="text-sm font-bold text-amber-900 font-display">Langkah 2: Selesaikan Pembayaran PMB</h4>
+                    <p class="text-xs text-amber-700 mt-0.5">Selesaikan pembayaran secara resmi via Midtrans Snap (Virtual Account bank resmi / Transfer).</p>
                 </div>
             </div>
             <a href="{{ route('pmb.akun.bayar') }}"

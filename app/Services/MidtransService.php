@@ -48,15 +48,50 @@ class MidtransService
     ];
 
     /**
-     * Dapatkan katalog biaya resmi PMB UCIC.
+     * Dapatkan katalog biaya resmi PMB UCIC, disesuaikan dengan ketentuan Program Studi calon mahasiswa.
+     * Komponen biaya:
+     * 1. Biaya pendaftaran (bisa Rp 0, 1x bayar)
+     * 2. Biaya perlengkapan (bisa Rp 0, 1x bayar)
+     * 3. DPP (bisa Rp 0, 1x bayar)
+     * 4. Uang gedung (bisa Rp 0, 1x bayar)
      *
      * @return array<string, array{id: string, name: string, price: int}>
      */
-    public static function getBiayaCatalog(): array
+    public static function getBiayaCatalog(?Prospek $prospek = null): array
     {
-        $catalog = self::BIAYA_CATALOG;
-        $defaultPendaftaran = (int) config('services.midtrans.biaya_pendaftaran', 300000);
-        $catalog['pendaftaran']['price'] = $defaultPendaftaran;
+        $prodi = $prospek?->prodi;
+
+        $pendaftaranPrice  = $prodi && isset($prodi->biaya_pendaftaran)  ? (int) $prodi->biaya_pendaftaran  : (int) config('services.midtrans.biaya_pendaftaran', 300000);
+        $perlengkapanPrice = $prodi && isset($prodi->biaya_perlengkapan) ? (int) $prodi->biaya_perlengkapan : 600000;
+        $dppPrice          = $prodi && isset($prodi->biaya_dpp)          ? (int) $prodi->biaya_dpp          : 500000;
+        $uangGedungPrice   = $prodi && isset($prodi->biaya_uang_gedung)  ? (int) $prodi->biaya_uang_gedung  : 0;
+
+        $catalog = [
+            'pendaftaran' => [
+                'id'    => 'PMB-PENDAFTARAN',
+                'name'  => 'Biaya Pendaftaran PMB UCIC',
+                'price' => $pendaftaranPrice,
+            ],
+            'perlengkapan' => [
+                'id'    => 'PMB-PERLENGKAPAN',
+                'name'  => 'Biaya Perlengkapan Kuliah',
+                'price' => $perlengkapanPrice,
+            ],
+            'dpp' => [
+                'id'    => 'PMB-DPP',
+                'name'  => 'Biaya Dana Pengembangan Pendidikan (DPP)',
+                'price' => $dppPrice,
+            ],
+        ];
+
+        if ($uangGedungPrice > 0 || ($prodi && array_key_exists('biaya_uang_gedung', $prodi->getAttributes()))) {
+            $catalog['uang_gedung'] = [
+                'id'    => 'PMB-GEDUNG',
+                'name'  => 'Biaya Uang Gedung',
+                'price' => $uangGedungPrice,
+            ];
+        }
+
         return $catalog;
     }
 
@@ -67,9 +102,9 @@ class MidtransService
      * @param array<string|int, mixed> $selectedItems
      * @return array{total: int, items: array<int, array{id: string, name: string, price: int, quantity: int}>, item_keys: array<string>, summary: string}
      */
-    public static function calculateItems(array $selectedItems): array
+    public static function calculateItems(array $selectedItems, ?Prospek $prospek = null): array
     {
-        $catalog = self::getBiayaCatalog();
+        $catalog = self::getBiayaCatalog($prospek);
         $validKeys = [];
 
         foreach ($selectedItems as $key => $val) {
@@ -149,8 +184,12 @@ class MidtransService
             return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => true];
         }
 
-        // Default: hanya pendaftaran
-        return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => false];
+        // Default: jika nominal <= 350000 (biaya pendaftaran standar)
+        if ($nominal <= 350000 && $nominal > 0) {
+            return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => false];
+        }
+
+        return ['perlengkapan' => false, 'pendaftaran' => false, 'dpp' => false];
     }
 
     /**
@@ -170,7 +209,7 @@ class MidtransService
             return $paid;
         }
 
-        // 1. Cek semua transaksi yang sudah terverifikasi (lunas)
+        // Cek semua transaksi yang sudah terverifikasi (lunas)
         $verifiedTransaksis = $prospek->transaksis()
             ->whereIn('payment_status', [
                 Transaksi::STATUS_VERIFIED,
@@ -190,17 +229,11 @@ class MidtransService
                 $paid['dpp'] = true;
             }
 
-            // Normalisasi kategori / jenis
+            // Fallback untuk transaksi lama pendaftaran/beli formulir
             $normCat = Transaksi::normalizeCategory($vt->kategori ?: $vt->jenis);
-            if ($normCat === Transaksi::KATEGORI_PENDAFTARAN || in_array($vt->jenis, ['Beli Formulir', 'Pendaftaran', 'Biaya Pendaftaran'])) {
+            if (in_array($vt->jenis, ['Beli Formulir', 'Pendaftaran', 'Biaya Pendaftaran']) && (int) $vt->nominal <= 350000) {
                 $paid['pendaftaran'] = true;
             }
-        }
-
-        // 2. Cek apakah status kategori pendaftaran sudah verified
-        $catStatus = self::getCategoryPaymentStatus($prospek, Transaksi::KATEGORI_PENDAFTARAN);
-        if (($catStatus['status_code'] ?? '') === 'verified') {
-            $paid['pendaftaran'] = true;
         }
 
         return $paid;
@@ -307,15 +340,30 @@ class MidtransService
 
     /**
      * Dapatkan total tagihan pendaftaran & kuliah calon mahasiswa.
-     * Menggunakan UKT/SPP program studi pilihan jika ada, atau batas standar konfigurasi.
+     * Menggunakan komponen biaya aktual dari Program Studi pilihan:
+     * Total Tagihan = (Biaya Pendaftaran + Perlengkapan + DPP + Uang Gedung) + UKT Semester
      */
     public static function getTotalTagihan(Prospek $prospek): int
     {
         if ($prospek->prodi) {
-            $prodiUkt = (int) ($prospek->prodi->ukt ?: $prospek->prodi->spp ?: 0);
-            if ($prodiUkt > 0) {
-                return $prodiUkt + self::getBiayaPendaftaran();
+            $prodi = $prospek->prodi;
+            $oneTime = $prodi->getTotalOneTimeBiaya();
+
+            $semUkt = 0;
+            if (!empty($prodi->ukt_options['6_bulan']['nominal'])) {
+                $semUkt = (int) $prodi->ukt_options['6_bulan']['nominal'];
             }
+            if ($semUkt <= 0 && !empty($prodi->ukt)) {
+                $semUkt = (int) preg_replace('/[^0-9]/', '', (string) $prodi->ukt);
+            }
+            if ($semUkt <= 0 && !empty($prodi->spp)) {
+                $semUkt = (int) preg_replace('/[^0-9]/', '', (string) $prodi->spp);
+            }
+            if ($semUkt <= 0) {
+                $semUkt = 4000000;
+            }
+
+            return $oneTime + $semUkt;
         }
 
         return (int) config('services.midtrans.total_tagihan_standar', 5000000);
@@ -363,6 +411,57 @@ class MidtransService
     {
         $normalized = Transaksi::normalizeCategory($category);
         $aliases = Transaksi::getCategoryAliases($normalized);
+
+        // Khusus Kategori Biaya Pendaftaran: Dinamis berdasarkan total seluruh komponen biaya (Rp 1.400.000)
+        // dikurangi total pembayaran komponen yang sudah berhasil dibayar dan diverifikasi.
+        if ($normalized === Transaksi::KATEGORI_PENDAFTARAN) {
+            $paidItems = self::resolvePaidItems($prospek);
+
+            $totalKewajiban = 1400000;
+            $totalSudahDibayar = 0;
+            if (!empty($paidItems['perlengkapan'])) {
+                $totalSudahDibayar += 600000;
+            }
+            if (!empty($paidItems['pendaftaran'])) {
+                $totalSudahDibayar += 300000;
+            }
+            if (!empty($paidItems['dpp'])) {
+                $totalSudahDibayar += 500000;
+            }
+
+            // Sisa Tagihan = Total Seluruh Biaya - Total Pembayaran Berhasil
+            $sisaTagihan = max(0, $totalKewajiban - $totalSudahDibayar);
+            $isAllPaid = ($sisaTagihan === 0);
+
+            $verifiedTrx = $prospek->transaksis()
+                ->where('payment_status', Transaksi::STATUS_VERIFIED)
+                ->where(function ($q) use ($aliases) {
+                    $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+                })
+                ->latest('id')
+                ->first();
+
+            $pendingTrx = $prospek->transaksis()
+                ->where('payment_status', Transaksi::STATUS_PENDING)
+                ->where(function ($q) use ($aliases) {
+                    $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+                })
+                ->latest('id')
+                ->first();
+
+            return [
+                'category'          => $normalized,
+                'status'            => $isAllPaid ? 'LUNAS' : 'BELUM LUNAS',
+                'status_code'       => $isAllPaid ? 'verified' : ($pendingTrx ? 'pending' : 'unpaid'),
+                'nominal'           => $sisaTagihan,
+                'nominal_formatted' => 'Rp ' . number_format($sisaTagihan, 0, ',', '.'),
+                'total_tagihan'     => $totalKewajiban,
+                'sudah_dibayar'     => $totalSudahDibayar,
+                'sisa_tagihan'      => $sisaTagihan,
+                'can_pay'           => !$isAllPaid,
+                'transaksi'         => $pendingTrx ?: $verifiedTrx,
+            ];
+        }
 
         // 1. Cek apakah sudah ada transaksi yang terverifikasi (LUNAS)
         $verifiedTrx = $prospek->transaksis()
@@ -470,43 +569,50 @@ class MidtransService
         string $category = Transaksi::KATEGORI_PENDAFTARAN,
         ?User $user = null,
         bool $forceNew = false,
-        array $selectedItemKeys = []
+        array $selectedItemKeys = [],
+        string $paymentMethod = 'MIDTRANS'
     ): Transaksi {
         $normalizedCategory = Transaksi::normalizeCategory($category);
         $aliases = Transaksi::getCategoryAliases($normalizedCategory);
         $savedCategory = ($category === Transaksi::KATEGORI_DP_DAFTAR) ? Transaksi::KATEGORI_DP_DAFTAR : $normalizedCategory;
 
-        return DB::transaction(function () use ($prospek, $normalizedCategory, $savedCategory, $aliases, $user, $forceNew, $selectedItemKeys) {
+        return DB::transaction(function () use ($prospek, $normalizedCategory, $savedCategory, $aliases, $user, $forceNew, $selectedItemKeys, $paymentMethod) {
             // Row-level lock untuk prospek guna mencegah 2 request checkout bersamaan (Scenario 20)
             $lockedProspek = Prospek::where('id', $prospek->id)->lockForUpdate()->first();
             if (!$lockedProspek) {
                 $lockedProspek = $prospek;
             }
 
-            // 1. Cek apakah sudah pernah lunas/terverifikasi
-            $existingVerified = $lockedProspek->transaksis()
-                ->where('payment_status', Transaksi::STATUS_VERIFIED)
-                ->where(function ($q) use ($aliases) {
-                    $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
-                })
-                ->lockForUpdate()
-                ->first();
-
-            if ($existingVerified) {
-                // Untuk pendaftaran: periksa apakah ada item tambahan (perlengkapan/dpp) yang belum lunas
-                if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN && !empty($selectedItemKeys)) {
-                    $paidItems = self::resolvePaidItems($lockedProspek);
+            // 1. Cek apakah komponen/kategori sudah pernah lunas
+            if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN) {
+                $paidItems = self::resolvePaidItems($lockedProspek);
+                if (!empty($selectedItemKeys)) {
                     $unpaidKeys = array_values(array_filter($selectedItemKeys, fn($k) => empty($paidItems[$k])));
                     if (empty($unpaidKeys)) {
-                        throw new InvalidArgumentException("Seluruh komponen pembayaran pendaftaran yang dipilih sudah lunas dan terverifikasi sah.");
+                        throw new InvalidArgumentException("Seluruh komponen pembayaran yang dipilih sudah lunas dan terverifikasi sah.");
                     }
                     $selectedItemKeys = $unpaidKeys;
                 } else {
-                    throw new InvalidArgumentException("Pembayaran kategori {$normalizedCategory} untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas dan terverifikasi sah. Tidak dapat melakukan checkout kembali.");
+                    $allPaid = !empty($paidItems['perlengkapan']) && !empty($paidItems['pendaftaran']) && !empty($paidItems['dpp']);
+                    if ($allPaid) {
+                        throw new InvalidArgumentException("Seluruh komponen Biaya Pendaftaran untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas.");
+                    }
+                }
+            } else {
+                $existingVerified = $lockedProspek->transaksis()
+                    ->where('payment_status', Transaksi::STATUS_VERIFIED)
+                    ->where(function ($q) use ($aliases) {
+                        $q->whereIn('kategori', $aliases)->orWhereIn('jenis', $aliases);
+                    })
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingVerified) {
+                    throw new InvalidArgumentException("Pembayaran kategori {$normalizedCategory} untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas dan terverifikasi sah.");
                 }
             }
 
-            // 2. Cek apakah ada tagihan pending yang sedang aktif untuk kategori ini
+            // 2. Cek apakah ada tagihan pending yang sedang aktif dengan rincian yang sama
             $existingPending = $lockedProspek->transaksis()
                 ->where('payment_status', Transaksi::STATUS_PENDING)
                 ->where(function ($q) use ($aliases) {
@@ -516,11 +622,22 @@ class MidtransService
                 ->lockForUpdate()
                 ->first();
 
-            if ($existingPending) {
-                if ($forceNew) {
-                    throw new InvalidArgumentException("Terdapat transaksi {$normalizedCategory} yang masih menunggu pembayaran (Order ID: {$existingPending->order_id}). Selesaikan atau tunggu transaksi tersebut sebelum membuat tagihan baru.");
+            if ($existingPending && !$forceNew) {
+                if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN && !empty($selectedItemKeys)) {
+                    $pendingItems = self::resolveInitialItems($existingPending);
+                    $pendingKeys = array_keys(array_filter($pendingItems));
+                    sort($pendingKeys);
+                    $reqKeys = $selectedItemKeys;
+                    sort($reqKeys);
+
+                    if ($pendingKeys === $reqKeys && $existingPending->metode_pembayaran === $paymentMethod) {
+                        return $existingPending;
+                    }
+                } else {
+                    if ($existingPending->metode_pembayaran === $paymentMethod) {
+                        return $existingPending;
+                    }
                 }
-                return $existingPending;
             }
 
             // 3. Tentukan nominal dan rincian transaksi secara otoritatif di backend
@@ -536,7 +653,7 @@ class MidtransService
                     $detail = $calculated['summary'];
                 } else {
                     $nominal = self::getBiayaPendaftaran();
-                    $detail = 'Biaya Pendaftaran PMB UCIC';
+                    $detail = 'Biaya Pendaftaran PMB Resmi';
                 }
                 $jenis = 'Beli Formulir';
             } elseif ($normalizedCategory === Transaksi::KATEGORI_DP) {
@@ -568,6 +685,10 @@ class MidtransService
                 $orderId = 'PMB-UCIC-' . $lockedProspek->id . '-' . $catCode . '-' . time() . rand(100, 999);
             }
 
+            $notes = ($paymentMethod === 'TRANSFER_MANUAL')
+                ? "Pembayaran {$normalizedCategory} PMB via transfer manual rekening bank kampus."
+                : "Pembayaran {$normalizedCategory} PMB online via Midtrans Snap.";
+
             return Transaksi::create([
                 'order_id'          => $orderId,
                 'prospek_id'        => $lockedProspek->id,
@@ -576,10 +697,10 @@ class MidtransService
                 'kategori'          => $savedCategory,
                 'nominal'           => $nominal,
                 'detail_pembayaran' => $detail,
-                'metode_pembayaran' => 'MIDTRANS',
+                'metode_pembayaran' => $paymentMethod,
                 'payment_status'    => Transaksi::STATUS_PENDING,
                 'tanggal'           => now(),
-                'notes'             => "Pembayaran {$normalizedCategory} PMB online via Midtrans Snap.",
+                'notes'             => $notes,
                 'academic_year_id'  => $aktifTa?->id,
             ]);
         });

@@ -29,6 +29,13 @@
 @endpush
 
 @php
+    $prodi = $prospek?->prodi;
+    $catalog = \App\Services\MidtransService::getBiayaCatalog($prospek ?? null);
+    $pricePerlengkapan = (int) ($catalog['perlengkapan']['price'] ?? 600000);
+    $pricePendaftaran  = (int) ($catalog['pendaftaran']['price'] ?? 300000);
+    $priceDpp          = (int) ($catalog['dpp']['price'] ?? 500000);
+    $priceUangGedung   = $prodi && isset($prodi->biaya_uang_gedung) ? (int) $prodi->biaya_uang_gedung : 0;
+
     $paidItems = $paidItems ?? (\App\Services\MidtransService::resolvePaidItems($prospek ?? null));
     $initialItems = $initialItems ?? ($transaksi ? \App\Services\MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => true, 'perlengkapan' => false, 'dpp' => false]);
     foreach ($paidItems as $_k => $_p) {
@@ -36,7 +43,7 @@
             $initialItems[$_k] = false;
         }
     }
-    $initialTotal = $initialTotal ?? ($transaksi ? ((int) $transaksi->nominal ?: 300000) : 300000);
+    $initialTotal = $initialTotal ?? ($transaksi ? ((int) $transaksi->nominal ?: $pricePendaftaran) : $pricePendaftaran);
     $activeCategory = $transaksi ? \App\Models\Transaksi::normalizeCategory($transaksi->kategori) : \App\Models\Transaksi::KATEGORI_PENDAFTARAN;
 @endphp
 
@@ -55,7 +62,6 @@
          selectedMethod: 'online',
          snapEmbedModalOpen: false,
          manualModalOpen: false,
-         offlineModalOpen: false,
          detailPendingModalOpen: false,
          selectedPending: {
              id: null,
@@ -80,9 +86,9 @@
              dpp: {{ (!empty($initialItems['dpp']) && empty($paidItems['dpp'])) ? 'true' : 'false' }}
          },
          prices: {
-             perlengkapan: 600000,
-             pendaftaran: 300000,
-             dpp: 500000
+             perlengkapan: {{ $pricePerlengkapan }},
+             pendaftaran: {{ $pricePendaftaran }},
+             dpp: {{ $priceDpp }}
          },
          categoryNominals: {
              'Biaya Pendaftaran': {{ (int) ($categoriesStatus['Biaya Pendaftaran']['nominal'] ?? 300000) }},
@@ -266,13 +272,7 @@
                  return;
              }
 
-             if (this.selectedMethod === 'online') {
-                 await this.payCategoryNow(targetCat);
-             } else if (this.selectedMethod === 'transfer_manual') {
-                 this.manualModalOpen = true;
-             } else if (this.selectedMethod === 'offline') {
-                 this.offlineModalOpen = true;
-             }
+             await this.payCategoryNow(targetCat);
          },
 
          async payCategoryNow(cat) {
@@ -282,11 +282,12 @@
              const payload = {
                  category: cat,
                  kategori: cat,
+                 payment_method: this.selectedMethod,
                  fresh: false
              };
 
              if (cat === 'Biaya Pendaftaran') {
-                 const selectedKeys = Object.keys(this.items).filter(k => this.items[k]);
+                 const selectedKeys = Object.keys(this.items).filter(k => this.items[k] && !this.paidItems[k]);
                  if (selectedKeys.length > 0) {
                      payload.items = selectedKeys;
                  }
@@ -304,12 +305,24 @@
                  });
                  const data = await res.json();
                  if (!res.ok || !data.success) {
+                     if (res.status === 404) {
+                         alert(data.message || 'Sesi data pendaftaran telah diperbarui. Halaman akan dimuat ulang.');
+                         window.location.reload();
+                         return;
+                     }
                      throw new Error(data.message || 'Gagal memproses pembayaran.');
                  }
 
-                 this.snapToken = data.snap_token;
                  this.orderId = data.order_id;
                  this.status = 'pending';
+
+                 if (this.selectedMethod === 'transfer_manual') {
+                     this.loading = false;
+                     this.manualModalOpen = true;
+                     return;
+                 }
+
+                 this.snapToken = data.snap_token;
              } catch (e) {
                  alert(e.message || 'Terjadi kesalahan sistem saat memproses checkout.');
                  this.loading = false;
@@ -461,14 +474,14 @@
                                 @endif
                             </div>
 
-                            @if($statusCode === 'verified')
+                            @if($statusCode === 'verified' || ($catKey === \App\Models\Transaksi::KATEGORI_PENDAFTARAN && $nominal <= 0))
                                 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                     <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                                     </svg>
                                     <span>LUNAS</span>
                                 </span>
-                            @elseif($statusCode === 'pending')
+                            @elseif($statusCode === 'pending' && $catKey !== \App\Models\Transaksi::KATEGORI_PENDAFTARAN)
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                     <span>MENUNGGU</span>
@@ -478,8 +491,8 @@
                                     <span>GAGAL/EXPIRED</span>
                                 </span>
                             @else
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                                    <span>BELUM DIBAYAR</span>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                    <span>{{ strtoupper($statusLabel ?? 'BELUM LUNAS') }}</span>
                                 </span>
                             @endif
                         </div>
@@ -489,18 +502,37 @@
                             <h3 class="font-bold text-slate-900 font-display text-base">{{ $card['title'] }}</h3>
                             <p class="text-xs text-slate-500 mt-0.5">{{ $card['desc'] }}</p>
 
-                            <div class="mt-4">
-                                <span class="text-[11px] text-slate-400 block font-medium">Nominal Tagihan:</span>
-                                <span class="text-xl font-bold text-slate-900 font-display tracking-tight">
-                                    Rp {{ number_format($nominal, 0, ',', '.') }}
-                                </span>
-                            </div>
+                            @if($catKey === \App\Models\Transaksi::KATEGORI_PENDAFTARAN)
+                                <div class="mt-3.5 space-y-1.5 pt-2.5 border-t border-slate-100 text-xs">
+                                    <div class="flex items-center justify-between text-slate-500">
+                                        <span>Total Tagihan:</span>
+                                        <span class="font-semibold text-slate-800">Rp {{ number_format($info['total_tagihan'] ?? 1400000, 0, ',', '.') }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-slate-500">
+                                        <span>Total Sudah Dibayar:</span>
+                                        <span class="font-semibold text-emerald-600">Rp {{ number_format($info['sudah_dibayar'] ?? 0, 0, ',', '.') }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-1.5 border-t border-slate-100">
+                                        <span class="font-bold text-slate-700">Sisa Tagihan:</span>
+                                        <span class="text-xl font-bold font-display tracking-tight text-[#0b3d82]">
+                                            Rp {{ number_format($info['sisa_tagihan'] ?? $nominal, 0, ',', '.') }}
+                                        </span>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="mt-4">
+                                    <span class="text-[11px] text-slate-400 block font-medium">Nominal Tagihan:</span>
+                                    <span class="text-xl font-bold text-slate-900 font-display tracking-tight">
+                                        Rp {{ number_format($nominal, 0, ',', '.') }}
+                                    </span>
+                                </div>
+                            @endif
                         </div>
                     </div>
 
                     <!-- Action Button -->
                     <div class="mt-5 pt-3 border-t border-slate-100">
-                        @if($statusCode === 'verified')
+                        @if($statusCode === 'verified' || ($catKey === \App\Models\Transaksi::KATEGORI_PENDAFTARAN && $nominal <= 0))
                             <button type="button" disabled
                                     class="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 cursor-not-allowed flex items-center justify-center gap-1.5">
                                 <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -508,7 +540,7 @@
                                 </svg>
                                 <span>Lunas Terverifikasi</span>
                             </button>
-                        @elseif($statusCode === 'pending')
+                        @elseif($statusCode === 'pending' && $catKey !== \App\Models\Transaksi::KATEGORI_PENDAFTARAN)
                             <button type="button"
                                     @click="selectCategory('{{ $catKey }}'); handleAction('{{ $catKey }}');"
                                     class="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs">
@@ -532,7 +564,7 @@
                                 </button>
                             @else
                                 <button type="button"
-                                        @click="selectCategory('{{ $catKey }}'); handleAction('{{ $catKey }}');"
+                                        @click="selectCategory('{{ $catKey }}'); document.getElementById('checkout-section')?.scrollIntoView({ behavior: 'smooth' });"
                                         class="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#0b3d82] hover:bg-[#082a5c] transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs">
                                     <span>Pilih & Bayar &rarr;</span>
                                 </button>
@@ -548,7 +580,7 @@
     <!-- =================================================================== -->
     <!-- 2. DETAIL CHECKOUT & KOMPONEN BIAYA                                -->
     <!-- =================================================================== -->
-    <div class="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-xs space-y-6">
+    <div id="checkout-section" class="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-xs space-y-6">
         
         <div>
             <div class="flex items-center justify-between">
@@ -584,7 +616,7 @@
                     <input type="checkbox"
                            id="check-perlengkapan"
                            data-key="perlengkapan"
-                           data-price="600000"
+                           data-price="{{ $pricePerlengkapan }}"
                            x-model="items.perlengkapan"
                            @change="onItemChange()"
                            :disabled="paidItems.perlengkapan"
@@ -610,11 +642,13 @@
                     </div>
                 </div>
                 <div class="text-right">
-                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.perlengkapan ? 'line-through text-slate-400' : ''">Rp 600.000</span>
+                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.perlengkapan ? 'line-through text-slate-400' : ''">
+                        Rp {{ number_format($pricePerlengkapan, 0, ',', '.') }}
+                    </span>
                 </div>
             </label>
 
-            <!-- 2. Pendaftaran (Official PMB Fee - Rp 300.000) -->
+            <!-- 2. Pendaftaran (Official PMB Fee) -->
             <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
                    :class="paidItems.pendaftaran ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-85' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
                    @click="if (paidItems.pendaftaran) { $event.preventDefault(); return false; }">
@@ -622,7 +656,7 @@
                     <input type="checkbox"
                            id="check-pendaftaran"
                            data-key="pendaftaran"
-                           data-price="300000"
+                           data-price="{{ $pricePendaftaran }}"
                            x-model="items.pendaftaran"
                            @change="onItemChange()"
                            :disabled="paidItems.pendaftaran"
@@ -648,7 +682,9 @@
                     </div>
                 </div>
                 <div class="text-right">
-                    <span class="text-sm font-bold text-slate-900" :class="paidItems.pendaftaran ? 'line-through text-slate-400' : ''">Rp 300.000</span>
+                    <span class="text-sm font-bold text-slate-900" :class="paidItems.pendaftaran ? 'line-through text-slate-400' : ''">
+                        Rp {{ number_format($pricePendaftaran, 0, ',', '.') }}
+                    </span>
                 </div>
             </label>
 
@@ -660,7 +696,7 @@
                     <input type="checkbox"
                            id="check-dpp"
                            data-key="dpp"
-                           data-price="500000"
+                           data-price="{{ $priceDpp }}"
                            x-model="items.dpp"
                            @change="onItemChange()"
                            :disabled="paidItems.dpp"
@@ -686,9 +722,39 @@
                     </div>
                 </div>
                 <div class="text-right">
-                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.dpp ? 'line-through text-slate-400' : ''">Rp 500.000</span>
+                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.dpp ? 'line-through text-slate-400' : ''">
+                        Rp {{ number_format($priceDpp, 0, ',', '.') }}
+                    </span>
                 </div>
             </label>
+        </div>
+
+        <!-- Kategori Down Payment (DP): Ringkasan Tagihan -->
+        <div x-show="activeCategory === 'DP'" class="pt-2 border-t border-slate-100">
+            <div class="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 flex items-center justify-between">
+                <div>
+                    <h4 class="text-sm font-bold text-slate-800">Down Payment (DP)</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">Uang muka konfirmasi pendaftaran mahasiswa baru PMB UCIC</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-base font-bold text-[#0b3d82] font-display">Rp 500.000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kategori Pelunasan: Ringkasan Tagihan -->
+        <div x-show="activeCategory === 'Pelunasan'" class="pt-2 border-t border-slate-100">
+            <div class="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 flex items-center justify-between">
+                <div>
+                    <h4 class="text-sm font-bold text-slate-800">Pelunasan Biaya Kuliah</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">Sisa tagihan perkuliahan semester 1</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-base font-bold text-[#0b3d82] font-display" x-text="formatRupiah(total)">
+                        Rp {{ number_format($sisaPelunasan, 0, ',', '.') }}
+                    </span>
+                </div>
+            </div>
         </div>
 
         <!-- Section: Pilih Metode Pembayaran -->
@@ -829,26 +895,6 @@
                                     </div>
                                 @endforelse
                             </div>
-                        </div>
-                    </div>
-                </label>
-
-                <!-- Option 3: Bayar Offline (Datang Langsung) -->
-                <label class="block p-4 sm:p-5 rounded-2xl border transition cursor-pointer"
-                       :class="selectedMethod === 'offline' ? 'border-[#0b3d82] bg-blue-50/20 ring-1 ring-[#0b3d82]' : 'border-slate-200 hover:border-slate-300 bg-white'">
-                    <div class="flex items-start gap-3.5">
-                        <input type="radio"
-                               name="payment_method"
-                               value="offline"
-                               x-model="selectedMethod"
-                               class="w-4 h-4 mt-0.5 text-[#0b3d82] focus:ring-[#0b3d82] border-slate-300 cursor-pointer">
-                        <div class="space-y-1">
-                            <span class="text-sm font-bold text-slate-900 block font-display">
-                                Bayar Offline di Kasir PMB UCIC
-                            </span>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                Bayar langsung secara tunai atau debit di Ruang Customer Service PMB Gedung Utama Lantai 1, Jl. Kesambi No. 202 Kota Cirebon.
-                            </p>
                         </div>
                     </div>
                 </label>
@@ -1149,56 +1195,18 @@
             </p>
 
             <div class="flex items-center gap-2 pt-2">
-                <button type="button" @click="manualModalOpen = false" class="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                <button type="button" @click="manualModalOpen = false; window.location.reload();" class="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer">
                     Tutup
                 </button>
                 <a :href="'https://api.whatsapp.com/send/?phone=6281216700519&text=Halo%20Admin%20PMB%20UCIC%2C%20saya%20sudah%20transfer%20manual%20sebesar%20' + formatRupiah(total) + '%20untuk%20' + activeCategory + '%20(No%20Reg%3A%20{{ $prospek->no_registrasi ?? '-' }}%2C%20Order%20ID%3A%20' + (orderId || '-') + ').%20Berikut%20bukti%20transfernya%3A'"
                    target="_blank"
+                   @click="setTimeout(() => window.location.reload(), 1200)"
                    class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white text-center shadow-xs cursor-pointer">
                     Konfirmasi WhatsApp
                 </a>
             </div>
         </div>
     </div>
-
-    <!-- Modal Panduan Bayar Offline -->
-    <div x-show="offlineModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-xl space-y-4" @click.away="offlineModalOpen = false">
-            <div class="text-center">
-                <div class="w-12 h-12 rounded-2xl bg-blue-100 text-[#0b3d82] flex items-center justify-center mx-auto mb-3">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-bold text-slate-900 font-display">Panduan Bayar di Kasir PMB</h3>
-                <p class="text-xs text-slate-500 mt-1">Datang langsung ke gedung pendaftaran kampus UCIC:</p>
-            </div>
-
-            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
-                <div>
-                    <span class="text-slate-500 block">Alamat Kampus:</span>
-                    <strong class="text-slate-900 font-bold block mt-0.5">Jl. Kesambi No. 202, Drajat, Kec. Kesambi, Kota Cirebon, Jawa Barat 45133</strong>
-                </div>
-                <div class="pt-2 border-t border-slate-200">
-                    <span class="text-slate-500 block">Lokasi Loket:</span>
-                    <strong class="text-slate-900 block mt-0.5">Ruang Customer Service PMB, Gedung Utama Lantai 1</strong>
-                </div>
-                <div class="pt-2 border-t border-slate-200">
-                    <span class="text-slate-500 block">Jam Pelayanan:</span>
-                    <strong class="text-slate-900 block mt-0.5">Senin - Jumat (08:00 - 17:00 WIB), Sabtu (08:00 - 14:00 WIB)</strong>
-                </div>
-                <div class="pt-2 border-t border-slate-200">
-                    <span class="text-slate-500 block">Persyaratan:</span>
-                    <span class="text-slate-700 block mt-0.5">Sebutkan No. Registrasi: <strong class="text-[#0b3d82]">{{ $prospek->no_registrasi ?? '-' }}</strong> atau Order ID: <strong class="text-slate-900" x-text="orderId || '-'"></strong></span>
-                </div>
-            </div>
-
-            <button type="button" @click="offlineModalOpen = false" class="w-full py-2.5 rounded-xl bg-[#0b3d82] text-xs font-bold text-white hover:bg-[#082a5c] cursor-pointer">
-                Saya Mengerti
-            </button>
-        </div>
-    </div>
-
 
     <!-- Modal Detail Tagihan Belum Dibayar (Fitur Seperti Shopee 'Belum Dibayar') -->
     <div x-show="detailPendingModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">

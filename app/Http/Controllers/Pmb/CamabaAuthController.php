@@ -69,7 +69,8 @@ class CamabaAuthController extends Controller
             Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
 
-            return redirect()->intended(route('pmb.akun.dashboard'));
+            return redirect()->route('pmb.akun.dashboard')
+                ->with('success', 'Selamat datang! Anda berhasil masuk ke Portal PMB UCIC.');
         }
 
         return back()->withErrors([
@@ -183,10 +184,15 @@ class CamabaAuthController extends Controller
             $sekolah = Sekolah::where('nama', 'like', trim($validated['asal_sekolah']))->first();
             $sekolahId = $sekolah?->id;
 
-            // 3. Hubungkan dengan Prospek CRM HANYA jika ada pendaftar CRM yang belum memiliki akun (user_id IS NULL) dengan email yang sama
+            // 3. Hubungkan dengan Prospek CRM HANYA jika ada pendaftar CRM yang belum memiliki akun (user_id IS NULL) dengan email yang sama DAN BELUM MEMILIKI TRANSAKSI
             $prospek = Prospek::where('email', $emailClean)
                 ->whereNull('user_id')
                 ->first();
+
+            if ($prospek && $prospek->transaksis()->exists()) {
+                // Prospek lama yang sudah memiliki transaksi tidak boleh ditautkan ke akun pendaftar baru
+                $prospek = null;
+            }
 
             $minatKuliah = $validated['minat_kuliah'] ?? 'ya';
             $minatMiniclass = $validated['minat_miniclass'] ?? 'tidak';
@@ -242,12 +248,10 @@ class CamabaAuthController extends Controller
             return $user;
         });
 
-        // Login otomatis setelah pendaftaran sukses
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return redirect()->route('pmb.akun.dashboard')
-            ->with('success', 'Selamat datang! Akun PMB Anda berhasil didaftarkan.');
+        // Setelah registrasi sukses, arahkan ke halaman login terlebih dahulu dengan notifikasi sukses
+        return redirect()->route('pmb.login')
+            ->with('success', 'Pendaftaran akun berhasil! Silakan masuk menggunakan email dan password yang telah Anda daftarkan.')
+            ->with('registered_email', $emailClean);
     }
 
     /**

@@ -44,21 +44,22 @@ class CamabaPortalController extends Controller
             })
             ->first();
 
-        // 2. Self-healing: jika ada prospek dengan email yang sama dan belum memiliki user_id, hubungkan
+        // 2. Self-healing: jika ada prospek dengan email yang sama dan belum memiliki user_id, hubungkan HANYA jika belum memiliki transaksi
         if (!$prospek && !empty($userEmail)) {
-            $prospek = Prospek::where('email', $userEmail)
+            $existing = Prospek::where('email', $userEmail)
                 ->whereNull('user_id')
                 ->first();
-            if ($prospek) {
-                $prospek->user_id = $user->id;
-                $prospek->save();
+            if ($existing && !$existing->transaksis()->exists()) {
+                $existing->user_id = $user->id;
+                $existing->save();
+                $prospek = $existing;
             }
         }
 
-        // 3. Self-healing: jika prospek dengan email user ini salah terhubung ke user_id lain yang berbeda email
+        // 3. Self-healing: jika prospek dengan email user ini salah terhubung ke user_id lain yang berbeda email dan belum memiliki transaksi
         if (!$prospek && !empty($userEmail)) {
             $wronglyLinked = Prospek::where('email', $userEmail)->first();
-            if ($wronglyLinked && $wronglyLinked->user_id !== $user->id) {
+            if ($wronglyLinked && $wronglyLinked->user_id !== $user->id && !$wronglyLinked->transaksis()->exists()) {
                 $otherUser = $wronglyLinked->user_id ? User::find($wronglyLinked->user_id) : null;
                 if (!$otherUser || strtolower(trim((string) $otherUser->email)) !== $userEmail) {
                     $wronglyLinked->user_id = $user->id;
@@ -368,7 +369,7 @@ class CamabaPortalController extends Controller
             'whatsapp'              => ['required', 'string', 'regex:/^\+628[0-9]{8,12}$/'],
             'asal_sekolah'          => 'nullable|string|max:255',
             'nama_sekolah'          => 'nullable|string|max:255',
-            'prodi_id'              => 'nullable|exists:prodis,id',
+            'prodi_id'              => 'required|exists:prodis,id',
             'prodi_pilihan_2_id'    => 'nullable|different:prodi_id|exists:prodis,id',
             'minat_kuliah'          => 'nullable|in:ya,tidak',
             'minat_miniclass'       => 'nullable|in:ya,tidak',
@@ -400,6 +401,7 @@ class CamabaPortalController extends Controller
             'name.required'                 => 'Nama lengkap wajib diisi.',
             'whatsapp.required'             => 'Nomor WhatsApp wajib diisi.',
             'whatsapp.regex'                => 'Nomor WhatsApp wajib menggunakan format Indonesia (+62) yang valid (contoh: +6281234567890).',
+            'prodi_id.required'             => 'Pilihan Program Studi Utama wajib dipilih.',
             'prodi_pilihan_2_id.different' => 'Pilihan program studi kedua tidak boleh sama dengan pilihan pertama.',
         ]);
 
@@ -510,8 +512,8 @@ class CamabaPortalController extends Controller
             }
         });
 
-        return redirect()->route('pmb.akun.profil')
-            ->with('success', 'Data pendaftaran Anda berhasil disimpan.');
+        return redirect()->route('pmb.akun.bayar')
+            ->with('success', 'Formulir pendaftaran dan pilihan Program Studi berhasil disimpan! Silakan lanjutkan ke pembayaran.');
     }
 
     /**
@@ -538,6 +540,13 @@ class CamabaPortalController extends Controller
                 ->with('error', 'Data pendaftaran Anda belum terhubung. Silakan hubungi admin PMB.');
         }
 
+        // WAJIB: Calon mahasiswa harus melengkapi Form Pendaftaran dan memilih Program Studi terlebih dahulu!
+        $isFormFilled = !empty($prospek->prodi_id) && ($prospek->status_formulir ?? '') === 'Sudah Isi';
+        if (!$isFormFilled) {
+            return redirect()->route('pmb.akun.profil')
+                ->with('warning', 'Silakan lengkapi formulir pendaftaran dan pilih Program Studi terlebih dahulu sebelum melanjutkan ke pembayaran.');
+        }
+
         // Ambil status untuk 3 kategori pembayaran: DP, Biaya Pendaftaran, Pelunasan
         $categoriesStatus = MidtransService::getAllCategoriesStatus($prospek);
         $totalTagihan = MidtransService::getTotalTagihan($prospek);
@@ -558,16 +567,12 @@ class CamabaPortalController extends Controller
 
         if (!$transaksi && $requestedCategory) {
             $catStatus = MidtransService::getCategoryPaymentStatus($prospek, $requestedCategory);
-            if ($catStatus['transaksi']) {
+            if (!empty($catStatus['transaksi'])) {
                 $transaksi = $catStatus['transaksi'];
-            } elseif ($catStatus['can_pay']) {
-                try {
-                    $transaksi = $midtransService->createCategoryTransaksi($prospek, $requestedCategory, $user, $forceNew);
-                } catch (\Throwable $e) {}
             }
         }
 
-        // Fallback: cari transaksi pending terbaru milik prospek ini
+        // Fallback: cari transaksi pending terbaru milik prospek ini (HANYA JIKA ADA)
         if (!$transaksi) {
             $transaksi = $prospek->transaksis()
                 ->where('payment_status', \App\Models\Transaksi::STATUS_PENDING)
@@ -575,26 +580,19 @@ class CamabaPortalController extends Controller
                 ->first();
         }
 
-        // Jika belum ada transaksi sama sekali, siapkan transaksi pendaftaran default
-        if (!$transaksi) {
-            try {
-                $transaksi = $midtransService->getOrCreateRegistrationTransaksi($prospek, $user, $forceNew);
-            } catch (\Throwable $e) {
-                // Jika pendaftaran sudah lunas, ambil transaksi verified terakhir
-                $transaksi = $prospek->transaksis()->latest('id')->first();
-            }
-        }
+        // Catatan: Jangan buat transaksi otomatis saat camaba baru membuka halaman.
+        // Transaksi baru hanya dibuat saat camaba menekan tombol "Lanjutkan Pembayaran".
 
-        // Jika transaksi belum verified dan ada order_id, lakukan sinkronisasi status langsung dari backend Midtrans API
-        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED) {
+        // Jika transaksi online belum verified dan ada order_id, lakukan sinkronisasi status langsung dari backend Midtrans API
+        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED && $transaksi->metode_pembayaran === 'MIDTRANS') {
             $synced = $midtransService->syncStatusFromMidtransApi($transaksi->order_id);
             if ($synced) {
                 $transaksi = $synced;
             }
         }
 
-        // Jika token Snap belum ada atau diminta fresh pada transaksi belum verified, buat token
-        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED) {
+        // Jika token Snap belum ada atau diminta fresh pada transaksi Midtrans belum verified, buat token
+        if ($transaksi && $transaksi->payment_status !== \App\Models\Transaksi::STATUS_VERIFIED && $transaksi->metode_pembayaran === 'MIDTRANS') {
             $needFresh = $request->boolean('fresh') || empty($transaksi->snap_token);
             try {
                 $midtransService->createSnapToken($transaksi, $needFresh);
@@ -608,7 +606,15 @@ class CamabaPortalController extends Controller
 
         $paidItems = MidtransService::resolvePaidItems($prospek);
 
-        $initialItems = $transaksi ? MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => true, 'perlengkapan' => false, 'dpp' => false];
+        if ($transaksi && $transaksi->payment_status === \App\Models\Transaksi::STATUS_PENDING) {
+            $initialItems = MidtransService::resolveInitialItems($transaksi);
+        } else {
+            $initialItems = [
+                'perlengkapan' => false,
+                'pendaftaran'  => false,
+                'dpp'          => false,
+            ];
+        }
 
         // Pastikan item yang sudah pernah lunas tidak tercentang di initialItems
         foreach ($paidItems as $itemKey => $isPaid) {

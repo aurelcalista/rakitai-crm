@@ -82,7 +82,7 @@
                     <input type="email"
                            id="email"
                            name="email"
-                           value="{{ old('email') }}"
+                           value="{{ old('email', session('registered_email')) }}"
                            required
                            placeholder="Masukkan email"
                            autocomplete="username"

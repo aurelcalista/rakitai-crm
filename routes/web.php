@@ -61,7 +61,7 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
     // Halaman Pembayaran CAMABA & Status Transaksi
     Route::get('/bayar/{order_id}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'showPaymentPage'])->name('bayar');
     Route::get('/pembayaran/status/{order_id}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'status'])->name('pembayaran.status');
-    Route::post('/checkout/{prospek}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'checkout'])->name('checkout');
+    Route::post('/checkout/{prospekId?}', [\App\Http\Controllers\Pmb\MidtransPaymentController::class, 'checkout'])->name('checkout');
 
     // Portal Akun CAMABA (Khusus Calon Mahasiswa yang Terautentikasi)
     Route::middleware(['auth', 'role:Camaba'])->prefix('akun')->name('akun.')->group(function () {

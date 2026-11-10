@@ -23,12 +23,35 @@ class MidtransPaymentController extends Controller
      * Memulai alur checkout Midtrans Snap untuk biaya pendaftaran CAMABA.
      * Backend memvalidasi hak akses dan menentukan nominal tagihan secara otoritatif.
      */
-    public function checkout(Request $request, $prospekId): JsonResponse
+    public function checkout(Request $request, $prospekId = null): JsonResponse
     {
-        $prospek = Prospek::findOrFail($prospekId);
+        $user = auth()->user();
+        $prospek = $prospekId ? Prospek::find($prospekId) : null;
+
+        // Fallback: Jika ID prospek tidak ditemukan atau out-of-sync, gunakan prospek aktif milik Camaba yang sedang login
+        if (!$prospek && $user && strtolower($user->role ?? '') === 'camaba') {
+            $prospek = app(\App\Http\Controllers\Pmb\CamabaPortalController::class)->getCamabaProspek();
+        }
+
+        if (!$prospek) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data calon mahasiswa tidak ditemukan atau sesi pendaftaran telah diperbarui. Silakan muat ulang (refresh) halaman.',
+            ], 404);
+        }
+
+        // Camaba wajib mengisi form dan memilih prodi terlebih dahulu
+        if ($user && strtolower($user->role ?? '') === 'camaba') {
+            if (empty($prospek->prodi_id) || ($prospek->status_formulir ?? '') !== 'Sudah Isi') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Silakan lengkapi formulir pendaftaran dan pilih Program Studi terlebih dahulu sebelum melakukan pembayaran.',
+                    'redirect_url' => route('pmb.akun.profil'),
+                ], 422);
+            }
+        }
 
         // Otorisasi: Staff CRM atau akses valid CAMABA
-        $user = auth()->user();
         if ($user) {
             $userRole = strtolower($user->role ?? '');
             $allowedStaff = ['admin', 'hm', 'cs', 'sales', 'spv'];
@@ -99,17 +122,66 @@ class MidtransPaymentController extends Controller
                 $selectedKeys = $calculated['item_keys'];
             }
 
+            $paymentMethod = $request->input('payment_method', 'online');
+            $isManual = in_array(strtolower($paymentMethod), ['transfer_manual', 'manual', 'bank_transfer']);
+            $dbPaymentMethod = $isManual ? 'TRANSFER_MANUAL' : 'MIDTRANS';
+
             // Dapatkan transaksi lokal yang ada atau buat baru secara aman dan atomik
             $transaksi = $this->midtransService->createCategoryTransaksi(
                 $prospek,
                 $normalizedCategory,
                 $user,
                 $forceNew,
-                $selectedKeys
+                $selectedKeys,
+                $dbPaymentMethod
             );
+
+            $txPaymentType = strtolower($transaksi->payment_type ?? '');
+            $txRawMetode = strtoupper($transaksi->metode_pembayaran ?? '');
+            $txMetodeLabel = match(true) {
+                str_contains($txPaymentType, 'echannel') || str_contains($txPaymentType, 'mandiri') => 'Mandiri VA',
+                str_contains($txPaymentType, 'bca') => 'BCA VA',
+                str_contains($txPaymentType, 'bni') => 'BNI VA',
+                str_contains($txPaymentType, 'bri') => 'BRI VA',
+                str_contains($txPaymentType, 'qris') => 'QRIS',
+                str_contains($txPaymentType, 'gopay') => 'GoPay',
+                $txRawMetode === 'MIDTRANS' => 'Virtual Account',
+                $txRawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
+                $txRawMetode === 'TRANSFER_MANUAL' => 'Transfer Manual',
+                $txRawMetode === 'OFFLINE' => 'Tunai / Kasir',
+                !empty($transaksi->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($transaksi->metode_pembayaran))),
+                default => 'Transfer Bank',
+            };
+
+            $transaksiItem = [
+                'id'                => $transaksi->id,
+                'order_id'          => $transaksi->order_id ?: ('TRX-' . $transaksi->id),
+                'kategori'          => $transaksi->kategori ?? 'Biaya Pendaftaran',
+                'detail_pembayaran' => $transaksi->detail_pembayaran ?: ($transaksi->kategori ?: 'Biaya PMB'),
+                'nominal'           => (int) $transaksi->nominal,
+                'nominal_formatted' => 'Rp ' . number_format($transaksi->nominal, 0, ',', '.'),
+                'tanggal'           => now()->format('d M Y, H:i') . ' WIB',
+                'metode_label'      => $txMetodeLabel,
+                'payment_status'    => 'pending',
+                'snap_token'        => $transaksi->snap_token ?? '',
+            ];
+
+            if ($isManual) {
+                return response()->json([
+                    'success'           => true,
+                    'order_id'          => $transaksi->order_id,
+                    'kategori'          => $transaksi->kategori,
+                    'metode_pembayaran' => 'TRANSFER_MANUAL',
+                    'nominal'           => (float) $transaksi->nominal,
+                    'nominal_formatted' => 'Rp ' . number_format($transaksi->nominal, 0, ',', '.'),
+                    'detail'            => $transaksi->detail_pembayaran,
+                    'transaksi_item'    => $transaksiItem,
+                ]);
+            }
 
             // Dapatkan Snap Token dari Midtrans (selalu pastikan sinkron dengan metode pembayaran aktif di Admin)
             $snap = $this->midtransService->createSnapToken($transaksi, true);
+            $transaksiItem['snap_token'] = $snap['token'];
 
             return response()->json([
                 'success'           => true,
@@ -121,6 +193,7 @@ class MidtransPaymentController extends Controller
                 'nominal'           => (float) $transaksi->nominal,
                 'nominal_formatted' => 'Rp ' . number_format($transaksi->nominal, 0, ',', '.'),
                 'is_production'     => (bool) config('services.midtrans.is_production', false),
+                'transaksi_item'    => $transaksiItem,
             ]);
         } catch (\InvalidArgumentException $e) {
             return response()->json([

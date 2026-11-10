@@ -40,10 +40,42 @@ class AdminProdiController extends Controller
             'ukt_reguler' => 'nullable|string|max:100',
             'spp' => 'nullable|string|max:100',
             'status' => 'required|in:Aktif,Nonaktif',
+            'biaya_pendaftaran' => 'nullable',
+            'biaya_perlengkapan' => 'nullable',
+            'biaya_dpp' => 'nullable',
+            'biaya_uang_gedung' => 'nullable',
+            'ukt_options' => 'nullable|array',
         ]);
 
-        if (empty($validated['ukt']) && !empty($validated['spp'])) {
-            $validated['ukt'] = $validated['spp'];
+        // 4 Komponen Biaya 1x Bayar (Bisa Rp 0)
+        $validated['biaya_pendaftaran']  = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_pendaftaran', 0));
+        $validated['biaya_perlengkapan'] = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_perlengkapan', 0));
+        $validated['biaya_dpp']          = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_dpp', 0));
+        $validated['biaya_uang_gedung']  = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_uang_gedung', 0));
+
+        // 7 Opsi Pilihan Periode UKT (per 1, 3, 6, 12, 24, 36, 48 bulan)
+        $cleanUktOptions = [];
+        $rawOptions = (array) $request->input('ukt_options', []);
+        foreach (Prodi::UKT_PERIODS as $key => $label) {
+            $item = $rawOptions[$key] ?? [];
+            $nominal = isset($item['nominal']) ? (int) preg_replace('/[^0-9]/', '', (string) $item['nominal']) : 0;
+            $isActive = !empty($item['is_active']);
+            $cleanUktOptions[$key] = [
+                'key'       => $key,
+                'label'     => $label,
+                'nominal'   => $nominal,
+                'is_active' => $isActive,
+            ];
+        }
+        $validated['ukt_options'] = $cleanUktOptions;
+
+        if (empty($validated['ukt'])) {
+            $semNom = $cleanUktOptions['6_bulan']['nominal'] ?? 0;
+            if ($semNom > 0) {
+                $validated['ukt'] = 'Rp ' . number_format($semNom, 0, ',', '.');
+            } elseif (!empty($validated['spp'])) {
+                $validated['ukt'] = $validated['spp'];
+            }
         }
 
         $fakultas = trim($validated['fakultas']);
@@ -56,7 +88,7 @@ class AdminProdiController extends Controller
 
         Prodi::create($validated);
 
-        return redirect()->back()->with('success', 'Program Studi berhasil ditambahkan!');
+        return redirect()->back()->with('success', 'Program Studi beserta komponen biaya & pilihan UKT berhasil ditambahkan!');
     }
 
     public function update(Request $request, Prodi $prodi)
@@ -71,10 +103,42 @@ class AdminProdiController extends Controller
             'ukt_reguler' => 'nullable|string|max:100',
             'spp' => 'nullable|string|max:100',
             'status' => 'required|in:Aktif,Nonaktif',
+            'biaya_pendaftaran' => 'nullable',
+            'biaya_perlengkapan' => 'nullable',
+            'biaya_dpp' => 'nullable',
+            'biaya_uang_gedung' => 'nullable',
+            'ukt_options' => 'nullable|array',
         ]);
 
-        if (empty($validated['ukt']) && !empty($validated['spp'])) {
-            $validated['ukt'] = $validated['spp'];
+        // 4 Komponen Biaya 1x Bayar (Bisa Rp 0)
+        $validated['biaya_pendaftaran']  = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_pendaftaran', 0));
+        $validated['biaya_perlengkapan'] = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_perlengkapan', 0));
+        $validated['biaya_dpp']          = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_dpp', 0));
+        $validated['biaya_uang_gedung']  = (int) preg_replace('/[^0-9]/', '', (string) $request->input('biaya_uang_gedung', 0));
+
+        // 7 Opsi Pilihan Periode UKT (per 1, 3, 6, 12, 24, 36, 48 bulan)
+        $cleanUktOptions = [];
+        $rawOptions = (array) $request->input('ukt_options', []);
+        foreach (Prodi::UKT_PERIODS as $key => $label) {
+            $item = $rawOptions[$key] ?? [];
+            $nominal = isset($item['nominal']) ? (int) preg_replace('/[^0-9]/', '', (string) $item['nominal']) : 0;
+            $isActive = !empty($item['is_active']);
+            $cleanUktOptions[$key] = [
+                'key'       => $key,
+                'label'     => $label,
+                'nominal'   => $nominal,
+                'is_active' => $isActive,
+            ];
+        }
+        $validated['ukt_options'] = $cleanUktOptions;
+
+        if (empty($validated['ukt'])) {
+            $semNom = $cleanUktOptions['6_bulan']['nominal'] ?? 0;
+            if ($semNom > 0) {
+                $validated['ukt'] = 'Rp ' . number_format($semNom, 0, ',', '.');
+            } elseif (!empty($validated['spp'])) {
+                $validated['ukt'] = $validated['spp'];
+            }
         }
 
         $fakultas = trim($validated['fakultas']);
@@ -87,7 +151,7 @@ class AdminProdiController extends Controller
 
         $prodi->update($validated);
 
-        return redirect()->back()->with('success', 'Program Studi berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Program Studi beserta komponen biaya & pilihan UKT berhasil diperbarui!');
     }
 
     public function destroy(Prodi $prodi)
