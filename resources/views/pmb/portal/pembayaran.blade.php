@@ -997,25 +997,7 @@
                                 <span>•</span>
                                 <span>{{ $tx->created_at->format('d M Y, H:i') }} WIB</span>
                                 <span>•</span>
-                                @php
-                                    $txPaymentType = strtolower($tx->payment_type ?? '');
-                                    $txRawMetode = strtoupper($tx->metode_pembayaran ?? '');
-                                    $txMetodeLabel = match(true) {
-                                        str_contains($txPaymentType, 'echannel') || str_contains($txPaymentType, 'mandiri') => 'Mandiri VA',
-                                        str_contains($txPaymentType, 'bca') => 'BCA VA',
-                                        str_contains($txPaymentType, 'bni') => 'BNI VA',
-                                        str_contains($txPaymentType, 'bri') => 'BRI VA',
-                                        str_contains($txPaymentType, 'qris') => 'QRIS',
-                                        str_contains($txPaymentType, 'gopay') => 'GoPay',
-                                        $txRawMetode === 'MIDTRANS' => 'Virtual Account',
-                                        $txRawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
-                                        $txRawMetode === 'TRANSFER_MANUAL' => 'Transfer Manual',
-                                        $txRawMetode === 'OFFLINE' => 'Tunai / Kasir',
-                                        !empty($tx->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($tx->metode_pembayaran))),
-                                        default => 'Transfer Bank',
-                                    };
-                                @endphp
-                                <span>Metode: <strong class="text-slate-700">{{ $txMetodeLabel }}</strong></span>
+                                <span>Metode: <strong class="text-slate-700">{{ $tx->metode_detail }}</strong></span>
                             </div>
                         </div>
 

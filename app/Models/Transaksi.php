@@ -165,7 +165,132 @@ class Transaksi extends Model
      */
     public function getMetodeLabelAttribute(): string
     {
-        return self::METODE_PEMBAYARAN[$this->metode_pembayaran] ?? 'Tidak diketahui';
+        return $this->metode_detail;
+    }
+
+    /**
+     * Dapatkan label metode pembayaran detail yang akurat dan mudah dibaca (mis. QRIS (Midtrans), BCA VA, dll).
+     */
+    public function getMetodeDetailAttribute(): string
+    {
+        $rawMetode = strtoupper(trim((string) $this->metode_pembayaran));
+        $paymentType = strtolower(trim((string) $this->payment_type));
+
+        return match (true) {
+            str_contains($paymentType, 'qris') => 'QRIS (Midtrans)',
+            str_contains($paymentType, 'gopay') => 'GoPay (Midtrans)',
+            str_contains($paymentType, 'shopee') => 'ShopeePay (Midtrans)',
+            str_contains($paymentType, 'echannel') || str_contains($paymentType, 'mandiri') => 'Mandiri VA (Midtrans)',
+            str_contains($paymentType, 'bca') => 'BCA VA (Midtrans)',
+            str_contains($paymentType, 'bni') => 'BNI VA (Midtrans)',
+            str_contains($paymentType, 'bri') => 'BRI VA (Midtrans)',
+            str_contains($paymentType, 'permata') => 'Permata VA (Midtrans)',
+            str_contains($paymentType, 'cimb') => 'CIMB VA (Midtrans)',
+            str_contains($paymentType, 'danamon') => 'Danamon VA (Midtrans)',
+            str_contains($paymentType, 'credit_card') => 'Kartu Kredit (Midtrans)',
+            str_contains($paymentType, 'cstore') || str_contains($paymentType, 'indomaret') || str_contains($paymentType, 'alfamart') => 'Gerai Retail (Midtrans)',
+            str_contains($paymentType, 'bank_transfer') || str_contains($paymentType, 'va') => 'Virtual Account (Midtrans)',
+            $rawMetode === 'MIDTRANS' && !empty($paymentType) => strtoupper($paymentType) . ' (Midtrans)',
+            $rawMetode === 'MIDTRANS' => 'Midtrans (Online)',
+            $rawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
+            $rawMetode === 'TRANSFER_MANUAL' || str_contains($rawMetode, 'MANUAL') => 'Transfer Manual',
+            $rawMetode === 'OFFLINE' || str_contains($rawMetode, 'TUNAI') || str_contains($rawMetode, 'KASIR') => 'Kasir PMB / Tunai',
+            isset(self::METODE_PEMBAYARAN[$this->metode_pembayaran]) => self::METODE_PEMBAYARAN[$this->metode_pembayaran],
+            !empty($this->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($this->metode_pembayaran))),
+            default => 'Belum Memilih',
+        };
+    }
+
+    /**
+     * Dapatkan informasi badge styling untuk metode pembayaran.
+     *
+     * @return array{name: string, sub: string, badge_class: string, icon: string}
+     */
+    public function getMetodeBadgeAttribute(): array
+    {
+        $rawMetode = strtoupper(trim((string) $this->metode_pembayaran));
+        $paymentType = strtolower(trim((string) $this->payment_type));
+
+        if (str_contains($paymentType, 'qris')) {
+            return [
+                'name'        => 'QRIS',
+                'sub'         => 'Midtrans',
+                'badge_class' => 'bg-rose-50 text-rose-700 border-rose-200',
+                'icon'        => 'qris',
+            ];
+        }
+
+        if (str_contains($paymentType, 'gopay') || str_contains($paymentType, 'shopee')) {
+            $name = str_contains($paymentType, 'gopay') ? 'GoPay' : 'ShopeePay';
+            return [
+                'name'        => $name,
+                'sub'         => 'Midtrans',
+                'badge_class' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'icon'        => 'ewallet',
+            ];
+        }
+
+        if (str_contains($paymentType, 'bca') || str_contains($paymentType, 'bni') || str_contains($paymentType, 'bri') || str_contains($paymentType, 'mandiri') || str_contains($paymentType, 'echannel') || str_contains($paymentType, 'permata') || str_contains($paymentType, 'cimb') || str_contains($paymentType, 'danamon')) {
+            $name = match(true) {
+                str_contains($paymentType, 'bca') => 'BCA VA',
+                str_contains($paymentType, 'bni') => 'BNI VA',
+                str_contains($paymentType, 'bri') => 'BRI VA',
+                str_contains($paymentType, 'mandiri') || str_contains($paymentType, 'echannel') => 'Mandiri VA',
+                str_contains($paymentType, 'permata') => 'Permata VA',
+                str_contains($paymentType, 'cimb') => 'CIMB VA',
+                str_contains($paymentType, 'danamon') => 'Danamon VA',
+                default => 'Virtual Account',
+            };
+            return [
+                'name'        => $name,
+                'sub'         => 'Midtrans',
+                'badge_class' => 'bg-blue-50 text-blue-700 border-blue-200',
+                'icon'        => 'va',
+            ];
+        }
+
+        if (str_contains($paymentType, 'credit_card')) {
+            return [
+                'name'        => 'Kartu Kredit',
+                'sub'         => 'Midtrans',
+                'badge_class' => 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                'icon'        => 'card',
+            ];
+        }
+
+        if ($rawMetode === 'MIDTRANS' || str_contains($paymentType, 'bank_transfer') || str_contains($paymentType, 'va')) {
+            return [
+                'name'        => 'Virtual Account',
+                'sub'         => 'Midtrans',
+                'badge_class' => 'bg-blue-50 text-blue-700 border-blue-200',
+                'icon'        => 'va',
+            ];
+        }
+
+        if ($rawMetode === 'TRANSFER_MANUAL' || str_contains($rawMetode, 'MANUAL')) {
+            return [
+                'name'        => 'Transfer Manual',
+                'sub'         => 'Rekening Kampus',
+                'badge_class' => 'bg-amber-50 text-amber-800 border-amber-200',
+                'icon'        => 'manual',
+            ];
+        }
+
+        if ($rawMetode === 'OFFLINE' || str_contains($rawMetode, 'TUNAI') || str_contains($rawMetode, 'KASIR')) {
+            return [
+                'name'        => 'Kasir / Tunai',
+                'sub'         => 'Offline di Kampus',
+                'badge_class' => 'bg-slate-50 text-slate-700 border-slate-200',
+                'icon'        => 'cash',
+            ];
+        }
+
+        return [
+            'name'        => !empty($this->metode_pembayaran) ? ucwords(str_replace('_', ' ', strtolower($this->metode_pembayaran))) : 'Transfer Bank',
+            'sub'         => 'Sistem',
+            'badge_class' => 'bg-slate-50 text-slate-600 border-slate-200',
+            'icon'        => 'bank',
+        ];
     }
 
     // ─── Relationships ──────────────────────────────────────────────

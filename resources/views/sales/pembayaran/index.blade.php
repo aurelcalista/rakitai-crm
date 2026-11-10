@@ -291,17 +291,11 @@
                         <tbody class="divide-y divide-slate-100">
                             @foreach($transaksis as $trx)
                                 @php
-                                    $metodeMap = [
-                                        'bank_transfer'   => ['label' => 'Transfer Bank', 'class' => 'bg-amber-50 text-amber-800 border-amber-200'],
-                                        'virtual_account' => ['label' => 'Virtual Account', 'class' => 'bg-blue-50 text-blue-700 border-blue-200'],
-                                        'gopay'           => ['label' => 'GoPay', 'class' => 'bg-emerald-50 text-emerald-700 border-emerald-200'],
-                                        'dana'            => ['label' => 'DANA', 'class' => 'bg-sky-50 text-sky-700 border-sky-200'],
-                                        'shopeepay'       => ['label' => 'ShopeePay', 'class' => 'bg-orange-50 text-orange-700 border-orange-200'],
-                                        'tunai'           => ['label' => 'Kasir / Tunai', 'class' => 'bg-slate-50 text-slate-700 border-slate-200'],
-                                    ];
-                                    $metodeInfo = $metodeMap[$trx->metode_pembayaran] ?? [
-                                        'label' => ucwords(str_replace('_', ' ', $trx->metode_pembayaran ?: 'Transfer Bank')),
-                                        'class' => 'bg-slate-50 text-slate-700 border-slate-200'
+                                    $badge = $trx->metode_badge;
+                                    $metodeInfo = [
+                                        'label' => $trx->metode_detail,
+                                        'class' => $badge['badge_class'],
+                                        'sub'   => $badge['sub'],
                                     ];
 
                                     $cleanWa = preg_replace('/[^0-9]/', '', $trx->prospek->whatsapp ?? '');

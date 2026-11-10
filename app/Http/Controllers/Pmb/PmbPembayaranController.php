@@ -70,6 +70,15 @@ class PmbPembayaranController extends Controller
             return in_array($status, ['verified', 'paid', 'success', 'settlement', 'capture']);
         });
 
+        $terbayarTrx = [
+            'perlengkapan' => null,
+            'pendaftaran'  => null,
+            'dpp'          => null,
+            'uang_gedung'  => null,
+            'dp'           => null,
+            'pelunasan'    => null,
+        ];
+
         foreach ($verifiedTransaksis as $t) {
             $detail = (string) $t->detail_pembayaran;
             $jenis  = (string) $t->jenis;
@@ -91,11 +100,13 @@ class PmbPembayaranController extends Controller
 
             if ($isDp) {
                 $terbayar['dp'] += $nom;
+                $terbayarTrx['dp'] = $t;
                 continue;
             }
 
             if ($isPelunasan) {
                 $terbayar['pelunasan'] += $nom;
+                $terbayarTrx['pelunasan'] = $t;
                 continue;
             }
 
@@ -114,36 +125,99 @@ class PmbPembayaranController extends Controller
             if (count($activeComponents) === 1) {
                 $comp = $activeComponents[0];
                 $terbayar[$comp] += $nom;
+                $terbayarTrx[$comp] = $t;
             } elseif (count($activeComponents) > 1) {
                 // Multi komponen dalam 1 transaksi
                 foreach ($activeComponents as $comp) {
                     $terbayar[$comp] += $kewajiban[$comp];
+                    $terbayarTrx[$comp] = $t;
                 }
             } else {
                 // Fallback berdasarkan jenis atau nominal jika detail pembayaran kosong
                 if ($jenis === 'Beli Formulir' || $nom == 300000 || $nom == 250000) {
                     $terbayar['pendaftaran'] += $nom;
+                    $terbayarTrx['pendaftaran'] = $t;
                 } elseif ($nom == 600000) {
                     $terbayar['perlengkapan'] += 600000;
+                    $terbayarTrx['perlengkapan'] = $t;
                 } elseif ($nom == 500000) {
                     $terbayar['dpp'] += 500000;
+                    $terbayarTrx['dpp'] = $t;
                 } elseif ($nom == 1000000) {
                     $terbayar['uang_gedung'] += 1000000;
+                    $terbayarTrx['uang_gedung'] = $t;
                 } elseif ($nom == 900000) {
                     $terbayar['perlengkapan'] += 600000;
                     $terbayar['pendaftaran'] += 300000;
+                    $terbayarTrx['perlengkapan'] = $t;
+                    $terbayarTrx['pendaftaran'] = $t;
                 } elseif ($nom == 1400000) {
                     $terbayar['perlengkapan'] += 600000;
                     $terbayar['pendaftaran'] += 300000;
                     $terbayar['dpp'] += 500000;
+                    $terbayarTrx['perlengkapan'] = $t;
+                    $terbayarTrx['pendaftaran'] = $t;
+                    $terbayarTrx['dpp'] = $t;
                 } elseif ($nom == 800000) {
                     $terbayar['pendaftaran'] += 300000;
                     $terbayar['dpp'] += 500000;
+                    $terbayarTrx['pendaftaran'] = $t;
+                    $terbayarTrx['dpp'] = $t;
                 } elseif ($nom == 1100000) {
                     $terbayar['perlengkapan'] += 600000;
                     $terbayar['dpp'] += 500000;
+                    $terbayarTrx['perlengkapan'] = $t;
+                    $terbayarTrx['dpp'] = $t;
                 } elseif ($nom >= 2000000) {
                     $terbayar['pelunasan'] += $nom;
+                    $terbayarTrx['pelunasan'] = $t;
+                }
+            }
+        }
+
+        // Cari transaksi pending jika ada komponen yang belum lunas
+        $pendingTransaksis = $transaksis->filter(function ($t) {
+            $status = strtolower($t->payment_status ?? '');
+            return in_array($status, ['pending', 'menunggu pembayaran']);
+        });
+
+        $pendingTrxByComp = [
+            'perlengkapan' => null,
+            'pendaftaran'  => null,
+            'dpp'          => null,
+            'uang_gedung'  => null,
+            'dp'           => null,
+            'pelunasan'    => null,
+        ];
+
+        foreach ($pendingTransaksis as $pt) {
+            $pDetail = (string) $pt->detail_pembayaran;
+            $pJenis  = (string) $pt->jenis;
+            $pCat    = (string) $pt->kategori;
+            $pNom    = (float) $pt->nominal;
+
+            $isDp = (in_array($pCat, Transaksi::getCategoryAliases(Transaksi::KATEGORI_DP))
+                || str_contains($pDetail, 'Down Payment')
+                || (str_contains($pDetail, 'DP') && !str_contains($pDetail, 'DPP') && !str_contains($pDetail, 'DP Daftar'))
+                || $pJenis === 'DP/Konversi') && $pJenis !== 'Beli Formulir';
+
+            $isPel = (in_array($pCat, Transaksi::getCategoryAliases(Transaksi::KATEGORI_PELUNASAN))
+                || str_contains($pDetail, 'Pelunasan')
+                || $pJenis === 'Pelunasan') && $pJenis !== 'Beli Formulir' && !str_contains($pDetail, 'Pendaftaran') && !str_contains($pDetail, 'Formulir');
+
+            if ($isDp) {
+                $pendingTrxByComp['dp'] = $pendingTrxByComp['dp'] ?? $pt;
+            } elseif ($isPel) {
+                $pendingTrxByComp['pelunasan'] = $pendingTrxByComp['pelunasan'] ?? $pt;
+            } else {
+                if (str_contains($pDetail, 'Perlengkapan') || in_array($pNom, [600000, 900000, 1400000, 1100000])) {
+                    $pendingTrxByComp['perlengkapan'] = $pendingTrxByComp['perlengkapan'] ?? $pt;
+                }
+                if (str_contains($pDetail, 'Pendaftaran') || empty($pDetail) || in_array($pNom, [300000, 250000, 900000, 1400000, 800000])) {
+                    $pendingTrxByComp['pendaftaran'] = $pendingTrxByComp['pendaftaran'] ?? $pt;
+                }
+                if (str_contains($pDetail, 'DPP') || in_array($pNom, [500000, 1400000, 800000, 1100000])) {
+                    $pendingTrxByComp['dpp'] = $pendingTrxByComp['dpp'] ?? $pt;
                 }
             }
         }
@@ -163,8 +237,36 @@ class PmbPembayaranController extends Controller
             $sisaNominal = max(0, $targetNominal - $paidNominal);
             $isLunas = ($targetNominal > 0) ? ($paidNominal >= $targetNominal) : true;
 
+            $assignedTrx = $terbayarTrx[$key] ?? null;
+            $pendingTrx = (!$assignedTrx) ? ($pendingTrxByComp[$key] ?? null) : null;
+            $activeTrx = $assignedTrx ?? $pendingTrx;
+
+            $metodeDetail = null;
+            $metodeBadge = null;
+
+            if ($assignedTrx) {
+                $metodeDetail = $assignedTrx->metode_detail;
+                $metodeBadge = $assignedTrx->metode_badge;
+            } elseif ($pendingTrx) {
+                $metodeDetail = $pendingTrx->metode_detail . ' (Pending)';
+                $metodeBadge = array_merge($pendingTrx->metode_badge, [
+                    'sub' => $pendingTrx->metode_badge['sub'] . ' • Pending',
+                ]);
+            } elseif ($targetNominal == 0 && $isLunas) {
+                $metodeDetail = 'Bebas Biaya';
+                $metodeBadge = [
+                    'name'        => 'Bebas Biaya',
+                    'sub'         => 'Gratis',
+                    'badge_class' => 'bg-slate-50 text-slate-500 border-slate-200',
+                    'icon'        => 'none',
+                ];
+            } else {
+                $metodeDetail = 'Belum Ada';
+                $metodeBadge = null;
+            }
+
             $rincian[$key] = [
-                'nama'      => match($key) {
+                'nama'         => match($key) {
                     'perlengkapan' => 'Biaya Perlengkapan Kuliah',
                     'pendaftaran'  => 'Biaya Pendaftaran PMB',
                     'dpp'          => 'DPP (Dana Pengembangan Pendidikan)',
@@ -172,11 +274,14 @@ class PmbPembayaranController extends Controller
                     'dp'           => 'Down Payment (DP)',
                     'pelunasan'    => 'Pelunasan Biaya Kuliah',
                 },
-                'kewajiban' => $targetNominal,
-                'terbayar'  => $paidNominal,
-                'sisa'      => $sisaNominal,
-                'is_lunas'  => $isLunas,
-                'status'    => $isLunas ? 'Lunas' : 'Belum Lunas',
+                'kewajiban'    => $targetNominal,
+                'terbayar'     => $paidNominal,
+                'sisa'         => $sisaNominal,
+                'is_lunas'     => $isLunas,
+                'status'       => $isLunas ? 'Lunas' : 'Belum Lunas',
+                'metode'       => $metodeDetail,
+                'metode_badge' => $metodeBadge,
+                'order_id'     => $activeTrx?->order_id,
             ];
         }
 
@@ -250,13 +355,42 @@ class PmbPembayaranController extends Controller
                         $mq->where('metode_pembayaran', 'TRANSFER_MANUAL')
                            ->orWhere('metode_pembayaran', 'like', '%MANUAL%');
                     });
+                } elseif ($metode === 'MIDTRANS_QRIS' || $metode === 'QRIS') {
+                    $tq->where(function ($mq) {
+                        $mq->where('payment_type', 'like', '%qris%')
+                           ->orWhere('metode_pembayaran', 'like', '%qris%');
+                    });
+                } elseif ($metode === 'MIDTRANS_VA' || $metode === 'VA') {
+                    $tq->where(function ($mq) {
+                        $mq->where('payment_type', 'like', '%bank_transfer%')
+                           ->orWhere('payment_type', 'like', '%echannel%')
+                           ->orWhere('payment_type', 'like', '%va%')
+                           ->orWhere('payment_type', 'like', '%bca%')
+                           ->orWhere('payment_type', 'like', '%bni%')
+                           ->orWhere('payment_type', 'like', '%bri%')
+                           ->orWhere('payment_type', 'like', '%mandiri%')
+                           ->orWhere('payment_type', 'like', '%permata%')
+                           ->orWhere('metode_pembayaran', 'like', '%va%');
+                    });
+                } elseif ($metode === 'MIDTRANS_EWALLET' || $metode === 'EWALLET') {
+                    $tq->where(function ($mq) {
+                        $mq->where('payment_type', 'like', '%gopay%')
+                           ->orWhere('payment_type', 'like', '%shopee%');
+                    });
+                } elseif ($metode === 'OFFLINE' || str_contains($metode, 'TUNAI') || str_contains($metode, 'KASIR')) {
+                    $tq->where(function ($mq) {
+                        $mq->where('metode_pembayaran', 'OFFLINE')
+                           ->orWhere('metode_pembayaran', 'like', '%TUNAI%')
+                           ->orWhere('metode_pembayaran', 'like', '%KASIR%');
+                    });
                 } elseif ($metode === 'MIDTRANS' || $metode === 'ONLINE') {
                     $tq->where(function ($mq) {
                         $mq->where('metode_pembayaran', 'MIDTRANS')
                            ->orWhere('metode_pembayaran', 'like', '%VA%')
                            ->orWhere('metode_pembayaran', 'like', '%QRIS%')
                            ->orWhere('metode_pembayaran', 'like', '%GOPAY%')
-                           ->orWhere('metode_pembayaran', 'like', '%BANK_TRANSFER%');
+                           ->orWhere('metode_pembayaran', 'like', '%BANK_TRANSFER%')
+                           ->orWhereNotNull('snap_token');
                     });
                 } else {
                     $tq->where('metode_pembayaran', $metode);
@@ -515,13 +649,42 @@ class PmbPembayaranController extends Controller
                         $mq->where('metode_pembayaran', 'TRANSFER_MANUAL')
                            ->orWhere('metode_pembayaran', 'like', '%MANUAL%');
                     });
+                } elseif ($metode === 'MIDTRANS_QRIS' || $metode === 'QRIS') {
+                    $tq->where(function ($mq) {
+                        $mq->where('payment_type', 'like', '%qris%')
+                           ->orWhere('metode_pembayaran', 'like', '%qris%');
+                    });
+                } elseif ($metode === 'MIDTRANS_VA' || $metode === 'VA') {
+                    $tq->where(function ($mq) {
+                        $mq->where('payment_type', 'like', '%bank_transfer%')
+                           ->orWhere('payment_type', 'like', '%echannel%')
+                           ->orWhere('payment_type', 'like', '%va%')
+                           ->orWhere('payment_type', 'like', '%bca%')
+                           ->orWhere('payment_type', 'like', '%bni%')
+                           ->orWhere('payment_type', 'like', '%bri%')
+                           ->orWhere('payment_type', 'like', '%mandiri%')
+                           ->orWhere('payment_type', 'like', '%permata%')
+                           ->orWhere('metode_pembayaran', 'like', '%va%');
+                    });
+                } elseif ($metode === 'MIDTRANS_EWALLET' || $metode === 'EWALLET') {
+                    $tq->where(function ($mq) {
+                        $mq->where('payment_type', 'like', '%gopay%')
+                           ->orWhere('payment_type', 'like', '%shopee%');
+                    });
+                } elseif ($metode === 'OFFLINE' || str_contains($metode, 'TUNAI') || str_contains($metode, 'KASIR')) {
+                    $tq->where(function ($mq) {
+                        $mq->where('metode_pembayaran', 'OFFLINE')
+                           ->orWhere('metode_pembayaran', 'like', '%TUNAI%')
+                           ->orWhere('metode_pembayaran', 'like', '%KASIR%');
+                    });
                 } elseif ($metode === 'MIDTRANS' || $metode === 'ONLINE') {
                     $tq->where(function ($mq) {
                         $mq->where('metode_pembayaran', 'MIDTRANS')
                            ->orWhere('metode_pembayaran', 'like', '%VA%')
                            ->orWhere('metode_pembayaran', 'like', '%QRIS%')
                            ->orWhere('metode_pembayaran', 'like', '%GOPAY%')
-                           ->orWhere('metode_pembayaran', 'like', '%BANK_TRANSFER%');
+                           ->orWhere('metode_pembayaran', 'like', '%BANK_TRANSFER%')
+                           ->orWhereNotNull('snap_token');
                     });
                 } else {
                     $tq->where('metode_pembayaran', $metode);
@@ -573,6 +736,7 @@ class PmbPembayaranController extends Controller
                 'Email',
                 'WhatsApp',
                 'Program Studi',
+                'Metode Pembayaran',
                 'Total Kewajiban (Rp)',
                 'Total Sudah Dibayar (Rp)',
                 'Sisa Tagihan (Rp)',
@@ -589,6 +753,9 @@ class PmbPembayaranController extends Controller
             foreach ($camabaList as $p) {
                 $r = self::calculateRekap($p);
                 $latestTrx = $p->transaksis->first();
+                $verifiedTrx = $p->transaksis->firstWhere('payment_status', Transaksi::STATUS_VERIFIED);
+                $primaryTrx = $verifiedTrx ?? $latestTrx;
+                $metodeText = $primaryTrx ? $primaryTrx->metode_detail : 'Belum Memilih';
 
                 fputcsv($handle, [
                     $no++,
@@ -598,6 +765,7 @@ class PmbPembayaranController extends Controller
                     $p->email ?? '-',
                     $p->whatsapp ?? '-',
                     $p->prodi?->nama_prodi ?? '-',
+                    $metodeText,
                     $r['total_kewajiban'],
                     $r['total_terbayar'],
                     $r['total_sisa'],

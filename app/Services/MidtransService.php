@@ -993,6 +993,17 @@ class MidtransService
         $transactionStatus = (string) ($payload['transaction_status'] ?? '');
         $fraudStatus = (string) ($payload['fraud_status'] ?? '');
         $paymentType = (string) ($payload['payment_type'] ?? 'midtrans');
+        if ($paymentType === 'bank_transfer') {
+            if (!empty($payload['va_numbers'])) {
+                $firstVa = is_array($payload['va_numbers']) ? ($payload['va_numbers'][0] ?? null) : null;
+                $bank = is_object($firstVa) ? ($firstVa->bank ?? null) : (is_array($firstVa) ? ($firstVa['bank'] ?? null) : null);
+                if (!empty($bank)) {
+                    $paymentType = 'bank_transfer_' . strtolower($bank);
+                }
+            } elseif (!empty($payload['permata_va_number'])) {
+                $paymentType = 'bank_transfer_permata';
+            }
+        }
 
         if (empty($orderId) || empty($statusCode) || empty($grossAmount) || empty($signatureKey) || empty($transactionStatus)) {
             Log::warning('Midtrans Notification: Payload tidak lengkap', ['order_id' => $orderId]);

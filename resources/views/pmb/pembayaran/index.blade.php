@@ -193,9 +193,17 @@
                                 </svg>
                             </div>
                             <select name="metode" class="w-full text-xs font-semibold rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 bg-slate-50/70 text-slate-800 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition shadow-2xs">
-                                <option value="all" {{ request('metode', 'all') === 'all' ? 'selected' : '' }}>Semua Transaksi</option>
-                                <option value="TRANSFER_MANUAL" {{ request('metode') === 'TRANSFER_MANUAL' ? 'selected' : '' }}>Transfer Manual ke Rekening Kampus</option>
-                                <option value="MIDTRANS" {{ request('metode') === 'MIDTRANS' ? 'selected' : '' }}>Midtrans (Online VA / QRIS)</option>
+                                <option value="all" {{ request('metode', 'all') === 'all' ? 'selected' : '' }}>Semua Metode Pembayaran</option>
+                                <optgroup label="Midtrans Payment Gateway">
+                                    <option value="MIDTRANS_QRIS" {{ in_array(request('metode'), ['MIDTRANS_QRIS', 'QRIS']) ? 'selected' : '' }}>📱 QRIS (Midtrans)</option>
+                                    <option value="MIDTRANS_VA" {{ in_array(request('metode'), ['MIDTRANS_VA', 'VA']) ? 'selected' : '' }}>🏦 Virtual Account (BCA, Mandiri, BNI, BRI)</option>
+                                    <option value="MIDTRANS_EWALLET" {{ in_array(request('metode'), ['MIDTRANS_EWALLET', 'EWALLET']) ? 'selected' : '' }}>👛 E-Wallet (GoPay, ShopeePay)</option>
+                                    <option value="MIDTRANS" {{ request('metode') === 'MIDTRANS' ? 'selected' : '' }}>🌐 Semua Pembayaran Midtrans</option>
+                                </optgroup>
+                                <optgroup label="Metode Lainnya">
+                                    <option value="TRANSFER_MANUAL" {{ request('metode') === 'TRANSFER_MANUAL' ? 'selected' : '' }}>🏛️ Transfer Manual ke Rekening Kampus</option>
+                                    <option value="OFFLINE" {{ in_array(request('metode'), ['OFFLINE', 'TUNAI', 'KASIR']) ? 'selected' : '' }}>💵 Kasir PMB / Tunai di Kampus</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
@@ -392,37 +400,13 @@
                                         $rj = in_array($sRaw, ['rejected', 'failed', 'batal', 'expire', 'deny', 'cancel']);
                                         $pd = !$v && !$rj;
 
-                                        $rawMetode = strtoupper($tx->metode_pembayaran ?? '');
-                                        $paymentType = strtolower($tx->payment_type ?? '');
-
-                                        $metodeLabel = match(true) {
-                                            str_contains($paymentType, 'echannel') || str_contains($paymentType, 'mandiri') => 'Mandiri VA',
-                                            str_contains($paymentType, 'bca') => 'BCA VA',
-                                            str_contains($paymentType, 'bni') => 'BNI VA',
-                                            str_contains($paymentType, 'bri') => 'BRI VA',
-                                            str_contains($paymentType, 'permata') => 'Permata VA',
-                                            str_contains($paymentType, 'cimb') => 'CIMB VA',
-                                            str_contains($paymentType, 'danamon') => 'Danamon VA',
-                                            str_contains($paymentType, 'qris') => 'QRIS',
-                                            str_contains($paymentType, 'gopay') => 'GoPay',
-                                            str_contains($paymentType, 'shopee') => 'ShopeePay',
-                                            str_contains($paymentType, 'credit_card') => 'Kartu Kredit',
-                                            str_contains($paymentType, 'bank_transfer') || str_contains($paymentType, 'va') => 'Virtual Account',
-                                            $rawMetode === 'MIDTRANS' => 'Virtual Account',
-                                            $rawMetode === 'BANK_TRANSFER' => 'Transfer Bank',
-                                            $rawMetode === 'TRANSFER_MANUAL' || str_contains($rawMetode, 'MANUAL') => 'Transfer Manual',
-                                            $rawMetode === 'OFFLINE' => 'Tunai / Kasir',
-                                            !empty($tx->metode_pembayaran) => ucwords(str_replace('_', ' ', strtolower($tx->metode_pembayaran))),
-                                            default => 'Transfer Bank',
-                                        };
-
                                         return [
                                             'id'               => $tx->id,
                                             'order_id'         => $tx->order_id ?: ('TRX-' . $tx->id),
                                             'nominal'          => number_format($tx->nominal, 0, ',', '.'),
                                             'nominal_raw'      => (float) $tx->nominal,
                                             'detail'           => $tx->detail_pembayaran ?: ($tx->jenis ?? 'Biaya PMB'),
-                                            'metode'           => $metodeLabel,
+                                            'metode'           => $tx->metode_detail,
                                             'metode_raw'       => $tx->metode_pembayaran,
                                             'status'           => $v ? 'Berhasil' : ($rj ? 'Gagal' : 'Pending'),
                                             'status_raw'       => $sRaw,
@@ -550,101 +534,236 @@
                                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                                             
                                             <!-- 1. Perlengkapan (Matching Image 4) -->
-                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition">
-                                                <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                    <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                                    </svg>
-                                                    <span class="text-[11px] font-bold text-slate-600 truncate">Perlengkapan</span>
+                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition flex flex-col justify-between">
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                                                        <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                                        </svg>
+                                                        <span class="text-[11px] font-bold text-slate-600 truncate">Perlengkapan</span>
+                                                    </div>
+                                                    <div class="flex items-baseline justify-between gap-1 mt-1">
+                                                        <span class="text-xs font-extrabold text-slate-900">
+                                                            Rp {{ number_format($r['rincian']['perlengkapan']['terbayar'] ?? 0, 0, ',', '.') }}
+                                                        </span>
+                                                        @if(!empty($r['rincian']['perlengkapan']['is_lunas']))
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                        @else
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
-                                                <div class="flex items-baseline justify-between gap-1 mt-1">
-                                                    <span class="text-xs font-extrabold text-slate-900">
-                                                        Rp {{ number_format($r['rincian']['perlengkapan']['terbayar'] ?? 0, 0, ',', '.') }}
-                                                    </span>
-                                                    @if(!empty($r['rincian']['perlengkapan']['is_lunas']))
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                <!-- Metode Pembayaran Kategori -->
+                                                <div class="mt-2.5 pt-2 border-t border-slate-200/70">
+                                                    <div class="text-[9.5px] font-medium text-slate-400 mb-0.5">Metode Bayar:</div>
+                                                    @if(!empty($r['rincian']['perlengkapan']['metode_badge']))
+                                                        @php $mb = $r['rincian']['perlengkapan']['metode_badge']; @endphp
+                                                        <span class="inline-flex items-center gap-1 font-bold {{ $mb['badge_class'] }} px-1.5 py-0.5 rounded text-[9.5px] shadow-2xs" title="{{ $r['rincian']['perlengkapan']['metode'] }}">
+                                                            @if($mb['icon'] === 'qris')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                                                            @elseif($mb['icon'] === 'va')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                            @elseif($mb['icon'] === 'ewallet')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @elseif($mb['icon'] === 'manual')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                                                            @elseif($mb['icon'] === 'cash')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @endif
+                                                            <span class="truncate max-w-[75px]">{{ $mb['name'] }}</span>
+                                                        </span>
+                                                    @elseif(!empty($r['rincian']['perlengkapan']['is_lunas']) && ($r['rincian']['perlengkapan']['kewajiban'] == 0))
+                                                        <span class="text-[9.5px] font-semibold text-slate-400">Bebas Biaya</span>
                                                     @else
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        <span class="text-[9.5px] italic text-slate-400">Belum Ada</span>
                                                     @endif
                                                 </div>
                                             </div>
 
                                             <!-- 2. Pendaftaran (Matching Image 4) -->
-                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition">
-                                                <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                    <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                    <span class="text-[11px] font-bold text-slate-600 truncate">Pendaftaran</span>
+                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition flex flex-col justify-between">
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                                                        <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                        <span class="text-[11px] font-bold text-slate-600 truncate">Pendaftaran</span>
+                                                    </div>
+                                                    <div class="flex items-baseline justify-between gap-1 mt-1">
+                                                        <span class="text-xs font-extrabold text-slate-900">
+                                                            Rp {{ number_format($r['rincian']['pendaftaran']['terbayar'] ?? 0, 0, ',', '.') }}
+                                                        </span>
+                                                        @if(!empty($r['rincian']['pendaftaran']['is_lunas']))
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                        @else
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
-                                                <div class="flex items-baseline justify-between gap-1 mt-1">
-                                                    <span class="text-xs font-extrabold text-slate-900">
-                                                        Rp {{ number_format($r['rincian']['pendaftaran']['terbayar'] ?? 0, 0, ',', '.') }}
-                                                    </span>
-                                                    @if(!empty($r['rincian']['pendaftaran']['is_lunas']))
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                <!-- Metode Pembayaran Kategori -->
+                                                <div class="mt-2.5 pt-2 border-t border-slate-200/70">
+                                                    <div class="text-[9.5px] font-medium text-slate-400 mb-0.5">Metode Bayar:</div>
+                                                    @if(!empty($r['rincian']['pendaftaran']['metode_badge']))
+                                                        @php $mb = $r['rincian']['pendaftaran']['metode_badge']; @endphp
+                                                        <span class="inline-flex items-center gap-1 font-bold {{ $mb['badge_class'] }} px-1.5 py-0.5 rounded text-[9.5px] shadow-2xs" title="{{ $r['rincian']['pendaftaran']['metode'] }}">
+                                                            @if($mb['icon'] === 'qris')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                                                            @elseif($mb['icon'] === 'va')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                            @elseif($mb['icon'] === 'ewallet')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @elseif($mb['icon'] === 'manual')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                                                            @elseif($mb['icon'] === 'cash')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @endif
+                                                            <span class="truncate max-w-[75px]">{{ $mb['name'] }}</span>
+                                                        </span>
+                                                    @elseif(!empty($r['rincian']['pendaftaran']['is_lunas']) && ($r['rincian']['pendaftaran']['kewajiban'] == 0))
+                                                        <span class="text-[9.5px] font-semibold text-slate-400">Bebas Biaya</span>
                                                     @else
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        <span class="text-[9.5px] italic text-slate-400">Belum Ada</span>
                                                     @endif
                                                 </div>
                                             </div>
 
                                             <!-- 3. DPP (Matching Image 4) -->
-                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition">
-                                                <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                    <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                                                    </svg>
-                                                    <span class="text-[11px] font-bold text-slate-600 truncate">DPP</span>
+                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition flex flex-col justify-between">
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                                                        <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                                        </svg>
+                                                        <span class="text-[11px] font-bold text-slate-600 truncate">DPP</span>
+                                                    </div>
+                                                    <div class="flex items-baseline justify-between gap-1 mt-1">
+                                                        <span class="text-xs font-extrabold text-slate-900">
+                                                            Rp {{ number_format($r['rincian']['dpp']['terbayar'] ?? 0, 0, ',', '.') }}
+                                                        </span>
+                                                        @if(!empty($r['rincian']['dpp']['is_lunas']))
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                        @else
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
-                                                <div class="flex items-baseline justify-between gap-1 mt-1">
-                                                    <span class="text-xs font-extrabold text-slate-900">
-                                                        Rp {{ number_format($r['rincian']['dpp']['terbayar'] ?? 0, 0, ',', '.') }}
-                                                    </span>
-                                                    @if(!empty($r['rincian']['dpp']['is_lunas']))
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                <!-- Metode Pembayaran Kategori -->
+                                                <div class="mt-2.5 pt-2 border-t border-slate-200/70">
+                                                    <div class="text-[9.5px] font-medium text-slate-400 mb-0.5">Metode Bayar:</div>
+                                                    @if(!empty($r['rincian']['dpp']['metode_badge']))
+                                                        @php $mb = $r['rincian']['dpp']['metode_badge']; @endphp
+                                                        <span class="inline-flex items-center gap-1 font-bold {{ $mb['badge_class'] }} px-1.5 py-0.5 rounded text-[9.5px] shadow-2xs" title="{{ $r['rincian']['dpp']['metode'] }}">
+                                                            @if($mb['icon'] === 'qris')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                                                            @elseif($mb['icon'] === 'va')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                            @elseif($mb['icon'] === 'ewallet')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @elseif($mb['icon'] === 'manual')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                                                            @elseif($mb['icon'] === 'cash')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @endif
+                                                            <span class="truncate max-w-[75px]">{{ $mb['name'] }}</span>
+                                                        </span>
+                                                    @elseif(!empty($r['rincian']['dpp']['is_lunas']) && ($r['rincian']['dpp']['kewajiban'] == 0))
+                                                        <span class="text-[9.5px] font-semibold text-slate-400">Bebas Biaya</span>
                                                     @else
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        <span class="text-[9.5px] italic text-slate-400">Belum Ada</span>
                                                     @endif
                                                 </div>
                                             </div>
 
                                             <!-- 4. Down Payment (Matching Image 4) -->
-                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition">
-                                                <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                    <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                                    </svg>
-                                                    <span class="text-[11px] font-bold text-slate-600 truncate">Down Payment</span>
+                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition flex flex-col justify-between">
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                                                        <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                                        </svg>
+                                                        <span class="text-[11px] font-bold text-slate-600 truncate">Down Payment</span>
+                                                    </div>
+                                                    <div class="flex items-baseline justify-between gap-1 mt-1">
+                                                        <span class="text-xs font-extrabold text-slate-900">
+                                                            Rp {{ number_format($r['rincian']['dp']['terbayar'] ?? 0, 0, ',', '.') }}
+                                                        </span>
+                                                        @if(!empty($r['rincian']['dp']['is_lunas']))
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                        @else
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
-                                                <div class="flex items-baseline justify-between gap-1 mt-1">
-                                                    <span class="text-xs font-extrabold text-slate-900">
-                                                        Rp {{ number_format($r['rincian']['dp']['terbayar'] ?? 0, 0, ',', '.') }}
-                                                    </span>
-                                                    @if(!empty($r['rincian']['dp']['is_lunas']))
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                <!-- Metode Pembayaran Kategori -->
+                                                <div class="mt-2.5 pt-2 border-t border-slate-200/70">
+                                                    <div class="text-[9.5px] font-medium text-slate-400 mb-0.5">Metode Bayar:</div>
+                                                    @if(!empty($r['rincian']['dp']['metode_badge']))
+                                                        @php $mb = $r['rincian']['dp']['metode_badge']; @endphp
+                                                        <span class="inline-flex items-center gap-1 font-bold {{ $mb['badge_class'] }} px-1.5 py-0.5 rounded text-[9.5px] shadow-2xs" title="{{ $r['rincian']['dp']['metode'] }}">
+                                                            @if($mb['icon'] === 'qris')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                                                            @elseif($mb['icon'] === 'va')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                            @elseif($mb['icon'] === 'ewallet')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @elseif($mb['icon'] === 'manual')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                                                            @elseif($mb['icon'] === 'cash')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @endif
+                                                            <span class="truncate max-w-[75px]">{{ $mb['name'] }}</span>
+                                                        </span>
+                                                    @elseif(!empty($r['rincian']['dp']['is_lunas']) && ($r['rincian']['dp']['kewajiban'] == 0))
+                                                        <span class="text-[9.5px] font-semibold text-slate-400">Bebas Biaya</span>
                                                     @else
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        <span class="text-[9.5px] italic text-slate-400">Belum Ada</span>
                                                     @endif
                                                 </div>
                                             </div>
 
                                             <!-- 5. Pelunasan (Matching Image 4) -->
-                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition">
-                                                <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                    <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    <span class="text-[11px] font-bold text-slate-600 truncate">Pelunasan</span>
+                                            <div class="p-3 rounded-xl bg-slate-50/90 border border-slate-100 hover:border-slate-200 transition flex flex-col justify-between">
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                                                        <svg class="w-3.5 h-3.5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span class="text-[11px] font-bold text-slate-600 truncate">Pelunasan</span>
+                                                    </div>
+                                                    <div class="flex items-baseline justify-between gap-1 mt-1">
+                                                        <span class="text-xs font-extrabold text-slate-900">
+                                                            Rp {{ number_format($r['rincian']['pelunasan']['terbayar'] ?? 0, 0, ',', '.') }}
+                                                        </span>
+                                                        @if(!empty($r['rincian']['pelunasan']['is_lunas']))
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                        @else
+                                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        @endif
+                                                    </div>
                                                 </div>
-                                                <div class="flex items-baseline justify-between gap-1 mt-1">
-                                                    <span class="text-xs font-extrabold text-slate-900">
-                                                        Rp {{ number_format($r['rincian']['pelunasan']['terbayar'] ?? 0, 0, ',', '.') }}
-                                                    </span>
-                                                    @if(!empty($r['rincian']['pelunasan']['is_lunas']))
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lunas</span>
+                                                <!-- Metode Pembayaran Kategori -->
+                                                <div class="mt-2.5 pt-2 border-t border-slate-200/70">
+                                                    <div class="text-[9.5px] font-medium text-slate-400 mb-0.5">Metode Bayar:</div>
+                                                    @if(!empty($r['rincian']['pelunasan']['metode_badge']))
+                                                        @php $mb = $r['rincian']['pelunasan']['metode_badge']; @endphp
+                                                        <span class="inline-flex items-center gap-1 font-bold {{ $mb['badge_class'] }} px-1.5 py-0.5 rounded text-[9.5px] shadow-2xs" title="{{ $r['rincian']['pelunasan']['metode'] }}">
+                                                            @if($mb['icon'] === 'qris')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                                                            @elseif($mb['icon'] === 'va')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                            @elseif($mb['icon'] === 'ewallet')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @elseif($mb['icon'] === 'manual')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                                                            @elseif($mb['icon'] === 'cash')
+                                                                <svg class="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                            @endif
+                                                            <span class="truncate max-w-[75px]">{{ $mb['name'] }}</span>
+                                                        </span>
+                                                    @elseif(!empty($r['rincian']['pelunasan']['is_lunas']) && ($r['rincian']['pelunasan']['kewajiban'] == 0))
+                                                        <span class="text-[9.5px] font-semibold text-slate-400">Bebas Biaya</span>
                                                     @else
-                                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum</span>
+                                                        <span class="text-[9.5px] italic text-slate-400">Belum Ada</span>
                                                     @endif
                                                 </div>
                                             </div>
@@ -883,6 +1002,10 @@
                                             <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
                                             <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.pendaftaran?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.sisa || 0).toLocaleString('id-ID')"></strong></span>
                                         </div>
+                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Metode Bayar:</span>
+                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.pendaftaran?.metode || (selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas && selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                        </div>
                                     </div>
 
                                     <!-- 2. Perlengkapan Kuliah -->
@@ -918,6 +1041,10 @@
                                         <div class="pt-2.5 mt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
                                             <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
                                             <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.perlengkapan?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.sisa || 0).toLocaleString('id-ID')"></strong></span>
+                                        </div>
+                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Metode Bayar:</span>
+                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.perlengkapan?.metode || (selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas && selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
                                         </div>
                                     </div>
 
@@ -955,6 +1082,10 @@
                                             <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
                                             <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.dpp?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.sisa || 0).toLocaleString('id-ID')"></strong></span>
                                         </div>
+                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Metode Bayar:</span>
+                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.dpp?.metode || (selectedCamaba.rekap?.rincian?.dpp?.is_lunas && selectedCamaba.rekap?.rincian?.dpp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                        </div>
                                     </div>
 
                                     <!-- 4. Uang Gedung -->
@@ -990,6 +1121,10 @@
                                         <div class="pt-2.5 mt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
                                             <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
                                             <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.uang_gedung?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.sisa || 0).toLocaleString('id-ID')"></strong></span>
+                                        </div>
+                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Metode Bayar:</span>
+                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.uang_gedung?.metode || (selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas && selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -1040,6 +1175,10 @@
                                             <span class="text-slate-500">Kewajiban DP: <strong class="text-slate-700 font-semibold">Rp 500.000</strong></span>
                                             <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.dp?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dp?.sisa || 0).toLocaleString('id-ID')"></strong></span>
                                         </div>
+                                        <div class="mt-1 pt-1 border-t border-blue-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Metode Bayar:</span>
+                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.dp?.metode || (selectedCamaba.rekap?.rincian?.dp?.is_lunas && selectedCamaba.rekap?.rincian?.dp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                        </div>
                                     </div>
 
                                     <!-- 5. Pelunasan Biaya Kuliah -->
@@ -1075,6 +1214,10 @@
                                         <div class="pt-3 mt-3 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
                                             <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
                                             <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.pelunasan?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.sisa || 0).toLocaleString('id-ID')"></strong></span>
+                                        </div>
+                                        <div class="mt-1 pt-1 border-t border-indigo-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Metode Bayar:</span>
+                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.pelunasan?.metode || (selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas && selectedCamaba.rekap?.rincian?.pelunasan?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
                                         </div>
                                     </div>
                                 </div>
