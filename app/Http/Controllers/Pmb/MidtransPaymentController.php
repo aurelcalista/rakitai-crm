@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Prospek;
 use App\Models\Transaksi;
 use App\Services\MidtransService;
+use App\Services\VoucherDiscountService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -26,11 +27,12 @@ class MidtransPaymentController extends Controller
     public function checkout(Request $request, $prospekId = null): JsonResponse
     {
         $user = auth()->user();
-        $prospek = $prospekId ? Prospek::find($prospekId) : null;
+        $prospek = $prospekId ? Prospek::with('prodi')->find($prospekId) : null;
 
         // Fallback: Jika ID prospek tidak ditemukan atau out-of-sync, gunakan prospek aktif milik Camaba yang sedang login
         if (!$prospek && $user && strtolower($user->role ?? '') === 'camaba') {
             $prospek = app(\App\Http\Controllers\Pmb\CamabaPortalController::class)->getCamabaProspek();
+            $prospek?->loadMissing('prodi');
         }
 
         if (!$prospek) {
@@ -93,6 +95,9 @@ class MidtransPaymentController extends Controller
             $forceNew = $request->boolean('fresh') || $request->boolean('new_order');
 
             $selectedKeys = [];
+            $uktPeriod = $request->input('ukt_period');
+            $uktPeriod = is_string($uktPeriod) && trim($uktPeriod) !== '' ? trim($uktPeriod) : null;
+
             if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN && $request->has('items')) {
                 $rawItems = $request->input('items');
                 if (!is_array($rawItems) || empty($rawItems)) {
@@ -102,18 +107,40 @@ class MidtransPaymentController extends Controller
                     ], 422);
                 }
 
-                // Saring komponen yang sudah lunas
-                $paidItems = MidtransService::resolvePaidItems($prospek);
-                $unpaidItems = array_values(array_filter($rawItems, fn($k) => empty($paidItems[$k])));
-                if (empty($unpaidItems)) {
+                $activeUktOptions = MidtransService::getActiveUktCatalogOptions($prospek);
+                if ($uktPeriod !== null && in_array('ukt', $rawItems, true) && !isset($activeUktOptions[$uktPeriod])) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Seluruh komponen biaya yang dipilih sudah lunas terverifikasi.',
+                        'message' => 'Pilihan periode UKT tidak aktif atau tidak tersedia untuk program studi ini.',
                     ], 422);
                 }
 
-                $calculated = MidtransService::calculateItems($unpaidItems);
-                if ($calculated['total'] <= 0 || empty($calculated['item_keys'])) {
+                // Saring komponen yang sudah lunas atau bernilai Rp 0 (Gratis)
+                if ($request->filled('voucher_code') && in_array('dpp', $rawItems, true)) {
+                    $existingSummary = VoucherDiscountService::getDppSummary($prospek);
+                    $reqCode = strtoupper(trim((string) $request->input('voucher_code')));
+                    if (!$existingSummary['active_usage'] || $existingSummary['active_usage']->voucher_code !== $reqCode) {
+                        VoucherDiscountService::applyVoucher($prospek, $reqCode);
+                        $prospek->load(['prodi', 'transaksis']);
+                    }
+                }
+
+                $catalog = MidtransService::getBiayaCatalog($prospek, $uktPeriod);
+                $paidItems = MidtransService::resolvePaidItems($prospek);
+                $unpaidItems = array_values(array_filter(
+                    $rawItems,
+                    fn($k) => empty($paidItems[$k]) && ((int) ($catalog[$k]['price'] ?? 0) > 0 || ($k === 'dpp' && !empty($catalog[$k]['discount_amount'])))
+                ));
+                if (empty($unpaidItems)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Seluruh komponen biaya yang dipilih sudah lunas terverifikasi atau bernilai Rp 0 (Gratis).',
+                    ], 422);
+                }
+
+                $calculated = MidtransService::calculateItems($unpaidItems, $prospek, $uktPeriod);
+                $isZeroVoucherDpp = ($calculated['total'] === 0 && in_array('dpp', $calculated['item_keys'], true) && !empty($catalog['dpp']['discount_amount']));
+                if (($calculated['total'] <= 0 && !$isZeroVoucherDpp) || empty($calculated['item_keys'])) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',
@@ -133,7 +160,8 @@ class MidtransPaymentController extends Controller
                 $user,
                 $forceNew,
                 $selectedKeys,
-                $dbPaymentMethod
+                $dbPaymentMethod,
+                $uktPeriod
             );
 
             $txPaymentType = strtolower($transaksi->payment_type ?? '');
@@ -165,6 +193,22 @@ class MidtransPaymentController extends Controller
                 'payment_status'    => 'pending',
                 'snap_token'        => $transaksi->snap_token ?? '',
             ];
+
+            if ($transaksi->payment_status === Transaksi::STATUS_VERIFIED && (int) $transaksi->nominal === 0) {
+                $transaksiItem['payment_status'] = Transaksi::STATUS_VERIFIED;
+                return response()->json([
+                    'success'           => true,
+                    'voucher_settled'   => true,
+                    'order_id'          => $transaksi->order_id,
+                    'kategori'          => $transaksi->kategori,
+                    'metode_pembayaran' => $transaksi->metode_pembayaran,
+                    'payment_status'    => Transaksi::STATUS_VERIFIED,
+                    'nominal'           => 0,
+                    'nominal_formatted' => 'Rp 0',
+                    'detail'            => $transaksi->detail_pembayaran,
+                    'transaksi_item'    => $transaksiItem,
+                ]);
+            }
 
             if ($isManual) {
                 return response()->json([

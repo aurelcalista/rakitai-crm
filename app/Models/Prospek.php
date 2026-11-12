@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Prospek extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const SOURCE_PRESENSI_SISWA = 'Presensi Siswa';
 
@@ -22,12 +23,14 @@ class Prospek extends Model
         'follow_up_count', 'active_follow_up_count',
         'handover_at', 'academic_year_id', 'tahun_akademik', 'kelas',
         'status_takeover', 'takeover_by_id', 'takeover_at',
+        'deleted_by',
     ];
 
     protected $casts = [
         'handover_at' => 'datetime',
         'takeover_at' => 'datetime',
         'tanggal_ujian' => 'datetime',
+        'deleted_at' => 'datetime',
         'berkas_data' => 'array',
         'form_data' => 'array',
         'nilai_ujian' => 'float',
@@ -74,9 +77,10 @@ class Prospek extends Model
                 }
             }
 
-            // Presensi Siswa murni dimiliki Sistem awal dan TIDAK boleh otomatis menugaskan Sales sekolah
-            if ($prospek->source !== self::SOURCE_PRESENSI_SISWA && $prospek->source !== 'Presensi Siswa') {
-                if (empty($prospek->sales_id)) {
+            // Presensi Siswa dan PMB Online / Form Pendaftaran Online tidak boleh otomatis menugaskan Sales sekolah
+            $isOnlinePmb = ($prospek->category === 'PMB Online') || ($prospek->source === 'Website PMB') || !empty($prospek->user_id);
+            if ($prospek->source !== self::SOURCE_PRESENSI_SISWA && $prospek->source !== 'Presensi Siswa' && !$isOnlinePmb) {
+                if (empty($prospek->sales_id) && empty($prospek->cs_id)) {
                     if ($prospek->sekolah_id) {
                         $sekolah = Sekolah::find($prospek->sekolah_id);
                         if ($sekolah && $sekolah->sales_id) {
@@ -91,6 +95,17 @@ class Prospek extends Model
                 }
             }
 
+            // Input Form Pendaftaran Online UCIC / PMB Online otomatis masuk ke role CS jika belum memiliki cs_id
+            if ($isOnlinePmb && empty($prospek->cs_id)) {
+                $cs = self::findAvailableCs($prospek->wilayah_id);
+                if ($cs) {
+                    $prospek->cs_id = $cs->id;
+                    if (empty($prospek->handover_at) && $prospek->isHandoverStage()) {
+                        $prospek->handover_at = now();
+                    }
+                }
+            }
+
             // Logic Reset Follow-up: Jika prospek dipindahtangankan (sales_id / owner_id / cs_id),
             // hitungan sentuhan aktif di-reset ke 0 bagi penangan baru.
             // Riwayat follow-up lama tetap utuh di tabel follow_ups.
@@ -101,26 +116,7 @@ class Prospek extends Model
             // Auto-handover to CS when status enters handover stages
             if ($prospek->isHandoverStage()) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
-                    $cs = null;
-                    if ($prospek->wilayah_id) {
-                        $parentWilayahId = $prospek->wilayah?->parent_id ?: $prospek->wilayah_id;
-                        $cs = \App\Models\User::where('role', 'CS')
-                            ->where('status', 'Aktif')
-                            ->where(function ($q) use ($prospek, $parentWilayahId) {
-                                $q->where('wilayah_id', $prospek->wilayah_id)
-                                  ->orWhere('wilayah_id', $parentWilayahId)
-                                  ->orWhereHas('activeWilayahes', function ($wq) use ($prospek, $parentWilayahId) {
-                                      $wq->whereIn('wilayah_id', array_filter([$prospek->wilayah_id, $parentWilayahId]));
-                                  });
-                            })
-                            ->first();
-                    }
-                    if (!$cs) {
-                        $cs = \App\Models\User::where('role', 'CS')
-                            ->where('status', 'Aktif')
-                            ->first();
-                    }
-                    
+                    $cs = self::findAvailableCs($prospek->wilayah_id);
                     if ($cs) {
                         $prospek->cs_id = $cs->id;
                         $prospek->active_follow_up_count = 0; // Reset follow-up for CS
@@ -662,6 +658,45 @@ class Prospek extends Model
     }
 
     /**
+     * Find available active CS user, prioritized by Wilayah or balanced workload.
+     */
+    public static function findAvailableCs(?int $wilayahId = null): ?User
+    {
+        $cs = null;
+        if ($wilayahId) {
+            $wilayah = Wilayah::find($wilayahId);
+            $parentWilayahId = $wilayah?->parent_id ?: $wilayahId;
+            $cs = User::where('role', 'CS')
+                ->where('status', 'Aktif')
+                ->where(function ($q) use ($wilayahId, $parentWilayahId) {
+                    $q->where('wilayah_id', $wilayahId)
+                      ->orWhere('wilayah_id', $parentWilayahId)
+                      ->orWhereHas('activeWilayahes', function ($wq) use ($wilayahId, $parentWilayahId) {
+                          $wq->whereIn('wilayah_id', array_filter([$wilayahId, $parentWilayahId]));
+                      });
+                })
+                ->first();
+        }
+
+        if (!$cs) {
+            $cs = User::where('role', 'CS')
+                ->where('status', 'Aktif')
+                ->withCount(['csProspeks' => function ($q) {
+                    $q->whereNotIn('status', ['LUNAS', 'DINGIN', 'CANCEL']);
+                }])
+                ->orderBy('cs_prospeks_count', 'asc')
+                ->orderBy('id', 'asc')
+                ->first();
+        }
+
+        if (!$cs) {
+            $cs = User::where('role', 'CS')->where('status', 'Aktif')->first();
+        }
+
+        return $cs;
+    }
+
+    /**
      * Check if the prospect originated from the student visit attendance form.
      */
     public function isPresensiSiswa(): bool
@@ -780,6 +815,23 @@ class Prospek extends Model
     public function transaksis()
     {
         return $this->hasMany(Transaksi::class);
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function voucherUsages()
+    {
+        return $this->hasMany(VoucherUsage::class)->orderByDesc('id');
+    }
+
+    public function activeDppVoucherUsage()
+    {
+        return $this->hasOne(VoucherUsage::class)
+            ->whereIn('status', [VoucherUsage::STATUS_USED, VoucherUsage::STATUS_APPLIED])
+            ->latestOfMany();
     }
 
     /**

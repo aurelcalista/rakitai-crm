@@ -372,7 +372,7 @@
                                 <span>Jurusan Pilihan Anda Saat Ini</span>
                             </div>
                         @else
-                            <a href="{{ route('pmb.akun.profil') }}"
+                            <a href="{{ route('pmb.akun.profil', ['prodi_id' => $prodi->id]) }}"
                                class="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-blue-50 text-[#0b3d82] hover:bg-[#0b3d82] hover:text-white border border-blue-200 hover:border-[#0b3d82] transition flex items-center justify-center gap-1.5">
                                 <span>Pilih di Form Pendaftaran</span>
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

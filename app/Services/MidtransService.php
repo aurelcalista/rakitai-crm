@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Prodi;
 use App\Models\Prospek;
 use App\Models\ProspekTimeline;
 use App\Models\TahunAkademik;
@@ -48,16 +49,88 @@ class MidtransService
     ];
 
     /**
+     * Dapatkan opsi periode UKT yang aktif dan memiliki nominal > 0 untuk prospek/prodi ini.
+     *
+     * @return array<string, array{key: string, label: string, nominal: int}>
+     */
+    public static function getActiveUktCatalogOptions(?Prospek $prospek = null): array
+    {
+        $prodi = $prospek?->prodi;
+        if (!$prodi) {
+            return [];
+        }
+
+        $active = [];
+        foreach ($prodi->getActiveUktOptions() as $key => $opt) {
+            $nom = (int) ($opt['nominal'] ?? 0);
+            if ($nom > 0) {
+                $active[$key] = [
+                    'key'     => (string) $key,
+                    'label'   => (string) ($opt['label'] ?? (Prodi::UKT_PERIODS[$key] ?? $key)),
+                    'nominal' => $nom,
+                ];
+            }
+        }
+
+        if (empty($active)) {
+            $fallbackUkt = 0;
+            if (!empty($prodi->ukt)) {
+                $fallbackUkt = (int) preg_replace('/[^0-9]/', '', (string) $prodi->ukt);
+            } elseif (!empty($prodi->spp)) {
+                $fallbackUkt = (int) preg_replace('/[^0-9]/', '', (string) $prodi->spp);
+            }
+            if ($fallbackUkt > 0) {
+                $active['6_bulan'] = [
+                    'key'     => '6_bulan',
+                    'label'   => Prodi::UKT_PERIODS['6_bulan'] ?? 'Per 6 Bulan (Semester)',
+                    'nominal' => $fallbackUkt,
+                ];
+            }
+        }
+
+        return $active;
+    }
+
+    /**
+     * Ekstrak key periode UKT dari string detail_pembayaran jika tercatat di transaksi.
+     */
+    public static function extractUktPeriodFromDetail(?Prospek $prospek, string $detail): ?string
+    {
+        if (empty($detail) || (!str_contains($detail, 'UKT') && !str_contains($detail, 'Kuliah Tunggal'))) {
+            return null;
+        }
+
+        $options = self::getActiveUktCatalogOptions($prospek);
+        foreach ($options as $key => $opt) {
+            if (!empty($opt['label']) && str_contains($detail, $opt['label'])) {
+                return (string) $key;
+            }
+        }
+
+        if ($prospek?->prodi) {
+            foreach ((array) ($prospek->prodi->ukt_options ?? []) as $key => $opt) {
+                $label = $opt['label'] ?? (Prodi::UKT_PERIODS[$key] ?? '');
+                if (!empty($label) && str_contains($detail, $label)) {
+                    return (string) $key;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Dapatkan katalog biaya resmi PMB UCIC, disesuaikan dengan ketentuan Program Studi calon mahasiswa.
-     * Komponen biaya:
+     * Komponen biaya berurutan:
      * 1. Biaya pendaftaran (bisa Rp 0, 1x bayar)
      * 2. Biaya perlengkapan (bisa Rp 0, 1x bayar)
      * 3. DPP (bisa Rp 0, 1x bayar)
      * 4. Uang gedung (bisa Rp 0, 1x bayar)
+     * 5. UKT (mengikuti opsi periode aktif dari Program Studi)
      *
-     * @return array<string, array{id: string, name: string, price: int}>
+     * @return array<string, array{id: string, name: string, price: int, period?: string}>
      */
-    public static function getBiayaCatalog(?Prospek $prospek = null): array
+    public static function getBiayaCatalog(?Prospek $prospek = null, ?string $uktPeriod = null): array
     {
         $prodi = $prospek?->prodi;
 
@@ -65,6 +138,7 @@ class MidtransService
         $perlengkapanPrice = $prodi && isset($prodi->biaya_perlengkapan) ? (int) $prodi->biaya_perlengkapan : 600000;
         $dppPrice          = $prodi && isset($prodi->biaya_dpp)          ? (int) $prodi->biaya_dpp          : 500000;
         $uangGedungPrice   = $prodi && isset($prodi->biaya_uang_gedung)  ? (int) $prodi->biaya_uang_gedung  : 0;
+        $dppSummary        = $prospek ? VoucherDiscountService::getDppSummary($prospek) : null;
 
         $catalog = [
             'pendaftaran' => [
@@ -78,9 +152,15 @@ class MidtransService
                 'price' => $perlengkapanPrice,
             ],
             'dpp' => [
-                'id'    => 'PMB-DPP',
-                'name'  => 'Biaya Dana Pengembangan Pendidikan (DPP)',
-                'price' => $dppPrice,
+                'id'                        => 'PMB-DPP',
+                'name'                      => 'Biaya Dana Pengembangan Pendidikan (DPP)',
+                'price'                     => $dppSummary ? (int) $dppSummary['remaining_payable'] : $dppPrice,
+                'base_price'                => $dppPrice,
+                'paid_partial'              => $dppSummary ? (int) $dppSummary['paid_partial'] : 0,
+                'remaining_before_discount' => $dppSummary ? (int) $dppSummary['remaining_before_discount'] : $dppPrice,
+                'discount_amount'           => $dppSummary ? (int) $dppSummary['discount_amount'] : 0,
+                'voucher_code'              => $dppSummary['active_usage']?->voucher_code ?? null,
+                'discount_percentage'       => $dppSummary['active_usage']?->discount_percentage ?? null,
             ],
         ];
 
@@ -89,6 +169,36 @@ class MidtransService
                 'id'    => 'PMB-GEDUNG',
                 'name'  => 'Biaya Uang Gedung',
                 'price' => $uangGedungPrice,
+            ];
+        }
+
+        $activeUkt = self::getActiveUktCatalogOptions($prospek);
+        if (!empty($activeUkt)) {
+            $chosenUktKey = null;
+            if ($uktPeriod && isset($activeUkt[$uktPeriod])) {
+                $chosenUktKey = $uktPeriod;
+            } else {
+                $formPeriod = is_array($prospek?->form_data) ? ($prospek->form_data['ukt_period'] ?? null) : null;
+                if ($formPeriod && isset($activeUkt[$formPeriod])) {
+                    $chosenUktKey = $formPeriod;
+                } elseif (isset($activeUkt['6_bulan'])) {
+                    $chosenUktKey = '6_bulan';
+                } else {
+                    $chosenUktKey = (string) array_key_first($activeUkt);
+                }
+            }
+            $opt = $activeUkt[$chosenUktKey];
+            $catalog['ukt'] = [
+                'id'     => 'PMB-UKT-' . strtoupper(str_replace('_', '-', $opt['key'])),
+                'name'   => 'Biaya UKT (' . $opt['label'] . ')',
+                'price'  => (int) $opt['nominal'],
+                'period' => $opt['key'],
+            ];
+        } elseif ($prodi) {
+            $catalog['ukt'] = [
+                'id'    => 'PMB-UKT',
+                'name'  => 'Biaya UKT',
+                'price' => 0,
             ];
         }
 
@@ -102,9 +212,9 @@ class MidtransService
      * @param array<string|int, mixed> $selectedItems
      * @return array{total: int, items: array<int, array{id: string, name: string, price: int, quantity: int}>, item_keys: array<string>, summary: string}
      */
-    public static function calculateItems(array $selectedItems, ?Prospek $prospek = null): array
+    public static function calculateItems(array $selectedItems, ?Prospek $prospek = null, ?string $uktPeriod = null): array
     {
-        $catalog = self::getBiayaCatalog($prospek);
+        $catalog = self::getBiayaCatalog($prospek, $uktPeriod);
         $validKeys = [];
 
         foreach ($selectedItems as $key => $val) {
@@ -126,13 +236,19 @@ class MidtransService
             $price = (int) $itemDef['price'];
             $total += $price;
 
+            $itemName = $itemDef['name'];
+            if ($key === 'dpp' && !empty($itemDef['discount_amount']) && !empty($itemDef['voucher_code'])) {
+                $pctStr = \App\Models\Voucher::formatPercentage((float) ($itemDef['discount_percentage'] ?? 0));
+                $itemName .= " [Voucher {$itemDef['voucher_code']} -{$pctStr}%]";
+            }
+
             $items[] = [
                 'id'       => $itemDef['id'],
-                'name'     => $itemDef['name'],
+                'name'     => $itemName,
                 'price'    => $price,
                 'quantity' => 1,
             ];
-            $descriptions[] = '• ' . $itemDef['name'] . ' (Rp ' . number_format($price, 0, ',', '.') . ')';
+            $descriptions[] = '• ' . $itemName . ' (Rp ' . number_format($price, 0, ',', '.') . ')';
         }
 
         return [
@@ -140,6 +256,76 @@ class MidtransService
             'items'        => $items,
             'item_keys'    => $validKeys,
             'summary'      => implode("\n", $descriptions),
+        ];
+    }
+
+    /**
+     * Hitung status keterbukaan berurutan (sequential gate) tiap komponen biaya PMB:
+     * 1 & 2. Biaya Pendaftaran & Biaya Perlengkapan (bisa dibayar 1 dulu atau bersamaan)
+     * 3. DPP (terbuka setelah Biaya Pendaftaran & Biaya Perlengkapan lunas atau Rp 0)
+     * 4. Uang Gedung (terbuka setelah DPP lunas atau Rp 0)
+     * 5. UKT (terbuka setelah Uang Gedung lunas, atau langsung setelah DPP jika Uang Gedung Rp 0)
+     *
+     * @return array{
+     *     catalog: array<string, mixed>,
+     *     paid: array<string, bool>,
+     *     unlocked: array<string, bool>,
+     *     lock_reasons: array<string, ?string>
+     * }
+     */
+    public static function getSequentialGateState(?Prospek $prospek = null, ?string $uktPeriod = null): array
+    {
+        $catalog = self::getBiayaCatalog($prospek, $uktPeriod);
+        $paid = self::resolvePaidItems($prospek);
+
+        $pricePendaftaran  = (int) ($catalog['pendaftaran']['price'] ?? 0);
+        $pricePerlengkapan = (int) ($catalog['perlengkapan']['price'] ?? 0);
+        $priceDpp          = (int) ($catalog['dpp']['base_price'] ?? $catalog['dpp']['price'] ?? 0);
+        $priceUangGedung   = (int) ($catalog['uang_gedung']['price'] ?? 0);
+
+        $donePendaftaran  = !empty($paid['pendaftaran']) || $pricePendaftaran <= 0;
+        $donePerlengkapan = !empty($paid['perlengkapan']) || $pricePerlengkapan <= 0;
+        $doneStage1       = $donePendaftaran && $donePerlengkapan;
+        $doneDpp          = $doneStage1 && (!empty($paid['dpp']) || $priceDpp <= 0);
+        $doneUangGedung   = $doneDpp && (!empty($paid['uang_gedung']) || $priceUangGedung <= 0);
+
+        $unlocked = [
+            'pendaftaran'  => true,
+            'perlengkapan' => true,
+            'dpp'          => $doneStage1,
+            'uang_gedung'  => $doneDpp,
+            'ukt'          => $doneUangGedung,
+        ];
+
+        $stage1Missing = [];
+        if (!$donePendaftaran) {
+            $stage1Missing[] = 'Biaya Pendaftaran';
+        }
+        if (!$donePerlengkapan) {
+            $stage1Missing[] = 'Biaya Perlengkapan';
+        }
+
+        $lockReasons = [
+            'pendaftaran'  => null,
+            'perlengkapan' => null,
+            'dpp'          => $doneStage1 ? null : ('Bayar ' . implode(' dan ', $stage1Missing) . ' terlebih dahulu untuk membuka pembayaran DPP.'),
+            'uang_gedung'  => $doneDpp ? null : ($doneStage1
+                ? 'Bayar DPP terlebih dahulu untuk membuka pembayaran Uang Gedung.'
+                : 'Bayar ' . implode(' dan ', $stage1Missing) . ' serta DPP terlebih dahulu untuk membuka pembayaran Uang Gedung.'),
+            'ukt'          => $doneUangGedung ? null : ($priceUangGedung > 0
+                ? ($doneDpp
+                    ? 'Bayar Uang Gedung terlebih dahulu untuk membuka pembayaran UKT.'
+                    : 'Selesaikan pembayaran tahap sebelumnya hingga Uang Gedung terlebih dahulu untuk membuka pembayaran UKT.')
+                : ($doneStage1
+                    ? 'Bayar DPP terlebih dahulu untuk membuka pembayaran UKT.'
+                    : 'Bayar ' . implode(' dan ', $stage1Missing) . ' serta DPP terlebih dahulu untuk membuka pembayaran UKT.')),
+        ];
+
+        return [
+            'catalog'      => $catalog,
+            'paid'         => $paid,
+            'unlocked'     => $unlocked,
+            'lock_reasons' => $lockReasons,
         ];
     }
 
@@ -155,47 +341,72 @@ class MidtransService
 
         $hasPerlengkapan = str_contains($detail, 'Perlengkapan');
         $hasPendaftaran = str_contains($detail, 'Pendaftaran') || str_contains($detail, 'Formulir');
-        $hasDpp = str_contains($detail, 'DPP');
+        $hasDpp = str_contains($detail, 'DPP') || str_contains($detail, 'Pengembangan Pendidikan');
+        $hasUangGedung = str_contains($detail, 'Gedung');
+        $hasUkt = str_contains($detail, 'UKT') || str_contains($detail, 'Kuliah Tunggal');
 
-        if ($hasPerlengkapan || $hasPendaftaran || $hasDpp) {
+        if ($hasPerlengkapan || $hasPendaftaran || $hasDpp || $hasUangGedung || $hasUkt) {
             return [
                 'perlengkapan' => $hasPerlengkapan,
                 'pendaftaran'  => $hasPendaftaran,
                 'dpp'          => $hasDpp,
+                'uang_gedung'  => $hasUangGedung,
+                'ukt'          => $hasUkt,
             ];
         }
 
+        // Cocokkan nominal dengan harga prodi aktual bila tersedia
+        $prospek = $transaksi->relationLoaded('prospek') ? $transaksi->prospek : $transaksi->prospek()->with('prodi')->first();
+        if ($prospek?->prodi && $nominal > 0) {
+            $catalog = self::getBiayaCatalog($prospek);
+            $matched = [
+                'perlengkapan' => false,
+                'pendaftaran'  => false,
+                'dpp'          => false,
+                'uang_gedung'  => false,
+                'ukt'          => false,
+            ];
+            foreach (['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'] as $key) {
+                $catPrice = (int) ($catalog[$key]['price'] ?? -1);
+                $basePrice = (int) ($catalog[$key]['base_price'] ?? -1);
+                if (isset($catalog[$key]) && ($catPrice === $nominal || ($basePrice > 0 && $basePrice === $nominal))) {
+                    $matched[$key] = true;
+                    return $matched;
+                }
+            }
+        }
+
         if ($nominal === 500000) {
-            return ['perlengkapan' => false, 'pendaftaran' => false, 'dpp' => true];
+            return ['perlengkapan' => false, 'pendaftaran' => false, 'dpp' => true, 'uang_gedung' => false, 'ukt' => false];
         }
         if ($nominal === 800000) {
-            return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => true];
+            return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => true, 'uang_gedung' => false, 'ukt' => false];
         }
         if ($nominal === 600000) {
-            return ['perlengkapan' => true, 'pendaftaran' => false, 'dpp' => false];
+            return ['perlengkapan' => true, 'pendaftaran' => false, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false];
         }
         if ($nominal === 900000) {
-            return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => false];
+            return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false];
         }
         if ($nominal === 1100000) {
-            return ['perlengkapan' => true, 'pendaftaran' => false, 'dpp' => true];
+            return ['perlengkapan' => true, 'pendaftaran' => false, 'dpp' => true, 'uang_gedung' => false, 'ukt' => false];
         }
         if ($nominal === 1400000) {
-            return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => true];
+            return ['perlengkapan' => true, 'pendaftaran' => true, 'dpp' => true, 'uang_gedung' => false, 'ukt' => false];
         }
 
         // Default: jika nominal <= 350000 (biaya pendaftaran standar)
         if ($nominal <= 350000 && $nominal > 0) {
-            return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => false];
+            return ['perlengkapan' => false, 'pendaftaran' => true, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false];
         }
 
-        return ['perlengkapan' => false, 'pendaftaran' => false, 'dpp' => false];
+        return ['perlengkapan' => false, 'pendaftaran' => false, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false];
     }
 
     /**
      * Tentukan item-item pendaftaran mana saja yang sudah lunas/terverifikasi untuk prospek ini.
      *
-     * @return array{perlengkapan: bool, pendaftaran: bool, dpp: bool}
+     * @return array{perlengkapan: bool, pendaftaran: bool, dpp: bool, uang_gedung: bool, ukt: bool}
      */
     public static function resolvePaidItems(?Prospek $prospek): array
     {
@@ -203,11 +414,16 @@ class MidtransService
             'perlengkapan' => false,
             'pendaftaran'  => false,
             'dpp'          => false,
+            'uang_gedung'  => false,
+            'ukt'          => false,
         ];
 
         if (!$prospek) {
             return $paid;
         }
+
+        $catalog = self::getBiayaCatalog($prospek);
+        $pendaftaranPrice = (int) ($catalog['pendaftaran']['price'] ?? 300000);
 
         // Cek semua transaksi yang sudah terverifikasi (lunas)
         $verifiedTransaksis = $prospek->transaksis()
@@ -219,21 +435,26 @@ class MidtransService
 
         foreach ($verifiedTransaksis as $vt) {
             $itemsInTrx = self::resolveInitialItems($vt);
-            if (!empty($itemsInTrx['perlengkapan'])) {
-                $paid['perlengkapan'] = true;
-            }
-            if (!empty($itemsInTrx['pendaftaran'])) {
-                $paid['pendaftaran'] = true;
-            }
-            if (!empty($itemsInTrx['dpp'])) {
-                $paid['dpp'] = true;
+            foreach (['perlengkapan', 'pendaftaran', 'uang_gedung', 'ukt'] as $key) {
+                if (!empty($itemsInTrx[$key])) {
+                    $paid[$key] = true;
+                }
             }
 
-            // Fallback untuk transaksi lama pendaftaran/beli formulir
-            $normCat = Transaksi::normalizeCategory($vt->kategori ?: $vt->jenis);
-            if (in_array($vt->jenis, ['Beli Formulir', 'Pendaftaran', 'Biaya Pendaftaran']) && (int) $vt->nominal <= 350000) {
+            if ($vt->jenis === 'UKT' || in_array($vt->kategori, Transaksi::getCategoryAliases(Transaksi::KATEGORI_PELUNASAN), true)) {
+                $paid['ukt'] = true;
+            }
+
+            // Fallback untuk transaksi lama pendaftaran/beli formulir tanpa detail
+            if (empty($vt->detail_pembayaran) && in_array($vt->jenis, ['Beli Formulir', 'Pendaftaran', 'Biaya Pendaftaran']) && (int) $vt->nominal <= max(350000, $pendaftaranPrice)) {
                 $paid['pendaftaran'] = true;
             }
+        }
+
+        // DPP memperhitungkan pembayaran sebagian serta potongan voucher yang aktif/terpakai
+        $dppSummary = VoucherDiscountService::getDppSummary($prospek);
+        if (($dppSummary['base_price'] ?? 0) > 0) {
+            $paid['dpp'] = (bool) $dppSummary['is_paid'];
         }
 
         return $paid;
@@ -247,19 +468,36 @@ class MidtransService
      */
     public function resolveItemDetailsForTransaksi(Transaksi $transaksi): array
     {
-        $catalog = self::getBiayaCatalog();
+        $prospek = $transaksi->relationLoaded('prospek') ? $transaksi->prospek : $transaksi->prospek()->with('prodi')->first();
         $detail = (string) $transaksi->detail_pembayaran;
+        $extractedUktPeriod = self::extractUktPeriodFromDetail($prospek, $detail);
+        $catalog = self::getBiayaCatalog($prospek, $extractedUktPeriod);
         $grossAmount = (int) round($transaksi->nominal);
 
         $selected = [];
-        if (str_contains($detail, 'Perlengkapan')) {
-            $selected[] = 'perlengkapan';
-        }
         if (str_contains($detail, 'Pendaftaran') || str_contains($detail, 'Formulir')) {
             $selected[] = 'pendaftaran';
         }
-        if (str_contains($detail, 'DPP')) {
+        if (str_contains($detail, 'Perlengkapan')) {
+            $selected[] = 'perlengkapan';
+        }
+        if (str_contains($detail, 'DPP') || str_contains($detail, 'Pengembangan Pendidikan')) {
             $selected[] = 'dpp';
+        }
+        if (str_contains($detail, 'Gedung')) {
+            $selected[] = 'uang_gedung';
+        }
+        if (str_contains($detail, 'UKT') || str_contains($detail, 'Kuliah Tunggal')) {
+            $selected[] = 'ukt';
+        }
+
+        if (empty($selected) && $prospek?->prodi && $grossAmount > 0) {
+            foreach (['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'] as $key) {
+                if (isset($catalog[$key]) && (int) $catalog[$key]['price'] === $grossAmount) {
+                    $selected = [$key];
+                    break;
+                }
+            }
         }
 
         if (empty($selected)) {
@@ -280,15 +518,34 @@ class MidtransService
             }
         }
 
+        $trxVoucherUsage = $transaksi->relationLoaded('voucherUsage')
+            ? $transaksi->voucherUsage
+            : $transaksi->voucherUsage()->first();
+
         $items = [];
         $sum = 0;
         foreach ($selected as $key) {
             if (isset($catalog[$key])) {
                 $def = $catalog[$key];
                 $price = (int) $def['price'];
+                $name = $def['name'];
+
+                if ($key === 'dpp') {
+                    if ($trxVoucherUsage) {
+                        $price = (int) $trxVoucherUsage->dpp_after_discount;
+                        $pctStr = \App\Models\Voucher::formatPercentage((float) $trxVoucherUsage->discount_percentage);
+                        $name .= " [Voucher {$trxVoucherUsage->voucher_code} -{$pctStr}%]";
+                    } elseif ($price <= 0 && !empty($def['base_price'])) {
+                        $price = (int) $def['base_price'];
+                    }
+                }
+
+                if ($price <= 0) {
+                    continue;
+                }
                 $items[] = [
                     'id'       => $def['id'],
-                    'name'     => $def['name'],
+                    'name'     => $name,
                     'price'    => $price,
                     'quantity' => 1,
                 ];
@@ -345,13 +602,31 @@ class MidtransService
      */
     public static function getTotalTagihan(Prospek $prospek): int
     {
+        $dppDiscount = VoucherDiscountService::getActiveOrUsedDiscountAmount($prospek);
+
         if ($prospek->prodi) {
             $prodi = $prospek->prodi;
             $oneTime = $prodi->getTotalOneTimeBiaya();
 
             $semUkt = 0;
-            if (!empty($prodi->ukt_options['6_bulan']['nominal'])) {
-                $semUkt = (int) $prodi->ukt_options['6_bulan']['nominal'];
+            $uktOptions = $prodi->ukt_options ?? [];
+            $chosenPeriod = is_array($prospek->form_data) ? ($prospek->form_data['ukt_period'] ?? null) : null;
+
+            if ($chosenPeriod && !empty($uktOptions[$chosenPeriod]['is_active']) && (int) ($uktOptions[$chosenPeriod]['nominal'] ?? 0) > 0) {
+                $semUkt = (int) $uktOptions[$chosenPeriod]['nominal'];
+            } elseif (!empty($uktOptions['6_bulan']['is_active']) && (int) ($uktOptions['6_bulan']['nominal'] ?? 0) > 0) {
+                $semUkt = (int) $uktOptions['6_bulan']['nominal'];
+            } else {
+                foreach ($prodi->getActiveUktOptions() as $opt) {
+                    if ((int) ($opt['nominal'] ?? 0) > 0) {
+                        $semUkt = (int) $opt['nominal'];
+                        break;
+                    }
+                }
+            }
+
+            if ($semUkt <= 0 && !empty($uktOptions['6_bulan']['nominal'])) {
+                $semUkt = (int) $uktOptions['6_bulan']['nominal'];
             }
             if ($semUkt <= 0 && !empty($prodi->ukt)) {
                 $semUkt = (int) preg_replace('/[^0-9]/', '', (string) $prodi->ukt);
@@ -363,10 +638,10 @@ class MidtransService
                 $semUkt = 4000000;
             }
 
-            return $oneTime + $semUkt;
+            return max(0, ($oneTime + $semUkt) - $dppDiscount);
         }
 
-        return (int) config('services.midtrans.total_tagihan_standar', 5000000);
+        return max(0, (int) config('services.midtrans.total_tagihan_standar', 5000000) - $dppDiscount);
     }
 
     /**
@@ -412,24 +687,38 @@ class MidtransService
         $normalized = Transaksi::normalizeCategory($category);
         $aliases = Transaksi::getCategoryAliases($normalized);
 
-        // Khusus Kategori Biaya Pendaftaran: Dinamis berdasarkan total seluruh komponen biaya (Rp 1.400.000)
+        // Khusus Kategori Biaya Pendaftaran: Dinamis berdasarkan komponen biaya 1x bayar prodi pilihan
         // dikurangi total pembayaran komponen yang sudah berhasil dibayar dan diverifikasi.
         if ($normalized === Transaksi::KATEGORI_PENDAFTARAN) {
+            $catalog = self::getBiayaCatalog($prospek);
             $paidItems = self::resolvePaidItems($prospek);
 
-            $totalKewajiban = 1400000;
+            $totalKewajiban = 0;
             $totalSudahDibayar = 0;
-            if (!empty($paidItems['perlengkapan'])) {
-                $totalSudahDibayar += 600000;
-            }
-            if (!empty($paidItems['pendaftaran'])) {
-                $totalSudahDibayar += 300000;
-            }
-            if (!empty($paidItems['dpp'])) {
-                $totalSudahDibayar += 500000;
+            foreach (['perlengkapan', 'pendaftaran', 'dpp', 'uang_gedung'] as $compKey) {
+                if (!isset($catalog[$compKey])) {
+                    continue;
+                }
+                if ($compKey === 'dpp') {
+                    $baseDpp = (int) ($catalog['dpp']['base_price'] ?? $catalog['dpp']['price']);
+                    $discDpp = (int) ($catalog['dpp']['discount_amount'] ?? 0);
+                    $effectiveDpp = max(0, $baseDpp - $discDpp);
+                    $totalKewajiban += $effectiveDpp;
+                    if (!empty($paidItems['dpp'])) {
+                        $totalSudahDibayar += $effectiveDpp;
+                    } else {
+                        $totalSudahDibayar += min($effectiveDpp, (int) ($catalog['dpp']['paid_partial'] ?? 0));
+                    }
+                    continue;
+                }
+                $price = (int) $catalog[$compKey]['price'];
+                $totalKewajiban += $price;
+                if (!empty($paidItems[$compKey])) {
+                    $totalSudahDibayar += $price;
+                }
             }
 
-            // Sisa Tagihan = Total Seluruh Biaya - Total Pembayaran Berhasil
+            // Sisa Tagihan = Total Seluruh Biaya 1x Bayar Prodi - Total Pembayaran Berhasil
             $sisaTagihan = max(0, $totalKewajiban - $totalSudahDibayar);
             $isAllPaid = ($sisaTagihan === 0);
 
@@ -570,30 +859,64 @@ class MidtransService
         ?User $user = null,
         bool $forceNew = false,
         array $selectedItemKeys = [],
-        string $paymentMethod = 'MIDTRANS'
+        string $paymentMethod = 'MIDTRANS',
+        ?string $uktPeriod = null
     ): Transaksi {
         $normalizedCategory = Transaksi::normalizeCategory($category);
         $aliases = Transaksi::getCategoryAliases($normalizedCategory);
         $savedCategory = ($category === Transaksi::KATEGORI_DP_DAFTAR) ? Transaksi::KATEGORI_DP_DAFTAR : $normalizedCategory;
 
-        return DB::transaction(function () use ($prospek, $normalizedCategory, $savedCategory, $aliases, $user, $forceNew, $selectedItemKeys, $paymentMethod) {
+        return DB::transaction(function () use ($prospek, $normalizedCategory, $savedCategory, $aliases, $user, $forceNew, $selectedItemKeys, $paymentMethod, $uktPeriod) {
             // Row-level lock untuk prospek guna mencegah 2 request checkout bersamaan (Scenario 20)
-            $lockedProspek = Prospek::where('id', $prospek->id)->lockForUpdate()->first();
+            $lockedProspek = Prospek::with('prodi')->where('id', $prospek->id)->lockForUpdate()->first();
             if (!$lockedProspek) {
                 $lockedProspek = $prospek;
+                $lockedProspek->loadMissing('prodi');
             }
+
+            if ($uktPeriod && in_array('ukt', $selectedItemKeys, true)) {
+                $activeUktOpts = self::getActiveUktCatalogOptions($lockedProspek);
+                if (isset($activeUktOpts[$uktPeriod])) {
+                    $fd = is_array($lockedProspek->form_data) ? $lockedProspek->form_data : [];
+                    if (($fd['ukt_period'] ?? null) !== $uktPeriod) {
+                        $fd['ukt_period'] = $uktPeriod;
+                        $lockedProspek->form_data = $fd;
+                        $lockedProspek->save();
+                    }
+                }
+            }
+
+            $catalog = self::getBiayaCatalog($lockedProspek, $uktPeriod);
 
             // 1. Cek apakah komponen/kategori sudah pernah lunas
             if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN) {
                 $paidItems = self::resolvePaidItems($lockedProspek);
                 if (!empty($selectedItemKeys)) {
-                    $unpaidKeys = array_values(array_filter($selectedItemKeys, fn($k) => empty($paidItems[$k])));
+                    $unpaidKeys = array_values(array_filter(
+                        $selectedItemKeys,
+                        fn($k) => empty($paidItems[$k]) && ((int) ($catalog[$k]['price'] ?? 0) > 0 || ($k === 'dpp' && !empty($catalog[$k]['discount_amount'])))
+                    ));
                     if (empty($unpaidKeys)) {
-                        throw new InvalidArgumentException("Seluruh komponen pembayaran yang dipilih sudah lunas dan terverifikasi sah.");
+                        throw new InvalidArgumentException("Seluruh komponen pembayaran yang dipilih sudah lunas atau bernilai Rp 0 (Gratis).");
                     }
                     $selectedItemKeys = $unpaidKeys;
+                    $gate = self::getSequentialGateState($lockedProspek, $uktPeriod);
+                    foreach ($selectedItemKeys as $reqKey) {
+                        if (empty($gate['unlocked'][$reqKey])) {
+                            throw new InvalidArgumentException($gate['lock_reasons'][$reqKey] ?? "Komponen pembayaran '{$reqKey}' belum dapat dibayar sebelum tahap sebelumnya lunas.");
+                        }
+                    }
+                    if (in_array('dpp', $selectedItemKeys, true)) {
+                        VoucherDiscountService::validateActiveAppliedVoucherForCheckout($lockedProspek);
+                        $catalog = self::getBiayaCatalog($lockedProspek, $uktPeriod);
+                    }
                 } else {
-                    $allPaid = !empty($paidItems['perlengkapan']) && !empty($paidItems['pendaftaran']) && !empty($paidItems['dpp']);
+                    $payableKeys = array_keys(array_filter(
+                        $catalog,
+                        fn($def, $k) => in_array($k, ['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung'], true) && (int) ($def['price'] ?? 0) > 0,
+                        ARRAY_FILTER_USE_BOTH
+                    ));
+                    $allPaid = empty($payableKeys) || collect($payableKeys)->every(fn($k) => !empty($paidItems[$k]));
                     if ($allPaid) {
                         throw new InvalidArgumentException("Seluruh komponen Biaya Pendaftaran untuk calon mahasiswa '{$lockedProspek->name}' sudah lunas.");
                     }
@@ -629,8 +952,21 @@ class MidtransService
                     sort($pendingKeys);
                     $reqKeys = $selectedItemKeys;
                     sort($reqKeys);
+                    $expectedCalc = self::calculateItems($selectedItemKeys, $lockedProspek, $uktPeriod);
 
-                    if ($pendingKeys === $reqKeys && $existingPending->metode_pembayaran === $paymentMethod) {
+                    if ($pendingKeys === $reqKeys
+                        && (int) round($existingPending->nominal) === (int) $expectedCalc['total']
+                        && (string) $existingPending->detail_pembayaran === $expectedCalc['summary']
+                        && $existingPending->metode_pembayaran === $paymentMethod) {
+                        if (in_array('dpp', $selectedItemKeys, true)) {
+                            VoucherDiscountService::attachTransaksiToActiveUsage($lockedProspek, $existingPending);
+                        }
+                        return $existingPending;
+                    }
+                } elseif ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN) {
+                    $expectedDefault = (int) ($catalog['pendaftaran']['price'] ?? self::getBiayaPendaftaran());
+                    if ((int) round($existingPending->nominal) === $expectedDefault
+                        && $existingPending->metode_pembayaran === $paymentMethod) {
                         return $existingPending;
                     }
                 } else {
@@ -648,14 +984,14 @@ class MidtransService
 
             if ($normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN) {
                 if (!empty($selectedItemKeys)) {
-                    $calculated = self::calculateItems($selectedItemKeys);
+                    $calculated = self::calculateItems($selectedItemKeys, $lockedProspek, $uktPeriod);
                     $nominal = $calculated['total'];
                     $detail = $calculated['summary'];
                 } else {
-                    $nominal = self::getBiayaPendaftaran();
-                    $detail = 'Biaya Pendaftaran PMB Resmi';
+                    $nominal = (int) ($catalog['pendaftaran']['price'] ?? self::getBiayaPendaftaran());
+                    $detail = '• ' . ($catalog['pendaftaran']['name'] ?? 'Biaya Pendaftaran PMB UCIC') . ' (Rp ' . number_format($nominal, 0, ',', '.') . ')';
                 }
-                $jenis = 'Beli Formulir';
+                $jenis = (count($selectedItemKeys) === 1 && $selectedItemKeys[0] === 'ukt') ? 'UKT' : 'Beli Formulir';
             } elseif ($normalizedCategory === Transaksi::KATEGORI_DP) {
                 $nominal = self::getBiayaDP();
                 $detail = 'Pembayaran Down Payment (DP) PMB UCIC';
@@ -670,7 +1006,9 @@ class MidtransService
                 $jenis = 'Pelunasan';
             }
 
-            if ($nominal <= 0) {
+            $isZeroVoucherDppCheckout = ($nominal === 0 && $normalizedCategory === Transaksi::KATEGORI_PENDAFTARAN && in_array('dpp', $selectedItemKeys, true) && !empty($catalog['dpp']['discount_amount']));
+
+            if ($nominal <= 0 && !$isZeroVoucherDppCheckout) {
                 throw new InvalidArgumentException("Nominal pembayaran tidak valid untuk kategori {$normalizedCategory}.");
             }
 
@@ -688,8 +1026,12 @@ class MidtransService
             $notes = ($paymentMethod === 'TRANSFER_MANUAL')
                 ? "Pembayaran {$normalizedCategory} PMB via transfer manual rekening bank kampus."
                 : "Pembayaran {$normalizedCategory} PMB online via Midtrans Snap.";
+            if ($isZeroVoucherDppCheckout) {
+                $paymentMethod = 'VOUCHER';
+                $notes = 'Pembayaran DPP PMB lunas penuh menggunakan voucher diskon 100%.';
+            }
 
-            return Transaksi::create([
+            $createdTransaksi = Transaksi::create([
                 'order_id'          => $orderId,
                 'prospek_id'        => $lockedProspek->id,
                 'user_id'           => $user?->id,
@@ -698,11 +1040,21 @@ class MidtransService
                 'nominal'           => $nominal,
                 'detail_pembayaran' => $detail,
                 'metode_pembayaran' => $paymentMethod,
-                'payment_status'    => Transaksi::STATUS_PENDING,
+                'payment_status'    => $isZeroVoucherDppCheckout ? Transaksi::STATUS_VERIFIED : Transaksi::STATUS_PENDING,
+                'verified_at'       => $isZeroVoucherDppCheckout ? now() : null,
                 'tanggal'           => now(),
                 'notes'             => $notes,
                 'academic_year_id'  => $aktifTa?->id,
             ]);
+
+            if (in_array('dpp', $selectedItemKeys, true)) {
+                VoucherDiscountService::attachTransaksiToActiveUsage($lockedProspek, $createdTransaksi);
+                if ($createdTransaksi->payment_status === Transaksi::STATUS_VERIFIED) {
+                    VoucherDiscountService::syncUsageForTransaksi($createdTransaksi);
+                }
+            }
+
+            return $createdTransaksi;
         });
     }
 

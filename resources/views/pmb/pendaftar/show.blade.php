@@ -339,6 +339,17 @@
                             <span class="text-slate-400 block text-[11px]">Minat Miniclass:</span>
                             <span class="font-medium text-slate-700 capitalize">{{ $pendaftar->minat_miniclass ?? 'tidak' }}</span>
                         </div>
+                        <div class="col-span-2 pt-2 border-t border-slate-50 flex items-center justify-between">
+                            <span class="text-slate-400 text-[11px]">Petugas CS Penanggung Jawab:</span>
+                            @if($pendaftar->cs)
+                                <span class="font-medium text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200 inline-flex items-center gap-1.5 text-xs">
+                                    <svg class="w-3.5 h-3.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    <span class="font-bold">{{ $pendaftar->cs->name }}</span>
+                                </span>
+                            @else
+                                <span class="text-slate-400 text-xs italic">- Belum Ditugaskan</span>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>

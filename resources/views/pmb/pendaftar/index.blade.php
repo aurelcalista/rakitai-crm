@@ -268,6 +268,14 @@
                                             <div class="text-[11px] text-slate-400 mt-0.5 truncate">
                                                 {{ $p->email ?: '-' }}
                                             </div>
+                                            @if($p->cs)
+                                                <div class="mt-1">
+                                                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200" title="Petugas CS yang menangani">
+                                                        <svg class="w-2.5 h-2.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                        <span>CS: {{ $p->cs->name }}</span>
+                                                    </span>
+                                                </div>
+                                            @endif
                                         </div>
                                     </div>
                                 </td>

@@ -740,7 +740,14 @@ class CrmController extends Controller
 
         // 2. Data Prospek Baru Serah Terima (Handover) & Pemantauan SLA 2 Jam
         $handoverProspects = \App\Models\Prospek::with(['sales', 'sekolah', 'perusahaan'])
-            ->whereIn('status', ['FORMULIR', '05 FORMULIR'])
+            ->where(function ($sq) {
+                $sq->whereIn('status', ['FORMULIR', '05 FORMULIR'])
+                   ->orWhere(function ($pq) {
+                       $pq->where('category', 'PMB Online')
+                          ->where('status_formulir', 'Sudah Isi')
+                          ->whereNotIn('status', ['LUNAS', 'DINGIN', 'CANCEL']);
+                   });
+            })
             ->where(function ($q) use ($user) {
                 if ($user) {
                     $q->where('cs_id', $user->id)
@@ -2399,7 +2406,15 @@ class CrmController extends Controller
     {
         $prospek = Prospek::findOrFail($id);
         \Illuminate\Support\Facades\Gate::authorize('delete', $prospek);
-        $prospek->delete();
+        // Pertahankan hard delete untuk prospek CRM non-transaksi agar tidak merusak behavior lama,
+        // namun lindungi riwayat transaksi keuangan jika prospek sudah memiliki transaksi PMB.
+        if ($prospek->transaksis()->exists()) {
+            $prospek->deleted_by = auth()->id();
+            $prospek->saveQuietly();
+            $prospek->delete();
+        } else {
+            $prospek->forceDelete();
+        }
         
         $referer = request()->header('referer');
         if ($referer && str_contains($referer, '/prospek/' . $id)) {

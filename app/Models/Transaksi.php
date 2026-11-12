@@ -135,6 +135,12 @@ class Transaksi extends Model
                 \Illuminate\Support\Facades\Log::warning('Error sending transaksi notification: ' . $e->getMessage());
             }
         });
+
+        static::updated(function ($transaksi) {
+            if ($transaksi->wasChanged('payment_status')) {
+                \App\Services\VoucherDiscountService::syncUsageForTransaksi($transaksi);
+            }
+        });
     }
 
     protected $casts = [
@@ -313,6 +319,11 @@ class Transaksi extends Model
     public function rejecter()
     {
         return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function voucherUsage()
+    {
+        return $this->hasOne(VoucherUsage::class, 'transaksi_id');
     }
 
     /**

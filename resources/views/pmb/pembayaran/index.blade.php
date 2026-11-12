@@ -11,6 +11,27 @@
         detailModalOpen: false,
         expandedRow: null,
         advancedFilterOpen: {{ request()->hasAny(['metode', 'start_date', 'end_date']) ? 'true' : 'false' }},
+        voucherManageOpen: {{ ($errors->has('name') || $errors->has('code') || $errors->has('discount_percentage') || $errors->has('is_active')) ? 'true' : 'false' }},
+        voucherEditModalOpen: false,
+        voucherUsersModalOpen: false,
+        editingVoucher: { id: null, code: '', name: '', discount_percentage: 0, is_active: '1' },
+        editingVoucherUrl: '',
+        selectedVoucherForUsers: { code: '', name: '', percentage_formatted: '', is_active: true, usages: [] },
+        openEditVoucher(v) {
+            this.editingVoucher = {
+                id: v.id,
+                code: v.code,
+                name: v.name || '',
+                discount_percentage: v.discount_percentage,
+                is_active: v.is_active ? '1' : '0'
+            };
+            this.editingVoucherUrl = '{{ url('pmb/pembayaran/vouchers') }}/' + v.id;
+            this.voucherEditModalOpen = true;
+        },
+        openVoucherUsers(v) {
+            this.selectedVoucherForUsers = v;
+            this.voucherUsersModalOpen = true;
+        },
         selectedCamaba: {
             id: null,
             name: '',
@@ -102,6 +123,22 @@
             </div>
         @endif
 
+        @if($errors->any())
+            <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-2xl flex items-start justify-between text-xs shadow-xs">
+                <div class="space-y-1">
+                    <span class="font-bold block">Periksa kembali input Anda:</span>
+                    <ul class="list-disc list-inside space-y-0.5">
+                        @foreach($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                <button type="button" @click="$el.parentElement.remove()" class="text-rose-600 hover:text-rose-800 p-1">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        @endif
+
         <!-- Top Breadcrumbs & Page Header (Matching Image 4) -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
@@ -145,6 +182,33 @@
             </div>
         </div>
 
+        @if($userRole === 'admin')
+            <!-- Menu Tab Data Pembayaran Aktif vs Trash (Khusus Admin) -->
+            <div class="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
+                <a
+                    href="{{ route('pmb.pembayaran.index') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#0b3d82] text-white shadow-xs transition"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span>Data Pembayaran Aktif</span>
+                </a>
+                <a
+                    href="{{ route('pmb.pembayaran.trash') }}"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 shadow-2xs transition"
+                >
+                    <svg class="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Trash (Tempat Sampah)</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold {{ ($trashCount ?? 0) > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600' }}">
+                        {{ $trashCount ?? 0 }}
+                    </span>
+                </a>
+            </div>
+        @endif
+
         <!-- Filter Data Card (Matching Image 4) -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
             <!-- Header Filter -->
@@ -162,6 +226,7 @@
 
             <form action="{{ route('pmb.pembayaran.index') }}" method="GET" id="mainFilterForm" class="space-y-4">
                 <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
+                <input type="hidden" name="tahap" value="{{ $activeTahap ?? request('tahap', 'all') }}">
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
                     <!-- 1. Periode Pembayaran -->
@@ -272,91 +337,326 @@
             </form>
         </div>
 
-        <!-- 5 Status Metric Cards Row (Matching Image 4) -->
+        <!-- 5 Stage Metric Cards Row (Semua, Pendaftaran, Perlengkapan, DPP, Uang Gedung) -->
+        @php
+            $currentTahap = $activeTahap ?? request('tahap', 'all');
+            $stageCards = [
+                [
+                    'key'                => 'all',
+                    'label'              => 'Semua',
+                    'sublabel'           => 'Semua Camaba',
+                    'count'              => $countSemua ?? $rekapList->total(),
+                    'activeClass'        => 'bg-[#0b3d82] border-[#0b3d82] text-white shadow-md shadow-blue-950/20',
+                    'inactiveClass'      => 'bg-white border-slate-200/90 text-slate-800 hover:border-blue-300 hover:shadow-xs',
+                    'iconActiveClass'    => 'bg-white/20 text-white',
+                    'iconInactiveClass'  => 'bg-blue-50 text-[#0b3d82]',
+                    'labelActiveClass'   => 'text-blue-100',
+                    'countInactiveClass' => 'text-slate-900',
+                    'iconPath'           => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+                ],
+                [
+                    'key'                => 'pendaftaran',
+                    'label'              => 'Pendaftaran',
+                    'sublabel'           => 'Sampai Pendaftaran',
+                    'count'              => $countStagePendaftaran ?? 0,
+                    'activeClass'        => 'bg-sky-600 border-sky-600 text-white shadow-md shadow-sky-950/20',
+                    'inactiveClass'      => 'bg-white border-slate-200/90 text-slate-800 hover:border-sky-300 hover:shadow-xs',
+                    'iconActiveClass'    => 'bg-white/20 text-white',
+                    'iconInactiveClass'  => 'bg-sky-50 text-sky-600',
+                    'labelActiveClass'   => 'text-sky-100',
+                    'countInactiveClass' => 'text-sky-600',
+                    'iconPath'           => 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+                ],
+                [
+                    'key'                => 'perlengkapan',
+                    'label'              => 'Perlengkapan',
+                    'sublabel'           => 'Sampai Perlengkapan',
+                    'count'              => $countStagePerlengkapan ?? 0,
+                    'activeClass'        => 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-950/20',
+                    'inactiveClass'      => 'bg-white border-slate-200/90 text-slate-800 hover:border-amber-300 hover:shadow-xs',
+                    'iconActiveClass'    => 'bg-white/20 text-white',
+                    'iconInactiveClass'  => 'bg-amber-50 text-amber-600',
+                    'labelActiveClass'   => 'text-amber-100',
+                    'countInactiveClass' => 'text-amber-600',
+                    'iconPath'           => 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
+                ],
+                [
+                    'key'                => 'dpp',
+                    'label'              => 'DPP',
+                    'sublabel'           => 'Sampai DPP',
+                    'count'              => $countStageDpp ?? 0,
+                    'activeClass'        => 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-950/20',
+                    'inactiveClass'      => 'bg-white border-slate-200/90 text-slate-800 hover:border-emerald-300 hover:shadow-xs',
+                    'iconActiveClass'    => 'bg-white/20 text-white',
+                    'iconInactiveClass'  => 'bg-emerald-50 text-emerald-600',
+                    'labelActiveClass'   => 'text-emerald-100',
+                    'countInactiveClass' => 'text-emerald-600',
+                    'iconPath'           => 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',
+                ],
+                [
+                    'key'                => 'uang_gedung',
+                    'label'              => 'Uang Gedung',
+                    'sublabel'           => 'Sampai Uang Gedung',
+                    'count'              => $countStageUangGedung ?? 0,
+                    'activeClass'        => 'bg-violet-600 border-violet-600 text-white shadow-md shadow-violet-950/20',
+                    'inactiveClass'      => 'bg-white border-slate-200/90 text-slate-800 hover:border-violet-300 hover:shadow-xs',
+                    'iconActiveClass'    => 'bg-white/20 text-white',
+                    'iconInactiveClass'  => 'bg-violet-50 text-violet-600',
+                    'labelActiveClass'   => 'text-violet-100',
+                    'countInactiveClass' => 'text-violet-600',
+                    'iconPath'           => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+                ],
+            ];
+        @endphp
+
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-            @php
-                $activeTab = request('status', request('quick_filter', 'all'));
-            @endphp
+            @foreach($stageCards as $card)
+                @php $isActive = $currentTahap === $card['key']; @endphp
+                <a
+                    href="{{ route('pmb.pembayaran.index', array_merge(request()->except(['tahap', 'page']), ['tahap' => $card['key']])) }}"
+                    class="group p-4 rounded-2xl border transition-all duration-200 flex items-center gap-3.5 {{ $isActive ? $card['activeClass'] : $card['inactiveClass'] }}"
+                >
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 {{ $isActive ? $card['iconActiveClass'] : $card['iconInactiveClass'] }}">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $card['iconPath'] }}" />
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-bold uppercase tracking-wider {{ $isActive ? $card['labelActiveClass'] : 'text-slate-500' }}">{{ $card['label'] }}</p>
+                        <div class="flex items-baseline gap-1.5">
+                            <h4 class="text-xl font-black font-display tracking-tight {{ $isActive ? 'text-white' : $card['countInactiveClass'] }}">{{ number_format($card['count'], 0, ',', '.') }}</h4>
+                            <span class="text-[11px] font-bold {{ $isActive ? 'text-white/80' : 'text-slate-400' }}">Org</span>
+                        </div>
+                        <p class="text-[10px] font-medium truncate mt-0.5 {{ $isActive ? 'text-white/80' : 'text-slate-400' }}">{{ $card['sublabel'] }}</p>
+                    </div>
+                </a>
+            @endforeach
+        </div>
 
-            <!-- 1. Semua -->
-            <a 
-                href="{{ route('pmb.pembayaran.index', array_merge(request()->except(['status', 'quick_filter', 'page']), ['status' => 'all'])) }}"
-                class="group p-4 rounded-2xl border transition-all duration-200 flex items-center gap-3.5 {{ $activeTab === 'all' ? 'bg-[#0b3d82] border-[#0b3d82] text-white shadow-md shadow-blue-950/20' : 'bg-white border-slate-200/90 text-slate-800 hover:border-blue-300 hover:shadow-xs' }}"
-            >
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 {{ $activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#0b3d82]' }}">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+        <!-- Ringkasan & Pengaturan Voucher Diskon DPP (Ringkas & Responsif) -->
+        @php
+            $vouchersList = $vouchers ?? collect();
+            $voucherUsagesList = $voucherSummaryUsages ?? collect();
+            $canManageVoucher = in_array($userRole, ['admin', 'hm']);
+        @endphp
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2.5">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-[#0b3d82] flex items-center justify-center shrink-0 border border-blue-100">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Voucher Diskon DPP CAMABA</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {{ $vouchersList->where('is_active', true)->count() }} Voucher Aktif
+                            </span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0b3d82] border border-blue-200">
+                                {{ $voucherUsagesList->count() }} Pemakaian
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate">Ringkasan pemakaian voucher diskon DPP oleh CAMABA &amp; pengaturan kode voucher.</p>
+                    </div>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold uppercase tracking-wider {{ $activeTab === 'all' ? 'text-blue-100' : 'text-slate-500' }}">Semua</p>
-                    <h4 class="text-xl font-black font-display tracking-tight">{{ number_format($countSemua ?? $rekapList->total(), 0, ',', '.') }}</h4>
-                </div>
-            </a>
 
-            <!-- 2. Berhasil -->
-            <a 
-                href="{{ route('pmb.pembayaran.index', array_merge(request()->except(['status', 'quick_filter', 'page']), ['status' => 'lunas'])) }}"
-                class="group p-4 rounded-2xl border transition-all duration-200 flex items-center gap-3.5 {{ in_array($activeTab, ['lunas', 'berhasil']) ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-950/20' : 'bg-white border-slate-200/90 text-slate-800 hover:border-emerald-300 hover:shadow-xs' }}"
-            >
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 {{ in_array($activeTab, ['lunas', 'berhasil']) ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600' }}">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold uppercase tracking-wider {{ in_array($activeTab, ['lunas', 'berhasil']) ? 'text-emerald-100' : 'text-slate-500' }}">Berhasil</p>
-                    <h4 class="text-xl font-black font-display tracking-tight {{ in_array($activeTab, ['lunas', 'berhasil']) ? 'text-white' : 'text-emerald-600' }}">{{ number_format($countBerhasil ?? $countLunas ?? 0, 0, ',', '.') }}</h4>
-                </div>
-            </a>
+                @if($canManageVoucher)
+                    <button
+                        type="button"
+                        @click="voucherManageOpen = !voucherManageOpen"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer"
+                        :class="voucherManageOpen ? 'bg-[#0b3d82] text-white border-[#0b3d82]' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span x-text="voucherManageOpen ? 'Tutup Pengaturan Voucher' : 'Kelola &amp; Buat Voucher'">Kelola &amp; Buat Voucher</span>
+                    </button>
+                @endif
+            </div>
 
-            <!-- 3. Menunggu Verifikasi -->
-            <a 
-                href="{{ route('pmb.pembayaran.index', array_merge(request()->except(['status', 'quick_filter', 'page']), ['status' => 'pending'])) }}"
-                class="group p-4 rounded-2xl border transition-all duration-200 flex items-center gap-3.5 {{ $activeTab === 'pending' ? 'bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-950/20' : 'bg-white border-slate-200/90 text-slate-800 hover:border-amber-300 hover:shadow-xs' }}"
-            >
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 {{ $activeTab === 'pending' ? 'bg-white/20 text-white' : 'bg-amber-50 text-amber-600' }}">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+            <!-- A. Card Ringkasan Voucher Digunakan CAMABA -->
+            @if($voucherUsagesList->isEmpty())
+                <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                        <span class="font-semibold">Ringkasan Voucher CAMABA:</span>
+                    </div>
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        Belum Menggunakan Voucher
+                    </span>
                 </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold uppercase tracking-wider {{ $activeTab === 'pending' ? 'text-amber-100' : 'text-slate-500' }}">Menunggu Verifikasi</p>
-                    <h4 class="text-xl font-black font-display tracking-tight {{ $activeTab === 'pending' ? 'text-white' : 'text-amber-600' }}">{{ number_format($countPendingTrx ?? 0, 0, ',', '.') }}</h4>
+            @else
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-52 overflow-y-auto pr-0.5">
+                    @foreach($voucherUsagesList as $vu)
+                        <div class="p-3 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition space-y-1.5 text-[11px]">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <span class="px-1.5 py-0.5 rounded font-mono font-extrabold text-[10px] bg-blue-50 text-[#0b3d82] border border-blue-200 shrink-0">{{ $vu->voucher_code }}</span>
+                                    <span class="font-bold text-emerald-700 shrink-0">-{{ $vu->formatted_percentage }}%</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 {{ $vu->status === \App\Models\VoucherUsage::STATUS_USED ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
+                                    {{ $vu->status_label }}
+                                </span>
+                            </div>
+                            <div class="font-bold text-slate-900 truncate">{{ $vu->prospek?->name ?? '-' }}</div>
+                            @php $vuVoucherName = $vu->voucher_name ?? $vu->voucher?->name; @endphp
+                            @if(!empty($vuVoucherName))
+                                <div class="text-[10px] font-semibold text-slate-500 truncate">{{ $vuVoucherName }}</div>
+                            @endif
+                            <div class="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200/70 text-[10px]">
+                                <div>
+                                    <span class="text-slate-400 block">DPP Awal</span>
+                                    <strong class="text-slate-700">Rp {{ number_format($vu->dpp_before_discount, 0, ',', '.') }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-slate-400 block">Potongan</span>
+                                    <strong class="text-emerald-700">-Rp {{ number_format($vu->discount_amount, 0, ',', '.') }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-slate-400 block">DPP Akhir</span>
+                                    <strong class="text-[#0b3d82]">Rp {{ number_format($vu->dpp_after_discount, 0, ',', '.') }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
-            </a>
+            @endif
 
-            <!-- 4. Belum Lunas -->
-            <a 
-                href="{{ route('pmb.pembayaran.index', array_merge(request()->except(['status', 'quick_filter', 'page']), ['status' => 'belum_lunas'])) }}"
-                class="group p-4 rounded-2xl border transition-all duration-200 flex items-center gap-3.5 {{ $activeTab === 'belum_lunas' ? 'bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-950/20' : 'bg-white border-slate-200/90 text-slate-800 hover:border-rose-300 hover:shadow-xs' }}"
-            >
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 {{ $activeTab === 'belum_lunas' ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600' }}">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold uppercase tracking-wider {{ $activeTab === 'belum_lunas' ? 'text-rose-100' : 'text-slate-500' }}">Belum Lunas</p>
-                    <h4 class="text-xl font-black font-display tracking-tight {{ $activeTab === 'belum_lunas' ? 'text-white' : 'text-rose-600' }}">{{ number_format($countBelumLunas ?? 0, 0, ',', '.') }}</h4>
-                </div>
-            </a>
+            <!-- B. Input & Pengaturan Voucher (Hanya Admin / HM) -->
+            @if($canManageVoucher)
+                <div x-show="voucherManageOpen" x-cloak class="pt-3 border-t border-slate-100 space-y-3">
+                    <form action="{{ route('pmb.pembayaran.vouchers.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+                        @csrf
+                        <div class="sm:col-span-3">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Voucher <span class="text-rose-500">*</span></label>
+                            <input type="text"
+                                   name="name"
+                                   value="{{ old('name') }}"
+                                   required
+                                   maxlength="150"
+                                   placeholder="Contoh: Beasiswa Gelombang 1"
+                                   class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Kode Voucher <span class="text-rose-500">*</span></label>
+                            <input type="text"
+                                   name="code"
+                                   value="{{ old('code') }}"
+                                   required
+                                   placeholder="Contoh: UCIC20"
+                                   class="w-full text-xs font-bold uppercase rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Persentase Diskon (%) <span class="text-rose-500">*</span></label>
+                            <input type="number"
+                                   name="discount_percentage"
+                                   value="{{ old('discount_percentage') }}"
+                                   min="1"
+                                   max="100"
+                                   step="0.01"
+                                   required
+                                   placeholder="1 - 100"
+                                   class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Status Voucher</label>
+                            <select name="is_active" class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                                <option value="1" {{ old('is_active', '1') === '1' ? 'selected' : '' }}>Aktif</option>
+                                <option value="0" {{ old('is_active') === '0' ? 'selected' : '' }}>Nonaktif</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-bold bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-2xs transition cursor-pointer">
+                                Tambah Voucher
+                            </button>
+                        </div>
+                    </form>
 
-            <!-- 5. Refund -->
-            <a 
-                href="{{ route('pmb.pembayaran.index', array_merge(request()->except(['status', 'quick_filter', 'page']), ['status' => 'refund'])) }}"
-                class="group p-4 rounded-2xl border transition-all duration-200 flex items-center gap-3.5 {{ $activeTab === 'refund' ? 'bg-slate-800 border-slate-800 text-white shadow-md' : 'bg-white border-slate-200/90 text-slate-800 hover:border-slate-400 hover:shadow-xs' }}"
-            >
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 {{ $activeTab === 'refund' ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600' }}">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    @if($vouchersList->isNotEmpty())
+                        <div class="overflow-x-auto rounded-xl border border-slate-200/80">
+                            <table class="w-full text-left text-xs whitespace-nowrap">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                                        <th class="py-2.5 px-3">Nama Voucher</th>
+                                        <th class="py-2.5 px-3">Kode Voucher</th>
+                                        <th class="py-2.5 px-3">Diskon</th>
+                                        <th class="py-2.5 px-3">Status</th>
+                                        <th class="py-2.5 px-3">Pengguna CAMABA</th>
+                                        <th class="py-2.5 px-3 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 bg-white">
+                                    @foreach($vouchersList as $v)
+                                        @php
+                                            $vPayload = [
+                                                'id'                   => $v->id,
+                                                'code'                 => $v->code,
+                                                'name'                 => $v->name ?? '',
+                                                'discount_percentage'  => (float) $v->discount_percentage,
+                                                'percentage_formatted' => $v->formatted_percentage,
+                                                'is_active'            => (bool) $v->is_active,
+                                                'usages'               => $v->usages->map(fn ($u) => [
+                                                    'camaba_name'          => $u->prospek?->name ?? '-',
+                                                    'no_registrasi'        => $u->prospek?->no_registrasi ?? '-',
+                                                    'voucher_code'         => $u->voucher_code,
+                                                    'voucher_name'         => $u->voucher_name ?? $v->name ?? '',
+                                                    'percentage_formatted' => $u->formatted_percentage,
+                                                    'dpp_before'           => 'Rp ' . number_format($u->dpp_before_discount, 0, ',', '.'),
+                                                    'discount_amount'      => 'Rp ' . number_format($u->discount_amount, 0, ',', '.'),
+                                                    'dpp_after'            => 'Rp ' . number_format($u->dpp_after_discount, 0, ',', '.'),
+                                                    'status_label'         => $u->status_label,
+                                                    'is_used'              => $u->status === \App\Models\VoucherUsage::STATUS_USED,
+                                                    'time'                 => ($u->used_at ?? $u->created_at)?->format('d M Y, H:i'),
+                                                ])->values()->all(),
+                                            ];
+                                        @endphp
+                                        <tr class="hover:bg-slate-50/70">
+                                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ $v->name ?: '-' }}</td>
+                                            <td class="py-2.5 px-3 font-mono font-extrabold text-[#0b3d82]">{{ $v->code }}</td>
+                                            <td class="py-2.5 px-3 font-bold text-emerald-700">{{ $v->formatted_percentage }}%</td>
+                                            <td class="py-2.5 px-3">
+                                                @if($v->is_active)
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Nonaktif</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-2.5 px-3">
+                                                <button type="button"
+                                                        @click="openVoucherUsers({{ json_encode($vPayload) }})"
+                                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-[#0b3d82] border border-blue-200 cursor-pointer">
+                                                    <span>Lihat CAMABA ({{ $v->usages->count() }})</span>
+                                                </button>
+                                            </td>
+                                            <td class="py-2.5 px-3 text-right">
+                                                <div class="inline-flex items-center gap-1.5">
+                                                    <button type="button"
+                                                            @click="openEditVoucher({{ json_encode($vPayload) }})"
+                                                            class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer">
+                                                        Ubah
+                                                    </button>
+                                                    <form action="{{ route('pmb.pembayaran.vouchers.toggle', $v->id) }}" method="POST" class="inline">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <button type="submit"
+                                                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer {{ $v->is_active ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200' }}">
+                                                            {{ $v->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="text-[11px] text-slate-500 text-center py-2">Belum ada kode voucher yang dibuat.</p>
+                    @endif
                 </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] font-bold uppercase tracking-wider {{ $activeTab === 'refund' ? 'text-slate-300' : 'text-slate-500' }}">Refund</p>
-                    <h4 class="text-xl font-black font-display tracking-tight {{ $activeTab === 'refund' ? 'text-white' : 'text-slate-700' }}">{{ number_format($countRefund ?? 0, 0, ',', '.') }}</h4>
-                </div>
-            </a>
+            @endif
         </div>
 
         <!-- Table Container Card (Matching Image 4) -->
@@ -498,18 +798,51 @@
                                     </div>
                                 </td>
 
-                                <!-- 7. Aksi (Expandable Detail Toggle) -->
+                                <!-- 7. Aksi (Expandable Detail Toggle + Hapus Soft Delete Khusus Admin) -->
                                 <td class="py-4 px-4 text-center">
-                                    <button 
-                                        type="button" 
-                                        @click="expandedRow = (expandedRow === {{ $p->id }} ? null : {{ $p->id }})"
-                                        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-[#0b3d82] hover:border-blue-300 shadow-2xs transition-all cursor-pointer"
-                                    >
-                                        <span x-text="expandedRow === {{ $p->id }} ? 'Tutup Detail' : 'Lihat Detail'">Lihat Detail</span>
-                                        <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="expandedRow === {{ $p->id }} ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </button>
+                                    <div class="inline-flex items-center justify-center gap-1.5">
+                                        <button 
+                                            type="button" 
+                                            @click="expandedRow = (expandedRow === {{ $p->id }} ? null : {{ $p->id }})"
+                                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-[#0b3d82] hover:border-blue-300 shadow-2xs transition-all cursor-pointer"
+                                        >
+                                            <span x-text="expandedRow === {{ $p->id }} ? 'Tutup Detail' : 'Lihat Detail'">Lihat Detail</span>
+                                            <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="expandedRow === {{ $p->id }} ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+
+                                        @if($userRole === 'admin')
+                                            @php
+                                                $deletePayload = [
+                                                    'name'     => $p->name ?? '-',
+                                                    'reg_no'   => $regNo,
+                                                    'email'    => $p->email ?? '-',
+                                                    'prodi'    => $p->prodi?->nama ?? '-',
+                                                    'terbayar' => 'Rp ' . number_format($r['total_terbayar'], 0, ',', '.'),
+                                                ];
+                                            @endphp
+                                            <form
+                                                action="{{ route('pmb.pembayaran.destroy', array_merge(['id' => $p->id], request()->only(['search', 'periode', 'metode', 'status', 'tahap', 'per_page']))) }}"
+                                                method="POST"
+                                                class="inline"
+                                                onsubmit="return window.confirmMoveToTrash(event, {{ json_encode($deletePayload) }})"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+                                                <button
+                                                    type="submit"
+                                                    title="Hapus Data Pembayaran ke Trash"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border border-rose-200 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white hover:border-rose-600 shadow-2xs transition-all cursor-pointer"
+                                                >
+                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                    <span>Hapus</span>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
 
@@ -787,6 +1120,31 @@
                                                     </svg>
                                                 </button>
                                             </div>
+                                        </div>
+
+                                        <!-- Card Ringkasan Voucher CAMABA (Per Baris) -->
+                                        @php $rowVoucher = $r['dpp_voucher'] ?? ($r['rincian']['dpp']['voucher'] ?? null); @endphp
+                                        <div class="p-3 rounded-xl border text-[11px] {{ $rowVoucher ? 'bg-emerald-50/40 border-emerald-200' : 'bg-slate-50/70 border-slate-200/80' }}">
+                                            @if($rowVoucher)
+                                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="font-bold text-slate-700">Voucher DPP ({{ $p->name }}):</span>
+                                                        <span class="px-2 py-0.5 rounded font-mono font-extrabold bg-blue-50 text-[#0b3d82] border border-blue-200">{{ $rowVoucher['voucher_code'] }}</span>
+                                                        <span class="font-bold text-emerald-700">Diskon {{ $rowVoucher['percentage_formatted'] }}% (-Rp {{ number_format($rowVoucher['discount_amount'], 0, ',', '.') }})</span>
+                                                        <span class="text-slate-500">DPP Awal: <strong class="text-slate-700">Rp {{ number_format($rowVoucher['dpp_before_discount'], 0, ',', '.') }}</strong> &rarr; Setelah Diskon: <strong class="text-[#0b3d82]">Rp {{ number_format($rowVoucher['dpp_after_discount'], 0, ',', '.') }}</strong></span>
+                                                    </div>
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $rowVoucher['status'] === 'used' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
+                                                        {{ $rowVoucher['status_label'] }}
+                                                    </span>
+                                                </div>
+                                            @else
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="font-semibold text-slate-600">Voucher DPP ({{ $p->name }}):</span>
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                                        Belum Menggunakan Voucher
+                                                    </span>
+                                                </div>
+                                            @endif
                                         </div>
 
                                     </div>
@@ -1085,6 +1443,15 @@
                                         <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
                                             <span class="text-slate-400">Metode Bayar:</span>
                                             <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.dpp?.metode || (selectedCamaba.rekap?.rincian?.dpp?.is_lunas && selectedCamaba.rekap?.rincian?.dpp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                        </div>
+                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
+                                            <span class="text-slate-400">Voucher DPP:</span>
+                                            <template x-if="selectedCamaba.rekap?.dpp_voucher">
+                                                <span class="font-bold text-emerald-700" x-text="selectedCamaba.rekap.dpp_voucher.voucher_code + ' (-' + selectedCamaba.rekap.dpp_voucher.percentage_formatted + '% / Rp ' + (selectedCamaba.rekap.dpp_voucher.discount_amount || 0).toLocaleString('id-ID') + ')'"></span>
+                                            </template>
+                                            <template x-if="!selectedCamaba.rekap?.dpp_voucher">
+                                                <span class="text-slate-400 font-medium">Belum Menggunakan Voucher</span>
+                                            </template>
                                         </div>
                                     </div>
 
@@ -1512,5 +1879,164 @@
             </div>
         </div>
 
+        <!-- ============================================================== -->
+        <!-- MODAL: Ubah Persentase & Status Voucher Diskon DPP -->
+        <!-- ============================================================== -->
+        <div x-show="voucherEditModalOpen" x-cloak class="fixed inset-0 z-60 overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen p-4 text-center">
+                <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="voucherEditModalOpen = false"></div>
+                <div class="relative bg-white rounded-3xl text-left overflow-hidden shadow-2xl max-w-md w-full border border-slate-100">
+                    <form :action="editingVoucherUrl" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="p-6 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-900 font-display">Pengaturan Voucher</h3>
+                                    <p class="text-xs text-slate-500">Kode: <strong class="font-mono text-[#0b3d82]" x-text="editingVoucher.code"></strong></p>
+                                </div>
+                                <button type="button" @click="voucherEditModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nama Voucher</label>
+                                <input type="text" name="name" x-model="editingVoucher.name" maxlength="150" placeholder="Contoh: Beasiswa Gelombang 1"
+                                       class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Persentase Diskon (%)</label>
+                                <input type="number" name="discount_percentage" x-model="editingVoucher.discount_percentage" min="1" max="100" step="0.01" required
+                                       class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Status Voucher</label>
+                                <select name="is_active" x-model="editingVoucher.is_active"
+                                        class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                                    <option value="1">Aktif</option>
+                                    <option value="0">Nonaktif</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50/80 px-6 py-3.5 flex items-center justify-end gap-2 border-t border-slate-100">
+                            <button type="button" @click="voucherEditModalOpen = false" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl cursor-pointer">Batal</button>
+                            <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-[#0b3d82] hover:bg-[#082a5c] rounded-xl cursor-pointer">Simpan Perubahan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- MODAL: Daftar CAMABA Pengguna Voucher Tertentu -->
+        <!-- ============================================================== -->
+        <div x-show="voucherUsersModalOpen" x-cloak class="fixed inset-0 z-60 overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen p-4 text-center">
+                <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" @click="voucherUsersModalOpen = false"></div>
+                <div class="relative bg-white rounded-3xl text-left overflow-hidden shadow-2xl max-w-2xl w-full border border-slate-100">
+                    <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 font-display">
+                                Pengguna Voucher <span class="font-mono text-[#0b3d82]" x-text="selectedVoucherForUsers.code"></span>
+                            </h3>
+                            <p class="text-xs text-slate-500">
+                                <span x-show="selectedVoucherForUsers.name" class="font-semibold text-slate-700" x-text="selectedVoucherForUsers.name + ' • '"></span>
+                                Diskon saat ini: <strong x-text="selectedVoucherForUsers.percentage_formatted + '%'"></strong>
+                            </p>
+                        </div>
+                        <button type="button" @click="voucherUsersModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="p-5 max-h-[60vh] overflow-y-auto space-y-2.5">
+                        <template x-if="!selectedVoucherForUsers.usages || selectedVoucherForUsers.usages.length === 0">
+                            <p class="text-xs text-slate-500 text-center py-6">Belum ada CAMABA yang menggunakan voucher ini.</p>
+                        </template>
+                        <template x-for="(u, i) in (selectedVoucherForUsers.usages || [])" :key="i">
+                            <div class="p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div>
+                                    <div class="font-bold text-slate-900" x-text="u.camaba_name"></div>
+                                    <div class="text-[11px] text-slate-500">
+                                        <span class="font-mono" x-text="u.no_registrasi"></span> •
+                                        Diskon <strong class="text-emerald-700" x-text="u.percentage_formatted + '%'"></strong> •
+                                        Potongan <strong class="text-emerald-700" x-text="u.discount_amount"></strong>
+                                    </div>
+                                    <div class="text-[11px] text-slate-500">
+                                        DPP Awal: <strong x-text="u.dpp_before"></strong> &rarr; Setelah Diskon: <strong class="text-[#0b3d82]" x-text="u.dpp_after"></strong>
+                                    </div>
+                                </div>
+                                <div class="sm:text-right shrink-0">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                          :class="u.is_used ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                                          x-text="u.status_label"></span>
+                                    <div class="text-[10px] text-slate-400 mt-1" x-text="u.time"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
+
+    <script>
+        window.confirmMoveToTrash = function(event, camaba) {
+            const form = event.target;
+            if (form.dataset.confirmed === 'true') {
+                return true;
+            }
+            event.preventDefault();
+
+            const esc = (val) => {
+                const div = document.createElement('div');
+                div.textContent = val ?? '-';
+                return div.innerHTML;
+            };
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Pindahkan Data ke Trash?',
+                    html: `
+                        <div class="text-left text-xs space-y-2 mt-2">
+                            <p class="text-slate-600">Pastikan data CAMABA berikut benar-benar ingin dipindahkan ke <strong>Trash</strong>:</p>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1">
+                                <div><span class="text-slate-400">Nama CAMABA:</span> <strong class="text-slate-900">${esc(camaba.name)}</strong></div>
+                                <div><span class="text-slate-400">No. Pendaftaran:</span> <strong class="font-mono text-[#0b3d82]">${esc(camaba.reg_no)}</strong></div>
+                                <div><span class="text-slate-400">Email:</span> <strong class="text-slate-800">${esc(camaba.email)}</strong></div>
+                                <div><span class="text-slate-400">Program Studi:</span> <strong class="text-slate-800">${esc(camaba.prodi)}</strong></div>
+                                <div><span class="text-slate-400">Total Terbayar:</span> <strong class="text-emerald-700">${esc(camaba.terbayar)}</strong></div>
+                            </div>
+                            <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                Data akan dipindahkan via <strong>Soft Delete</strong> ke Trash. Riwayat transaksi, bukti pembayaran, dan voucher tetap aman dan dapat dipulihkan kembali.
+                            </p>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#e11d48',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Ya, Pindahkan ke Trash',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    customClass: {
+                        popup: 'rounded-2xl shadow-2xl border border-slate-100 p-6',
+                        title: 'text-slate-900 font-bold text-lg',
+                        confirmButton: 'rounded-xl text-xs font-semibold px-4 py-2.5 shadow-xs',
+                        cancelButton: 'rounded-xl text-xs font-semibold px-4 py-2.5'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.dataset.confirmed = 'true';
+                        form.submit();
+                    }
+                });
+            } else if (confirm(`Pindahkan data ${camaba.name} (${camaba.reg_no}) ke Trash?`)) {
+                form.dataset.confirmed = 'true';
+                form.submit();
+            }
+
+            return false;
+        };
+    </script>
 </x-app-layout>

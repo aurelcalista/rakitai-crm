@@ -46,10 +46,12 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
 
     // Autentikasi CAMABA (Tamu / Guest)
     Route::middleware('guest')->group(function () {
-        Route::get('/login',    [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showLoginForm'])->name('login');
-        Route::post('/login',   [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'login'])->name('login.post');
-        Route::get('/register', [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showRegisterForm'])->name('register');
-        Route::post('/register',[\App\Http\Controllers\Pmb\CamabaAuthController::class, 'register'])->name('register.post');
+        Route::get('/login',            [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showLoginForm'])->name('login');
+        Route::post('/login',           [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'login'])->name('login.post');
+        Route::post('/login/otp/send',  [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'sendOtp'])->middleware('throttle:30,1')->name('login.otp.send');
+        Route::post('/login/otp/verify',[\App\Http\Controllers\Pmb\CamabaAuthController::class, 'verifyOtp'])->middleware('throttle:30,1')->name('login.otp.verify');
+        Route::get('/register',         [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showRegisterForm'])->name('register');
+        Route::post('/register',        [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'register'])->name('register.post');
     });
 
     // Logout CAMABA
@@ -76,6 +78,8 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
         Route::get('/ujian',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'ujian'])->name('ujian');
         Route::get('/bayar',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('bayar');
         Route::get('/pembayaran', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('pembayaran');
+        Route::post('/voucher/apply', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'applyVoucher'])->name('voucher.apply');
+        Route::post('/voucher/remove', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'removeVoucher'])->name('voucher.remove');
         Route::get('/bantuan',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bantuan'])->name('bantuan');
 
         // Upload Dokumen Persyaratan CAMABA
@@ -462,8 +466,20 @@ Route::middleware('auth')->group(function () {
         Route::post('/pembayaran/{id}/reject',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'reject'])->name('pembayaran.reject');
         Route::post('/pembayaran/{id}/sync',          [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'sync'])->name('pembayaran.sync');
 
-        // Data Admin PMB (HANYA untuk Admin & HM, CS DILARANG AKSES)
+        // Hapus Data & Trash Data Pembayaran PMB (HANYA untuk role Admin)
+        Route::middleware(['role:Admin'])->group(function () {
+            Route::get('/pembayaran/trash',                         [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'trash'])->name('pembayaran.trash');
+            Route::delete('/pembayaran/{id}',                       [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'destroy'])->whereNumber('id')->name('pembayaran.destroy');
+            Route::post('/pembayaran/trash/{id}/restore',           [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'restore'])->whereNumber('id')->name('pembayaran.restore');
+            Route::delete('/pembayaran/trash/{id}/force-delete',    [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'forceDelete'])->whereNumber('id')->name('pembayaran.force-delete');
+        });
+
+        // Data Admin PMB & Pengaturan Voucher Diskon DPP (HANYA untuk Admin & HM, CS DILARANG AKSES)
         Route::middleware(['role:Admin,HM'])->group(function () {
+            Route::post('/pembayaran/vouchers',                 [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'storeVoucher'])->name('pembayaran.vouchers.store');
+            Route::put('/pembayaran/vouchers/{voucher}',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'updateVoucher'])->name('pembayaran.vouchers.update');
+            Route::patch('/pembayaran/vouchers/{voucher}/toggle', [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'toggleVoucher'])->name('pembayaran.vouchers.toggle');
+
             Route::get('/admin',              [\App\Http\Controllers\Pmb\PmbAdminController::class, 'index'])->name('admin.index');
             Route::post('/admin',             [\App\Http\Controllers\Pmb\PmbAdminController::class, 'store'])->name('admin.store');
             Route::put('/admin/{id}',         [\App\Http\Controllers\Pmb\PmbAdminController::class, 'update'])->name('admin.update');

@@ -14,7 +14,7 @@ class PmbPendaftarController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah']);
+        $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs']);
 
         // Search Filter (Nama lengkap, email, WhatsApp/HP, No Registrasi)
         if ($request->filled('search')) {
@@ -111,7 +111,7 @@ class PmbPendaftarController extends Controller
 
     public function show($id): View
     {
-        $pendaftar = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'transaksis'])->findOrFail($id);
+        $pendaftar = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs', 'transaksis'])->findOrFail($id);
         return view('pmb.pendaftar.show', compact('pendaftar'));
     }
 

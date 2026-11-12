@@ -253,6 +253,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Prospects where this user is the CS handler.
+     */
+    public function csProspeks()
+    {
+        return $this->hasMany(Prospek::class, 'cs_id');
+    }
+
+    /**
      * Prospects where this user is the owner (creator).
      */
     public function ownedProspeks()

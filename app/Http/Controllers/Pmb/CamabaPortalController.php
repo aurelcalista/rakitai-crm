@@ -11,7 +11,9 @@ use App\Models\TahunAkademik;
 use App\Models\Transaksi;
 use App\Models\User;
 use App\Services\MidtransService;
+use App\Services\VoucherDiscountService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -337,13 +339,19 @@ class CamabaPortalController extends Controller
     /**
      * Halaman Profil CAMABA (Lihat & Edit Data Pribadi).
      */
-    public function profile(): View
+    public function profile(Request $request): View
     {
         $user = Auth::user();
         $prospek = $this->getCamabaProspek();
         $prodis = Prodi::where('status', 'Aktif')->orWhereNull('status')->orderBy('nama')->get();
 
-        return view('pmb.portal.profile', compact('user', 'prospek', 'prodis'));
+        $requestedProdiId = $request->query('prodi_id');
+        $preselectedProdiId = null;
+        if (!empty($requestedProdiId) && $prodis->contains('id', (int) $requestedProdiId)) {
+            $preselectedProdiId = (int) $requestedProdiId;
+        }
+
+        return view('pmb.portal.profile', compact('user', 'prospek', 'prodis', 'preselectedProdiId'));
     }
 
     /**
@@ -398,7 +406,11 @@ class CamabaPortalController extends Controller
             'wa_ortu'               => 'nullable|string|max:30',
             'tipe_kelas'            => 'nullable|string|max:50',
             'informasi_pendaftaran' => 'nullable|string|max:100',
-            'kode_referal'          => 'nullable|string|max:50',
+            'status_tempat_tinggal_lainnya' => 'nullable|string|max:100',
+            'jenis_sekolah_lainnya'         => 'nullable|string|max:100',
+            'pekerjaan_orang_tua_lainnya'   => 'nullable|string|max:100',
+            'informasi_pendaftaran_lainnya' => 'nullable|string|max:100',
+            'kode_referal'                  => 'nullable|string|max:50',
         ], [
             'name.required'                 => 'Nama lengkap wajib diisi.',
             'whatsapp.required'             => 'Nomor WhatsApp wajib diisi.',
@@ -462,6 +474,15 @@ class CamabaPortalController extends Controller
             }
         }
 
+        foreach (['informasi_pendaftaran', 'status_tempat_tinggal', 'jenis_sekolah', 'pekerjaan_orang_tua'] as $otherField) {
+            if (($formData[$otherField] ?? null) === 'Lainnya') {
+                $customValue = trim((string) ($validated[$otherField . '_lainnya'] ?? ''));
+                if ($customValue !== '') {
+                    $formData[$otherField] = $customValue;
+                }
+            }
+        }
+
         DB::transaction(function () use ($user, $prospek, $validated, $formattedPhone, $schoolName, $formData) {
             // Update User record
             $user->name = trim($validated['name']);
@@ -479,6 +500,9 @@ class CamabaPortalController extends Controller
                     $sekolah = Sekolah::where('nama', 'like', $schoolName)->first();
                     if ($sekolah) {
                         $prospek->sekolah_id = $sekolah->id;
+                        if (!$prospek->wilayah_id && $sekolah->wilayah_id) {
+                            $prospek->wilayah_id = $sekolah->wilayah_id;
+                        }
                     }
                     $notes = $prospek->notes ?? '';
                     if (!str_contains($notes, $schoolName)) {
@@ -504,17 +528,55 @@ class CamabaPortalController extends Controller
                 if (!empty($validated['tipe_kelas'])) {
                     $prospek->kelas = $validated['tipe_kelas'];
                 }
-                if (!empty($validated['informasi_pendaftaran'])) {
-                    $prospek->source = $validated['informasi_pendaftaran'];
+                if (!empty($formData['informasi_pendaftaran'])) {
+                    $prospek->source = $formData['informasi_pendaftaran'];
                 }
 
                 $prospek->form_data = $formData;
                 $prospek->status_formulir = 'Sudah Isi';
+
+                // Input Form Pendaftaran Online UCIC otomatis masuk ke role CS
+                if (!$prospek->cs_id) {
+                    $cs = Prospek::findAvailableCs($prospek->wilayah_id);
+                    if ($cs) {
+                        $prospek->cs_id = $cs->id;
+                    }
+                }
+
+                if (empty($prospek->handover_at)) {
+                    $prospek->handover_at = now();
+                }
+                $prospek->active_follow_up_count = 0;
+
                 $prospek->save();
+
+                // Timeline & Notifikasi ke Petugas CS
+                if ($prospek->cs_id) {
+                    $csUser = User::find($prospek->cs_id);
+                    if ($csUser) {
+                        ProspekTimeline::create([
+                            'prospek_id' => $prospek->id,
+                            'user_id'    => $csUser->id,
+                            'title'      => 'Form Pendaftaran Online Disubmit',
+                            'notes'      => 'Calon mahasiswa mengisi Form Pendaftaran Online UCIC. Data pendaftaran masuk ke antrean tugas CS (' . $csUser->name . ').',
+                        ]);
+
+                        $csUser->notify(new \App\Notifications\CrmActivityNotification(
+                            title: 'Form Pendaftaran Online Baru',
+                            message: "Pendaftar {$prospek->name} telah mengisi Form Pendaftaran Online UCIC dan masuk ke antrean tugas CS Anda.",
+                            type: 'info',
+                            link: '/prospek',
+                            senderName: $prospek->name,
+                            senderRole: 'Camaba',
+                            action: 'form_pendaftaran_submitted'
+                        ));
+                    }
+                }
             }
         });
 
-        return redirect()->route('pmb.akun.bayar')
+        $targetRoute = $request->routeIs('pmb.akun.profil.*') ? 'pmb.akun.profil' : 'pmb.akun.bayar';
+        return redirect()->route($targetRoute)
             ->with('success', 'Formulir pendaftaran dan pilihan Program Studi berhasil disimpan! Silakan lanjutkan ke pembayaran.');
     }
 
@@ -541,6 +603,8 @@ class CamabaPortalController extends Controller
             return redirect()->route('pmb.akun.dashboard')
                 ->with('error', 'Data pendaftaran Anda belum terhubung. Silakan hubungi admin PMB.');
         }
+
+        $prospek->loadMissing('prodi');
 
         // WAJIB: Calon mahasiswa harus melengkapi Form Pendaftaran dan memilih Program Studi terlebih dahulu!
         $isFormFilled = !empty($prospek->prodi_id) && ($prospek->status_formulir ?? '') === 'Sudah Isi';
@@ -606,40 +670,57 @@ class CamabaPortalController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $activeUktOptions = MidtransService::getActiveUktCatalogOptions($prospek);
+        $initialUktPeriod = null;
+        if ($transaksi && $transaksi->payment_status === \App\Models\Transaksi::STATUS_PENDING) {
+            $initialUktPeriod = MidtransService::extractUktPeriodFromDetail($prospek, (string) $transaksi->detail_pembayaran);
+        }
+        $catalog = MidtransService::getBiayaCatalog($prospek, $initialUktPeriod);
+        if (!$initialUktPeriod) {
+            $initialUktPeriod = $catalog['ukt']['period'] ?? (array_key_first($activeUktOptions) ?: null);
+        }
         $paidItems = MidtransService::resolvePaidItems($prospek);
+        $paymentGate = MidtransService::getSequentialGateState($prospek, $initialUktPeriod);
+        $dppSummary = VoucherDiscountService::getDppSummary($prospek);
+        $appliedVoucher = VoucherDiscountService::formatUsageForDisplay($dppSummary['active_usage'] ?? null);
 
         if ($transaksi && $transaksi->payment_status === \App\Models\Transaksi::STATUS_PENDING) {
             $initialItems = MidtransService::resolveInitialItems($transaksi);
         } else {
             $initialItems = [
-                'perlengkapan' => false,
                 'pendaftaran'  => false,
+                'perlengkapan' => false,
                 'dpp'          => false,
+                'uang_gedung'  => false,
+                'ukt'          => false,
             ];
         }
 
-        // Pastikan item yang sudah pernah lunas tidak tercentang di initialItems
-        foreach ($paidItems as $itemKey => $isPaid) {
-            if ($isPaid) {
+        // Pastikan item yang sudah pernah lunas atau masih terkunci tidak tercentang di initialItems
+        foreach (['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'] as $itemKey) {
+            if (!empty($paidItems[$itemKey]) || empty($paymentGate['unlocked'][$itemKey])) {
                 $initialItems[$itemKey] = false;
             }
         }
 
-        // Hitung total awal dari item yang masih dicentang dan belum lunas
+        // Hitung total awal dari item yang masih dicentang dan belum lunas sesuai harga prodi
         $initialTotal = 0;
-        if (!empty($initialItems['perlengkapan']) && empty($paidItems['perlengkapan'])) {
-            $initialTotal += 600000;
-        }
-        if (!empty($initialItems['pendaftaran']) && empty($paidItems['pendaftaran'])) {
-            $initialTotal += 300000;
-        }
-        if (!empty($initialItems['dpp']) && empty($paidItems['dpp'])) {
-            $initialTotal += 500000;
+        foreach (['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'] as $itemKey) {
+            $price = (int) ($catalog[$itemKey]['price'] ?? 0);
+            if (!empty($initialItems[$itemKey]) && empty($paidItems[$itemKey]) && !empty($paymentGate['unlocked'][$itemKey]) && $price > 0) {
+                $initialTotal += $price;
+            }
         }
 
         return view('pmb.portal.pembayaran', compact(
             'user',
             'prospek',
+            'catalog',
+            'activeUktOptions',
+            'initialUktPeriod',
+            'paymentGate',
+            'dppSummary',
+            'appliedVoucher',
             'transaksi',
             'riwayatTransaksi',
             'initialItems',
@@ -650,6 +731,100 @@ class CamabaPortalController extends Controller
             'sisaPelunasan',
             'bankAccounts'
         ));
+    }
+
+    /**
+     * Validasi dan terapkan kode voucher diskon DPP dari halaman pembayaran CAMABA.
+     */
+    public function applyVoucher(Request $request): JsonResponse
+    {
+        $prospek = $this->getCamabaProspek();
+        if (!$prospek) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data pendaftaran tidak ditemukan.',
+            ], 404);
+        }
+
+        $prospek->loadMissing('prodi');
+        if (empty($prospek->prodi_id) || ($prospek->status_formulir ?? '') !== 'Sudah Isi') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan lengkapi formulir pendaftaran dan pilih Program Studi terlebih dahulu.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'code' => 'required|string|max:50',
+        ], [
+            'code.required' => 'Harap masukkan kode voucher terlebih dahulu.',
+        ]);
+
+        try {
+            $usage = VoucherDiscountService::applyVoucher($prospek, $validated['code']);
+            $prospek->load(['prodi', 'transaksis']);
+            $dppSummary = VoucherDiscountService::getDppSummary($prospek);
+            $formattedVoucher = VoucherDiscountService::formatUsageForDisplay($usage);
+
+            return response()->json([
+                'success'     => true,
+                'message'     => "Voucher '{$usage->voucher_code}' berhasil diterapkan! Diskon {$usage->formatted_percentage}% (Potongan Rp " . number_format($usage->discount_amount, 0, ',', '.') . ').',
+                'voucher'     => $formattedVoucher,
+                'dpp_summary' => [
+                    'base_price'                => (int) $dppSummary['base_price'],
+                    'paid_partial'              => (int) $dppSummary['paid_partial'],
+                    'remaining_before_discount' => (int) $dppSummary['remaining_before_discount'],
+                    'discount_amount'           => (int) $dppSummary['discount_amount'],
+                    'remaining_payable'         => (int) $dppSummary['remaining_payable'],
+                    'is_paid'                   => (bool) $dppSummary['is_paid'],
+                ],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Batalkan voucher yang baru diterapkan (belum dibayar) pada tagihan DPP CAMABA.
+     */
+    public function removeVoucher(Request $request): JsonResponse
+    {
+        $prospek = $this->getCamabaProspek();
+        if (!$prospek) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data pendaftaran tidak ditemukan.',
+            ], 404);
+        }
+
+        $prospek->loadMissing(['prodi', 'transaksis']);
+
+        try {
+            VoucherDiscountService::removeVoucher($prospek);
+            $dppSummary = VoucherDiscountService::getDppSummary($prospek->fresh(['prodi', 'transaksis']));
+
+            return response()->json([
+                'success'     => true,
+                'message'     => 'Voucher diskon DPP telah dibatalkan dari tagihan Anda.',
+                'voucher'     => null,
+                'dpp_summary' => [
+                    'base_price'                => (int) $dppSummary['base_price'],
+                    'paid_partial'              => (int) $dppSummary['paid_partial'],
+                    'remaining_before_discount' => (int) $dppSummary['remaining_before_discount'],
+                    'discount_amount'           => (int) $dppSummary['discount_amount'],
+                    'remaining_payable'         => (int) $dppSummary['remaining_payable'],
+                    'is_paid'                   => (bool) $dppSummary['is_paid'],
+                ],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**

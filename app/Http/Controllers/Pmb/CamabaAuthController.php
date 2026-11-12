@@ -3,13 +3,17 @@
 namespace App\Http\Controllers\Pmb;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CamabaLoginOtpMail;
 use App\Models\Prospek;
 use App\Models\Sekolah;
 use App\Models\User;
+use App\Services\CamabaOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 
 class CamabaAuthController extends Controller
@@ -30,30 +34,156 @@ class CamabaAuthController extends Controller
     }
 
     /**
-     * Proses autentikasi CAMABA.
+     * Kirim kode OTP ke email CAMABA terdaftar (metode utama).
+     */
+    public function sendOtp(Request $request, CamabaOtpService $otpService)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ], [
+            'email.required' => 'Email wajib diisi.',
+            'email.email'    => 'Format email tidak valid.',
+        ]);
+
+        $rawEmail = (string) $request->input('email', '');
+        $email = $otpService->normalizeEmail($rawEmail);
+
+        if ($validator->fails()) {
+            return redirect()->route('pmb.login')
+                ->withErrors($validator)
+                ->withInput(['email' => $rawEmail, 'login_mode' => 'otp', 'otp_step' => 'request']);
+        }
+
+        $user = $this->findCamabaByEmail($email);
+
+        if (!$user) {
+            return redirect()->route('pmb.login')
+                ->withErrors(['email' => 'Email tidak terdaftar sebagai akun CAMABA.'])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => 'request']);
+        }
+
+        if ($user->status !== 'Aktif') {
+            return redirect()->route('pmb.login')
+                ->withErrors(['email' => 'Akun Anda saat ini dinonaktifkan. Silakan hubungi Sekretariat PMB UCIC.'])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => 'request']);
+        }
+
+        $issued = $otpService->issue($email);
+
+        if (!$issued['ok']) {
+            $remaining = $issued['cooldown_remaining'];
+            $step = $otpService->hasActiveOtp($email) ? 'verify' : 'request';
+
+            return redirect()->route('pmb.login')
+                ->withErrors(['email' => "Mohon tunggu {$remaining} detik sebelum mengirim ulang kode OTP."])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => $step])
+                ->with('otp_email', $email)
+                ->with('otp_cooldown', $remaining);
+        }
+
+        try {
+            Mail::to($user->email)->send(new CamabaLoginOtpMail(
+                otpCode: $issued['otp'],
+                recipientName: $user->name,
+                expiresInMinutes: $issued['expires_minutes'],
+            ));
+        } catch (\Throwable $e) {
+            $otpService->clearIssuedOtp($email);
+            report($e);
+
+            return redirect()->route('pmb.login')
+                ->withErrors(['email' => 'Gagal mengirim kode OTP ke email. Silakan coba lagi atau gunakan Masuk dengan Password.'])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => 'request']);
+        }
+
+        return redirect()->route('pmb.login')
+            ->with('success', "Kode OTP telah dikirim ke {$email}. Berlaku selama {$issued['expires_minutes']} menit.")
+            ->with('login_mode', 'otp')
+            ->with('otp_step', 'verify')
+            ->with('otp_email', $email)
+            ->with('otp_cooldown', $issued['cooldown_remaining']);
+    }
+
+    /**
+     * Verifikasi kode OTP dan selesaikan proses login CAMABA.
+     */
+    public function verifyOtp(Request $request, CamabaOtpService $otpService)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'otp'   => 'required|digits:6',
+        ], [
+            'email.required' => 'Email wajib diisi.',
+            'email.email'    => 'Format email tidak valid.',
+            'otp.required'   => 'Kode OTP wajib diisi.',
+            'otp.digits'     => 'Kode OTP harus terdiri dari 6 digit angka.',
+        ]);
+
+        $rawEmail = (string) $request->input('email', '');
+        $email = $otpService->normalizeEmail($rawEmail);
+
+        if ($validator->fails()) {
+            $step = $otpService->hasActiveOtp($email) ? 'verify' : 'request';
+
+            return redirect()->route('pmb.login')
+                ->withErrors($validator)
+                ->withInput(['email' => $email ?: $rawEmail, 'login_mode' => 'otp', 'otp_step' => $step])
+                ->with('otp_email', $email ?: $rawEmail)
+                ->with('otp_cooldown', $email ? $otpService->getCooldownRemaining($email) : 0);
+        }
+
+        $user = $this->findCamabaByEmail($email);
+
+        if (!$user) {
+            return redirect()->route('pmb.login')
+                ->withErrors(['otp' => 'Email atau kode OTP tidak valid.'])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => 'request']);
+        }
+
+        if ($user->status !== 'Aktif') {
+            return redirect()->route('pmb.login')
+                ->withErrors(['otp' => 'Akun Anda saat ini dinonaktifkan. Silakan hubungi Sekretariat PMB UCIC.'])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => 'request']);
+        }
+
+        $verification = $otpService->verify($email, (string) $request->input('otp'));
+
+        if (!$verification['ok']) {
+            return redirect()->route('pmb.login')
+                ->withErrors(['otp' => $verification['message']])
+                ->withInput(['email' => $email, 'login_mode' => 'otp', 'otp_step' => 'verify'])
+                ->with('otp_email', $email)
+                ->with('otp_cooldown', $otpService->getCooldownRemaining($email));
+        }
+
+        return $this->completeLogin($request, $user);
+    }
+
+    /**
+     * Proses autentikasi CAMABA menggunakan email dan password (metode alternatif).
      */
     public function login(Request $request)
     {
-        $request->validate([
-            'email'    => 'required|string',
+        $validator = Validator::make($request->all(), [
+            'email'    => 'required|email',
             'password' => 'required|string',
         ], [
             'email.required'    => 'Email wajib diisi.',
+            'email.email'       => 'Format email tidak valid.',
             'password.required' => 'Password wajib diisi.',
         ]);
 
-        $rawInput = trim($request->input('email'));
-        $email = strtolower($rawInput);
-        $password = $request->input('password');
+        if ($validator->fails()) {
+            return redirect()->route('pmb.login')
+                ->withErrors($validator)
+                ->withInput($request->only('email') + ['login_mode' => 'password'])
+                ->with('login_mode', 'password');
+        }
 
-        // Cari user dengan role Camaba berdasarkan email atau username
-        $user = User::where(function ($q) use ($email, $rawInput) {
-            $q->where('email', $email)
-              ->orWhere('username', $email)
-              ->orWhere('kode', $rawInput);
-        })
-        ->whereRaw('LOWER(role) = ?', ['camaba'])
-        ->first();
+        $email = strtolower(trim((string) $request->input('email')));
+        $password = (string) $request->input('password');
+
+        $user = $this->findCamabaByEmail($email);
 
         if ($user && Hash::check($password, $user->password)) {
             if ($user->status !== 'Aktif') {
@@ -61,21 +191,39 @@ class CamabaAuthController extends Controller
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
-                return back()->withErrors([
-                    'email' => 'Akun Anda saat ini dinonaktifkan. Silakan hubungi Sekretariat PMB UCIC.',
-                ])->onlyInput('email');
+                return redirect()->route('pmb.login')
+                    ->withErrors([
+                        'email' => 'Akun Anda saat ini dinonaktifkan. Silakan hubungi Sekretariat PMB UCIC.',
+                    ])
+                    ->withInput(['email' => $email, 'login_mode' => 'password'])
+                    ->with('login_mode', 'password');
             }
 
-            Auth::login($user, $request->boolean('remember'));
-            $request->session()->regenerate();
-
-            return redirect()->route('pmb.akun.dashboard')
-                ->with('success', 'Selamat datang! Anda berhasil masuk ke Portal PMB UCIC.');
+            return $this->completeLogin($request, $user);
         }
 
-        return back()->withErrors([
-            'email' => 'Email atau password yang Anda masukkan tidak sesuai.',
-        ])->onlyInput('email');
+        return redirect()->route('pmb.login')
+            ->withErrors([
+                'email' => 'Email atau password yang Anda masukkan tidak sesuai.',
+            ])
+            ->withInput(['email' => $email, 'login_mode' => 'password'])
+            ->with('login_mode', 'password');
+    }
+
+    private function findCamabaByEmail(string $email): ?User
+    {
+        return User::whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
+            ->whereRaw('LOWER(role) = ?', ['camaba'])
+            ->first();
+    }
+
+    private function completeLogin(Request $request, User $user)
+    {
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('pmb.akun.dashboard')
+            ->with('success', 'Selamat datang! Anda berhasil masuk ke Portal PMB UCIC.');
     }
 
     /**
@@ -183,6 +331,10 @@ class CamabaAuthController extends Controller
             // 2. Hubungkan atau cari sekolah jika cocok, atau buat catatan baru
             $sekolah = Sekolah::where('nama', 'like', trim($validated['asal_sekolah']))->first();
             $sekolahId = $sekolah?->id;
+            $wilayahId = $sekolah?->wilayah_id;
+
+            // Cari user role CS yang aktif untuk menangani pendaftar baru
+            $csUser = Prospek::findAvailableCs($wilayahId);
 
             // 3. Hubungkan dengan Prospek CRM HANYA jika ada pendaftar CRM yang belum memiliki akun (user_id IS NULL) dengan email yang sama DAN BELUM MEMILIKI TRANSAKSI
             $prospek = Prospek::where('email', $emailClean)
@@ -206,6 +358,12 @@ class CamabaAuthController extends Controller
                 if (!$prospek->sekolah_id && $sekolahId) {
                     $prospek->sekolah_id = $sekolahId;
                 }
+                if (!$prospek->wilayah_id && $wilayahId) {
+                    $prospek->wilayah_id = $wilayahId;
+                }
+                if (!$prospek->cs_id && $csUser) {
+                    $prospek->cs_id = $csUser->id;
+                }
                 $prospek->minat_kuliah = $minatKuliah;
                 $prospek->minat_miniclass = $minatMiniclass;
                 $prospek->save();
@@ -219,7 +377,7 @@ class CamabaAuthController extends Controller
                 $activeTa = \App\Models\TahunAkademik::getAktif();
                 $gelombangName = $activeTa ? 'Gelombang 1 - ' . $activeTa->nama : 'Gelombang 1';
 
-                // Buat record Prospek baru secara aman
+                // Buat record Prospek baru secara aman dan assign ke role CS
                 $prospek = Prospek::create([
                     'user_id'          => $user->id,
                     'academic_year_id' => $activeTa?->id,
@@ -239,6 +397,8 @@ class CamabaAuthController extends Controller
                     'gelombang'        => $gelombangName,
                     'no_registrasi'    => $noRegistrasi,
                     'sekolah_id'       => $sekolahId,
+                    'wilayah_id'       => $wilayahId,
+                    'cs_id'            => $csUser?->id,
                     'minat_kuliah'     => $minatKuliah,
                     'minat_miniclass'  => $minatMiniclass,
                     'notes'            => 'Pendaftaran mandiri via Portal PMB Online. Asal sekolah: ' . trim($validated['asal_sekolah']),
