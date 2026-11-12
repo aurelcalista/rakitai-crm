@@ -65,10 +65,10 @@ class PipelineController extends Controller
             ], 422);
         }
 
-        if ($request->status === 'LUNAS' && strtolower($user->role) === 'sales') {
+        if ($request->status === 'LUNAS' && in_array(strtolower($user->role ?? ''), ['sales', 'cs'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Status LUNAS hanya dapat diproses oleh CS. Ubah status menjadi CLOSING untuk melimpahkan ke CS.',
+                'message' => 'Status LUNAS hanya dapat diperbarui secara otomatis setelah pembayaran terkonfirmasi via Midtrans.',
             ], 422);
         }
 

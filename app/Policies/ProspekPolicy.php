@@ -72,12 +72,15 @@ class ProspekPolicy
 
     /**
      * Input manual transaction (Beli Formulir & Pembayaran Termin 1 / Closing).
-     * Semua pengguna internal yang login berwenang menginput transaksi pada prospek atau kontak user lain
-     * tanpa pembatasan akses (bebas input transaksi).
+     * Role Sales dan CS dilarang keras menginput transaksi secara manual (pembayaran dilakukan mandiri oleh Camaba via PMB/Midtrans).
      */
     public function transaction(User $user, Prospek $prospek): bool
     {
-        return in_array(strtolower($user->role), ['admin', 'cs', 'sales', 'spv', 'hm', 'eo']);
+        if (in_array(strtolower($user->role), ['sales', 'cs'])) {
+            return false;
+        }
+
+        return in_array(strtolower($user->role), ['admin', 'spv', 'hm']);
     }
 
     /**

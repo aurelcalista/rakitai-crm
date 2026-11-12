@@ -171,9 +171,11 @@ class VerifikasiController extends Controller
      */
     public function verify(Request $request, Transaksi $transaksi): RedirectResponse
     {
-        // Hanya CS, Admin, HM yang boleh memverifikasi
         $userRole = strtoupper(auth()->user()->role ?? '');
-        abort_if(!in_array($userRole, ['CS', 'ADMIN', 'HM', 'HEAD MARKETING']), 403);
+        if (in_array($userRole, ['CS', 'SALES'])) {
+            abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki kewenangan untuk memverifikasi pembayaran secara manual.');
+        }
+        abort_if(!in_array($userRole, ['ADMIN', 'HM', 'HEAD MARKETING']), 403);
 
         // Sales tidak boleh verifikasi transaksinya sendiri
         if (strtolower(auth()->user()->role) === 'sales' && auth()->id() === $transaksi->user_id) {
@@ -299,9 +301,11 @@ class VerifikasiController extends Controller
      */
     public function reject(Request $request, Transaksi $transaksi): RedirectResponse
     {
-        // Hanya CS yang boleh
         $userRole = strtoupper(auth()->user()->role ?? '');
-        abort_if(!in_array($userRole, ['CS', 'ADMIN', 'HM', 'HEAD MARKETING']), 403);
+        if (in_array($userRole, ['CS', 'SALES'])) {
+            abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki kewenangan untuk menolak pembayaran secara manual.');
+        }
+        abort_if(!in_array($userRole, ['ADMIN', 'HM', 'HEAD MARKETING']), 403);
 
         // Sales tidak boleh reject transaksinya sendiri
         if (strtolower(auth()->user()->role) === 'sales' && auth()->id() === $transaksi->user_id) {

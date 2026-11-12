@@ -536,9 +536,9 @@ class ProspectController extends Controller
         }
 
         if ($newStatus === 'LUNAS') {
-            if (strtolower(auth()->user()->role ?? '') === 'sales') {
+            if (in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs'])) {
                 return redirect()->back()
-                    ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
+                    ->withErrors(['status' => 'Status LUNAS hanya dapat diperbarui secara otomatis setelah pembayaran terkonfirmasi via Midtrans.']);
             }
             if (!\App\Services\ProspekService::isClosingValid($prospek)) {
                 return redirect()->back()

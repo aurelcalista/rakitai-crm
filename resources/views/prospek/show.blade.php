@@ -1302,7 +1302,11 @@
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Status Pipeline *</label>
                                 <select name="status" required class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
                                     @foreach($allStages as $stage)
-                                        <option value="{{ $stage['name'] }}" {{ $prospect['status'] === $stage['name'] ? 'selected' : '' }}>{{ $stage['name'] }}</option>
+                                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']) && strtoupper($stage['name']) === 'LUNAS' && $prospect['status'] !== 'LUNAS')
+                                            {{-- Sembunyikan opsi LUNAS manual untuk Sales & CS --}}
+                                        @else
+                                            <option value="{{ $stage['name'] }}" {{ $prospect['status'] === $stage['name'] ? 'selected' : '' }}>{{ $stage['name'] }}</option>
+                                        @endif
                                     @endforeach
                                     <option value="Lost" {{ $prospect['status'] === 'Lost' ? 'selected' : '' }}>Lost (Arsip)</option>
                                 </select>
@@ -1396,6 +1400,7 @@
     {{-- ═══════════════════════════════════════════════════════════ --}}
     {{-- MODAL: INPUT TRANSAKSI (2-STEP PAYMENT WIZARD)              --}}
     {{-- ═══════════════════════════════════════════════════════════ --}}
+    @can('transaction', $prospekModel ?? null)
     <div
         x-show="modalTransaksi"
         x-cloak
@@ -1883,6 +1888,7 @@
             </div>
         </div>
     </div>
+    @endcan
 
 </div>
 </x-app-layout>

@@ -884,6 +884,11 @@ class PmbPembayaranController extends Controller
 
     public function verify(Request $request, $id)
     {
+        $role = strtolower(auth()->user()->role ?? '');
+        if (in_array($role, ['sales', 'cs'])) {
+            abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki kewenangan untuk memverifikasi pembayaran secara manual.');
+        }
+
         $transaksi = Transaksi::findOrFail($id);
         $user = auth()->user();
 
@@ -924,6 +929,11 @@ class PmbPembayaranController extends Controller
 
     public function reject(Request $request, $id)
     {
+        $role = strtolower(auth()->user()->role ?? '');
+        if (in_array($role, ['sales', 'cs'])) {
+            abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki kewenangan untuk menolak pembayaran secara manual.');
+        }
+
         $transaksi = Transaksi::findOrFail($id);
         $user = auth()->user();
 

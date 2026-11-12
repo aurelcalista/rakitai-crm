@@ -1422,24 +1422,23 @@ class MidtransService
                     'rejection_reason' => null,
                 ]);
 
-                // Update status prospek PMB: masuk ke tahap FORMULIR jika masih di tahap awal
+                // Update status prospek PMB: ketika pembayaran berhasil dikonfirmasi oleh Midtrans, status otomatis berubah menjadi LUNAS
                 if ($prospek) {
-                    $prospekStatusUpper = strtoupper((string) $prospek->status);
-                    $initialStages = ['BARU', 'KONTAK', 'PROSPEK', 'HOT PROSPEK'];
-                    if (in_array($prospekStatusUpper, $initialStages) || ((int) $prospek->stage_number < 5)) {
-                        $prospek->update([
-                            'status'       => 'FORMULIR',
-                            'stage_number' => 5,
-                        ]);
-                    }
+                    $oldStatus = $prospek->status;
+                    $prospek->update([
+                        'status'       => 'LUNAS',
+                        'stage_number' => 7,
+                    ]);
 
                     // Catat riwayat di ProspekTimeline
                     ProspekTimeline::create([
-                        'prospek_id' => $prospek->id,
-                        'user_id'    => null, // Verifikasi otomatis sistem
-                        'title'      => 'Pembayaran PMB Online Sukses (Midtrans)',
-                        'notes'      => "Pembayaran Order ID {$transaksi->order_id} sebesar Rp " . number_format($transaksi->nominal, 0, ',', '.') . " sukses via Midtrans ({$paymentType}) dan diverifikasi otomatis oleh sistem.",
-                        'time'       => now(),
+                        'prospek_id'    => $prospek->id,
+                        'user_id'       => null, // Verifikasi otomatis sistem via Midtrans Webhook
+                        'title'         => 'Pembayaran Berhasil Terkonfirmasi (Midtrans)',
+                        'notes'         => "Pembayaran Order ID {$transaksi->order_id} sebesar Rp " . number_format($transaksi->nominal, 0, ',', '.') . " sukses dikonfirmasi via Midtrans ({$paymentType}). Status prospek otomatis diperbarui menjadi LUNAS.",
+                        'status_before' => $oldStatus,
+                        'status_after'  => 'LUNAS',
+                        'time'          => now(),
                     ]);
                 }
 

@@ -56,7 +56,7 @@
     <!-- Card 3: 4 Action Grid Cards with Big Circular Icons (Matching Screenshot 1) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <!-- 1. Form Pendaftaran -->
-        <a href="{{ route('pmb.akun.profil') }}"
+        <a href="{{ route('pmb.akun.form-pendaftaran') }}"
            class="group bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-between">
             <div class="w-18 h-18 rounded-full {{ $isFormFilled ? 'bg-[#16a34a]' : 'bg-[#0b3d82]' }} text-white flex items-center justify-center mb-5 shadow-xs group-hover:scale-105 transition">
                 @if($isFormFilled)

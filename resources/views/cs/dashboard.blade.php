@@ -1,6 +1,6 @@
 @php
     $pageTitle = 'Dashboard Customer Service (CS)';
-    $pageSubtitle = 'Follow-up Inbound, Verifikasi Transaksi & Serah Terima';
+    $pageSubtitle = 'Follow-up Inbound, Monitoring Transaksi & Serah Terima';
 @endphp
 
 <x-app-layout :title="'Dashboard CS - CRM UCIC'">
@@ -34,21 +34,21 @@
                     <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Halo, {{ auth()->user()->name }}</h2>
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">Customer Service Lead</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Pusat kendali operasional: Validasi pembayaran Termin 1, tindak lanjut lead serah terima, dan follow-up harian.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Pusat kendali operasional: Monitoring status pembayaran pendaftaran, tindak lanjut lead serah terima, dan follow-up harian.</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <a 
-                    href="{{ route('cs.verifikasi.index') }}"
-                    class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                    href="{{ route('sales.pembayaran.index') }}"
+                    class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
-                    <span>Verifikasi Bayar ({{ $pendingPaymentCount ?? 0 }})</span>
+                    <span>Riwayat Pembayaran</span>
                 </a>
                 <a 
                     href="{{ route('follow-up.index') }}"
-                    class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition flex items-center gap-1.5"
+                    class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition flex items-center gap-1.5"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -58,42 +58,21 @@
             </div>
         </div>
 
-        {{-- ALERT BANNER: Notifikasi Pembayaran / SLA Overdue --}}
-        @if(($pendingPaymentCount ?? 0) > 0 || ($slaOverdueCount ?? 0) > 0)
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                @if(($pendingPaymentCount ?? 0) > 0)
-                    <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start justify-between gap-3 shadow-xs">
-                        <div class="flex items-start gap-3">
-                            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                            </div>
-                            <div>
-                                <h4 class="text-xs sm:text-sm font-bold text-amber-950">Ada {{ $pendingPaymentCount }} Pembayaran Perlu Diverifikasi</h4>
-                                <p class="text-[11px] text-amber-800 mt-0.5">Total nominal <strong>Rp {{ number_format($pendingPaymentSum ?? 0, 0, ',', '.') }}</strong> menunggu validasi CS agar prospek sah Closing.</p>
-                            </div>
-                        </div>
-                        <a href="{{ route('cs.verifikasi.index') }}" class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shrink-0 transition shadow-xs">
-                            Periksa
-                        </a>
+        {{-- ALERT BANNER: Notifikasi SLA Overdue (Sistem Otomatis) --}}
+        @if(($slaOverdueCount ?? 0) > 0)
+            <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start justify-between gap-3 shadow-xs">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     </div>
-                @endif
-
-                @if(($slaOverdueCount ?? 0) > 0)
-                    <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start justify-between gap-3 shadow-xs">
-                        <div class="flex items-start gap-3">
-                            <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            </div>
-                            <div>
-                                <h4 class="text-xs sm:text-sm font-bold text-rose-950">{{ $slaOverdueCount }} Prospek Lewat Batas SLA 2 Jam</h4>
-                                <p class="text-[11px] text-rose-800 mt-0.5">Prospek formulir serah terima belum di-follow up sejak handover. Alarm terkirim ke Supervisor.</p>
-                            </div>
-                        </div>
-                        <a href="#section-handover" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shrink-0 transition shadow-xs">
-                            Tindak Lanjut
-                        </a>
+                    <div>
+                        <h4 class="text-xs sm:text-sm font-bold text-rose-950">{{ $slaOverdueCount }} Prospek Lewat Batas SLA 2 Jam</h4>
+                        <p class="text-[11px] text-rose-800 mt-0.5">Prospek formulir serah terima belum di-follow up sejak handover. Alarm terkirim ke Supervisor.</p>
                     </div>
-                @endif
+                </div>
+                <a href="#section-handover" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shrink-0 transition shadow-xs">
+                    Tindak Lanjut
+                </a>
             </div>
         @endif
 
@@ -108,13 +87,13 @@
 
         <!-- Statistic Cards for CS -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            {{-- Card Verifikasi Pembayaran (Baru) --}}
-            <a href="{{ route('cs.verifikasi.index') }}" class="block">
+            {{-- Card Riwayat Transaksi / Pembayaran --}}
+            <a href="{{ route('sales.pembayaran.index') }}" class="block">
                 <x-stat-card 
-                    title="Verifikasi Bayar" 
+                    title="Riwayat Bayar" 
                     :value="$stats['pending_payment_count'] ?? 0" 
-                    subtitle="Menunggu CS" 
-                    color="amber"
+                    subtitle="Transaksi Aktif" 
+                    color="blue"
                 />
             </a>
             <x-stat-card 
@@ -150,25 +129,25 @@
         </div>
 
         {{-- ═════════════════════════════════════════════════════════════════ --}}
-        {{-- WIDGET: ANTREAN VERIFIKASI PEMBAYARAN                           --}}
+        {{-- WIDGET: MONITORING TRANSAKSI & PEMBAYARAN PMB                   --}}
         {{-- ═════════════════════════════════════════════════════════════════ --}}
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div class="flex items-center gap-2.5">
-                    <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                    <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                     </span>
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900 tracking-tight">Antrean Verifikasi Pembayaran</h3>
-                        <p class="text-[11px] text-slate-500">Pembayaran dari Sales yang menunggu pengesahan CS agar sah Closing</p>
+                        <h3 class="text-sm font-bold text-slate-900 tracking-tight">Monitoring Transaksi Pembayaran PMB</h3>
+                        <p class="text-[11px] text-slate-500">Catatan pembayaran calon mahasiswa yang terhubung otomatis melalui Midtrans</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {{ ($pendingPaymentCount ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600' }}">
-                        {{ $pendingPaymentCount ?? 0 }} Menunggu
+                        {{ $pendingPaymentCount ?? 0 }} Transaksi Pending
                     </span>
-                    <a href="{{ route('cs.verifikasi.index') }}" class="text-xs text-blue-600 hover:text-blue-700 font-bold ml-2">
-                        Buka Semua & Riwayat →
+                    <a href="{{ route('sales.pembayaran.index') }}" class="text-xs text-blue-600 hover:text-blue-700 font-bold ml-2">
+                        Buka Riwayat Pembayaran →
                     </a>
                 </div>
             </div>
@@ -226,14 +205,7 @@
                                     </td>
                                     <td class="px-4 py-3.5 text-center">
                                         <div class="flex items-center justify-center gap-1.5">
-                                            <form action="{{ route('cs.verifikasi.verify', $trx->id) }}" method="POST"
-                                                  onsubmit="return confirm('Konfirmasi verifikasi pembayaran untuk calon mahasiswa ini? Prospek akan dinyatakan LUNAS.')">
-                                                @csrf
-                                                <button type="submit" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-xs transition cursor-pointer inline-flex items-center gap-1">
-                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                                    <span>Verifikasi</span>
-                                                </button>
-                                            </form>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">Menunggu Pembayaran Midtrans</span>
                                             <a href="{{ route('cs.verifikasi.index') }}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold transition">
                                                 Detail
                                             </a>
@@ -246,8 +218,8 @@
                 </div>
             @else
                 <div class="py-10 text-center text-slate-400 text-xs">
-                    <p class="font-semibold text-slate-600">Tidak ada antrean pembayaran yang pending</p>
-                    <p class="text-[11px] text-slate-400 mt-0.5">Semua transaksi yang diinput Sales sudah berhasil diverifikasi.</p>
+                    <p class="font-semibold text-slate-600">Tidak ada transaksi pembayaran yang pending</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Seluruh transaksi pendaftaran calon mahasiswa diproses otomatis melalui Midtrans.</p>
                 </div>
             @endif
         </div>

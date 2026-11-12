@@ -1,9 +1,9 @@
 @php
-    $pageTitle = 'Verifikasi & Riwayat Pembayaran';
-    $pageSubtitle = $activeTab === 'pending' ? 'Menunggu Konfirmasi CS' : 'Arsip Transaksi Diproses';
+    $pageTitle = 'Riwayat Pembayaran Calon Mahasiswa';
+    $pageSubtitle = $activeTab === 'pending' ? 'Daftar Menunggu Penyelesaian Pembayaran' : 'Arsip Transaksi Diproses';
 @endphp
 
-<x-app-layout :title="'Verifikasi Pembayaran - CRM UCIC'">
+<x-app-layout :title="'Riwayat Pembayaran - CRM UCIC'">
 
     <div class="space-y-6" x-data="{ 
         rejectModal: false, 
@@ -30,14 +30,14 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 sm:px-6 rounded-2xl border border-slate-200/80 shadow-xs">
             <div>
                 <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    Verifikasi & Riwayat Pembayaran
+                    Riwayat & Status Pembayaran
                     @if($totalPending > 0)
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                            {{ $totalPending }} Perlu Tindakan
+                            {{ $totalPending }} Menunggu Pembayaran
                         </span>
                     @endif
                 </h2>
-                <p class="text-xs text-slate-500 mt-0.5">Periksa dan verifikasi pembayaran Termin 1 dari Sales serta pantau riwayat persetujuan CS.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Monitoring pembayaran mandiri calon mahasiswa via Midtrans secara real-time.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a 
@@ -466,7 +466,8 @@
                                                     <span>Rincian</span>
                                                 </button>
 
-                                                {{-- Tombol Verifikasi --}}
+                                                @if(!in_array(strtolower(auth()->user()->role ?? ''), ['cs', 'sales']))
+                                                {{-- Tombol Verifikasi (Admin/HM Only) --}}
                                                 <form action="{{ route('cs.verifikasi.verify', $trx->id) }}" method="POST"
                                                       onsubmit="event.preventDefault(); confirmVerifyPayment(this, '{{ addslashes($camabaName) }}', '{{ number_format($trx->nominal, 0, ',', '.') }}');">
                                                     @csrf
@@ -477,13 +478,18 @@
                                                     </button>
                                                 </form>
 
-                                                {{-- Tombol Tolak --}}
+                                                {{-- Tombol Tolak (Admin/HM Only) --}}
                                                 <button type="button"
                                                     @click="openRejectModal({{ $trx->id }}, {{ json_encode($camabaName) }}, {{ json_encode(number_format($trx->nominal, 0, ',', '.')) }})"
                                                     class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer">
                                                     <svg class="w-3 h-3 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                                                     <span>Tolak</span>
                                                 </button>
+                                                @else
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                                                    Menunggu Midtrans
+                                                </span>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>

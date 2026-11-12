@@ -95,17 +95,6 @@ class Prospek extends Model
                 }
             }
 
-            // Input Form Pendaftaran Online UCIC / PMB Online otomatis masuk ke role CS jika belum memiliki cs_id
-            if ($isOnlinePmb && empty($prospek->cs_id)) {
-                $cs = self::findAvailableCs($prospek->wilayah_id);
-                if ($cs) {
-                    $prospek->cs_id = $cs->id;
-                    if (empty($prospek->handover_at) && $prospek->isHandoverStage()) {
-                        $prospek->handover_at = now();
-                    }
-                }
-            }
-
             // Logic Reset Follow-up: Jika prospek dipindahtangankan (sales_id / owner_id / cs_id),
             // hitungan sentuhan aktif di-reset ke 0 bagi penangan baru.
             // Riwayat follow-up lama tetap utuh di tabel follow_ups.
@@ -113,8 +102,8 @@ class Prospek extends Model
                 $prospek->active_follow_up_count = 0;
             }
 
-            // Auto-handover to CS when status enters handover stages
-            if ($prospek->isHandoverStage()) {
+            // Auto-handover to CS when CRM prospect with Sales enters handover stages
+            if ($prospek->isHandoverStage() && !empty($prospek->sales_id)) {
                 if (is_null($prospek->cs_id) || empty($prospek->handover_at)) {
                     $cs = self::findAvailableCs($prospek->wilayah_id);
                     if ($cs) {
@@ -457,13 +446,7 @@ class Prospek extends Model
      */
     public static function getPipelineStages(?string $role = null): array
     {
-        $stages = self::getActiveStages();
-
-        if ($role && strtolower($role) === 'sales') {
-            $stages = array_values(array_filter($stages, fn($s) => strtoupper($s) !== 'LUNAS'));
-        }
-
-        return $stages;
+        return self::getActiveStages();
     }
 
     /**

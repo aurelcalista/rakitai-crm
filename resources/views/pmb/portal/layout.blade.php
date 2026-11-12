@@ -35,32 +35,50 @@
                 </a>
             </div>
 
-            <!-- Desktop Nav Menu (Beranda, Biaya, Katalog, Dashboard, Logout) -->
-            <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
-                <a href="{{ route('pmb.portal') }}"
-                   class="transition hover:text-blue-600 {{ request()->routeIs('pmb.portal') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
-                    Beranda
-                </a>
-                <a href="{{ route('pmb.akun.status') }}"
-                   class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.status') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
-                    Biaya
-                </a>
-                <a href="{{ route('pmb.akun.katalog') }}"
-                   class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.katalog*') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
-                    Katalog
-                </a>
-                <a href="{{ route('pmb.akun.dashboard') }}"
-                   class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.dashboard') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
-                    Dashboard
-                </a>
-                <form action="{{ route('pmb.logout') }}" method="POST" class="inline">
-                    @csrf
-                    <button type="submit"
-                            class="text-slate-600 hover:text-rose-600 font-medium transition cursor-pointer">
-                        Logout
-                    </button>
-                </form>
-            </nav>
+            <!-- Desktop Nav Menu (Beranda, Biaya, Katalog, Dashboard, Profile Icon & Logout) -->
+            <div class="hidden md:flex items-center gap-6">
+                <nav class="flex items-center gap-6 text-sm font-medium">
+                    <a href="{{ route('pmb.portal') }}"
+                       class="transition hover:text-blue-600 {{ request()->routeIs('pmb.portal') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
+                        Beranda
+                    </a>
+                    <a href="{{ route('pmb.akun.status') }}"
+                       class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.status') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
+                        Biaya
+                    </a>
+                    <a href="{{ route('pmb.akun.katalog') }}"
+                       class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.katalog*') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
+                        Katalog
+                    </a>
+                    <a href="{{ route('pmb.akun.dashboard') }}"
+                       class="transition hover:text-blue-600 {{ request()->routeIs('pmb.akun.dashboard') ? 'text-blue-600 font-bold' : 'text-slate-600' }}">
+                        Dashboard
+                    </a>
+                </nav>
+
+                <!-- Profile Button with Icon & Logout -->
+                <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
+                    <a href="{{ route('pmb.akun.profil') }}" 
+                       class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50 hover:bg-blue-50 text-slate-700 transition {{ request()->routeIs('pmb.akun.profil*') ? 'ring-2 ring-blue-500 bg-blue-50 text-[#0b3d82] font-bold' : '' }}" 
+                       title="Profil Akun Saya">
+                        <div class="w-6 h-6 rounded-lg bg-[#0b3d82] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <span class="text-xs font-bold max-w-[110px] truncate">{{ auth()->user()->name }}</span>
+                    </a>
+
+                    <form action="{{ route('pmb.logout') }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit"
+                                class="text-xs text-slate-500 hover:text-rose-600 font-bold transition px-2.5 py-1.5 rounded-lg hover:bg-rose-50 cursor-pointer flex items-center gap-1"
+                                title="Keluar dari Akun">
+                            <span>Logout</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             <!-- Mobile Menu Toggle Button -->
             <button type="button"
@@ -101,13 +119,12 @@
                class="block px-3 py-2 rounded-xl text-xs font-bold {{ request()->routeIs('pmb.akun.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-700' }}">
                 Dashboard
             </a>
-            <a href="{{ route('pmb.akun.bayar') }}"
-               class="block px-3 py-2 rounded-xl text-xs font-bold {{ request()->routeIs('pmb.akun.bayar') ? 'bg-blue-50 text-blue-700' : 'text-slate-700' }}">
-                Pembayaran Midtrans
-            </a>
             <a href="{{ route('pmb.akun.profil') }}"
-               class="block px-3 py-2 rounded-xl text-xs font-bold {{ request()->routeIs('pmb.akun.profil') ? 'bg-blue-50 text-blue-700' : 'text-slate-700' }}">
-                Profil Saya
+               class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold {{ request()->routeIs('pmb.akun.profil*') ? 'bg-blue-50 text-blue-700' : 'text-slate-700' }}">
+                <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Profile</span>
             </a>
 
             <div class="pt-2 border-t border-slate-100">

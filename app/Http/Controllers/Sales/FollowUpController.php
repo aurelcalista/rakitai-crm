@@ -177,11 +177,11 @@ class FollowUpController extends Controller
         if (strtoupper(trim((string)$oldStatus)) !== strtoupper(trim((string)$newStatus))) {
             \Illuminate\Support\Facades\Gate::authorize('updateStatus', $prospek);
 
-            // Prevent Sales from setting status directly to LUNAS (requires CS / closing payment)
-            if (strtoupper($newStatus) === 'LUNAS' && strtolower(auth()->user()->role ?? '') === 'sales') {
+            // Prevent Sales and CS from setting status directly to LUNAS (requires Midtrans payment confirmation)
+            if (strtoupper($newStatus) === 'LUNAS' && in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs'])) {
                 return redirect()->back()
                     ->withInput()
-                    ->withErrors(['status' => 'Status LUNAS hanya dapat diproses oleh CS setelah pelunasan pembayaran. Sales dapat memilih status CLOSING.']);
+                    ->withErrors(['status' => 'Status LUNAS hanya dapat diperbarui secara otomatis setelah pembayaran terkonfirmasi via Midtrans.']);
             }
 
             $stagesMap = Prospek::getDynamicStagesMap();

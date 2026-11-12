@@ -2282,12 +2282,8 @@ class CrmController extends Controller
             return redirect()->back()->withErrors(['status' => 'Prospek yang sudah Lunas tidak dapat diubah statusnya.']);
         }
 
-        if ($user && strtolower($user->role) === 'sales' && $newStatus === 'LUNAS') {
-            return redirect()->back()->withErrors(['status' => 'Sales tidak dapat mengubah status menjadi Lunas.']);
-        }
-
-        if ($user && strtolower($user->role) === 'cs') {
-            // CS di CRM UCIC berwenang mengubah semua status prospek
+        if ($user && in_array(strtolower($user->role), ['sales', 'cs']) && $newStatus === 'LUNAS' && $oldStatus !== 'LUNAS') {
+            return redirect()->back()->withErrors(['status' => 'Status LUNAS hanya dapat diperbarui secara otomatis setelah pembayaran terkonfirmasi via Midtrans.']);
         }
 
         if ($newStatus === 'LUNAS' && !\App\Services\ProspekService::isClosingValid($prospek)) {
@@ -2643,14 +2639,9 @@ class CrmController extends Controller
             return response()->json(['success' => false, 'message' => 'Prospek yang sudah Lunas tidak dapat diubah statusnya.'], 403);
         }
 
-        // Sales cannot transition a prospect to LUNAS directly
-        if ($user && strtolower($user->role) === 'sales' && $newStatus === 'LUNAS') {
-            return response()->json(['success' => false, 'message' => 'Sales tidak dapat mengubah status menjadi Lunas.'], 403);
-        }
-
-        // CS is restricted to its authorized stages
-        if ($user && strtolower($user->role) === 'cs') {
-            // CS di CRM UCIC berwenang mengubah semua status prospek – tidak ada pembatasan stage
+        // Role Sales dan CS tidak dapat mengubah status menjadi LUNAS secara manual
+        if ($user && in_array(strtolower($user->role), ['sales', 'cs']) && $newStatus === 'LUNAS') {
+            return response()->json(['success' => false, 'message' => 'Status LUNAS hanya dapat diperbarui secara otomatis setelah pembayaran terkonfirmasi via Midtrans.'], 403);
         }
 
         // Changing status to LUNAS strictly requires verified closing payments (Formulir + Termin 1)
@@ -3192,6 +3183,11 @@ class CrmController extends Controller
 
     public function transaksiStore(Request $request, int $id)
     {
+        $role = strtolower(auth()->user()->role ?? '');
+        if (in_array($role, ['sales', 'cs'])) {
+            abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki izin untuk menginput transaksi secara manual.');
+        }
+
         $prospek = Prospek::findOrFail($id);
         $this->authorize('transaction', $prospek);
 

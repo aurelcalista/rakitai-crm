@@ -317,7 +317,7 @@ class CamabaAuthController extends Controller
         }
 
         // Jalankan transaksi database untuk integritas data User & Prospek
-        $user = DB::transaction(function () use ($validated, $emailClean, $formattedPhone) {
+        $user = DB::transaction(function () use ($validated, $emailClean, $formattedPhone, $possiblePhones) {
             // 1. Buat User Camaba
             $user = User::create([
                 'name'     => trim($validated['name']),
@@ -333,42 +333,72 @@ class CamabaAuthController extends Controller
             $sekolahId = $sekolah?->id;
             $wilayahId = $sekolah?->wilayah_id;
 
-            // Cari user role CS yang aktif untuk menangani pendaftar baru
-            $csUser = Prospek::findAvailableCs($wilayahId);
-
-            // 3. Hubungkan dengan Prospek CRM HANYA jika ada pendaftar CRM yang belum memiliki akun (user_id IS NULL) dengan email yang sama DAN BELUM MEMILIKI TRANSAKSI
-            $prospek = Prospek::where('email', $emailClean)
-                ->whereNull('user_id')
+            // 3. Pencocokan Data Prospek CRM Saat Registrasi PMB (Anti-Duplikasi)
+            // Periksa email dan nomor HP yang digunakan terhadap data prospek CRM yang belum terhubung akun (user_id IS NULL)
+            $candidateByEmail = Prospek::whereNull('user_id')
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->whereRaw('LOWER(email) = ?', [$emailClean])
                 ->first();
 
-            if ($prospek && $prospek->transaksis()->exists()) {
-                // Prospek lama yang sudah memiliki transaksi tidak boleh ditautkan ke akun pendaftar baru
-                $prospek = null;
+            $candidateByPhone = Prospek::whereNull('user_id')
+                ->where(function ($q) use ($possiblePhones) {
+                    $q->whereIn('whatsapp', $possiblePhones)
+                      ->orWhereIn('pic_phone', $possiblePhones);
+                })
+                ->first();
+
+            $prospek = null;
+            if ($candidateByEmail && $candidateByPhone) {
+                if ($candidateByEmail->id === $candidateByPhone->id) {
+                    // Match sempurna: email dan nomor HP menunjuk ke prospek yang sama
+                    $prospek = $candidateByEmail;
+                } else {
+                    // Jika menunjuk ke dua prospek berbeda, utamakan email namun jangan gabungkan sembarangan
+                    $prospek = $candidateByEmail;
+                }
+            } elseif ($candidateByEmail) {
+                $prospek = $candidateByEmail;
+            } elseif ($candidateByPhone) {
+                $prospek = $candidateByPhone;
             }
 
             $minatKuliah = $validated['minat_kuliah'] ?? 'ya';
             $minatMiniclass = $validated['minat_miniclass'] ?? 'tidak';
 
             if ($prospek) {
-                // Hubungkan prospek CRM yang belum bertuan ke akun user baru ini
+                // Hubungkan akun PMB dengan ID prospek yang sudah ada (pertahankan ID prospek lama)
                 $prospek->user_id = $user->id;
-                $prospek->name = trim($validated['name']);
-                $prospek->whatsapp = $formattedPhone;
-                $prospek->pic_phone = $formattedPhone;
+                if (empty($prospek->email)) {
+                    $prospek->email = $emailClean;
+                }
+                if (empty($prospek->whatsapp)) {
+                    $prospek->whatsapp = $formattedPhone;
+                    $prospek->pic_phone = $formattedPhone;
+                }
+                // Pertahankan informasi Sales, CS, sekolah, dan catatan lama (JANGAN OVERWRITE / AUTO ASSIGN)
                 if (!$prospek->sekolah_id && $sekolahId) {
                     $prospek->sekolah_id = $sekolahId;
                 }
                 if (!$prospek->wilayah_id && $wilayahId) {
                     $prospek->wilayah_id = $wilayahId;
                 }
-                if (!$prospek->cs_id && $csUser) {
-                    $prospek->cs_id = $csUser->id;
-                }
                 $prospek->minat_kuliah = $minatKuliah;
                 $prospek->minat_miniclass = $minatMiniclass;
+                // Status prospek CRM TIDAK diubah otomatis saat registrasi (misal HOT PROSPEK tetap HOT PROSPEK)
                 $prospek->save();
+
+                // Catat riwayat di ProspekTimeline
+                \App\Models\ProspekTimeline::create([
+                    'prospek_id' => $prospek->id,
+                    'user_id'    => $user->id,
+                    'title'      => 'Akun Portal PMB Terhubung',
+                    'notes'      => 'Calon mahasiswa berhasil mendaftarkan akun Portal PMB dan ditautkan secara otomatis ke data prospek CRM.',
+                    'time'       => now(),
+                ]);
             } else {
-                // Generate nomor registrasi baru PMB jika belum ada
+                // Calon mahasiswa langsung mendaftar via PMB (tanpa prospek CRM sebelumnya)
+                // Generate nomor registrasi baru PMB
                 $year = date('Y');
                 $nextNum = Prospek::whereYear('created_at', $year)->count() + 1;
                 $noRegistrasi = 'PMB-' . $year . '-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
@@ -377,7 +407,7 @@ class CamabaAuthController extends Controller
                 $activeTa = \App\Models\TahunAkademik::getAktif();
                 $gelombangName = $activeTa ? 'Gelombang 1 - ' . $activeTa->nama : 'Gelombang 1';
 
-                // Buat record Prospek baru secara aman dan assign ke role CS
+                // Buat record PMB pendaftar tanpa menetapkan penanggung jawab Sales/CS secara otomatis
                 $prospek = Prospek::create([
                     'user_id'          => $user->id,
                     'academic_year_id' => $activeTa?->id,
@@ -387,7 +417,7 @@ class CamabaAuthController extends Controller
                     'pic_phone'        => $formattedPhone,
                     'pic'              => trim($validated['name']),
                     'type'             => 'Individu',
-                    'category'         => 'PMB Online',
+                    'category'         => 'PMB Mandiri',
                     'source'           => 'Website PMB',
                     'status'           => 'BARU',
                     'status_formulir'  => 'Belum Isi',
@@ -398,7 +428,8 @@ class CamabaAuthController extends Controller
                     'no_registrasi'    => $noRegistrasi,
                     'sekolah_id'       => $sekolahId,
                     'wilayah_id'       => $wilayahId,
-                    'cs_id'            => $csUser?->id,
+                    'cs_id'            => null,   // JANGAN tetapkan Sales/CS secara otomatis
+                    'sales_id'         => null,  // JANGAN tetapkan Sales/CS secara otomatis
                     'minat_kuliah'     => $minatKuliah,
                     'minat_miniclass'  => $minatMiniclass,
                     'notes'            => 'Pendaftaran mandiri via Portal PMB Online. Asal sekolah: ' . trim($validated['asal_sekolah']),

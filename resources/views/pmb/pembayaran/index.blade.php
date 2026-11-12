@@ -1670,7 +1670,8 @@
                                                             </form>
                                                         </template>
 
-                                                        <!-- Verifikasi manual jika pending -->
+                                                        @if(!in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']))
+                                                        <!-- Verifikasi manual jika pending (Admin/HM Only) -->
                                                         <template x-if="!trx.is_verified">
                                                             <button 
                                                                 type="button" 
@@ -1682,7 +1683,7 @@
                                                             </button>
                                                         </template>
 
-                                                        <!-- Tolak transaksi jika belum ditolak -->
+                                                        <!-- Tolak transaksi jika belum ditolak (Admin/HM Only) -->
                                                         <template x-if="!trx.is_rejected">
                                                             <button 
                                                                 type="button" 
@@ -1693,6 +1694,7 @@
                                                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                                                             </button>
                                                         </template>
+                                                        @endif
                                                     </div>
                                                 </td>
                                             </tr>

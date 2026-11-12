@@ -92,11 +92,8 @@ class FormPendaftaranOnlineCsTest extends TestCase
         $prospek = Prospek::where('email', 'siswa.baru@gmail.com')->first();
         $this->assertNotNull($prospek);
 
-        // Input masuk ke role CS (cs_id = csUser)
-        $this->assertEquals($this->csUser->id, $prospek->cs_id);
-        $this->assertEquals('CS — CS Yuda Thomas', $prospek->activeHandlerLabel());
-
-        // Field sales sekolah TIDAK otomatis mengklaim prospek online PMB
+        // Sesuai revisi terbaru: pendaftaran akun mandiri tanpa prospek CRM tidak otomatis menetapkan CS atau Sales
+        $this->assertNull($prospek->cs_id);
         $this->assertNull($prospek->sales_id);
     }
 
@@ -158,10 +155,9 @@ class FormPendaftaranOnlineCsTest extends TestCase
         // 1. Status formulir menjadi 'Sudah Isi'
         $this->assertEquals('Sudah Isi', $prospek->status_formulir);
 
-        // 2. Data masuk ke role CS
-        $this->assertEquals($this->csUser->id, $prospek->cs_id);
-        $this->assertNotNull($prospek->handover_at);
-        $this->assertEquals('CS — CS Yuda Thomas', $prospek->activeHandlerLabel());
+        // 2. Data PMB Mandiri tidak otomatis assign CS sesuai revisi alur baru
+        $this->assertNull($prospek->cs_id);
+        $this->assertNull($prospek->sales_id);
 
         // 3. Form data tersimpan
         $this->assertIsArray($prospek->form_data);
@@ -171,18 +167,8 @@ class FormPendaftaranOnlineCsTest extends TestCase
         // 4. Riwayat timeline dibuat
         $this->assertDatabaseHas('prospek_timelines', [
             'prospek_id' => $prospek->id,
-            'user_id'    => $this->csUser->id,
-            'title'      => 'Form Pendaftaran Online Disubmit',
+            'title'      => 'Formulir Pendaftaran Selesai Diisi',
         ]);
-
-        // 5. Notifikasi tersampaikan ke user CS
-        $notification = \Illuminate\Support\Facades\DB::table('notifications')
-            ->where('notifiable_id', $this->csUser->id)
-            ->where('notifiable_type', User::class)
-            ->where('data', 'like', '%form_pendaftaran_submitted%')
-            ->first();
-        $this->assertNotNull($notification);
-        $this->assertStringContainsString('Form Pendaftaran Online Baru', $notification->data);
     }
 
     /**

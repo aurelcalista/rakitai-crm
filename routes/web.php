@@ -70,11 +70,12 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'dashboard'])->name('dashboard');
         Route::get('/katalog',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'katalog'])->name('katalog');
         Route::get('/status',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'status'])->name('status');
-        Route::get('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('profil');
-        Route::put('/profil',    [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('profil.update');
-        Route::get('/form-pendaftaran',  [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('form-pendaftaran');
-        Route::post('/form-pendaftaran', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('form-pendaftaran.update');
-        Route::put('/form-pendaftaran',  [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('form-pendaftaran.put');
+        Route::get('/profil',            [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'profile'])->name('profil');
+        Route::put('/profil',            [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateProfile'])->name('profil.update');
+        Route::put('/profil/password',   [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updatePassword'])->name('profil.password');
+        Route::get('/form-pendaftaran',  [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'formPendaftaran'])->name('form-pendaftaran');
+        Route::post('/form-pendaftaran', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateFormPendaftaran'])->name('form-pendaftaran.update');
+        Route::put('/form-pendaftaran',  [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'updateFormPendaftaran'])->name('form-pendaftaran.put');
         Route::get('/ujian',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'ujian'])->name('ujian');
         Route::get('/bayar',     [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('bayar');
         Route::get('/pembayaran', [\App\Http\Controllers\Pmb\CamabaPortalController::class, 'bayar'])->name('pembayaran');

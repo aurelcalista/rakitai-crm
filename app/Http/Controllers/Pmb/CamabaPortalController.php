@@ -173,7 +173,7 @@ class CamabaPortalController extends Controller
         }
 
         $isPmbBuka = now()->lte($endDate);
-        $daysRemaining = now()->diffInDays($endDate, false);
+        $daysRemaining = max(0, (int) ceil(now()->floatDiffInDays($endDate, false)));
         $sisaHariText = $daysRemaining > 0 
             ? $daysRemaining . ' hari tersisa' 
             : ($daysRemaining === 0 ? 'Hari terakhir pendaftaran' : 'Pendaftaran ditutup');
@@ -337,9 +337,114 @@ class CamabaPortalController extends Controller
     }
 
     /**
-     * Halaman Profil CAMABA (Lihat & Edit Data Pribadi).
+     * Halaman Profil Akun CAMABA (Informasi Akun, Kontak & Keamanan).
      */
     public function profile(Request $request): View
+    {
+        $user = Auth::user();
+        $prospek = $this->getCamabaProspek();
+
+        return view('pmb.portal.profile', compact('user', 'prospek'));
+    }
+
+    /**
+     * Update Informasi Profil Akun CAMABA (Nama, WhatsApp, Avatar).
+     */
+    public function updateProfile(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+        $prospek = $this->getCamabaProspek();
+
+        if ($request->has('whatsapp') && $request->filled('whatsapp')) {
+            $request->merge([
+                'whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->input('whatsapp'))
+            ]);
+        }
+
+        $validated = $request->validate([
+            'name'     => 'required|string|min:2|max:255',
+            'whatsapp' => ['required', 'string', 'regex:/^\+628[0-9]{8,12}$/'],
+            'avatar'   => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ], [
+            'name.required'     => 'Nama lengkap wajib diisi.',
+            'whatsapp.required' => 'Nomor WhatsApp wajib diisi.',
+            'whatsapp.regex'    => 'Nomor WhatsApp wajib menggunakan format Indonesia (+62) yang valid (contoh: +6281234567890).',
+            'avatar.image'      => 'File foto profil harus berupa file gambar.',
+            'avatar.mimes'      => 'Format foto profil harus JPG, JPEG, atau PNG.',
+            'avatar.max'        => 'Ukuran foto profil maksimal 2MB.',
+        ]);
+
+        $formattedPhone = \App\Support\WhatsAppHelper::formatForDatabase($validated['whatsapp']);
+        $digits = \App\Support\WhatsAppHelper::normalizeForDisplay($validated['whatsapp']);
+        $possiblePhones = array_unique(array_filter([
+            $formattedPhone,
+            $validated['whatsapp'],
+            '0' . $digits,
+            '62' . $digits,
+            '+62' . $digits,
+            $digits,
+        ]));
+
+        $existingPhoneUser = User::whereIn('phone', $possiblePhones)
+            ->where('id', '!=', $user->id)
+            ->first();
+        if ($existingPhoneUser) {
+            return back()->withErrors([
+                'whatsapp' => 'Nomor WhatsApp / HP ini sudah digunakan oleh akun lain.',
+            ])->withInput();
+        }
+
+        DB::transaction(function () use ($user, $prospek, $validated, $formattedPhone, $request) {
+            $user->name = trim($validated['name']);
+            $user->phone = $formattedPhone;
+
+            if ($request->hasFile('avatar')) {
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $user->avatar = $path;
+            }
+
+            $user->save();
+
+            if ($prospek) {
+                $prospek->name = trim($validated['name']);
+                $prospek->whatsapp = $formattedPhone;
+                $prospek->pic_phone = $formattedPhone;
+                $prospek->pic = trim($validated['name']);
+                $prospek->save();
+            }
+        });
+
+        return back()->with('success', 'Profil akun Anda berhasil diperbarui.');
+    }
+
+    /**
+     * Update Password Akun CAMABA.
+     */
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password'         => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'current_password.required'         => 'Password saat ini wajib diisi.',
+            'current_password.current_password' => 'Password saat ini yang Anda masukkan salah.',
+            'password.required'                 => 'Password baru wajib diisi.',
+            'password.min'                      => 'Password baru minimal 8 karakter.',
+            'password.confirmed'                => 'Konfirmasi password baru tidak cocok.',
+        ]);
+
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        return back()->with('success', 'Password akun Anda berhasil diperbarui.');
+    }
+
+    /**
+     * Halaman Formulir Pendaftaran Online PMB UCIC (Pilihan Prodi & Biodata Lengkap).
+     */
+    public function formPendaftaran(Request $request): View
     {
         $user = Auth::user();
         $prospek = $this->getCamabaProspek();
@@ -351,14 +456,14 @@ class CamabaPortalController extends Controller
             $preselectedProdiId = (int) $requestedProdiId;
         }
 
-        return view('pmb.portal.profile', compact('user', 'prospek', 'prodis', 'preselectedProdiId'));
+        return view('pmb.portal.form-pendaftaran', compact('user', 'prospek', 'prodis', 'preselectedProdiId'));
     }
 
     /**
-     * Update Data Profil & Formulir Pendaftaran CAMABA.
+     * Update Formulir Pendaftaran Online CAMABA.
      * Tidak mengizinkan perubahan status, verifikasi pembayaran, nilai ujian, atau role.
      */
-    public function updateProfile(Request $request)
+    public function updateFormPendaftaran(Request $request)
     {
         $user = Auth::user();
         $prospek = $this->getCamabaProspek();
@@ -535,22 +640,33 @@ class CamabaPortalController extends Controller
                 $prospek->form_data = $formData;
                 $prospek->status_formulir = 'Sudah Isi';
 
-                // Input Form Pendaftaran Online UCIC otomatis masuk ke role CS
-                if (!$prospek->cs_id) {
-                    $cs = Prospek::findAvailableCs($prospek->wilayah_id);
-                    if ($cs) {
-                        $prospek->cs_id = $cs->id;
+                // Otomatis perbarui status prospek menjadi FORMULIR jika belum berada di tahap BERKAS atau LUNAS
+                if ($prospek->status !== 'LUNAS' && $prospek->status !== 'BERKAS') {
+                    $oldStatus = $prospek->status;
+                    $prospek->status = 'FORMULIR';
+                    $prospek->stage_number = 5;
+
+                    if ($oldStatus !== 'FORMULIR') {
+                        ProspekTimeline::create([
+                            'prospek_id'    => $prospek->id,
+                            'user_id'       => $user->id,
+                            'title'         => 'Formulir Pendaftaran Selesai Diisi',
+                            'notes'         => 'Calon mahasiswa melengkapi formulir pendaftaran PMB. Status prospek otomatis diperbarui menjadi FORMULIR.',
+                            'status_before' => $oldStatus,
+                            'status_after'  => 'FORMULIR',
+                            'time'          => now(),
+                        ]);
                     }
                 }
 
-                if (empty($prospek->handover_at)) {
+                if (empty($prospek->handover_at) && !empty($prospek->cs_id)) {
                     $prospek->handover_at = now();
                 }
                 $prospek->active_follow_up_count = 0;
 
                 $prospek->save();
 
-                // Timeline & Notifikasi ke Petugas CS
+                // Timeline & Notifikasi ke Petugas CS (hanya jika prospek memiliki penanggung jawab CS)
                 if ($prospek->cs_id) {
                     $csUser = User::find($prospek->cs_id);
                     if ($csUser) {
@@ -575,8 +691,7 @@ class CamabaPortalController extends Controller
             }
         });
 
-        $targetRoute = $request->routeIs('pmb.akun.profil.*') ? 'pmb.akun.profil' : 'pmb.akun.bayar';
-        return redirect()->route($targetRoute)
+        return redirect()->route('pmb.akun.bayar')
             ->with('success', 'Formulir pendaftaran dan pilihan Program Studi berhasil disimpan! Silakan lanjutkan ke pembayaran.');
     }
 
@@ -1081,8 +1196,27 @@ class CamabaPortalController extends Controller
         }
 
         $prospek->berkas_data = $currentBerkas;
-        $prospek->save();
 
+        // Otomatis perbarui status prospek menjadi BERKAS jika dokumen diunggah dan belum LUNAS
+        if ($prospek->status !== 'LUNAS' && $uploadedCount > 0) {
+            $oldStatus = $prospek->status;
+            if ($oldStatus !== 'BERKAS') {
+                $prospek->status = 'BERKAS';
+                $prospek->stage_number = 6;
+
+                ProspekTimeline::create([
+                    'prospek_id'    => $prospek->id,
+                    'user_id'       => $user->id,
+                    'title'         => 'Kelengkapan Dokumen Diunggah',
+                    'notes'         => "Calon mahasiswa mengunggah dokumen persyaratan PMB ({$docDef['title']}). Status prospek otomatis diperbarui menjadi BERKAS.",
+                    'status_before' => $oldStatus,
+                    'status_after'  => 'BERKAS',
+                    'time'          => now(),
+                ]);
+            }
+        }
+
+        $prospek->save();
         // Rekam jejak di timeline pendaftar
         ProspekTimeline::create([
             'prospek_id' => $prospek->id,
@@ -1200,8 +1334,8 @@ class CamabaPortalController extends Controller
         }
 
         $prospek->berkas_data = $currentBerkas;
-        $prospek->save();
 
+        $prospek->save();
         return redirect()->route('pmb.akun.upload-dokumen')
             ->with('success', "Dokumen {$docTitle} berhasil dihapus.");
     }
