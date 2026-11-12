@@ -800,21 +800,6 @@ x-init="
                             </a>
                             @endif
 
-                            {{-- Riwayat Pembayaran (Read-Only Pemantauan Transaksi untuk Sales, CS, Admin, HM) --}}
-                            @if(in_array($currentUser['role'], ['Sales', 'SPV', 'CS', 'Admin', 'HM']))
-                            <a 
-                                href="{{ route('sales.pembayaran.index') }}" 
-                                title="Riwayat Pembayaran"
-                                class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') || request()->routeIs('cs.verifikasi.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                                :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.pembayaran.*') || request()->routeIs('cs.verifikasi.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                                <span x-show="!sidebarCollapsed">Riwayat Pembayaran</span>
-                            </a>
-                            @endif
-
                             <a 
                                 href="{{ route($routePrefix . 'pipeline.index') }}" 
                                 title="Pipeline Board"
@@ -1983,22 +1968,6 @@ x-init="
                                     </svg>
                                     <span class="flex-1">Follow Up</span>
                                 </a>
-                            @endif
-
-                            {{-- Riwayat Pembayaran (Read-Only Pemantauan Transaksi untuk Sales, CS, Admin, HM) --}}
-                            @if(in_array($currentUser['role'], ['Sales', 'SPV', 'CS', 'Admin', 'HM']))
-                            <a 
-                                href="{{ route('sales.pembayaran.index') }}" 
-                                @click="mobileMenuOpen = false"
-                                data-menu-keywords="riwayat pembayaran transaksi transfer billing invoice closing sales bayar"
-                                x-show="matches('riwayat pembayaran transaksi transfer billing invoice closing sales bayar')"
-                                class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('sales.pembayaran.*') || request()->routeIs('cs.verifikasi.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
-                            >
-                                <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('sales.pembayaran.*') || request()->routeIs('cs.verifikasi.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                                <span class="flex-1">Riwayat Pembayaran</span>
-                            </a>
                             @endif
 
                             <a 
