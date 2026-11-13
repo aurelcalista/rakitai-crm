@@ -340,7 +340,7 @@ x-init="
                             <span x-show="!sidebarCollapsed">Data Pembayaran</span>
                         </a>
 
-                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin', 'hm']))
+                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['hm']))
                         <a 
                             href="{{ route('pmb.admin.index') }}" 
                             title="Data Admin"
@@ -1482,7 +1482,7 @@ x-init="
                             <span class="flex-1">Data Pembayaran</span>
                         </a>
 
-                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin', 'hm']))
+                        @if(in_array(strtolower(auth()->user()->role ?? ''), ['hm']))
                         <a 
                             href="{{ route('pmb.admin.index') }}" 
                             @click="mobileMenuOpen = false"
