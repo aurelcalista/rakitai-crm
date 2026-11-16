@@ -22,10 +22,62 @@ class AdminProdiController extends Controller
                 return $item;
             });
 
-        $fakultasList = \App\Models\MasterData::where('type', 'fakultas')->pluck('nama');
+        // Auto-seed MasterData fakultas from existing Prodi if not yet saved
+        $prodiFakultas = Prodi::distinct()->whereNotNull('fakultas')->where('fakultas', '!=', '')->pluck('fakultas');
+        foreach ($prodiFakultas as $pf) {
+            $cleanPf = trim($pf);
+            if ($cleanPf !== '') {
+                \App\Models\MasterData::firstOrCreate(
+                    ['type' => 'fakultas', 'nama' => $cleanPf],
+                    ['kode' => 'FAK-' . strtoupper(\Illuminate\Support\Str::slug($cleanPf, '-')), 'status' => 'Aktif']
+                );
+            }
+        }
+
+        $fakultasMaster = \App\Models\MasterData::where('type', 'fakultas')->orderBy('nama')->get();
+        $fakultasList = $fakultasMaster->where('status', 'Aktif')->pluck('nama');
+        if ($fakultasList->isEmpty()) {
+            $fakultasList = $fakultasMaster->pluck('nama');
+        }
         $jenjangList  = \App\Models\MasterData::where('type', 'jenjang')->pluck('nama');
         
-        return view('admin.prodi.index', compact('prodi', 'fakultasList', 'jenjangList'));
+        return view('admin.prodi.index', compact('prodi', 'fakultasList', 'jenjangList', 'fakultasMaster'));
+    }
+
+    public function storeFakultas(Request $request)
+    {
+        $validated = $request->validate([
+            'nama'   => 'required|string|max:255',
+            'kode'   => 'nullable|string|max:50',
+            'status' => 'nullable|in:Aktif,Nonaktif',
+        ]);
+
+        $nama   = trim($validated['nama']);
+        $kode   = !empty($validated['kode'])
+            ? strtoupper(trim($validated['kode']))
+            : 'FAK-' . strtoupper(\Illuminate\Support\Str::slug($nama, '-'));
+        $status = $validated['status'] ?? 'Aktif';
+
+        \App\Models\MasterData::updateOrCreate(
+            ['type' => 'fakultas', 'nama' => $nama],
+            ['kode' => $kode, 'status' => $status]
+        );
+
+        return redirect()->back()->with('success', "Fakultas '{$nama}' berhasil disimpan!");
+    }
+
+    public function destroyFakultas($id)
+    {
+        $fakultas = \App\Models\MasterData::where('type', 'fakultas')->findOrFail($id);
+        $nama = $fakultas->nama;
+
+        $prodiCount = Prodi::where('fakultas', $nama)->count();
+        if ($prodiCount > 0) {
+            return redirect()->back()->with('error', "Fakultas '{$nama}' tidak dapat dihapus karena masih digunakan oleh {$prodiCount} Program Studi!");
+        }
+
+        $fakultas->delete();
+        return redirect()->back()->with('success', "Fakultas '{$nama}' berhasil dihapus!");
     }
 
     public function store(Request $request)

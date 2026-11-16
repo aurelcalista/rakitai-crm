@@ -341,6 +341,11 @@ Route::middleware('auth')->group(function () {
         ]);
         Route::resource('wilayah',     \App\Http\Controllers\Admin\AdminWilayahController::class, $except);
         Route::resource('sekolah',     \App\Http\Controllers\Admin\AdminSekolahController::class, $except);
+
+        // Master Fakultas (Admin Prodi)
+        Route::post('prodi/fakultas',        [\App\Http\Controllers\Admin\AdminProdiController::class, 'storeFakultas'])->name('prodi.fakultas.store');
+        Route::delete('prodi/fakultas/{id}', [\App\Http\Controllers\Admin\AdminProdiController::class, 'destroyFakultas'])->name('prodi.fakultas.destroy');
+
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);
         Route::resource('perusahaan',  \App\Http\Controllers\Admin\AdminPerusahaanController::class, $except);
         Route::resource('events',      \App\Http\Controllers\Admin\AdminEventController::class)->except(['create', 'edit']);

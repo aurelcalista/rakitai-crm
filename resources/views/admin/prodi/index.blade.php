@@ -51,6 +51,172 @@
             @endforeach
         </div>
 
+        <!-- Pengaturan & Input Fakultas Universitas (Card Identik Voucher PMB) -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3" x-data="{ fakultasManageOpen: false }">
+            <div class="flex flex-wrap items-center justify-between gap-2.5">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-[#0b3d82] flex items-center justify-center shrink-0 border border-blue-100">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Data Fakultas Universitas</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {{ $fakultasMaster->where('status', 'Aktif')->count() }} Fakultas Aktif
+                            </span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0b3d82] border border-blue-200">
+                                {{ $prodi->count() }} Program Studi
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate">Ringkasan fakultas terdaftar &amp; pengaturan tambah atau kelola fakultas.</p>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    @click="fakultasManageOpen = !fakultasManageOpen"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer"
+                    :class="fakultasManageOpen ? 'bg-[#0b3d82] text-white border-[#0b3d82]' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span x-text="fakultasManageOpen ? 'Tutup Pengaturan Fakultas' : 'Kelola & Tambah Fakultas'">Kelola &amp; Tambah Fakultas</span>
+                </button>
+            </div>
+
+            <!-- Ringkasan Fakultas -->
+            @if($fakultasMaster->isEmpty())
+                <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                        <span class="font-semibold">Ringkasan Fakultas:</span>
+                    </div>
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        Belum Ada Fakultas
+                    </span>
+                </div>
+            @else
+                <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                        <span class="font-semibold">Ringkasan Fakultas:</span>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        @foreach($fakultasMaster as $fm)
+                            @php $prodiFakCount = $prodi->where('fakultas', $fm->nama)->count(); @endphp
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200/80 shadow-2xs">
+                                <span>{{ $fm->nama }}</span>
+                                @if(!empty($fm->kode))
+                                    <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-100 text-[#0b3d82]">{{ $fm->kode }}</span>
+                                @endif
+                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-[#0b3d82] font-semibold">{{ $prodiFakCount }} Prodi</span>
+                            </span>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <!-- Collapsible Input & List Fakultas -->
+            <div x-show="fakultasManageOpen" x-cloak class="pt-3 border-t border-slate-100 space-y-3">
+                <form action="{{ route('admin.prodi.fakultas.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+                    @csrf
+                    <div class="sm:col-span-5">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Fakultas <span class="text-rose-500">*</span></label>
+                        <input type="text"
+                               name="nama"
+                               value="{{ old('nama') }}"
+                               required
+                               maxlength="255"
+                               placeholder="Contoh: Fakultas Teknologi Informasi"
+                               class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Kode Fakultas</label>
+                        <input type="text"
+                               name="kode"
+                               value="{{ old('kode') }}"
+                               placeholder="Contoh: FTI (Opsional)"
+                               class="w-full text-xs font-bold uppercase rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Status Fakultas</label>
+                        <select name="status" class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                            <option value="Aktif" {{ old('status', 'Aktif') === 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                            <option value="Nonaktif" {{ old('status') === 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-bold bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-2xs transition cursor-pointer">
+                            Tambah Fakultas
+                        </button>
+                    </div>
+                </form>
+
+                @if($fakultasMaster->isEmpty())
+                    <div class="py-4 text-center text-xs text-slate-400">
+                        Belum ada data fakultas yang dibuat.
+                    </div>
+                @else
+                    <div class="overflow-x-auto rounded-xl border border-slate-200/80">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                                    <th class="py-2.5 px-3 w-10 text-center">No</th>
+                                    <th class="py-2.5 px-3">Kode</th>
+                                    <th class="py-2.5 px-3">Nama Fakultas</th>
+                                    <th class="py-2.5 px-3 text-center">Jumlah Prodi</th>
+                                    <th class="py-2.5 px-3 text-center">Status</th>
+                                    <th class="py-2.5 px-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 bg-white">
+                                @foreach($fakultasMaster as $index => $fm)
+                                    @php $prodiFakCount = $prodi->where('fakultas', $fm->nama)->count(); @endphp
+                                    <tr class="hover:bg-slate-50/70">
+                                        <td class="py-2.5 px-3 text-center font-bold text-slate-400 text-[11px]">{{ $index + 1 }}</td>
+                                        <td class="py-2.5 px-3 font-mono font-extrabold text-[#0b3d82]">{{ $fm->kode ?: '-' }}</td>
+                                        <td class="py-2.5 px-3 font-bold text-slate-800">{{ $fm->nama }}</td>
+                                        <td class="py-2.5 px-3 text-center">
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0b3d82] border border-blue-200">
+                                                {{ $prodiFakCount }} Prodi
+                                            </span>
+                                        </td>
+                                        <td class="py-2.5 px-3 text-center">
+                                            @if($fm->status === 'Aktif')
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    Aktif
+                                                </span>
+                                            @else
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                                    Nonaktif
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 px-3 text-right">
+                                            @if($prodiFakCount === 0)
+                                                <form action="{{ route('admin.prodi.fakultas.destroy', $fm->id) }}" method="POST" class="inline" onsubmit="return confirm('Hapus fakultas {{ $fm->nama }}?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition cursor-pointer">
+                                                        Hapus
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <span class="text-[10px] text-slate-400 italic">Digunakan ({{ $prodiFakCount }})</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         <!-- Filter -->
         <div class="crm-card bg-white p-4 flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1">
