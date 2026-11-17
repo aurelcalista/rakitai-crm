@@ -11,6 +11,15 @@
         formatRupiah(num) {
             return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
         },
+        formatRupiahInput(val) {
+            if (val === null || val === undefined || val === '') return '0';
+            const num = parseInt(String(val).replace(/\D/g, ''), 10);
+            return isNaN(num) ? '0' : num.toLocaleString('id-ID');
+        },
+        maskRupiah(event) {
+            const raw = event.target.value.replace(/\D/g, '');
+            event.target.value = raw ? Number(raw).toLocaleString('id-ID') : '';
+        },
         get filtered() {
             return this.prodi.filter(p => {
                 const q = this.searchQuery.toLowerCase();
@@ -52,7 +61,15 @@
         </div>
 
         <!-- Pengaturan & Input Fakultas Universitas (Card Identik Voucher PMB) -->
-        <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3" x-data="{ fakultasManageOpen: false }">
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3" x-data="{
+            fakultasManageOpen: false,
+            modalEditFakultas: false,
+            editingFakultas: { id: null, nama: '', status: 'Aktif' },
+            openEditFakultas(data) {
+                this.editingFakultas = { ...data };
+                this.modalEditFakultas = true;
+            }
+        }">
             <div class="flex flex-wrap items-center justify-between gap-2.5">
                 <div class="flex items-center gap-2.5 min-w-0">
                     <div class="w-8 h-8 rounded-xl bg-blue-50 text-[#0b3d82] flex items-center justify-center shrink-0 border border-blue-100">
@@ -70,7 +87,7 @@
                                 {{ $prodi->count() }} Program Studi
                             </span>
                         </div>
-                        <p class="text-[11px] text-slate-500 truncate">Ringkasan fakultas terdaftar &amp; pengaturan tambah atau kelola fakultas.</p>
+                        <p class="text-[11px] text-slate-500 truncate">Pengaturan tambah atau kelola fakultas universitas.</p>
                     </div>
                 </div>
 
@@ -87,43 +104,11 @@
                 </button>
             </div>
 
-            <!-- Ringkasan Fakultas -->
-            @if($fakultasMaster->isEmpty())
-                <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
-                    <div class="flex items-center gap-2 text-slate-600">
-                        <span class="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
-                        <span class="font-semibold">Ringkasan Fakultas:</span>
-                    </div>
-                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                        Belum Ada Fakultas
-                    </span>
-                </div>
-            @else
-                <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-wrap items-center justify-between gap-2.5 text-xs">
-                    <div class="flex items-center gap-2 text-slate-600">
-                        <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-                        <span class="font-semibold">Ringkasan Fakultas:</span>
-                    </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        @foreach($fakultasMaster as $fm)
-                            @php $prodiFakCount = $prodi->where('fakultas', $fm->nama)->count(); @endphp
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200/80 shadow-2xs">
-                                <span>{{ $fm->nama }}</span>
-                                @if(!empty($fm->kode))
-                                    <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-100 text-[#0b3d82]">{{ $fm->kode }}</span>
-                                @endif
-                                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-[#0b3d82] font-semibold">{{ $prodiFakCount }} Prodi</span>
-                            </span>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
             <!-- Collapsible Input & List Fakultas -->
             <div x-show="fakultasManageOpen" x-cloak class="pt-3 border-t border-slate-100 space-y-3">
                 <form action="{{ route('admin.prodi.fakultas.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
                     @csrf
-                    <div class="sm:col-span-5">
+                    <div class="sm:col-span-7">
                         <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Fakultas <span class="text-rose-500">*</span></label>
                         <input type="text"
                                name="nama"
@@ -134,14 +119,6 @@
                                class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                     </div>
                     <div class="sm:col-span-3">
-                        <label class="block text-[11px] font-bold text-slate-700 mb-1">Kode Fakultas</label>
-                        <input type="text"
-                               name="kode"
-                               value="{{ old('kode') }}"
-                               placeholder="Contoh: FTI (Opsional)"
-                               class="w-full text-xs font-bold uppercase rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
-                    </div>
-                    <div class="sm:col-span-2">
                         <label class="block text-[11px] font-bold text-slate-700 mb-1">Status Fakultas</label>
                         <select name="status" class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                             <option value="Aktif" {{ old('status', 'Aktif') === 'Aktif' ? 'selected' : '' }}>Aktif</option>
@@ -165,7 +142,6 @@
                             <thead>
                                 <tr class="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
                                     <th class="py-2.5 px-3 w-10 text-center">No</th>
-                                    <th class="py-2.5 px-3">Kode</th>
                                     <th class="py-2.5 px-3">Nama Fakultas</th>
                                     <th class="py-2.5 px-3 text-center">Jumlah Prodi</th>
                                     <th class="py-2.5 px-3 text-center">Status</th>
@@ -177,7 +153,6 @@
                                     @php $prodiFakCount = $prodi->where('fakultas', $fm->nama)->count(); @endphp
                                     <tr class="hover:bg-slate-50/70">
                                         <td class="py-2.5 px-3 text-center font-bold text-slate-400 text-[11px]">{{ $index + 1 }}</td>
-                                        <td class="py-2.5 px-3 font-mono font-extrabold text-[#0b3d82]">{{ $fm->kode ?: '-' }}</td>
                                         <td class="py-2.5 px-3 font-bold text-slate-800">{{ $fm->nama }}</td>
                                         <td class="py-2.5 px-3 text-center">
                                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#0b3d82] border border-blue-200">
@@ -196,17 +171,20 @@
                                             @endif
                                         </td>
                                         <td class="py-2.5 px-3 text-right">
-                                            @if($prodiFakCount === 0)
-                                                <form action="{{ route('admin.prodi.fakultas.destroy', $fm->id) }}" method="POST" class="inline" onsubmit="return confirm('Hapus fakultas {{ $fm->nama }}?')">
+                                            <div class="inline-flex items-center gap-1.5 justify-end">
+                                                <button type="button"
+                                                        @click="openEditFakultas({{ json_encode(['id' => $fm->id, 'nama' => $fm->nama, 'status' => $fm->status]) }})"
+                                                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-[#0b3d82] border border-blue-200 transition cursor-pointer">
+                                                    Edit
+                                                </button>
+                                                <form action="{{ route('admin.prodi.fakultas.destroy', $fm->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus fakultas {{ addslashes($fm->nama) }}?')">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition cursor-pointer">
                                                         Hapus
                                                     </button>
                                                 </form>
-                                            @else
-                                                <span class="text-[10px] text-slate-400 italic">Digunakan ({{ $prodiFakCount }})</span>
-                                            @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -214,6 +192,50 @@
                         </table>
                     </div>
                 @endif
+            </div>
+
+            <!-- Modal Edit Data Fakultas -->
+            <div x-show="modalEditFakultas" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+                <div class="flex items-center justify-center min-h-screen px-4 py-8">
+                    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" @click="modalEditFakultas = false"></div>
+                    <div class="inline-block w-full max-w-md p-6 bg-white shadow-2xl rounded-3xl relative z-10 border border-slate-100">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h3 class="text-base font-black text-slate-900">Edit Data Fakultas</h3>
+                                <p class="text-xs text-slate-500">Perbarui informasi nama dan status fakultas.</p>
+                            </div>
+                            <button type="button" @click="modalEditFakultas = false" class="text-slate-400 hover:text-slate-600 cursor-pointer p-1">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <form :action="'{{ url('admin/prodi/fakultas') }}/' + editingFakultas.id" method="POST" class="mt-4 space-y-4 text-xs">
+                            @csrf
+                            @method('PUT')
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Fakultas <span class="text-rose-500">*</span></label>
+                                <input type="text"
+                                       name="nama"
+                                       x-model="editingFakultas.nama"
+                                       required
+                                       maxlength="255"
+                                       placeholder="Contoh: Fakultas Teknologi Informasi"
+                                       class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Status Fakultas</label>
+                                <select name="status" x-model="editingFakultas.status" class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                                    <option value="Aktif">Aktif</option>
+                                    <option value="Nonaktif">Nonaktif</option>
+                                </select>
+                            </div>
+                            <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                                <button type="button" @click="modalEditFakultas = false" class="px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">Batal</button>
+                                <button type="submit" class="px-4 py-2 text-xs font-bold rounded-xl bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-xs cursor-pointer">Simpan Perubahan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -540,28 +562,28 @@
                                     <label class="block font-bold text-slate-700 mb-1">Biaya Pendaftaran</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_pendaftaran" value="300000" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_pendaftaran" value="300.000" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block font-bold text-slate-700 mb-1">Biaya Perlengkapan</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_perlengkapan" value="600000" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_perlengkapan" value="600.000" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block font-bold text-slate-700 mb-1">DPP PMB</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_dpp" value="500000" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_dpp" value="500.000" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block font-bold text-slate-700 mb-1">Uang Gedung</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_uang_gedung" value="0" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_uang_gedung" value="0" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                             </div>
@@ -600,7 +622,7 @@
                                             <span class="text-slate-400 text-[11px] font-bold">Nominal:</span>
                                             <div class="relative w-36">
                                                 <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">Rp</span>
-                                                <input type="number" name="ukt_options[{{ $dp['key'] }}][nominal]" value="{{ $dp['def_nom'] }}" min="0" step="1000" class="w-full text-xs pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 outline-none focus:ring-1 focus:ring-blue-100 font-bold text-slate-800 text-right">
+                                                <input type="text" inputmode="numeric" name="ukt_options[{{ $dp['key'] }}][nominal]" value="{{ number_format($dp['def_nom'], 0, ',', '.') }}" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 outline-none focus:ring-1 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                             </div>
                                         </div>
                                     </div>
@@ -701,28 +723,28 @@
                                     <label class="block font-bold text-slate-700 mb-1">Biaya Pendaftaran</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_pendaftaran" :value="selectedProdi ? selectedProdi.biaya_pendaftaran : 0" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_pendaftaran" :value="selectedProdi ? formatRupiahInput(selectedProdi.biaya_pendaftaran) : '0'" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block font-bold text-slate-700 mb-1">Biaya Perlengkapan</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_perlengkapan" :value="selectedProdi ? selectedProdi.biaya_perlengkapan : 0" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_perlengkapan" :value="selectedProdi ? formatRupiahInput(selectedProdi.biaya_perlengkapan) : '0'" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block font-bold text-slate-700 mb-1">DPP PMB</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_dpp" :value="selectedProdi ? selectedProdi.biaya_dpp : 0" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_dpp" :value="selectedProdi ? formatRupiahInput(selectedProdi.biaya_dpp) : '0'" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block font-bold text-slate-700 mb-1">Uang Gedung</label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[11px]">Rp</span>
-                                        <input type="number" name="biaya_uang_gedung" :value="selectedProdi ? selectedProdi.biaya_uang_gedung : 0" min="0" step="1000" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100">
+                                        <input type="text" inputmode="numeric" name="biaya_uang_gedung" :value="selectedProdi ? formatRupiahInput(selectedProdi.biaya_uang_gedung) : '0'" @input="maskRupiah($event)" @blur="if(!$event.target.value) $event.target.value = '0'" class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                     </div>
                                 </div>
                             </div>
@@ -763,9 +785,11 @@
                                             <span class="text-slate-400 text-[11px] font-bold">Nominal:</span>
                                             <div class="relative w-36">
                                                 <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">Rp</span>
-                                                <input type="number" name="ukt_options[{{ $ep['key'] }}][nominal]"
-                                                    :value="selectedProdi && selectedProdi.ukt_options && selectedProdi.ukt_options['{{ $ep['key'] }}'] ? selectedProdi.ukt_options['{{ $ep['key'] }}'].nominal : 0"
-                                                    min="0" step="1000" class="w-full text-xs pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 outline-none focus:ring-1 focus:ring-blue-100 font-bold text-slate-800 text-right">
+                                                <input type="text" inputmode="numeric" name="ukt_options[{{ $ep['key'] }}][nominal]"
+                                                    :value="selectedProdi && selectedProdi.ukt_options && selectedProdi.ukt_options['{{ $ep['key'] }}'] ? formatRupiahInput(selectedProdi.ukt_options['{{ $ep['key'] }}'].nominal) : '0'"
+                                                    @input="maskRupiah($event)"
+                                                    @blur="if(!$event.target.value) $event.target.value = '0'"
+                                                    class="w-full text-xs pl-7 pr-2 py-1.5 rounded-lg border border-slate-200 outline-none focus:ring-1 focus:ring-blue-100 font-bold text-slate-800 text-right">
                                             </div>
                                         </div>
                                     </div>

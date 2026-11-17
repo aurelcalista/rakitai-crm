@@ -668,9 +668,7 @@
                         <tr class="bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider text-[11px] border-b border-slate-100">
                             <th class="py-4 px-4 text-center w-12">No</th>
                             <th class="py-4 px-4">Calon Mahasiswa Baru</th>
-                            <th class="py-4 px-4">Total Kewajiban</th>
                             <th class="py-4 px-4">Terbayar</th>
-                            <th class="py-4 px-4">Sisa Tagihan</th>
                             <th class="py-4 px-4">Status</th>
                             <th class="py-4 px-4 text-center">Aksi</th>
                         </tr>
@@ -747,29 +745,11 @@
                                     </div>
                                 </td>
 
-                                <!-- 3. Total Kewajiban -->
-                                <td class="py-4 px-4">
-                                    <span class="font-bold text-slate-900 font-display text-xs sm:text-sm">
-                                        Rp {{ number_format($r['total_kewajiban'], 0, ',', '.') }}
-                                    </span>
-                                </td>
-
-                                <!-- 4. Terbayar -->
+                                <!-- 3. Terbayar -->
                                 <td class="py-4 px-4">
                                     <span class="font-extrabold text-emerald-600 font-display text-xs sm:text-sm">
                                         Rp {{ number_format($r['total_terbayar'], 0, ',', '.') }}
                                     </span>
-                                </td>
-
-                                <!-- 5. Sisa Tagihan -->
-                                <td class="py-4 px-4">
-                                    @if($r['total_sisa'] <= 0)
-                                        <span class="font-bold text-slate-400 text-xs">Rp 0</span>
-                                    @else
-                                        <span class="font-extrabold text-rose-600 font-display text-xs sm:text-sm">
-                                            Rp {{ number_format($r['total_sisa'], 0, ',', '.') }}
-                                        </span>
-                                    @endif
                                 </td>
 
                                 <!-- 6. Status -->
@@ -848,7 +828,7 @@
 
                             <!-- Expandable Payment Detail Row (Matching Image 4) -->
                             <tr x-show="expandedRow === {{ $p->id }}" x-cloak class="bg-slate-50/70 border-b border-slate-100 transition-all">
-                                <td colspan="7" class="p-3.5 sm:p-5">
+                                <td colspan="5" class="p-3.5 sm:p-5">
                                     <div class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-4">
                                         
                                         <!-- Header: Rincian Pembayaran -->
@@ -1152,7 +1132,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="py-12 text-center text-slate-400">
+                                <td colspan="5" class="py-12 text-center text-slate-400">
                                     <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                     </svg>
@@ -1212,22 +1192,22 @@
                     class="relative bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all max-w-5xl w-full border border-slate-100 my-8"
                 >
                     <!-- Header Modal: Profil Camaba & Status Utama -->
-                    <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 via-white to-blue-50/30">
+                    <div class="p-6 border-b border-slate-200/80 flex items-center justify-between bg-white">
                         <div class="flex items-center gap-4 min-w-0">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0b3d82] to-blue-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-blue-900/20 shrink-0 ring-4 ring-blue-50">
+                            <div class="w-13 h-13 rounded-2xl bg-[#0b3d82] text-white font-black text-base flex items-center justify-center shadow-sm shrink-0 ring-4 ring-slate-100">
                                 <span x-text="selectedCamaba.name ? selectedCamaba.name.substring(0, 2).toUpperCase() : 'PMB'"></span>
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-center gap-3 flex-wrap">
-                                    <h3 class="text-xl sm:text-2xl font-black text-slate-900 font-display tracking-tight" x-text="selectedCamaba.name"></h3>
+                                    <h3 class="text-xl sm:text-2xl font-black text-slate-900 font-display tracking-tight capitalize" x-text="selectedCamaba.name"></h3>
                                     <template x-if="selectedCamaba.rekap?.is_lunas">
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                                             LUNAS LENGKAP
                                         </span>
                                     </template>
                                     <template x-if="!selectedCamaba.rekap?.is_lunas">
-                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                                             BELUM LUNAS
                                         </span>
@@ -1258,467 +1238,463 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="button" @click="detailModalOpen = false" class="text-slate-400 hover:text-slate-700 p-2 rounded-2xl hover:bg-slate-100 transition-all duration-200 cursor-pointer" title="Tutup Modal">
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <button type="button" @click="detailModalOpen = false" class="text-slate-400 hover:text-slate-700 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all duration-200 cursor-pointer" title="Tutup Modal">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
 
                     <!-- Modal Body -->
                     <div class="p-6 sm:p-7 space-y-6 max-h-[75vh] overflow-y-auto">
 
-                        <!-- Section: Rekap Ringkasan Eksekutif Bar -->
-                        <div class="relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-[#0b3d82] text-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-slate-800/80">
-                            <div class="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-center">
-                                <!-- 1. Total Kewajiban -->
-                                <div class="border-b sm:border-b-0 sm:border-r border-slate-800/80 pb-3 sm:pb-0 sm:pr-4">
-                                    <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Seluruh Kewajiban</span>
-                                    <span class="text-xl sm:text-2xl font-black text-white font-display tracking-tight block" x-text="'Rp ' + (selectedCamaba.rekap?.total_kewajiban || 0).toLocaleString('id-ID')"></span>
-                                    <span class="text-[10px] text-slate-400 block mt-0.5">Biaya Pendaftaran + Kuliah</span>
+                        <!-- Section 1: Ringkasan Eksekutif Keuangan (3 Kartu Metrik Bersih) -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <!-- Total Kewajiban -->
+                            <div class="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between gap-2 mb-2">
+                                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Kewajiban</span>
+                                        <span class="w-7 h-7 rounded-lg bg-blue-100/70 text-[#0b3d82] flex items-center justify-center shrink-0">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+                                        </span>
+                                    </div>
+                                    <div class="text-2xl font-black text-slate-900 font-display tracking-tight" x-text="'Rp ' + (selectedCamaba.rekap?.total_kewajiban || 0).toLocaleString('id-ID')"></div>
                                 </div>
+                                <p class="text-xs text-slate-500 mt-2">Biaya pendaftaran, atribut & kuliah semester 1</p>
+                            </div>
 
-                                <!-- 2. Total Berhasil Dibayar -->
-                                <div class="border-b sm:border-b-0 lg:border-r border-slate-800/80 pb-3 sm:pb-0 sm:pr-4">
-                                    <span class="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">Total Berhasil Dibayar</span>
-                                    <span class="text-xl sm:text-2xl font-black text-emerald-400 font-display tracking-tight block" x-text="'Rp ' + (selectedCamaba.rekap?.total_terbayar || 0).toLocaleString('id-ID')"></span>
-                                    <span class="text-[10px] text-slate-400 block mt-0.5">Pembayaran Terverifikasi Sah</span>
+                            <!-- Total Berhasil Dibayar -->
+                            <div class="bg-emerald-50/40 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between gap-2 mb-2">
+                                        <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Total Terbayar</span>
+                                        <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        </span>
+                                    </div>
+                                    <div class="text-2xl font-black text-emerald-700 font-display tracking-tight" x-text="'Rp ' + (selectedCamaba.rekap?.total_terbayar || 0).toLocaleString('id-ID')"></div>
                                 </div>
+                                <p class="text-xs text-emerald-700/80 mt-2">Dana pembayaran yang telah diverifikasi</p>
+                            </div>
 
-                                <!-- 3. Sisa Tagihan -->
-                                <div class="border-b sm:border-b-0 sm:border-r border-slate-800/80 pb-3 sm:pb-0 sm:pr-4">
-                                    <span class="text-[10px] sm:text-[11px] font-bold text-rose-300 uppercase tracking-wider block mb-1">Sisa Tagihan</span>
-                                    <span class="text-xl sm:text-2xl font-black font-display tracking-tight block" :class="selectedCamaba.rekap?.total_sisa > 0 ? 'text-rose-400' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.total_sisa || 0).toLocaleString('id-ID')"></span>
-                                    <span class="text-[10px] text-slate-400 block mt-0.5" x-text="selectedCamaba.rekap?.total_sisa > 0 ? 'Wajib Dilunasi' : 'Seluruh Kewajiban Lunas'"></span>
+                            <!-- Sisa Tagihan -->
+                            <div 
+                                class="rounded-2xl p-4 sm:p-5 flex flex-col justify-between border"
+                                :class="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'bg-rose-50/40 border-rose-200/80' : 'bg-slate-50/80 border-slate-200/90'"
+                            >
+                                <div>
+                                    <div class="flex items-center justify-between gap-2 mb-2">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider" :class="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'text-rose-700' : 'text-slate-500'">Sisa Tagihan</span>
+                                        <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" :class="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-200/70 text-slate-600'">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        </span>
+                                    </div>
+                                    <div class="text-2xl font-black font-display tracking-tight" :class="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'text-rose-700' : 'text-slate-700'" x-text="'Rp ' + (selectedCamaba.rekap?.total_sisa || 0).toLocaleString('id-ID')"></div>
                                 </div>
-
-                                <!-- 4. Status Keseluruhan -->
-                                <div class="flex flex-col justify-center">
-                                    <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Status Keseluruhan</span>
-                                    <template x-if="selectedCamaba.rekap?.is_lunas">
-                                        <div class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs font-black text-xs tracking-wider uppercase">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                            <span>LUNAS LENGKAP</span>
-                                        </div>
-                                    </template>
-                                    <template x-if="!selectedCamaba.rekap?.is_lunas">
-                                        <div class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs font-black text-xs tracking-wider uppercase">
-                                            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                                            <span>BELUM LUNAS</span>
-                                        </div>
-                                    </template>
-                                </div>
+                                <p class="text-xs mt-2" :class="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'text-rose-700/80' : 'text-slate-500'" x-text="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'Kewajiban pembayaran yang belum dilunasi' : 'Seluruh kewajiban pembayaran telah lunas'"></p>
                             </div>
                         </div>
 
-
-                        <!-- Section: Rincian Pembayaran Per Komponen Biaya -->
-                        <div class="space-y-5">
-                            
-                            <!-- Sub-Group 1: 4 Komponen Biaya 1x Bayar (Pendaftaran, Perlengkapan, DPP, Uang Gedung) -->
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-[#0b3d82]"></span>
-                                        <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">1. Komponen Biaya 1x Bayar (Bisa Rp 0)</h4>
-                                    </div>
-                                    <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
-                                        Total: Rp <span x-text="(((selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban || 0) + (selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban || 0) + (selectedCamaba.rekap?.rincian?.dpp?.kewajiban || 0) + (selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban || 0))).toLocaleString('id-ID')"></span>
-                                    </span>
-                                </div>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                                    <!-- 1. Biaya Pendaftaran -->
-                                    <div 
-                                        class="p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
-                                        :class="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/40'"
-                                    >
-                                        <div>
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'">
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-slate-800 truncate">Pendaftaran</span>
-                                                </div>
-                                                <span 
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                                    :class="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200/60 text-slate-600 border border-slate-200'"
-                                                    x-text="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas ? '✓ Lunas' : 'Belum Lunas'"
-                                                ></span>
-                                            </div>
-
-                                            <div class="mt-2">
-                                                <span class="text-[11px] font-medium text-slate-400 block">Sudah Dibayar:</span>
-                                                <span 
-                                                    class="text-base sm:text-lg font-black font-display tracking-tight"
-                                                    :class="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas ? 'text-emerald-700' : 'text-slate-900'"
-                                                    x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.terbayar || 0).toLocaleString('id-ID')"
-                                                ></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-2.5 mt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                                            <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
-                                            <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.pendaftaran?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.sisa || 0).toLocaleString('id-ID')"></strong></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Metode Bayar:</span>
-                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.pendaftaran?.metode || (selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas && selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
-                                        </div>
-                                    </div>
-
-                                    <!-- 2. Perlengkapan Kuliah -->
-                                    <div 
-                                        class="p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
-                                        :class="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/40'"
-                                    >
-                                        <div>
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'">
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-slate-800 truncate">Perlengkapan</span>
-                                                </div>
-                                                <span 
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                                    :class="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200/60 text-slate-600 border border-slate-200'"
-                                                    x-text="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas ? '✓ Lunas' : 'Belum Lunas'"
-                                                ></span>
-                                            </div>
-
-                                            <div class="mt-2">
-                                                <span class="text-[11px] font-medium text-slate-400 block">Sudah Dibayar:</span>
-                                                <span 
-                                                    class="text-base sm:text-lg font-black font-display tracking-tight"
-                                                    :class="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas ? 'text-emerald-700' : 'text-slate-900'"
-                                                    x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.terbayar || 0).toLocaleString('id-ID')"
-                                                ></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-2.5 mt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                                            <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
-                                            <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.perlengkapan?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.sisa || 0).toLocaleString('id-ID')"></strong></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Metode Bayar:</span>
-                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.perlengkapan?.metode || (selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas && selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
-                                        </div>
-                                    </div>
-
-                                    <!-- 3. DPP -->
-                                    <div 
-                                        class="p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
-                                        :class="selectedCamaba.rekap?.rincian?.dpp?.is_lunas ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/40'"
-                                    >
-                                        <div>
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.dpp?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'">
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-slate-800 truncate">DPP PMB</span>
-                                                </div>
-                                                <span 
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                                    :class="selectedCamaba.rekap?.rincian?.dpp?.is_lunas ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200/60 text-slate-600 border border-slate-200'"
-                                                    x-text="selectedCamaba.rekap?.rincian?.dpp?.is_lunas ? '✓ Lunas' : 'Belum Lunas'"
-                                                ></span>
-                                            </div>
-
-                                            <div class="mt-2">
-                                                <span class="text-[11px] font-medium text-slate-400 block">Sudah Dibayar:</span>
-                                                <span 
-                                                    class="text-base sm:text-lg font-black font-display tracking-tight"
-                                                    :class="selectedCamaba.rekap?.rincian?.dpp?.is_lunas ? 'text-emerald-700' : 'text-slate-900'"
-                                                    x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.terbayar || 0).toLocaleString('id-ID')"
-                                                ></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-2.5 mt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                                            <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
-                                            <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.dpp?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.sisa || 0).toLocaleString('id-ID')"></strong></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Metode Bayar:</span>
-                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.dpp?.metode || (selectedCamaba.rekap?.rincian?.dpp?.is_lunas && selectedCamaba.rekap?.rincian?.dpp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Voucher DPP:</span>
-                                            <template x-if="selectedCamaba.rekap?.dpp_voucher">
-                                                <span class="font-bold text-emerald-700" x-text="selectedCamaba.rekap.dpp_voucher.voucher_code + ' (-' + selectedCamaba.rekap.dpp_voucher.percentage_formatted + '% / Rp ' + (selectedCamaba.rekap.dpp_voucher.discount_amount || 0).toLocaleString('id-ID') + ')'"></span>
-                                            </template>
-                                            <template x-if="!selectedCamaba.rekap?.dpp_voucher">
-                                                <span class="text-slate-400 font-medium">Belum Menggunakan Voucher</span>
-                                            </template>
-                                        </div>
-                                    </div>
-
-                                    <!-- 4. Uang Gedung -->
-                                    <div 
-                                        class="p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
-                                        :class="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/40'"
-                                    >
-                                        <div>
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'">
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-slate-800 truncate">Uang Gedung</span>
-                                                </div>
-                                                <span 
-                                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                                    :class="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200/60 text-slate-600 border border-slate-200'"
-                                                    x-text="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas ? '✓ Lunas' : 'Belum Lunas'"
-                                                ></span>
-                                            </div>
-
-                                            <div class="mt-2">
-                                                <span class="text-[11px] font-medium text-slate-400 block">Sudah Dibayar:</span>
-                                                <span 
-                                                    class="text-base sm:text-lg font-black font-display tracking-tight"
-                                                    :class="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas ? 'text-emerald-700' : 'text-slate-900'"
-                                                    x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.terbayar || 0).toLocaleString('id-ID')"
-                                                ></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-2.5 mt-2.5 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                                            <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
-                                            <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.uang_gedung?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.sisa || 0).toLocaleString('id-ID')"></strong></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-slate-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Metode Bayar:</span>
-                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.uang_gedung?.metode || (selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas && selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Sub-Group 2: 2 Komponen Biaya Kuliah & Uang Muka (Simetris 2 Kolom 50/50) -->
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-                                        <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">2. Uang Muka & Biaya Kuliah Semester 1</h4>
-                                    </div>
-                                    <span class="text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">Konfirmasi PMB & SPP</span>
-                                </div>
-
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <!-- 4. Down Payment (DP) -->
-                                    <div 
-                                        class="p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
-                                        :class="selectedCamaba.rekap?.rincian?.dp?.is_lunas ? 'border-emerald-200 bg-emerald-50/30' : 'border-blue-200 bg-blue-50/30'"
-                                    >
-                                        <div>
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.dp?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-[#0b3d82]'">
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-[#0b3d82] truncate">Down Payment (DP Konfirmasi)</span>
-                                                </div>
-                                                <span 
-                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                                    :class="selectedCamaba.rekap?.rincian?.dp?.is_lunas ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-blue-100 text-blue-800 border border-blue-200'"
-                                                    x-text="selectedCamaba.rekap?.rincian?.dp?.is_lunas ? '✓ Lunas' : 'Belum Lunas'"
-                                                ></span>
-                                            </div>
-
-                                            <div class="mt-2.5">
-                                                <span class="text-[11px] font-medium text-slate-400 block">Sudah Dibayar:</span>
-                                                <span 
-                                                    class="text-lg font-black font-display tracking-tight"
-                                                    :class="selectedCamaba.rekap?.rincian?.dp?.is_lunas ? 'text-emerald-700' : 'text-slate-900'"
-                                                    x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dp?.terbayar || 0).toLocaleString('id-ID')"
-                                                ></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-3 mt-3 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                                            <span class="text-slate-500">Kewajiban DP: <strong class="text-slate-700 font-semibold">Rp 500.000</strong></span>
-                                            <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.dp?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dp?.sisa || 0).toLocaleString('id-ID')"></strong></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-blue-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Metode Bayar:</span>
-                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.dp?.metode || (selectedCamaba.rekap?.rincian?.dp?.is_lunas && selectedCamaba.rekap?.rincian?.dp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
-                                        </div>
-                                    </div>
-
-                                    <!-- 5. Pelunasan Biaya Kuliah -->
-                                    <div 
-                                        class="p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
-                                        :class="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas ? 'border-emerald-200 bg-emerald-50/30' : 'border-indigo-200 bg-indigo-50/30'"
-                                    >
-                                        <div>
-                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                <div class="flex items-center gap-2 min-w-0">
-                                                    <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'">
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg>
-                                                    </div>
-                                                    <span class="text-xs font-bold text-indigo-900 truncate">Pelunasan Biaya Kuliah (Semester 1)</span>
-                                                </div>
-                                                <span 
-                                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0"
-                                                    :class="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-indigo-100 text-indigo-800 border border-indigo-200'"
-                                                    x-text="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas ? '✓ Lunas' : 'Belum Lunas'"
-                                                ></span>
-                                            </div>
-
-                                            <div class="mt-2.5">
-                                                <span class="text-[11px] font-medium text-slate-400 block">Sudah Dibayar:</span>
-                                                <span 
-                                                    class="text-lg font-black font-display tracking-tight"
-                                                    :class="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas ? 'text-emerald-700' : 'text-slate-900'"
-                                                    x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.terbayar || 0).toLocaleString('id-ID')"
-                                                ></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="pt-3 mt-3 border-t border-slate-200/70 flex items-center justify-between text-[11px]">
-                                            <span class="text-slate-500">Kewajiban: <strong class="text-slate-700 font-semibold" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.kewajiban || 0).toLocaleString('id-ID')"></strong></span>
-                                            <span class="text-slate-500">Sisa: <strong :class="selectedCamaba.rekap?.rincian?.pelunasan?.sisa > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.sisa || 0).toLocaleString('id-ID')"></strong></span>
-                                        </div>
-                                        <div class="mt-1 pt-1 border-t border-indigo-100 flex items-center justify-between text-[10.5px]">
-                                            <span class="text-slate-400">Metode Bayar:</span>
-                                            <span class="font-bold text-[#0b3d82]" x-text="selectedCamaba.rekap?.rincian?.pelunasan?.metode || (selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas && selectedCamaba.rekap?.rincian?.pelunasan?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Section: Riwayat Transaksi Individual -->
+                        <!-- Section 2: Tabel Rincian Komponen Biaya & Tagihan -->
                         <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                                    <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Riwayat Transaksi Individual (<span x-text="selectedCamaba.transaksis?.length || 0"></span> Transaksi Tercatat)
-                                    </h4>
+                            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-900">Rincian Komponen Biaya</h4>
+                                    <p class="text-xs text-slate-500">Breakdown kewajiban per komponen dan status pelunasan mahasiswa</p>
                                 </div>
-                                <span class="text-[11px] text-slate-400">Semua riwayat transaksi disimpan utuh tanpa digabung</span>
+                                <template x-if="selectedCamaba.rekap?.dpp_voucher">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                                        <span>Voucher DPP: <strong class="font-bold" x-text="selectedCamaba.rekap.dpp_voucher.voucher_code"></strong> (<span x-text="'-' + selectedCamaba.rekap.dpp_voucher.percentage_formatted + '%'"></span>)</span>
+                                    </span>
+                                </template>
                             </div>
 
-                            <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
-                                <table class="w-full text-left text-xs whitespace-nowrap">
-                                    <thead>
-                                        <tr class="bg-slate-50/90 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                                            <th class="py-3 px-3.5">ORDER ID</th>
-                                            <th class="py-3 px-3.5">TANGGAL</th>
-                                            <th class="py-3 px-3.5">KOMPONEN / DETAIL</th>
-                                            <th class="py-3 px-3.5">NOMINAL</th>
-                                            <th class="py-3 px-3.5">METODE</th>
-                                            <th class="py-3 px-3.5">STATUS</th>
-                                            <th class="py-3 px-3.5 text-center">AKSI</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-100 bg-white">
-                                        <template x-for="trx in selectedCamaba.transaksis" :key="trx.id">
-                                            <tr class="hover:bg-slate-50/80 transition-colors">
-                                                <!-- Order ID -->
-                                                <td class="py-3 px-3.5 font-mono font-bold text-[#0b3d82]" x-text="trx.order_id"></td>
-
-                                                <!-- Tanggal -->
-                                                <td class="py-3 px-3.5 text-slate-500 text-[11px]" x-text="trx.tanggal"></td>
-
-                                                <!-- Detail Pembayaran -->
-                                                <td class="py-3 px-3.5 text-slate-700 font-medium max-w-xs truncate" x-text="trx.detail"></td>
-
-                                                <!-- Nominal -->
-                                                <td class="py-3 px-3.5 font-extrabold text-slate-900" x-text="'Rp ' + trx.nominal"></td>
-
-                                                <!-- Metode -->
-                                                <td class="py-3 px-3.5">
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200" x-text="trx.metode"></span>
-                                                </td>
-
-                                                <!-- Status -->
-                                                <td class="py-3 px-3.5">
-                                                    <template x-if="trx.is_verified">
-                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                            Berhasil
-                                                        </span>
-                                                    </template>
-                                                    <template x-if="trx.is_pending">
-                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                                            Pending
-                                                        </span>
-                                                    </template>
-                                                    <template x-if="trx.is_rejected">
-                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                                            Gagal / Ditolak
-                                                        </span>
-                                                    </template>
-                                                </td>
-
-                                                <!-- Aksi per Transaksi -->
-                                                <td class="py-3 px-3.5 text-center">
-                                                    <div class="inline-flex items-center justify-center gap-1.5">
-                                                        <!-- Sync Midtrans jika ada order_id dan belum verified -->
-                                                        <template x-if="trx.is_pending && trx.order_id && !trx.metode_raw?.includes('MANUAL')">
-                                                            <form :action="'{{ url('pmb/pembayaran') }}/' + trx.id + '/sync'" method="POST" class="inline">
-                                                                @csrf
-                                                                <button type="submit" class="p-1 rounded-lg border border-blue-200 bg-blue-50 text-[#0b3d82] hover:bg-[#082a5c] hover:text-white transition shadow-2xs cursor-pointer" title="Cek status Midtrans">
-                                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                                                </button>
-                                                            </form>
-                                                        </template>
-
-                                                        @if(!in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']))
-                                                        <!-- Verifikasi manual jika pending (Admin/HM Only) -->
-                                                        <template x-if="!trx.is_verified">
-                                                            <button 
-                                                                type="button" 
-                                                                @click="openVerify(trx, selectedCamaba.name)"
-                                                                class="p-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition shadow-2xs cursor-pointer"
-                                                                title="Verifikasi Transaksi Ini"
-                                                            >
-                                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                                            </button>
-                                                        </template>
-
-                                                        <!-- Tolak transaksi jika belum ditolak (Admin/HM Only) -->
-                                                        <template x-if="!trx.is_rejected">
-                                                            <button 
-                                                                type="button" 
-                                                                @click="openReject(trx, selectedCamaba.name)"
-                                                                class="p-1 rounded-lg border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white transition shadow-2xs cursor-pointer"
-                                                                title="Tolak Transaksi Ini"
-                                                            >
-                                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                            </button>
-                                                        </template>
-                                                        @endif
+                            <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs whitespace-nowrap">
+                                        <thead>
+                                            <tr class="bg-slate-50/90 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] border-b border-slate-200">
+                                                <th class="py-3 px-4">Komponen Biaya</th>
+                                                <th class="py-3 px-4 text-right">Kewajiban</th>
+                                                <th class="py-3 px-4 text-right">Terbayar</th>
+                                                <th class="py-3 px-4 text-right">Sisa Tagihan</th>
+                                                <th class="py-3 px-4">Metode Bayar</th>
+                                                <th class="py-3 px-4 text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            <!-- 1. Biaya Pendaftaran -->
+                                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                                <td class="py-3.5 px-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                        </div>
+                                                        <div>
+                                                            <span class="font-bold text-slate-900 block">Biaya Pendaftaran</span>
+                                                            <span class="text-[11px] text-slate-400 block">Formulir & registrasi awal PMB</span>
+                                                        </div>
                                                     </div>
                                                 </td>
-                                            </tr>
-                                        </template>
-
-                                        <template x-if="!selectedCamaba.transaksis || selectedCamaba.transaksis.length === 0">
-                                            <tr>
-                                                <td colspan="7" class="py-6 text-center text-slate-400">
-                                                    Tidak ada riwayat transaksi yang tercatat untuk calon mahasiswa ini.
+                                                <td class="py-3.5 px-4 text-right font-medium text-slate-700" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.pendaftaran?.terbayar > 0 ? 'text-emerald-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.pendaftaran?.sisa > 0 ? 'text-rose-600' : 'text-slate-500'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pendaftaran?.sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4">
+                                                    <span class="font-medium text-slate-700" x-text="selectedCamaba.rekap?.rincian?.pendaftaran?.metode || (selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas && selectedCamaba.rekap?.rincian?.pendaftaran?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Lunas
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.rincian?.pendaftaran?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            Belum Lunas
+                                                        </span>
+                                                    </template>
                                                 </td>
                                             </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
+
+                                            <!-- 2. Biaya Perlengkapan Kuliah -->
+                                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                                <td class="py-3.5 px-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                                                        </div>
+                                                        <div>
+                                                            <span class="font-bold text-slate-900 block">Biaya Perlengkapan Kuliah</span>
+                                                            <span class="text-[11px] text-slate-400 block">Jas almamater & kelengkapan mahasiswa</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right font-medium text-slate-700" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.perlengkapan?.terbayar > 0 ? 'text-emerald-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.perlengkapan?.sisa > 0 ? 'text-rose-600' : 'text-slate-500'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.perlengkapan?.sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4">
+                                                    <span class="font-medium text-slate-700" x-text="selectedCamaba.rekap?.rincian?.perlengkapan?.metode || (selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas && selectedCamaba.rekap?.rincian?.perlengkapan?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Lunas
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.rincian?.perlengkapan?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            Belum Lunas
+                                                        </span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+
+                                            <!-- 3. DPP (Dana Pengembangan Pendidikan) -->
+                                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                                <td class="py-3.5 px-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.dpp?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                                                        </div>
+                                                        <div>
+                                                            <span class="font-bold text-slate-900 block">DPP (Dana Pengembangan Pendidikan)</span>
+                                                            <div class="flex items-center gap-1.5 mt-0.5">
+                                                                <span class="text-[11px] text-slate-400">Sumbangan pengembangan institusi</span>
+                                                                <template x-if="selectedCamaba.rekap?.dpp_voucher">
+                                                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200" x-text="'Potongan Rp ' + (selectedCamaba.rekap.dpp_voucher.discount_amount || 0).toLocaleString('id-ID')"></span>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right font-medium text-slate-700" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.dpp?.terbayar > 0 ? 'text-emerald-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.dpp?.sisa > 0 ? 'text-rose-600' : 'text-slate-500'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dpp?.sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4">
+                                                    <span class="font-medium text-slate-700" x-text="selectedCamaba.rekap?.rincian?.dpp?.metode || (selectedCamaba.rekap?.rincian?.dpp?.is_lunas && selectedCamaba.rekap?.rincian?.dpp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.rincian?.dpp?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Lunas
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.rincian?.dpp?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            Belum Lunas
+                                                        </span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+
+                                            <!-- 4. Uang Gedung -->
+                                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                                <td class="py-3.5 px-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                                        </div>
+                                                        <div>
+                                                            <span class="font-bold text-slate-900 block">Biaya Uang Gedung</span>
+                                                            <span class="text-[11px] text-slate-400 block">Sarana & prasarana kampus</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right font-medium text-slate-700" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.uang_gedung?.terbayar > 0 ? 'text-emerald-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.uang_gedung?.sisa > 0 ? 'text-rose-600' : 'text-slate-500'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.uang_gedung?.sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4">
+                                                    <span class="font-medium text-slate-700" x-text="selectedCamaba.rekap?.rincian?.uang_gedung?.metode || (selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas && selectedCamaba.rekap?.rincian?.uang_gedung?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Lunas
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.rincian?.uang_gedung?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            Belum Lunas
+                                                        </span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+
+                                            <!-- 5. Down Payment (DP Konfirmasi) -->
+                                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                                <td class="py-3.5 px-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.dp?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-[#0b3d82]'">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                                        </div>
+                                                        <div>
+                                                            <span class="font-bold text-slate-900 block">Down Payment (DP Konfirmasi)</span>
+                                                            <span class="text-[11px] text-slate-400 block">Uang muka konfirmasi registrasi ulang PMB</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right font-medium text-slate-700" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dp?.kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.dp?.terbayar > 0 ? 'text-emerald-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dp?.terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.dp?.sisa > 0 ? 'text-rose-600' : 'text-slate-500'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.dp?.sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4">
+                                                    <span class="font-medium text-slate-700" x-text="selectedCamaba.rekap?.rincian?.dp?.metode || (selectedCamaba.rekap?.rincian?.dp?.is_lunas && selectedCamaba.rekap?.rincian?.dp?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.rincian?.dp?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Lunas
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.rincian?.dp?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            Belum Lunas
+                                                        </span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+
+                                            <!-- 6. Pelunasan Biaya Kuliah (Semester 1) -->
+                                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                                <td class="py-3.5 px-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'">
+                                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg>
+                                                        </div>
+                                                        <div>
+                                                            <span class="font-bold text-slate-900 block">Pelunasan Biaya Kuliah (Semester 1)</span>
+                                                            <span class="text-[11px] text-slate-400 block">Biaya operasional kuliah & SPP semester pertama</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right font-medium text-slate-700" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.pelunasan?.terbayar > 0 ? 'text-emerald-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-bold" :class="selectedCamaba.rekap?.rincian?.pelunasan?.sisa > 0 ? 'text-rose-600' : 'text-slate-500'" x-text="'Rp ' + (selectedCamaba.rekap?.rincian?.pelunasan?.sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4">
+                                                    <span class="font-medium text-slate-700" x-text="selectedCamaba.rekap?.rincian?.pelunasan?.metode || (selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas && selectedCamaba.rekap?.rincian?.pelunasan?.kewajiban == 0 ? 'Bebas Biaya' : '-')"></span>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Lunas
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.rincian?.pelunasan?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                            Belum Lunas
+                                                        </span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="bg-slate-50/90 border-t-2 border-slate-200 text-xs font-bold text-slate-800">
+                                            <tr>
+                                                <td class="py-3.5 px-4 uppercase tracking-wider text-[11px]">Total Seluruh Komponen</td>
+                                                <td class="py-3.5 px-4 text-right font-black text-slate-900" x-text="'Rp ' + (selectedCamaba.rekap?.total_kewajiban || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-black text-emerald-700" x-text="'Rp ' + (selectedCamaba.rekap?.total_terbayar || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4 text-right font-black" :class="(selectedCamaba.rekap?.total_sisa || 0) > 0 ? 'text-rose-700' : 'text-slate-600'" x-text="'Rp ' + (selectedCamaba.rekap?.total_sisa || 0).toLocaleString('id-ID')"></td>
+                                                <td class="py-3.5 px-4"></td>
+                                                <td class="py-3.5 px-4 text-center">
+                                                    <template x-if="selectedCamaba.rekap?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                            LUNAS
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="!selectedCamaba.rekap?.is_lunas">
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                                            BELUM LUNAS
+                                                        </span>
+                                                    </template>
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 3: Riwayat Mutasi & Transaksi -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-sm font-bold text-slate-900">Riwayat Mutasi Transaksi</h4>
+                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200" x-text="(selectedCamaba.transaksis?.length || 0) + ' Transaksi'"></span>
+                                </div>
+                                <span class="text-xs text-slate-400">Daftar transaksi dan log mutasi yang tercatat</span>
+                            </div>
+
+                            <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs whitespace-nowrap">
+                                        <thead>
+                                            <tr class="bg-slate-50/90 text-slate-600 font-bold uppercase tracking-wider text-[10.5px] border-b border-slate-200">
+                                                <th class="py-3 px-4">Order ID</th>
+                                                <th class="py-3 px-4">Tanggal</th>
+                                                <th class="py-3 px-4">Komponen / Detail</th>
+                                                <th class="py-3 px-4 text-right">Nominal</th>
+                                                <th class="py-3 px-4">Metode</th>
+                                                <th class="py-3 px-4 text-center">Status</th>
+                                                <th class="py-3 px-4 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            <template x-for="trx in selectedCamaba.transaksis" :key="trx.id">
+                                                <tr class="hover:bg-slate-50/60 transition-colors">
+                                                    <!-- Order ID -->
+                                                    <td class="py-3.5 px-4 font-mono font-bold text-[#0b3d82]" x-text="trx.order_id"></td>
+
+                                                    <!-- Tanggal -->
+                                                    <td class="py-3.5 px-4 text-slate-500" x-text="trx.tanggal"></td>
+
+                                                    <!-- Detail Pembayaran -->
+                                                    <td class="py-3.5 px-4 text-slate-700 font-medium max-w-xs truncate" x-text="trx.detail"></td>
+
+                                                    <!-- Nominal -->
+                                                    <td class="py-3.5 px-4 text-right font-black text-slate-900" x-text="'Rp ' + trx.nominal"></td>
+
+                                                    <!-- Metode -->
+                                                    <td class="py-3.5 px-4">
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-100 text-slate-700 border border-slate-200" x-text="trx.metode"></span>
+                                                    </td>
+
+                                                    <!-- Status -->
+                                                    <td class="py-3.5 px-4 text-center">
+                                                        <template x-if="trx.is_verified">
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                Berhasil
+                                                            </span>
+                                                        </template>
+                                                        <template x-if="trx.is_pending">
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                Pending
+                                                            </span>
+                                                        </template>
+                                                        <template x-if="trx.is_rejected">
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                                                Gagal / Ditolak
+                                                            </span>
+                                                        </template>
+                                                    </td>
+
+                                                    <!-- Aksi per Transaksi -->
+                                                    <td class="py-3.5 px-4 text-center">
+                                                        <div class="inline-flex items-center justify-center gap-1.5">
+                                                            <!-- Sync Midtrans jika ada order_id dan belum verified -->
+                                                            <template x-if="trx.is_pending && trx.order_id && !trx.metode_raw?.includes('MANUAL')">
+                                                                <form :action="'{{ url('pmb/pembayaran') }}/' + trx.id + '/sync'" method="POST" class="inline">
+                                                                    @csrf
+                                                                    <button type="submit" class="p-1.5 rounded-lg border border-blue-200 bg-blue-50 text-[#0b3d82] hover:bg-[#082a5c] hover:text-white transition shadow-2xs cursor-pointer" title="Cek status Midtrans">
+                                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                                    </button>
+                                                                </form>
+                                                            </template>
+
+                                                            @if(!in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']))
+                                                            <!-- Verifikasi manual jika pending (Admin/HM Only) -->
+                                                            <template x-if="!trx.is_verified">
+                                                                <button 
+                                                                    type="button" 
+                                                                    @click="openVerify(trx, selectedCamaba.name)"
+                                                                    class="p-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition shadow-2xs cursor-pointer"
+                                                                    title="Verifikasi Transaksi Ini"
+                                                                >
+                                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                                </button>
+                                                            </template>
+
+                                                            <!-- Tolak transaksi jika belum ditolak (Admin/HM Only) -->
+                                                            <template x-if="!trx.is_rejected">
+                                                                <button 
+                                                                    type="button" 
+                                                                    @click="openReject(trx, selectedCamaba.name)"
+                                                                    class="p-1.5 rounded-lg border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white transition shadow-2xs cursor-pointer"
+                                                                    title="Tolak Transaksi Ini"
+                                                                >
+                                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                </button>
+                                                            </template>
+                                                            @endif
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
+
+                                            <template x-if="!selectedCamaba.transaksis || selectedCamaba.transaksis.length === 0">
+                                                <tr>
+                                                    <td colspan="7" class="py-8 text-center text-slate-400">
+                                                        <div class="flex flex-col items-center justify-center gap-1.5">
+                                                            <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                            <span class="text-xs">Belum ada transaksi yang tercatat untuk calon mahasiswa ini.</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
 
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-100">
-                        <span class="text-xs text-slate-400 font-mono">ID Camaba: #<span x-text="selectedCamaba.id"></span></span>
+                    <div class="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-200/80">
+                        <span class="text-xs text-slate-500 font-mono">ID Mahasiswa: #<span x-text="selectedCamaba.id"></span></span>
                         <button type="button" @click="detailModalOpen = false" class="px-5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition cursor-pointer shadow-2xs">
-                            Tutup Detail
+                            Tutup
                         </button>
                     </div>
                 </div>

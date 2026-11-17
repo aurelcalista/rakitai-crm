@@ -344,6 +344,7 @@ Route::middleware('auth')->group(function () {
 
         // Master Fakultas (Admin Prodi)
         Route::post('prodi/fakultas',        [\App\Http\Controllers\Admin\AdminProdiController::class, 'storeFakultas'])->name('prodi.fakultas.store');
+        Route::put('prodi/fakultas/{id}',    [\App\Http\Controllers\Admin\AdminProdiController::class, 'updateFakultas'])->name('prodi.fakultas.update');
         Route::delete('prodi/fakultas/{id}', [\App\Http\Controllers\Admin\AdminProdiController::class, 'destroyFakultas'])->name('prodi.fakultas.destroy');
 
         Route::resource('prodi',       \App\Http\Controllers\Admin\AdminProdiController::class, $except);

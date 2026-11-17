@@ -22,15 +22,17 @@ class AdminProdiController extends Controller
                 return $item;
             });
 
-        // Auto-seed MasterData fakultas from existing Prodi if not yet saved
-        $prodiFakultas = Prodi::distinct()->whereNotNull('fakultas')->where('fakultas', '!=', '')->pluck('fakultas');
-        foreach ($prodiFakultas as $pf) {
-            $cleanPf = trim($pf);
-            if ($cleanPf !== '') {
-                \App\Models\MasterData::firstOrCreate(
-                    ['type' => 'fakultas', 'nama' => $cleanPf],
-                    ['kode' => 'FAK-' . strtoupper(\Illuminate\Support\Str::slug($cleanPf, '-')), 'status' => 'Aktif']
-                );
+        // Auto-seed MasterData fakultas only if none exists yet
+        if (\App\Models\MasterData::where('type', 'fakultas')->doesntExist()) {
+            $prodiFakultas = Prodi::distinct()->whereNotNull('fakultas')->where('fakultas', '!=', '')->pluck('fakultas');
+            foreach ($prodiFakultas as $pf) {
+                $cleanPf = trim($pf);
+                if ($cleanPf !== '') {
+                    \App\Models\MasterData::firstOrCreate(
+                        ['type' => 'fakultas', 'nama' => $cleanPf],
+                        ['status' => 'Aktif']
+                    );
+                }
             }
         }
 
@@ -48,22 +50,53 @@ class AdminProdiController extends Controller
     {
         $validated = $request->validate([
             'nama'   => 'required|string|max:255',
-            'kode'   => 'nullable|string|max:50',
             'status' => 'nullable|in:Aktif,Nonaktif',
         ]);
 
         $nama   = trim($validated['nama']);
-        $kode   = !empty($validated['kode'])
-            ? strtoupper(trim($validated['kode']))
-            : 'FAK-' . strtoupper(\Illuminate\Support\Str::slug($nama, '-'));
         $status = $validated['status'] ?? 'Aktif';
 
         \App\Models\MasterData::updateOrCreate(
             ['type' => 'fakultas', 'nama' => $nama],
-            ['kode' => $kode, 'status' => $status]
+            ['status' => $status]
         );
 
         return redirect()->back()->with('success', "Fakultas '{$nama}' berhasil disimpan!");
+    }
+
+    public function updateFakultas(Request $request, $id)
+    {
+        $fakultas = \App\Models\MasterData::where('type', 'fakultas')->findOrFail($id);
+
+        $validated = $request->validate([
+            'nama'   => 'required|string|max:255',
+            'status' => 'required|in:Aktif,Nonaktif',
+        ]);
+
+        $oldNama = $fakultas->nama;
+        $nama    = trim($validated['nama']);
+        $status  = $validated['status'];
+
+        $duplicate = \App\Models\MasterData::where('type', 'fakultas')
+            ->where('nama', $nama)
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($duplicate) {
+            return redirect()->back()->with('error', "Fakultas dengan nama '{$nama}' sudah ada!");
+        }
+
+        // Sinkronisasi fakultas pada prodi terkait jika nama diubah
+        if ($oldNama !== $nama) {
+            Prodi::where('fakultas', $oldNama)->update(['fakultas' => $nama]);
+        }
+
+        $fakultas->update([
+            'nama'   => $nama,
+            'status' => $status,
+        ]);
+
+        return redirect()->back()->with('success', "Fakultas '{$nama}' berhasil diperbarui!");
     }
 
     public function destroyFakultas($id)
@@ -71,10 +104,8 @@ class AdminProdiController extends Controller
         $fakultas = \App\Models\MasterData::where('type', 'fakultas')->findOrFail($id);
         $nama = $fakultas->nama;
 
-        $prodiCount = Prodi::where('fakultas', $nama)->count();
-        if ($prodiCount > 0) {
-            return redirect()->back()->with('error', "Fakultas '{$nama}' tidak dapat dihapus karena masih digunakan oleh {$prodiCount} Program Studi!");
-        }
+        // Kosongkan referensi fakultas pada prodi terkait
+        Prodi::where('fakultas', $nama)->update(['fakultas' => '']);
 
         $fakultas->delete();
         return redirect()->back()->with('success', "Fakultas '{$nama}' berhasil dihapus!");
