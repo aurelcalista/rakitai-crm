@@ -71,6 +71,23 @@
         <form action="{{ route('pmb.register.post') }}" method="POST" @submit="loading = true">
             @csrf
 
+            <!-- Hidden Agent Referral Input -->
+            <input type="hidden" name="agent" value="{{ old('agent', $agent ?? '') }}">
+
+            @if(!empty($agent))
+                <div class="mb-4 p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-center gap-2.5 text-left shadow-2xs">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-bold text-blue-950">Jalur Undangan / Referral Agent</p>
+                        <p class="text-[11px] text-blue-700">Terhubung dengan mitra: <span class="font-bold underline">{{ $agent }}</span></p>
+                    </div>
+                </div>
+            @endif
+
             <!-- Nama Lengkap -->
             <div class="text-left mb-3.5">
                 <label for="name" class="block text-xs font-semibold text-slate-700 mb-1.5">

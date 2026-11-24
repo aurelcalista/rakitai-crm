@@ -513,6 +513,222 @@
                         </div>
                     </div>
 
+                    @if(auth()->user()->role === 'CS')
+                    {{-- ─── BLOK KOLABORASI CS (SAME-ROLE COLLABORATION ONLY) ────────── --}}
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4"
+                         x-data="{
+                             search: '',
+                             selected: {{ json_encode(array_map('intval', (array) old('participant_ids', []))) }},
+                             open: false,
+                             members: {{ json_encode(($csUsers ?? collect())->map(fn($u) => ['id' => (int)$u->id, 'name' => $u->name, 'email' => $u->email])) }},
+                             get filteredMembers() {
+                                 if (!this.search.trim()) return this.members;
+                                 const q = this.search.toLowerCase();
+                                 return this.members.filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
+                             },
+                             get selectedMembers() {
+                                 return this.members.filter(m => this.selected.includes(m.id));
+                             },
+                             toggleMember(id) {
+                                 const numId = Number(id);
+                                 if (this.selected.includes(numId)) {
+                                     this.selected = this.selected.filter(item => item !== numId);
+                                 } else {
+                                     this.selected.push(numId);
+                                 }
+                             },
+                             selectAll() {
+                                 this.selected = this.filteredMembers.map(m => m.id);
+                             },
+                             clearAll() {
+                                 this.selected = [];
+                             },
+                             getInitials(name) {
+                                 if (!name) return 'CS';
+                                 const parts = name.trim().split(/\s+/);
+                                 if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+                                 return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                             }
+                         }">
+                        
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    <span>Participating CS Members</span>
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-0.5">Pilih rekan CS yang ikut serta dalam kunjungan ini. Laporan akan otomatis muncul di riwayat kunjungan mereka.</p>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Opsional</span>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-slate-700">
+                                    Participating CS Members
+                                </label>
+                                <template x-if="selected.length > 0">
+                                    <span class="text-[11px] text-blue-600 font-semibold" x-text="selected.length + ' rekan CS dipilih'"></span>
+                                </template>
+                            </div>
+
+                            <!-- Hidden Inputs for Form Submission -->
+                            <template x-for="id in selected" :key="id">
+                                <input type="hidden" name="participant_ids[]" :value="id">
+                            </template>
+
+                            <!-- Modern Multi-Select Trigger (Styled like Searchable-Select) -->
+                            <div class="relative w-full text-left" @click.outside="open = false" @keydown.escape="open = false">
+                                <button 
+                                    type="button"
+                                    @click="open = !open; if(open) { $nextTick(() => $refs.searchInput.focus()); }"
+                                    class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition text-xs font-medium bg-slate-50 border-slate-200 text-slate-800 hover:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer text-left"
+                                    :class="open ? 'ring-2 ring-blue-500/20 border-blue-500 bg-white shadow-xs' : ''"
+                                >
+                                    <!-- Left side: Placeholder or Selected Tag Pills -->
+                                    <div class="flex-1 min-w-0 pr-2">
+                                        <template x-if="selected.length === 0">
+                                            <div class="flex items-center gap-2 text-slate-400">
+                                                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                                </svg>
+                                                <span class="truncate">-- Pilih satu atau beberapa rekan CS yang ikut --</span>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="selected.length > 0">
+                                            <div class="flex flex-wrap items-center gap-1.5">
+                                                <template x-for="m in selectedMembers" :key="m.id">
+                                                    <span class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200/80 text-xs font-semibold shadow-2xs">
+                                                        <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0" x-text="getInitials(m.name)"></span>
+                                                        <span class="max-w-[140px] truncate" x-text="m.name"></span>
+                                                        <span @click.stop="toggleMember(m.id)" class="p-0.5 rounded-full hover:bg-blue-200/60 text-blue-500 hover:text-blue-900 transition cursor-pointer" title="Hapus">
+                                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                        </span>
+                                                    </span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <!-- Right side: Quick clear & Chevron -->
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <template x-if="selected.length > 0">
+                                            <span 
+                                                @click.stop="clearAll()"
+                                                class="p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                                title="Hapus semua pilihan"
+                                            >
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </span>
+                                        </template>
+                                        <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="open ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </button>
+
+                                <!-- Modern Dropdown Panel (Identical style to x-searchable-select) -->
+                                <div 
+                                    x-show="open" 
+                                    x-cloak 
+                                    x-transition:enter="transition ease-out duration-100"
+                                    x-transition:enter-start="transform opacity-0 scale-95"
+                                    x-transition:enter-end="transform opacity-100 scale-100"
+                                    x-transition:leave="transition ease-in duration-75"
+                                    x-transition:leave-start="transform opacity-100 scale-100"
+                                    x-transition:leave-end="transform opacity-0 scale-95"
+                                    class="absolute z-50 mt-1.5 w-full rounded-xl bg-white shadow-xl border border-slate-200/80 overflow-hidden text-xs"
+                                >
+                                    <!-- Search Input Header with Icon -->
+                                    <div class="p-2 border-b border-slate-100 bg-slate-50/80">
+                                        <div class="relative flex items-center">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                            </div>
+                                            <input 
+                                                x-ref="searchInput"
+                                                type="text" 
+                                                x-model="search" 
+                                                placeholder="Cari nama atau email rekan CS..." 
+                                                style="padding-left: 2.25rem !important;"
+                                                class="w-full pr-3 py-2 rounded-lg text-xs bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                                                @keydown.escape="open = false"
+                                            >
+                                        </div>
+                                    </div>
+
+                                    <!-- Quick Actions Bar -->
+                                    <div class="px-3 py-1.5 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                                        <span class="font-medium">Daftar Rekan CS</span>
+                                        <div class="flex items-center gap-2">
+                                            <button type="button" @click="selectAll()" class="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer">Pilih Semua</button>
+                                            <span class="text-slate-300">|</span>
+                                            <button type="button" @click="clearAll()" class="text-slate-500 hover:text-slate-700 font-semibold cursor-pointer">Reset</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Options List -->
+                                    <div class="max-h-56 overflow-y-auto divide-y divide-slate-50 p-1">
+                                        <template x-for="m in filteredMembers" :key="m.id">
+                                            <div 
+                                                @click="toggleMember(m.id)"
+                                                class="px-3 py-2 rounded-lg cursor-pointer flex items-center justify-between transition group"
+                                                :class="selected.includes(m.id) ? 'bg-blue-50 font-bold text-blue-700' : 'text-slate-700 hover:bg-blue-50/80'"
+                                            >
+                                                <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                                                    <!-- Initials Avatar -->
+                                                    <div 
+                                                        class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] shrink-0 transition"
+                                                        :class="selected.includes(m.id) ? 'bg-blue-600 text-white shadow-2xs' : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'"
+                                                        x-text="getInitials(m.name)"
+                                                    ></div>
+                                                    <div class="min-w-0">
+                                                        <div class="truncate font-medium text-slate-800 group-hover:text-blue-700" :class="selected.includes(m.id) ? 'font-bold text-blue-900' : ''" x-text="m.name"></div>
+                                                        <div class="text-[10px] text-slate-400 truncate" x-text="m.email"></div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700">CS</span>
+                                                    <!-- Custom Styled Checkbox -->
+                                                    <div 
+                                                        class="w-4 h-4 rounded border flex items-center justify-center transition"
+                                                        :class="selected.includes(m.id) ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white group-hover:border-blue-400'"
+                                                    >
+                                                        <template x-if="selected.includes(m.id)">
+                                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <!-- Empty Search Result -->
+                                        <template x-if="filteredMembers.length === 0">
+                                            <div class="p-4 text-center space-y-1.5">
+                                                <div class="w-8 h-8 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                </div>
+                                                <p class="text-xs font-semibold text-slate-700">Tidak ada rekan CS ditemukan</p>
+                                                <p class="text-[11px] text-slate-400">Tidak ada anggota CS yang cocok dengan pencarian "<span x-text="search" class="text-slate-900 font-bold"></span>"</p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            @error('participant_ids')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
+                            @error('participant_ids.*')<p class="text-rose-500 text-[11px] mt-1">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
+                    @endif
+
                     {{-- ─── BLOK C: HASIL KUNJUNGAN (SEKOLAH) ──────────────────── --}}
                     <div x-show="jenisTab === 'Sekolah'" class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
                         <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">

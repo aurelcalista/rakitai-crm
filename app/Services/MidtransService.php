@@ -8,6 +8,8 @@ use App\Models\ProspekTimeline;
 use App\Models\TahunAkademik;
 use App\Models\Transaksi;
 use App\Models\User;
+use App\Models\Voucher;
+use App\Models\VoucherUsage;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -132,12 +134,12 @@ class MidtransService
      */
     public static function getBiayaCatalog(?Prospek $prospek = null, ?string $uktPeriod = null): array
     {
-        $prodi = $prospek?->prodi;
+        $prodi = $prospek?->prodi ?: ($prospek?->prodi_id ? \App\Models\Prodi::find($prospek->prodi_id) : null);
 
-        $pendaftaranPrice  = $prodi && isset($prodi->biaya_pendaftaran)  ? (int) $prodi->biaya_pendaftaran  : (int) config('services.midtrans.biaya_pendaftaran', 300000);
-        $perlengkapanPrice = $prodi && isset($prodi->biaya_perlengkapan) ? (int) $prodi->biaya_perlengkapan : 600000;
-        $dppPrice          = $prodi && isset($prodi->biaya_dpp)          ? (int) $prodi->biaya_dpp          : 500000;
-        $uangGedungPrice   = $prodi && isset($prodi->biaya_uang_gedung)  ? (int) $prodi->biaya_uang_gedung  : 0;
+        $pendaftaranPrice  = ($prodi && array_key_exists('biaya_pendaftaran', $prodi->getAttributes()) && $prodi->biaya_pendaftaran !== null)  ? (int) $prodi->biaya_pendaftaran  : (int) config('services.midtrans.biaya_pendaftaran', 300000);
+        $perlengkapanPrice = ($prodi && array_key_exists('biaya_perlengkapan', $prodi->getAttributes()) && $prodi->biaya_perlengkapan !== null) ? (int) $prodi->biaya_perlengkapan : 600000;
+        $dppPrice          = ($prodi && array_key_exists('biaya_dpp', $prodi->getAttributes()) && $prodi->biaya_dpp !== null)          ? (int) $prodi->biaya_dpp          : 500000;
+        $uangGedungPrice   = ($prodi && array_key_exists('biaya_uang_gedung', $prodi->getAttributes()) && $prodi->biaya_uang_gedung !== null)  ? (int) $prodi->biaya_uang_gedung  : 0;
         $dppSummary        = $prospek ? VoucherDiscountService::getDppSummary($prospek) : null;
 
         $catalog = [
@@ -154,7 +156,7 @@ class MidtransService
             'dpp' => [
                 'id'                        => 'PMB-DPP',
                 'name'                      => 'Biaya Dana Pengembangan Pendidikan (DPP)',
-                'price'                     => $dppSummary ? (int) $dppSummary['remaining_payable'] : $dppPrice,
+                'price'                     => $dppSummary ? (int) $dppSummary['remaining_before_discount'] : $dppPrice,
                 'base_price'                => $dppPrice,
                 'paid_partial'              => $dppSummary ? (int) $dppSummary['paid_partial'] : 0,
                 'remaining_before_discount' => $dppSummary ? (int) $dppSummary['remaining_before_discount'] : $dppPrice,
@@ -251,6 +253,14 @@ class MidtransService
             $descriptions[] = '• ' . $itemName . ' (Rp ' . number_format($price, 0, ',', '.') . ')';
         }
 
+        $hasAllFive = VoucherDiscountService::hasAllComponentsSelected($prospek, $validKeys, $uktPeriod);
+        $activeUsage = $hasAllFive ? VoucherDiscountService::getEffectiveDppUsage($prospek) : null;
+        if ($activeUsage && (int) $activeUsage->discount_amount > 0) {
+            $discountAmount = min($total, (int) $activeUsage->discount_amount);
+            $total = max(0, $total - $discountAmount);
+            $descriptions[] = '• Potongan Diskon Voucher ' . $activeUsage->voucher_code . ' (-Rp ' . number_format($discountAmount, 0, ',', '.') . ')';
+        }
+
         return [
             'total'        => $total,
             'items'        => $items,
@@ -292,33 +302,17 @@ class MidtransService
         $unlocked = [
             'pendaftaran'  => true,
             'perlengkapan' => true,
-            'dpp'          => $doneStage1,
-            'uang_gedung'  => $doneDpp,
-            'ukt'          => $doneUangGedung,
+            'dpp'          => true,
+            'uang_gedung'  => true,
+            'ukt'          => true,
         ];
-
-        $stage1Missing = [];
-        if (!$donePendaftaran) {
-            $stage1Missing[] = 'Biaya Pendaftaran';
-        }
-        if (!$donePerlengkapan) {
-            $stage1Missing[] = 'Biaya Perlengkapan';
-        }
 
         $lockReasons = [
             'pendaftaran'  => null,
             'perlengkapan' => null,
-            'dpp'          => $doneStage1 ? null : ('Bayar ' . implode(' dan ', $stage1Missing) . ' terlebih dahulu untuk membuka pembayaran DPP.'),
-            'uang_gedung'  => $doneDpp ? null : ($doneStage1
-                ? 'Bayar DPP terlebih dahulu untuk membuka pembayaran Uang Gedung.'
-                : 'Bayar ' . implode(' dan ', $stage1Missing) . ' serta DPP terlebih dahulu untuk membuka pembayaran Uang Gedung.'),
-            'ukt'          => $doneUangGedung ? null : ($priceUangGedung > 0
-                ? ($doneDpp
-                    ? 'Bayar Uang Gedung terlebih dahulu untuk membuka pembayaran UKT.'
-                    : 'Selesaikan pembayaran tahap sebelumnya hingga Uang Gedung terlebih dahulu untuk membuka pembayaran UKT.')
-                : ($doneStage1
-                    ? 'Bayar DPP terlebih dahulu untuk membuka pembayaran UKT.'
-                    : 'Bayar ' . implode(' dan ', $stage1Missing) . ' serta DPP terlebih dahulu untuk membuka pembayaran UKT.')),
+            'dpp'          => null,
+            'uang_gedung'  => null,
+            'ukt'          => null,
         ];
 
         return [
@@ -894,19 +888,27 @@ class MidtransService
                 if (!empty($selectedItemKeys)) {
                     $unpaidKeys = array_values(array_filter(
                         $selectedItemKeys,
-                        fn($k) => empty($paidItems[$k]) && ((int) ($catalog[$k]['price'] ?? 0) > 0 || ($k === 'dpp' && !empty($catalog[$k]['discount_amount'])))
+                        fn($k) => empty($paidItems[$k])
                     ));
                     if (empty($unpaidKeys)) {
-                        throw new InvalidArgumentException("Seluruh komponen pembayaran yang dipilih sudah lunas atau bernilai Rp 0 (Gratis).");
+                        throw new InvalidArgumentException("Seluruh komponen pembayaran yang dipilih sudah lunas.");
                     }
                     $selectedItemKeys = $unpaidKeys;
+                    $verifiedCount = $lockedProspek->transaksis()
+                        ->whereIn('payment_status', VoucherDiscountService::VERIFIED_STATUSES)
+                        ->count();
+                    if ($verifiedCount >= 2) {
+                        throw new InvalidArgumentException("Alur pembayaran pendaftaran mendukung maksimal 2 kali transaksi. Calon mahasiswa telah memiliki {$verifiedCount} transaksi yang terverifikasi.");
+                    }
+
                     $gate = self::getSequentialGateState($lockedProspek, $uktPeriod);
                     foreach ($selectedItemKeys as $reqKey) {
                         if (empty($gate['unlocked'][$reqKey])) {
-                            throw new InvalidArgumentException($gate['lock_reasons'][$reqKey] ?? "Komponen pembayaran '{$reqKey}' belum dapat dibayar sebelum tahap sebelumnya lunas.");
+                            throw new InvalidArgumentException($gate['lock_reasons'][$reqKey] ?? "Komponen pembayaran '{$reqKey}' belum dapat dibayar.");
                         }
                     }
-                    if (in_array('dpp', $selectedItemKeys, true)) {
+                    $hasAllFive = VoucherDiscountService::hasAllComponentsSelected($lockedProspek, $selectedItemKeys, $uktPeriod);
+                    if ($hasAllFive) {
                         VoucherDiscountService::validateActiveAppliedVoucherForCheckout($lockedProspek);
                         $catalog = self::getBiayaCatalog($lockedProspek, $uktPeriod);
                     }
@@ -1047,7 +1049,8 @@ class MidtransService
                 'academic_year_id'  => $aktifTa?->id,
             ]);
 
-            if (in_array('dpp', $selectedItemKeys, true)) {
+            $activeUsage = VoucherDiscountService::getEffectiveDppUsage($lockedProspek);
+            if ($activeUsage && $activeUsage->status === VoucherUsage::STATUS_APPLIED) {
                 VoucherDiscountService::attachTransaksiToActiveUsage($lockedProspek, $createdTransaksi);
                 if ($createdTransaksi->payment_status === Transaksi::STATUS_VERIFIED) {
                     VoucherDiscountService::syncUsageForTransaksi($createdTransaksi);

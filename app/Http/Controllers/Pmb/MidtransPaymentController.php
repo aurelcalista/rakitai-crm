@@ -115,12 +115,18 @@ class MidtransPaymentController extends Controller
                     ], 422);
                 }
 
-                // Saring komponen yang sudah lunas atau bernilai Rp 0 (Gratis)
-                if ($request->filled('voucher_code') && in_array('dpp', $rawItems, true)) {
-                    $existingSummary = VoucherDiscountService::getDppSummary($prospek);
+                $hasAllFive = VoucherDiscountService::hasAllComponentsSelected($prospek, $rawItems, $uktPeriod);
+                if ($request->filled('voucher_code')) {
+                    if (!$hasAllFive) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Voucher hanya dapat digunakan jika seluruh 5 komponen biaya dipilih.',
+                        ], 422);
+                    }
+                    $existingSummary = VoucherDiscountService::getDppSummary($prospek, $uktPeriod);
                     $reqCode = strtoupper(trim((string) $request->input('voucher_code')));
                     if (!$existingSummary['active_usage'] || $existingSummary['active_usage']->voucher_code !== $reqCode) {
-                        VoucherDiscountService::applyVoucher($prospek, $reqCode);
+                        VoucherDiscountService::applyVoucher($prospek, $reqCode, $rawItems, $uktPeriod);
                         $prospek->load(['prodi', 'transaksis']);
                     }
                 }
@@ -129,7 +135,7 @@ class MidtransPaymentController extends Controller
                 $paidItems = MidtransService::resolvePaidItems($prospek);
                 $unpaidItems = array_values(array_filter(
                     $rawItems,
-                    fn($k) => empty($paidItems[$k]) && ((int) ($catalog[$k]['price'] ?? 0) > 0 || ($k === 'dpp' && !empty($catalog[$k]['discount_amount'])))
+                    fn($k) => empty($paidItems[$k])
                 ));
                 if (empty($unpaidItems)) {
                     return response()->json([
@@ -139,8 +145,9 @@ class MidtransPaymentController extends Controller
                 }
 
                 $calculated = MidtransService::calculateItems($unpaidItems, $prospek, $uktPeriod);
-                $isZeroVoucherDpp = ($calculated['total'] === 0 && in_array('dpp', $calculated['item_keys'], true) && !empty($catalog['dpp']['discount_amount']));
-                if (($calculated['total'] <= 0 && !$isZeroVoucherDpp) || empty($calculated['item_keys'])) {
+                $activeUsage = VoucherDiscountService::getEffectiveDppUsage($prospek);
+                $isZeroVoucherPayment = ($calculated['total'] === 0 && $hasAllFive && $activeUsage && (int) $activeUsage->discount_amount > 0);
+                if (($calculated['total'] <= 0 && !$isZeroVoucherPayment) || empty($calculated['item_keys'])) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Silakan pilih minimal satu komponen biaya pembayaran.',

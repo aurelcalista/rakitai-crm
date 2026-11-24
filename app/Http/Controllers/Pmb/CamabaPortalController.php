@@ -719,7 +719,7 @@ class CamabaPortalController extends Controller
                 ->with('error', 'Data pendaftaran Anda belum terhubung. Silakan hubungi admin PMB.');
         }
 
-        $prospek->loadMissing('prodi');
+        $prospek->load('prodi');
 
         // WAJIB: Calon mahasiswa harus melengkapi Form Pendaftaran dan memilih Program Studi terlebih dahulu!
         $isFormFilled = !empty($prospek->prodi_id) && ($prospek->status_formulir ?? '') === 'Sudah Isi';
@@ -861,7 +861,7 @@ class CamabaPortalController extends Controller
             ], 404);
         }
 
-        $prospek->loadMissing('prodi');
+        $prospek->load('prodi');
         if (empty($prospek->prodi_id) || ($prospek->status_formulir ?? '') !== 'Sudah Isi') {
             return response()->json([
                 'success' => false,
@@ -870,23 +870,31 @@ class CamabaPortalController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'required|string|max:50',
+            'code'       => 'required|string|max:50',
+            'items'      => 'nullable|array',
+            'ukt_period' => 'nullable|string',
         ], [
             'code.required' => 'Harap masukkan kode voucher terlebih dahulu.',
         ]);
 
         try {
-            $usage = VoucherDiscountService::applyVoucher($prospek, $validated['code']);
+            $selectedItems = $request->input('items');
+            $uktPeriod = $request->input('ukt_period');
+            $usage = VoucherDiscountService::applyVoucher($prospek, $validated['code'], $selectedItems, $uktPeriod);
             $prospek->load(['prodi', 'transaksis']);
-            $dppSummary = VoucherDiscountService::getDppSummary($prospek);
+            $dppSummary = VoucherDiscountService::getDppSummary($prospek, $uktPeriod);
             $formattedVoucher = VoucherDiscountService::formatUsageForDisplay($usage);
+            $discountFormatted = 'Rp ' . number_format($usage->discount_amount, 0, ',', '.');
 
             return response()->json([
-                'success'     => true,
-                'message'     => "Voucher '{$usage->voucher_code}' berhasil diterapkan! Diskon {$usage->formatted_percentage}% (Potongan Rp " . number_format($usage->discount_amount, 0, ',', '.') . ').',
-                'voucher'     => $formattedVoucher,
+                'success'            => true,
+                'message'            => "Voucher '{$usage->voucher_code}' berhasil diterapkan! Potongan {$discountFormatted}.",
+                'voucher'            => $formattedVoucher,
+                'discount_amount'    => (int) $usage->discount_amount,
+                'discount_formatted' => $discountFormatted,
                 'dpp_summary' => [
                     'base_price'                => (int) $dppSummary['base_price'],
+                    'eligible_total'            => (int) ($dppSummary['eligible_total'] ?? 0),
                     'paid_partial'              => (int) $dppSummary['paid_partial'],
                     'remaining_before_discount' => (int) $dppSummary['remaining_before_discount'],
                     'discount_amount'           => (int) $dppSummary['discount_amount'],
@@ -915,7 +923,7 @@ class CamabaPortalController extends Controller
             ], 404);
         }
 
-        $prospek->loadMissing(['prodi', 'transaksis']);
+        $prospek->load(['prodi', 'transaksis']);
 
         try {
             VoucherDiscountService::removeVoucher($prospek);
@@ -1040,6 +1048,7 @@ class CamabaPortalController extends Controller
                 'Format: JPG, JPEG, atau PDF',
                 'Ukuran maksimal: 2MB',
                 'Scan halaman depan & nilai/belakang',
+                'Jika dokumen lebih dari 2 lembar, wajib jadikan 1 file PDF',
                 'Format nama: Ijazah_Nama',
             ],
             'file_name_prefix' => 'Ijazah',
@@ -1050,13 +1059,14 @@ class CamabaPortalController extends Controller
             'subtitle'         => 'Transkrip nilai rapor semester 1 - 5 atau nilai ujian sekolah',
             'icon'             => 'clipboard-list',
             'mimes'            => 'jpg,jpeg,png,pdf',
-            'mimes_label'      => 'JPG, JPEG, atau PDF',
+            'mimes_label'      => 'PDF (Disarankan) / JPG / JPEG',
             'max_size_kb'      => 2048,
             'max_label'        => '2MB',
             'button_text'      => 'Pilih File Transkrip',
             'requirements'     => [
-                'Format: JPG, JPEG, atau PDF',
+                'Format: PDF (Disarankan), JPG, atau JPEG',
                 'Ukuran maksimal: 2MB',
+                'Rapor semester 1 - 5 (wajib digabung jadi 1 file PDF jika > 2 lembar)',
                 'Scan dengan jelas dan terbaca',
                 'Format nama: Transkrip_Nama',
             ],
@@ -1076,9 +1086,30 @@ class CamabaPortalController extends Controller
                 'Format: JPG, JPEG, atau PDF',
                 'Ukuran maksimal: 2MB',
                 'Dikeluarkan oleh instansi berwenang',
+                'Jika dokumen lebih dari 2 lembar, wajib format PDF',
                 'Format nama: SuratSehat_Nama',
             ],
             'file_name_prefix' => 'SuratSehat',
+        ],
+        'prestasi' => [
+            'id'               => 'prestasi',
+            'title'            => 'Bukti Prestasi (Opsional)',
+            'subtitle'         => 'Sertifikat kejuaraan atau piagam penghargaan akademik / non-akademik',
+            'icon'             => 'trophy',
+            'mimes'            => 'jpg,jpeg,png,pdf',
+            'mimes_label'      => 'JPG, JPEG, PNG, atau PDF',
+            'max_size_kb'      => 2048,
+            'max_label'        => '2MB',
+            'is_optional'      => true,
+            'button_text'      => 'Pilih Bukti Prestasi',
+            'requirements'     => [
+                'Format: JPG, JPEG, PNG, atau PDF',
+                'Ukuran maksimal: 2MB',
+                'Sertifikat atau piagam kejuaraan',
+                'Jika sertifikat lebih dari 2 lembar, wajib jadikan 1 file PDF',
+                'Format nama: Prestasi_Nama',
+            ],
+            'file_name_prefix' => 'Prestasi',
         ],
     ];
 
@@ -1093,16 +1124,17 @@ class CamabaPortalController extends Controller
         $dokumenList = self::DOKUMEN_PERSYARATAN;
         $berkasData = is_array($prospek?->berkas_data) ? $prospek->berkas_data : [];
 
-        // Hitung progres kelengkapan dokumen
-        $totalDokumen = count($dokumenList);
+        // Hitung progres kelengkapan dokumen wajib (dokumen wajib menentukan 100%)
+        $mandatoryDocs = array_filter($dokumenList, fn($d) => empty($d['is_optional']));
+        $totalDokumen = count($mandatoryDocs);
         $uploadedCount = 0;
-        foreach ($dokumenList as $key => $doc) {
+        foreach ($mandatoryDocs as $key => $doc) {
             if (!empty($berkasData[$key]['file_path'])) {
                 $uploadedCount++;
             }
         }
 
-        $progressPercentage = $totalDokumen > 0 ? (int) round(($uploadedCount / $totalDokumen) * 100) : 0;
+        $progressPercentage = $totalDokumen > 0 ? (int) min(100, round(($uploadedCount / $totalDokumen) * 100)) : 0;
 
         return view('pmb.portal.upload-dokumen', compact(
             'user',
@@ -1178,18 +1210,29 @@ class CamabaPortalController extends Controller
             'catatan'       => null,
         ];
 
-        // Hitung total dokumen terunggah & perbarui status_berkas pendaftar
-        $uploadedCount = 0;
-        foreach (self::DOKUMEN_PERSYARATAN as $key => $d) {
+        // Hitung total dokumen wajib terunggah & perbarui status_berkas pendaftar
+        $mandatoryDocs = array_filter(self::DOKUMEN_PERSYARATAN, fn($d) => empty($d['is_optional']));
+        $totalMandatory = count($mandatoryDocs);
+        $uploadedMandatoryCount = 0;
+        foreach ($mandatoryDocs as $key => $d) {
             if (!empty($currentBerkas[$key]['file_path'])) {
-                $uploadedCount++;
+                $uploadedMandatoryCount++;
             }
         }
 
-        $totalDokumen = count(self::DOKUMEN_PERSYARATAN);
-        if ($uploadedCount >= $totalDokumen) {
+        $totalUploadedAll = 0;
+        foreach (self::DOKUMEN_PERSYARATAN as $key => $d) {
+            if (!empty($currentBerkas[$key]['file_path'])) {
+                $totalUploadedAll++;
+            }
+        }
+
+        $uploadedCount = $uploadedMandatoryCount;
+        $totalDokumen = $totalMandatory;
+
+        if ($uploadedMandatoryCount >= $totalMandatory) {
             $prospek->status_berkas = 'Sudah Upload';
-        } elseif ($uploadedCount > 0) {
+        } elseif ($totalUploadedAll > 0) {
             $prospek->status_berkas = 'Pending';
         } else {
             $prospek->status_berkas = 'Belum Upload';

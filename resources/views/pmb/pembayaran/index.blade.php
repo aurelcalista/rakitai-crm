@@ -11,18 +11,51 @@
         detailModalOpen: false,
         expandedRow: null,
         advancedFilterOpen: {{ request()->hasAny(['metode', 'start_date', 'end_date']) ? 'true' : 'false' }},
-        voucherManageOpen: {{ ($errors->has('name') || $errors->has('code') || $errors->has('discount_percentage') || $errors->has('is_active')) ? 'true' : 'false' }},
+        voucherManageOpen: {{ ($errors->has('name') || $errors->has('code') || $errors->has('discount_amount') || $errors->has('quota') || $errors->has('is_active')) ? 'true' : 'false' }},
         voucherEditModalOpen: false,
         voucherUsersModalOpen: false,
-        editingVoucher: { id: null, code: '', name: '', discount_percentage: 0, is_active: '1' },
+        voucherSearch: '',
+        voucherFilter: 'all', // 'all', 'active', 'depleted', 'inactive'
+        voucherUsageSearch: '',
+        matchesVoucher(code, name, isActive, remainingQuota) {
+            const q = this.voucherSearch.toLowerCase().trim();
+            const matchesQuery = !q || (code && code.toLowerCase().includes(q)) || (name && name.toLowerCase().includes(q));
+            let matchesStatus = true;
+            if (this.voucherFilter === 'active') {
+                matchesStatus = isActive && remainingQuota > 0;
+            } else if (this.voucherFilter === 'depleted') {
+                matchesStatus = isActive && remainingQuota <= 0;
+            } else if (this.voucherFilter === 'inactive') {
+                matchesStatus = !isActive;
+            }
+            return matchesQuery && matchesStatus;
+        },
+        matchesUsage(name, regNo, code) {
+            const q = this.voucherUsageSearch.toLowerCase().trim();
+            if (!q) return true;
+            return (name && name.toLowerCase().includes(q)) ||
+                   (regNo && regNo.toLowerCase().includes(q)) ||
+                   (code && code.toLowerCase().includes(q));
+        },
+        editingVoucher: { id: null, code: '', name: '', discount_amount: '', quota: 0, is_active: '1' },
         editingVoucherUrl: '',
-        selectedVoucherForUsers: { code: '', name: '', percentage_formatted: '', is_active: true, usages: [] },
+        selectedVoucherForUsers: { code: '', name: '', discount_amount: 0, discount_formatted: '', quota: 0, used_quota: 0, remaining_quota: 0, is_active: true, usages: [] },
+        formatRupiahInput(val) {
+            if (val === null || val === undefined || val === '') return '';
+            const clean = String(val).replace(/\D/g, '');
+            return clean ? clean.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+        },
+        maskRupiah(event) {
+            const raw = event.target.value.replace(/\D/g, '');
+            event.target.value = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+        },
         openEditVoucher(v) {
             this.editingVoucher = {
                 id: v.id,
                 code: v.code,
                 name: v.name || '',
-                discount_percentage: v.discount_percentage,
+                discount_amount: this.formatRupiahInput(v.discount_amount),
+                quota: v.quota,
                 is_active: v.is_active ? '1' : '0'
             };
             this.editingVoucherUrl = '{{ url('pmb/pembayaran/vouchers') }}/' + v.id;
@@ -182,8 +215,8 @@
             </div>
         </div>
 
-        @if($userRole === 'admin')
-            <!-- Menu Tab Data Pembayaran Aktif vs Trash (Khusus Admin) -->
+        @if(in_array($userRole, ['admin', 'cs']))
+            <!-- Menu Tab Data Pembayaran Aktif vs Trash (Khusus Admin & CS) -->
             <div class="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
                 <a
                     href="{{ route('pmb.pembayaran.index') }}"
@@ -437,7 +470,7 @@
         @php
             $vouchersList = $vouchers ?? collect();
             $voucherUsagesList = $voucherSummaryUsages ?? collect();
-            $canManageVoucher = in_array($userRole, ['admin', 'hm']);
+            $canManageVoucher = in_array($userRole, ['admin', 'hm', 'cs']);
         @endphp
         <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-2.5">
@@ -449,7 +482,7 @@
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Voucher Diskon DPP CAMABA</h3>
+                            <h3 class="text-xs sm:text-sm font-extrabold text-slate-900">Vocher Diskon CAMABA</h3>
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 {{ $vouchersList->where('is_active', true)->count() }} Voucher Aktif
                             </span>
@@ -462,17 +495,30 @@
                 </div>
 
                 @if($canManageVoucher)
-                    <button
-                        type="button"
-                        @click="voucherManageOpen = !voucherManageOpen"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer"
-                        :class="voucherManageOpen ? 'bg-[#0b3d82] text-white border-[#0b3d82]' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
-                    >
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        <span x-text="voucherManageOpen ? 'Tutup Pengaturan Voucher' : 'Kelola &amp; Buat Voucher'">Kelola &amp; Buat Voucher</span>
-                    </button>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            @click="voucherManageOpen = !voucherManageOpen"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer"
+                            :class="voucherManageOpen ? 'bg-[#0b3d82] text-white border-[#0b3d82]' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span x-text="voucherManageOpen ? 'Tutup Pengaturan Voucher' : 'Kelola &amp; Buat Voucher'">Kelola &amp; Buat Voucher</span>
+                        </button>
+
+                        <a
+                            href="{{ route('pmb.vouchers.index') }}"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-[#0b3d82] border border-blue-200 transition"
+                            title="Buka Halaman Khusus Manajemen Voucher Lengkap"
+                        >
+                            <span>Halaman Penuh Voucher</span>
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </a>
+                    </div>
                 @endif
             </div>
 
@@ -488,100 +534,153 @@
                     </span>
                 </div>
             @else
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-52 overflow-y-auto pr-0.5">
-                    @foreach($voucherUsagesList as $vu)
-                        <div class="p-3 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition space-y-1.5 text-[11px]">
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-1.5 min-w-0">
-                                    <span class="px-1.5 py-0.5 rounded font-mono font-extrabold text-[10px] bg-blue-50 text-[#0b3d82] border border-blue-200 shrink-0">{{ $vu->voucher_code }}</span>
-                                    <span class="font-bold text-emerald-700 shrink-0">-{{ $vu->formatted_percentage }}%</span>
-                                </div>
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 {{ $vu->status === \App\Models\VoucherUsage::STATUS_USED ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
-                                    {{ $vu->status_label }}
-                                </span>
-                            </div>
-                            <div class="font-bold text-slate-900 truncate">{{ $vu->prospek?->name ?? '-' }}</div>
-                            @php $vuVoucherName = $vu->voucher_name ?? $vu->voucher?->name; @endphp
-                            @if(!empty($vuVoucherName))
-                                <div class="text-[10px] font-semibold text-slate-500 truncate">{{ $vuVoucherName }}</div>
-                            @endif
-                            <div class="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200/70 text-[10px]">
-                                <div>
-                                    <span class="text-slate-400 block">DPP Awal</span>
-                                    <strong class="text-slate-700">Rp {{ number_format($vu->dpp_before_discount, 0, ',', '.') }}</strong>
-                                </div>
-                                <div>
-                                    <span class="text-slate-400 block">Potongan</span>
-                                    <strong class="text-emerald-700">-Rp {{ number_format($vu->discount_amount, 0, ',', '.') }}</strong>
-                                </div>
-                                <div>
-                                    <span class="text-slate-400 block">DPP Akhir</span>
-                                    <strong class="text-[#0b3d82]">Rp {{ number_format($vu->dpp_after_discount, 0, ',', '.') }}</strong>
-                                </div>
-                            </div>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-2 text-xs">
+                        <div class="relative flex-1 max-w-xs">
+                            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="text" x-model="voucherUsageSearch" placeholder="Cari CAMABA penerima voucher..." class="w-full text-[11px] rounded-lg border border-slate-200 pl-7 pr-6 py-1 bg-slate-50 focus:bg-white focus:border-[#0b3d82]">
+                            <button type="button" x-show="voucherUsageSearch" @click="voucherUsageSearch = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs">&times;</button>
                         </div>
-                    @endforeach
+                        <span class="text-[11px] text-slate-500 font-semibold">{{ $voucherUsagesList->count() }} Pendaftar</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-52 overflow-y-auto pr-0.5">
+                        @foreach($voucherUsagesList as $vu)
+                            @php
+                                $vuCamabaName = $vu->prospek?->name ?? '-';
+                                $vuRegNo = $vu->prospek?->no_registrasi ?? '-';
+                                $vuCode = $vu->voucher_code;
+                            @endphp
+                            <div
+                                x-show="matchesUsage('{{ addslashes($vuCamabaName) }}', '{{ addslashes($vuRegNo) }}', '{{ addslashes($vuCode) }}')"
+                                class="p-3 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white transition space-y-1.5 text-[11px]"
+                            >
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-1.5 min-w-0">
+                                        <span class="px-1.5 py-0.5 rounded font-mono font-extrabold text-[10px] bg-blue-50 text-[#0b3d82] border border-blue-200 shrink-0">{{ $vu->voucher_code }}</span>
+                                        <span class="font-bold text-emerald-700 shrink-0">-Rp {{ number_format($vu->discount_amount, 0, ',', '.') }}</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 {{ $vu->status === \App\Models\VoucherUsage::STATUS_USED ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
+                                        {{ $vu->status_label }}
+                                    </span>
+                                </div>
+                                <div class="font-bold text-slate-900 truncate">{{ $vu->prospek?->name ?? '-' }}</div>
+                                @php $vuVoucherName = $vu->voucher_name ?? $vu->voucher?->name; @endphp
+                                @if(!empty($vuVoucherName))
+                                    <div class="text-[10px] font-semibold text-slate-500 truncate">{{ $vuVoucherName }}</div>
+                                @endif
+                                <div class="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-200/70 text-[10px]">
+                                    <div>
+                                        <span class="text-slate-400 block">Total Awal</span>
+                                        <strong class="text-slate-700">Rp {{ number_format($vu->total_before_discount ?? $vu->dpp_before_discount, 0, ',', '.') }}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Potongan</span>
+                                        <strong class="text-emerald-700">-Rp {{ number_format($vu->discount_amount, 0, ',', '.') }}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Total Akhir</span>
+                                        <strong class="text-[#0b3d82]">Rp {{ number_format($vu->total_after_discount ?? $vu->dpp_after_discount, 0, ',', '.') }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             @endif
 
-            <!-- B. Input & Pengaturan Voucher (Hanya Admin / HM) -->
+            <!-- B. Input & Pengaturan Voucher (Admin, HM, & CS) -->
             @if($canManageVoucher)
                 <div x-show="voucherManageOpen" x-cloak class="pt-3 border-t border-slate-100 space-y-3">
-                    <form action="{{ route('pmb.pembayaran.vouchers.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+                    <form action="{{ route('pmb.pembayaran.vouchers.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 items-end">
                         @csrf
-                        <div class="sm:col-span-3">
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Voucher <span class="text-rose-500">*</span></label>
+                        {{-- Baris 1: Nama Voucher & Kode Voucher --}}
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Voucher</label>
                             <input type="text"
                                    name="name"
                                    value="{{ old('name') }}"
-                                   required
                                    maxlength="150"
                                    placeholder="Contoh: Beasiswa Gelombang 1"
-                                   class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                                   class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3.5 py-2.5 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                         </div>
-                        <div class="sm:col-span-3">
+                        <div>
                             <label class="block text-[11px] font-bold text-slate-700 mb-1">Kode Voucher <span class="text-rose-500">*</span></label>
                             <input type="text"
                                    name="code"
                                    value="{{ old('code') }}"
                                    required
-                                   placeholder="Contoh: UCIC20"
-                                   class="w-full text-xs font-bold uppercase rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                                   placeholder="Contoh: UCIC300"
+                                   class="w-full text-xs font-bold uppercase rounded-xl border border-slate-200 px-3.5 py-2.5 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                         </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Persentase Diskon (%) <span class="text-rose-500">*</span></label>
-                            <input type="number"
-                                   name="discount_percentage"
-                                   value="{{ old('discount_percentage') }}"
-                                   min="1"
-                                   max="100"
-                                   step="0.01"
+
+                        {{-- Baris 2: Nominal Diskon & Kuota Penggunaan --}}
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Nominal Diskon (Rp) <span class="text-rose-500">*</span></label>
+                            <input type="text"
+                                   inputmode="numeric"
+                                   name="discount_amount"
+                                   value="{{ old('discount_amount') ? number_format((int) preg_replace('/[^0-9]/', '', old('discount_amount')), 0, ',', '.') : '' }}"
+                                   @input="maskRupiah($event)"
                                    required
-                                   placeholder="1 - 100"
-                                   class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                                   placeholder="Contoh: 300.000"
+                                   class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3.5 py-2.5 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                         </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Status Voucher</label>
-                            <select name="is_active" class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3 py-2 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Kuota Penggunaan <span class="text-rose-500">*</span></label>
+                            <input type="number"
+                                   name="quota"
+                                   value="{{ old('quota') }}"
+                                   min="1"
+                                   step="1"
+                                   required
+                                   placeholder="Contoh: 20"
+                                   class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3.5 py-2.5 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                        </div>
+
+                        {{-- Baris 3: Status & Tombol Tambah Voucher --}}
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Status</label>
+                            <select name="is_active" class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3.5 py-2.5 bg-white text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                                 <option value="1" {{ old('is_active', '1') === '1' ? 'selected' : '' }}>Aktif</option>
                                 <option value="0" {{ old('is_active') === '0' ? 'selected' : '' }}>Nonaktif</option>
                             </select>
                         </div>
-                        <div class="sm:col-span-2">
-                            <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-bold bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-2xs transition cursor-pointer">
-                                Tambah Voucher
+                        <div class="flex justify-end">
+                            <button type="submit" class="w-full sm:w-auto h-[42px] px-6 rounded-xl text-xs font-bold bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-2xs transition cursor-pointer flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                <span>Tambah Voucher</span>
                             </button>
                         </div>
                     </form>
 
                     @if($vouchersList->isNotEmpty())
-                        <div class="overflow-x-auto rounded-xl border border-slate-200/80">
+                        <!-- Live Search & Filter Bar untuk Tabel Voucher Ringkas -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200/80">
+                            <div class="relative flex-1 max-w-xs">
+                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                <input type="text" x-model="voucherSearch" placeholder="Cari kode atau nama voucher..." class="w-full text-xs rounded-lg border border-slate-200 pl-8 pr-6 py-1.5 bg-slate-50 focus:bg-white focus:border-[#0b3d82]">
+                                <button type="button" x-show="voucherSearch" @click="voucherSearch = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer">&times;</button>
+                            </div>
+                            <div class="flex items-center gap-1 text-[11px] font-bold overflow-x-auto">
+                                <button type="button" @click="voucherFilter = 'all'" class="px-2.5 py-1 rounded-lg transition cursor-pointer" :class="voucherFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'">Semua</button>
+                                <button type="button" @click="voucherFilter = 'active'" class="px-2.5 py-1 rounded-lg transition cursor-pointer" :class="voucherFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'">Aktif</button>
+                                <button type="button" @click="voucherFilter = 'depleted'" class="px-2.5 py-1 rounded-lg transition cursor-pointer" :class="voucherFilter === 'depleted' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-700 border border-amber-200'">Habis</button>
+                                <button type="button" @click="voucherFilter = 'inactive'" class="px-2.5 py-1 rounded-lg transition cursor-pointer" :class="voucherFilter === 'inactive' ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-600'">Nonaktif</button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto max-h-80 overflow-y-auto rounded-xl border border-slate-200/80">
                             <table class="w-full text-left text-xs whitespace-nowrap">
-                                <thead>
-                                    <tr class="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
-                                        <th class="py-2.5 px-3">Nama Voucher</th>
+                                <thead class="sticky top-0 z-10 bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 shadow-2xs">
+                                    <tr>
                                         <th class="py-2.5 px-3">Kode Voucher</th>
-                                        <th class="py-2.5 px-3">Diskon</th>
+                                        <th class="py-2.5 px-3">Nama Voucher</th>
+                                        <th class="py-2.5 px-3">Nominal Diskon (IDR)</th>
+                                        <th class="py-2.5 px-3 text-center">Total Kuota</th>
+                                        <th class="py-2.5 px-3 text-center">Kuota Terpakai</th>
+                                        <th class="py-2.5 px-3 text-center">Sisa Kuota</th>
                                         <th class="py-2.5 px-3">Status</th>
                                         <th class="py-2.5 px-3">Pengguna CAMABA</th>
                                         <th class="py-2.5 px-3 text-right">Aksi</th>
@@ -594,33 +693,49 @@
                                                 'id'                   => $v->id,
                                                 'code'                 => $v->code,
                                                 'name'                 => $v->name ?? '',
-                                                'discount_percentage'  => (float) $v->discount_percentage,
-                                                'percentage_formatted' => $v->formatted_percentage,
+                                                'discount_amount'      => (int) $v->discount_amount,
+                                                'discount_formatted'   => 'Rp ' . number_format($v->discount_amount, 0, ',', '.'),
+                                                'quota'                => (int) $v->quota,
+                                                'used_quota'           => (int) $v->used_quota,
+                                                'remaining_quota'      => (int) $v->remaining_quota,
                                                 'is_active'            => (bool) $v->is_active,
                                                 'usages'               => $v->usages->map(fn ($u) => [
                                                     'camaba_name'          => $u->prospek?->name ?? '-',
                                                     'no_registrasi'        => $u->prospek?->no_registrasi ?? '-',
                                                     'voucher_code'         => $u->voucher_code,
                                                     'voucher_name'         => $u->voucher_name ?? $v->name ?? '',
-                                                    'percentage_formatted' => $u->formatted_percentage,
-                                                    'dpp_before'           => 'Rp ' . number_format($u->dpp_before_discount, 0, ',', '.'),
                                                     'discount_amount'      => 'Rp ' . number_format($u->discount_amount, 0, ',', '.'),
-                                                    'dpp_after'            => 'Rp ' . number_format($u->dpp_after_discount, 0, ',', '.'),
+                                                    'total_before'         => 'Rp ' . number_format($u->total_before_discount ?? $u->dpp_before_discount, 0, ',', '.'),
+                                                    'total_after'          => 'Rp ' . number_format($u->total_after_discount ?? $u->dpp_after_discount, 0, ',', '.'),
                                                     'status_label'         => $u->status_label,
                                                     'is_used'              => $u->status === \App\Models\VoucherUsage::STATUS_USED,
                                                     'time'                 => ($u->used_at ?? $u->created_at)?->format('d M Y, H:i'),
                                                 ])->values()->all(),
                                             ];
                                         @endphp
-                                        <tr class="hover:bg-slate-50/70">
-                                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ $v->name ?: '-' }}</td>
+                                        <tr
+                                            x-show="matchesVoucher('{{ addslashes($v->code) }}', '{{ addslashes($v->name ?? '') }}', {{ $v->is_active ? 'true' : 'false' }}, {{ (int) $v->remaining_quota }})"
+                                            class="hover:bg-slate-50/70 transition"
+                                        >
                                             <td class="py-2.5 px-3 font-mono font-extrabold text-[#0b3d82]">{{ $v->code }}</td>
-                                            <td class="py-2.5 px-3 font-bold text-emerald-700">{{ $v->formatted_percentage }}%</td>
-                                            <td class="py-2.5 px-3">
-                                                @if($v->is_active)
-                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>
+                                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ $v->name ?: '-' }}</td>
+                                            <td class="py-2.5 px-3 font-bold text-emerald-700">Rp {{ number_format($v->discount_amount, 0, ',', '.') }}</td>
+                                            <td class="py-2.5 px-3 text-center font-semibold text-slate-700">{{ $v->quota }}</td>
+                                            <td class="py-2.5 px-3 text-center font-bold text-blue-700">{{ $v->used_quota }}</td>
+                                            <td class="py-2.5 px-3 text-center">
+                                                @if($v->remaining_quota <= 0)
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Habis (0)</span>
                                                 @else
+                                                    <span class="font-bold text-emerald-700">{{ $v->remaining_quota }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-2.5 px-3">
+                                                @if(!$v->is_active)
                                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Nonaktif</span>
+                                                @elseif($v->remaining_quota <= 0)
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Kuota Habis</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Aktif</span>
                                                 @endif
                                             </td>
                                             <td class="py-2.5 px-3">
@@ -792,7 +907,7 @@
                                             </svg>
                                         </button>
 
-                                        @if($userRole === 'admin')
+                                        @if(in_array($userRole, ['admin', 'cs']))
                                             @php
                                                 $deletePayload = [
                                                     'name'     => $p->name ?? '-',
@@ -1642,8 +1757,8 @@
                                                                 </form>
                                                             </template>
 
-                                                            @if(!in_array(strtolower(auth()->user()->role ?? ''), ['sales', 'cs']))
-                                                            <!-- Verifikasi manual jika pending (Admin/HM Only) -->
+                                                            @if(!in_array(strtolower(auth()->user()->role ?? ''), ['sales']))
+                                                            <!-- Verifikasi manual jika pending (Admin, HM, & CS) -->
                                                             <template x-if="!trx.is_verified">
                                                                 <button 
                                                                     type="button" 
@@ -1655,7 +1770,7 @@
                                                                 </button>
                                                             </template>
 
-                                                            <!-- Tolak transaksi jika belum ditolak (Admin/HM Only) -->
+                                                            <!-- Tolak transaksi jika belum ditolak (Admin, HM, & CS) -->
                                                             <template x-if="!trx.is_rejected">
                                                                 <button 
                                                                     type="button" 
@@ -1858,7 +1973,7 @@
         </div>
 
         <!-- ============================================================== -->
-        <!-- MODAL: Ubah Persentase & Status Voucher Diskon DPP -->
+        <!-- MODAL: Ubah Nominal Diskon, Kuota & Status Voucher -->
         <!-- ============================================================== -->
         <div x-show="voucherEditModalOpen" x-cloak class="fixed inset-0 z-60 overflow-y-auto" role="dialog" aria-modal="true">
             <div class="flex items-center justify-center min-h-screen p-4 text-center">
@@ -1883,8 +1998,19 @@
                                        class="w-full text-xs font-semibold rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Persentase Diskon (%)</label>
-                                <input type="number" name="discount_percentage" x-model="editingVoucher.discount_percentage" min="1" max="100" step="0.01" required
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nominal Diskon (Rp) <span class="text-rose-500">*</span></label>
+                                <input type="text"
+                                       inputmode="numeric"
+                                       name="discount_amount"
+                                       x-model="editingVoucher.discount_amount"
+                                       @input="editingVoucher.discount_amount = formatRupiahInput($event.target.value)"
+                                       required
+                                       placeholder="Contoh: 300.000"
+                                       class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Kuota Penggunaan <span class="text-rose-500">*</span></label>
+                                <input type="number" name="quota" x-model="editingVoucher.quota" min="0" step="1" required
                                        class="w-full text-xs font-bold rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100">
                             </div>
                             <div>
@@ -1919,7 +2045,7 @@
                             </h3>
                             <p class="text-xs text-slate-500">
                                 <span x-show="selectedVoucherForUsers.name" class="font-semibold text-slate-700" x-text="selectedVoucherForUsers.name + ' • '"></span>
-                                Diskon saat ini: <strong x-text="selectedVoucherForUsers.percentage_formatted + '%'"></strong>
+                                Potongan: <strong class="text-emerald-700" x-text="selectedVoucherForUsers.discount_formatted"></strong> • Kuota: <strong x-text="selectedVoucherForUsers.used_quota + ' / ' + selectedVoucherForUsers.quota + ' Terpakai (Sisa ' + selectedVoucherForUsers.remaining_quota + ')'"></strong>
                             </p>
                         </div>
                         <button type="button" @click="voucherUsersModalOpen = false" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
@@ -1936,11 +2062,10 @@
                                     <div class="font-bold text-slate-900" x-text="u.camaba_name"></div>
                                     <div class="text-[11px] text-slate-500">
                                         <span class="font-mono" x-text="u.no_registrasi"></span> •
-                                        Diskon <strong class="text-emerald-700" x-text="u.percentage_formatted + '%'"></strong> •
                                         Potongan <strong class="text-emerald-700" x-text="u.discount_amount"></strong>
                                     </div>
                                     <div class="text-[11px] text-slate-500">
-                                        DPP Awal: <strong x-text="u.dpp_before"></strong> &rarr; Setelah Diskon: <strong class="text-[#0b3d82]" x-text="u.dpp_after"></strong>
+                                        Total Awal: <strong x-text="u.total_before || u.dpp_before"></strong> &rarr; Setelah Diskon: <strong class="text-[#0b3d82]" x-text="u.total_after || u.dpp_after"></strong>
                                     </div>
                                 </div>
                                 <div class="sm:text-right shrink-0">

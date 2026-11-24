@@ -213,6 +213,21 @@ class Kunjungan extends Model
         return $this->belongsTo(User::class, 'sales_id');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'sales_id');
+    }
+
+    public function participants()
+    {
+        return $this->belongsToMany(User::class, 'kunjungan_users', 'kunjungan_id', 'user_id')->withTimestamps();
+    }
+
+    public function hasParticipant(int $userId): bool
+    {
+        return $this->participants->contains('id', $userId);
+    }
+
     public function prodi()
     {
         return $this->belongsTo(Prodi::class, 'prodi_id');

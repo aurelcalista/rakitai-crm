@@ -14,7 +14,15 @@ class KunjunganPolicy
     {
         $role = strtolower($user->role);
 
-        return in_array($role, ['sales', 'spv', 'hm', 'admin', 'cs', 'eo', 'data analyst']);
+        if (!in_array($role, ['sales', 'spv', 'hm', 'admin', 'cs', 'eo', 'data analyst'])) {
+            return false;
+        }
+
+        if ($role === 'cs') {
+            return $kunjungan->sales_id === $user->id || $kunjungan->participants()->where('users.id', $user->id)->exists();
+        }
+
+        return true;
     }
 
     /**
@@ -30,7 +38,17 @@ class KunjunganPolicy
      */
     public function update(User $user, Kunjungan $kunjungan): bool
     {
-        return in_array(strtolower($user->role), ['sales', 'spv', 'hm', 'admin', 'cs', 'eo']);
+        $role = strtolower($user->role);
+
+        if (!in_array($role, ['sales', 'spv', 'hm', 'admin', 'cs', 'eo'])) {
+            return false;
+        }
+
+        if ($role === 'cs') {
+            return $kunjungan->sales_id === $user->id || $kunjungan->participants()->where('users.id', $user->id)->exists();
+        }
+
+        return true;
     }
 
     /**
@@ -38,6 +56,16 @@ class KunjunganPolicy
      */
     public function delete(User $user, Kunjungan $kunjungan): bool
     {
-        return in_array(strtolower($user->role), ['sales', 'spv', 'hm', 'admin', 'cs', 'eo']);
+        $role = strtolower($user->role);
+
+        if (!in_array($role, ['sales', 'spv', 'hm', 'admin', 'cs', 'eo'])) {
+            return false;
+        }
+
+        if ($role === 'cs') {
+            return $kunjungan->sales_id === $user->id;
+        }
+
+        return true;
     }
 }

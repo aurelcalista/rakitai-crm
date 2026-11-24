@@ -182,6 +182,20 @@
                         <!-- Card Content -->
                         <div class="p-5 space-y-3 text-xs">
                             <div>
+                                <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                                    <template x-if="visit.is_shared">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Anda ditandai sebagai peserta kolaborasi kunjungan ini">
+                                            <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                            <span x-text="'Kunjungan Bersama • Dibuat oleh ' + (visit.creator_name || visit.sales)"></span>
+                                        </span>
+                                    </template>
+                                    <template x-if="!visit.is_shared && visit.participants_count > 0">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200" :title="'Rekan CS: ' + visit.participants_str">
+                                            <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                            <span x-text="'Kolaborasi +' + visit.participants_count + ' CS'"></span>
+                                        </span>
+                                    </template>
+                                </div>
                                 <h3 
                                     class="font-bold text-sm text-slate-900 line-clamp-1 hover:text-blue-600 transition cursor-pointer" 
                                     x-text="visit.name"
@@ -196,9 +210,15 @@
                                     <span class="font-semibold text-slate-800" x-text="visit.pic"></span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span class="text-slate-400">Sales Incharge:</span>
-                                    <span class="font-semibold text-blue-600" x-text="visit.sales"></span>
+                                    <span class="text-slate-400">Petugas / Pembuat:</span>
+                                    <span class="font-semibold text-blue-600" x-text="visit.creator_name || visit.sales"></span>
                                 </div>
+                                <template x-if="visit.participants_str">
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-400">Rekan CS Ikut:</span>
+                                        <span class="font-semibold text-indigo-600 truncate max-w-[150px]" :title="visit.participants_str" x-text="visit.participants_str"></span>
+                                    </div>
+                                </template>
                                 <div class="flex justify-between">
                                     <span class="text-slate-400">Potensi:</span>
                                     <span class="font-semibold text-slate-800" x-text="visit.potential"></span>
@@ -549,12 +569,12 @@
 
                                     <!-- Personil Sales -->
                                     <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                                        <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Petugas Sales</p>
+                                        <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Pembuat Laporan</p>
                                         <p class="text-xs font-bold text-slate-800 mt-0.5 truncate flex items-center gap-1">
                                             <svg class="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                             </svg>
-                                            <span x-text="selectedVisit.sales"></span>
+                                            <span x-text="selectedVisit.creator_name || selectedVisit.sales"></span>
                                         </p>
                                     </div>
 
@@ -574,6 +594,17 @@
                                             </template>
                                         </div>
                                     </div>
+
+                                    <!-- Anggota Kolaborasi CS jika ada -->
+                                    <template x-if="selectedVisit.participants_str">
+                                        <div class="col-span-2 p-2.5 bg-blue-50/70 rounded-xl border border-blue-200">
+                                            <p class="text-[10px] font-semibold text-blue-700 uppercase tracking-wider flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                                <span>Anggota CS yang Ikut (Participating CS Members)</span>
+                                            </p>
+                                            <p class="text-xs font-bold text-blue-900 mt-0.5" x-text="selectedVisit.participants_str"></p>
+                                        </div>
+                                    </template>
 
                                     <!-- Event Terkait -->
                                     <div class="col-span-2 p-2.5 rounded-xl border"

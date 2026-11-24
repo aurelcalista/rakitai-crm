@@ -64,13 +64,13 @@ class PmbPembayaranController extends Controller
      */
     public static function calculateRekap(Prospek $prospek): array
     {
-        $prodi = $prospek->prodi;
+        $prodi = $prospek->prodi ?: ($prospek->prodi_id ? \App\Models\Prodi::find($prospek->prodi_id) : null);
         $totalTagihan = MidtransService::getTotalTagihan($prospek);
 
-        $kewajibanPendaftaran  = $prodi && isset($prodi->biaya_pendaftaran)  ? (int) $prodi->biaya_pendaftaran  : 300000;
-        $kewajibanPerlengkapan = $prodi && isset($prodi->biaya_perlengkapan) ? (int) $prodi->biaya_perlengkapan : 600000;
-        $kewajibanDpp          = $prodi && isset($prodi->biaya_dpp)          ? (int) $prodi->biaya_dpp          : 500000;
-        $kewajibanGedung       = $prodi && isset($prodi->biaya_uang_gedung)  ? (int) $prodi->biaya_uang_gedung  : 0;
+        $kewajibanPendaftaran  = ($prodi && array_key_exists('biaya_pendaftaran', $prodi->getAttributes()) && $prodi->biaya_pendaftaran !== null)  ? (int) $prodi->biaya_pendaftaran  : 300000;
+        $kewajibanPerlengkapan = ($prodi && array_key_exists('biaya_perlengkapan', $prodi->getAttributes()) && $prodi->biaya_perlengkapan !== null) ? (int) $prodi->biaya_perlengkapan : 600000;
+        $kewajibanDpp          = ($prodi && array_key_exists('biaya_dpp', $prodi->getAttributes()) && $prodi->biaya_dpp !== null)          ? (int) $prodi->biaya_dpp          : 500000;
+        $kewajibanGedung       = ($prodi && array_key_exists('biaya_uang_gedung', $prodi->getAttributes()) && $prodi->biaya_uang_gedung !== null)  ? (int) $prodi->biaya_uang_gedung  : 0;
 
         $kewajiban = [
             'perlengkapan' => $kewajibanPerlengkapan,
@@ -637,7 +637,7 @@ class PmbPembayaranController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $trashCount = strtolower((string) (auth()->user()->role ?? '')) === 'admin'
+        $trashCount = in_array(strtolower((string) (auth()->user()->role ?? '')), ['admin', 'cs'])
             ? Prospek::onlyTrashed()->count()
             : 0;
 
@@ -660,13 +660,13 @@ class PmbPembayaranController extends Controller
     }
 
     /**
-     * Pastikan hanya role Admin yang diizinkan mengelola penghapusan & Trash data pembayaran.
+     * Pastikan hanya role Admin dan CS yang diizinkan mengelola penghapusan & Trash data pembayaran.
      */
     private function authorizeAdminOnly(): \App\Models\User
     {
         $user = auth()->user();
-        if (!$user || strtolower((string) $user->role) !== 'admin') {
-            abort(403, 'Hanya Admin yang berwenang melakukan aksi ini.');
+        if (!$user || !in_array(strtolower((string) $user->role), ['admin', 'cs'])) {
+            abort(403, 'Hanya Admin dan CS yang berwenang melakukan aksi ini.');
         }
 
         return $user;
@@ -794,50 +794,107 @@ class PmbPembayaranController extends Controller
     }
 
     /**
-     * Admin membuat voucher diskon DPP baru.
+     * Halaman Dedicated Pengelolaan & Monitoring Voucher Diskon CAMABA.
+     */
+    public function vouchersIndex(Request $request): View
+    {
+        $user = auth()->user();
+        if (!$user || !in_array(strtolower((string) $user->role), ['admin', 'hm', 'cs'])) {
+            abort(403, 'Anda tidak memiliki hak akses ke halaman kelola voucher.');
+        }
+
+        $vouchers = Voucher::with([
+            'usages.prospek',
+            'creator',
+        ])->orderByDesc('id')->get();
+
+        $voucherSummaryUsages = VoucherUsage::with(['prospek', 'voucher'])
+            ->whereIn('status', [VoucherUsage::STATUS_USED, VoucherUsage::STATUS_APPLIED])
+            ->whereHas('prospek')
+            ->orderByDesc('id')
+            ->get();
+
+        $totalVouchers = $vouchers->count();
+        $activeVouchersCount = $vouchers->where('is_active', true)->count();
+        $totalUsagesCount = $voucherSummaryUsages->count();
+        $totalDiscountGiven = (int) $voucherSummaryUsages->sum('discount_amount');
+
+        return view('pmb.vouchers.index', compact(
+            'vouchers',
+            'voucherSummaryUsages',
+            'totalVouchers',
+            'activeVouchersCount',
+            'totalUsagesCount',
+            'totalDiscountGiven'
+        ));
+    }
+
+    /**
+     * Admin membuat voucher diskon baru (Fixed Nominal IDR & Kuota).
      */
     public function storeVoucher(Request $request)
     {
+        if ($request->has('discount_amount')) {
+            $rawDiscount = preg_replace('/[^0-9]/', '', (string) $request->input('discount_amount'));
+            $request->merge([
+                'discount_amount' => $rawDiscount !== '' ? (int) $rawDiscount : null,
+            ]);
+        }
+
         $request->merge([
             'code' => strtoupper(trim((string) $request->input('code'))),
             'name' => $request->filled('name') ? trim((string) $request->input('name')) : null,
         ]);
 
         $validated = $request->validate([
-            'name'                => 'nullable|string|max:150',
-            'code'                => 'required|string|max:50|alpha_dash|unique:vouchers,code',
-            'discount_percentage' => 'required|numeric|min:1|max:100',
-            'is_active'           => 'required|boolean',
+            'name'            => 'nullable|string|max:150',
+            'code'            => 'required|string|max:50|alpha_dash|unique:vouchers,code',
+            'discount_amount' => 'required|numeric|min:1',
+            'quota'           => 'required|integer|min:1',
+            'is_active'       => 'required|boolean',
         ], [
-            'name.max'                     => 'Nama voucher maksimal 150 karakter.',
-            'code.required'                => 'Kode voucher wajib diisi.',
-            'code.alpha_dash'              => 'Kode voucher hanya boleh berisi huruf, angka, tanda hubung (-), atau garis bawah (_).',
-            'code.unique'                  => 'Kode voucher sudah terdaftar.',
-            'discount_percentage.required' => 'Persentase diskon wajib diisi.',
-            'discount_percentage.numeric'  => 'Persentase diskon harus berupa angka.',
-            'discount_percentage.min'      => 'Persentase diskon minimal 1%.',
-            'discount_percentage.max'      => 'Persentase diskon maksimal 100%.',
+            'name.max'                 => 'Nama voucher maksimal 150 karakter.',
+            'code.required'            => 'Kode voucher wajib diisi.',
+            'code.alpha_dash'          => 'Kode voucher hanya boleh berisi huruf, angka, tanda hubung (-), atau garis bawah (_).',
+            'code.unique'              => 'Kode voucher sudah terdaftar.',
+            'discount_amount.required' => 'Nominal diskon wajib diisi.',
+            'discount_amount.numeric'  => 'Nominal diskon harus berupa angka.',
+            'discount_amount.min'      => 'Nominal diskon minimal Rp 1.',
+            'quota.required'           => 'Kuota penggunaan voucher wajib diisi.',
+            'quota.integer'            => 'Kuota penggunaan harus berupa angka bulat.',
+            'quota.min'                => 'Kuota penggunaan minimal 1.',
         ]);
 
         $voucher = Voucher::create([
             'code'                => $validated['code'],
             'name'                => $validated['name'] ?? null,
-            'discount_percentage' => $validated['discount_percentage'],
+            'discount_amount'     => (int) $validated['discount_amount'],
+            'quota'               => (int) $validated['quota'],
+            'used_quota'          => 0,
+            'discount_percentage' => 0,
             'is_active'           => $request->boolean('is_active'),
             'created_by'          => auth()->id(),
         ]);
 
         $voucherLabel = $voucher->name ? "{$voucher->name} ({$voucher->code})" : "'{$voucher->code}'";
+        $discountFormatted = 'Rp ' . number_format($voucher->discount_amount, 0, ',', '.');
 
-        return redirect()->back()->with('success', "Voucher {$voucherLabel} ({$voucher->formatted_percentage}%) berhasil ditambahkan.");
+        return redirect()->back()->with('success', "Voucher {$voucherLabel} (Potongan {$discountFormatted}, Kuota {$voucher->quota}) berhasil ditambahkan.");
     }
 
     /**
-     * Admin memperbarui nama, persentase diskon, atau status voucher.
+     * Admin memperbarui nama, nominal diskon, kuota, atau status voucher.
      * Tidak mengubah riwayat transaksi / VoucherUsage CAMABA yang sudah tersimpan.
      */
     public function updateVoucher(Request $request, Voucher $voucher)
     {
+        if ($request->has('discount_amount')) {
+            $rawDiscount = preg_replace('/[^0-9]/', '', (string) $request->input('discount_amount'));
+            $request->merge([
+                'discount_amount' => $rawDiscount !== '' ? (int) $rawDiscount : null,
+            ]);
+        }
+
         if ($request->has('name')) {
             $request->merge([
                 'name' => $request->filled('name') ? trim((string) $request->input('name')) : null,
@@ -845,29 +902,34 @@ class PmbPembayaranController extends Controller
         }
 
         $validated = $request->validate([
-            'name'                => 'nullable|string|max:150',
-            'discount_percentage' => 'required|numeric|min:1|max:100',
-            'is_active'           => 'required|boolean',
+            'name'            => 'nullable|string|max:150',
+            'discount_amount' => 'required|numeric|min:1',
+            'quota'           => 'required|integer|min:0',
+            'is_active'       => 'required|boolean',
         ], [
-            'name.max'                     => 'Nama voucher maksimal 150 karakter.',
-            'discount_percentage.required' => 'Persentase diskon wajib diisi.',
-            'discount_percentage.min'      => 'Persentase diskon minimal 1%.',
-            'discount_percentage.max'      => 'Persentase diskon maksimal 100%.',
+            'name.max'                 => 'Nama voucher maksimal 150 karakter.',
+            'discount_amount.required' => 'Nominal diskon wajib diisi.',
+            'discount_amount.min'      => 'Nominal diskon minimal Rp 1.',
+            'quota.required'           => 'Kuota penggunaan wajib diisi.',
+            'quota.min'                => 'Kuota penggunaan minimal 0.',
         ]);
 
         $updateData = [
-            'discount_percentage' => $validated['discount_percentage'],
-            'is_active'           => $request->boolean('is_active'),
+            'discount_amount' => (int) $validated['discount_amount'],
+            'quota'           => (int) $validated['quota'],
+            'is_active'       => $request->boolean('is_active'),
         ];
         if (array_key_exists('name', $validated)) {
             $updateData['name'] = $validated['name'];
         }
 
         $voucher->update($updateData);
+        $voucher->refreshUsedQuota();
 
         $voucherLabel = $voucher->name ? "{$voucher->name} ({$voucher->code})" : "'{$voucher->code}'";
+        $discountFormatted = 'Rp ' . number_format($voucher->discount_amount, 0, ',', '.');
 
-        return redirect()->back()->with('success', "Pengaturan voucher {$voucherLabel} berhasil diperbarui ({$voucher->formatted_percentage}%).");
+        return redirect()->back()->with('success', "Pengaturan voucher {$voucherLabel} berhasil diperbarui (Potongan {$discountFormatted}, Kuota {$voucher->quota}).");
     }
 
     /**
@@ -885,7 +947,7 @@ class PmbPembayaranController extends Controller
     public function verify(Request $request, $id)
     {
         $role = strtolower(auth()->user()->role ?? '');
-        if (in_array($role, ['sales', 'cs'])) {
+        if (in_array($role, ['sales'])) {
             abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki kewenangan untuk memverifikasi pembayaran secara manual.');
         }
 
@@ -930,7 +992,7 @@ class PmbPembayaranController extends Controller
     public function reject(Request $request, $id)
     {
         $role = strtolower(auth()->user()->role ?? '');
-        if (in_array($role, ['sales', 'cs'])) {
+        if (in_array($role, ['sales'])) {
             abort(403, 'Role ' . auth()->user()->role . ' tidak memiliki kewenangan untuk menolak pembayaran secara manual.');
         }
 

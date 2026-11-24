@@ -471,6 +471,15 @@ class CrmController extends Controller
             ? \Illuminate\Support\Facades\Storage::url($k->foto_path)
             : null;
 
+        $user = auth()->user();
+        $isCreator = $user ? ((int) $k->sales_id === (int) $user->id) : false;
+        $isParticipant = $user ? $k->participants->contains('id', $user->id) : false;
+        $participantsList = $k->participants->map(fn ($p) => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'role' => $p->role,
+        ])->values()->toArray();
+
         return [
             'id'        => $k->id,
             'name'      => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
@@ -478,6 +487,14 @@ class CrmController extends Controller
             'pic'       => $k->pic_name ?? '-',
             'whatsapp'  => $k->pic_whatsapp ?? '-',
             'sales'     => $k->sales ? $k->sales->name : '-',
+            'creator_id'               => $k->sales_id,
+            'creator_name'             => $k->sales ? $k->sales->name : '-',
+            'creator_role'             => $k->sales ? $k->sales->role : '-',
+            'is_creator'               => $isCreator,
+            'is_shared'                => !$isCreator && $isParticipant,
+            'participants'             => $participantsList,
+            'participants_count'       => count($participantsList),
+            'participants_str'         => $k->participants->pluck('name')->implode(', '),
             'date'      => $k->tanggal ? $k->tanggal->format('d M Y') : '-',
             'raw_date'  => $k->tanggal ? \Carbon\Carbon::parse($k->tanggal)->format('Y-m-d') : '',
             'time'      => $k->waktu ?? '-',
@@ -2680,13 +2697,20 @@ class CrmController extends Controller
     public function kunjunganIndex(): View
     {
         $user = auth()->user();
-        $query = \App\Models\Kunjungan::with('sales')
+        $query = \App\Models\Kunjungan::with(['sales', 'participants'])
             ->orderBy('tanggal', 'desc');
 
         if ($user) {
             $role = strtolower($user->role);
             if ($role === 'sales') {
                 $query->where('sales_id', $user->id);
+            } elseif ($role === 'cs') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('sales_id', $user->id)
+                      ->orWhereHas('participants', function ($pq) use ($user) {
+                          $pq->where('users.id', $user->id);
+                      });
+                });
             } elseif ($role === 'spv') {
                 $salesIds = $user->teamMemberIds();
                 $query->whereIn('sales_id', $salesIds);
@@ -2710,6 +2734,43 @@ class CrmController extends Controller
     public function kunjunganStore(Request $request)
     {
         $user = auth()->user();
+
+        $rawParticipants = $request->input('participant_ids', $request->input('cs_participants', []));
+        if (!is_array($rawParticipants)) {
+            $rawParticipants = !empty($rawParticipants) ? [$rawParticipants] : [];
+        }
+
+        $isCs = $user && $user->role === 'CS';
+
+        if (!$isCs && !empty($rawParticipants)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'participant_ids' => 'Fitur kolaborasi kunjungan hanya tersedia untuk pengguna dengan role CS.',
+            ]);
+        }
+
+        $validParticipantIds = [];
+        if ($isCs && !empty($rawParticipants)) {
+            $participantIds = array_values(array_unique(array_filter(array_map('intval', $rawParticipants))));
+
+            if (in_array($user->id, $participantIds, true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'participant_ids' => 'Anda tidak dapat menambahkan diri sendiri sebagai anggota kolaborasi.',
+                ]);
+            }
+
+            $validCsUsers = \App\Models\User::whereIn('id', $participantIds)
+                ->where('role', 'CS')
+                ->pluck('id')
+                ->toArray();
+
+            if (count($validCsUsers) !== count($participantIds)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'participant_ids' => 'Setiap anggota kolaborasi yang dipilih harus memiliki role CS.',
+                ]);
+            }
+
+            $validParticipantIds = $validCsUsers;
+        }
 
         // Resolve nama_institusi from manual input, prospek, or sekolah
         if ($request->filled('sekolah_manual')) {
@@ -2837,6 +2898,10 @@ class CrmController extends Controller
             'potensi_csr'           => $request->potensi_csr,
         ]);
 
+        if ($isCs && !empty($validParticipantIds)) {
+            $kunjungan->participants()->sync($validParticipantIds);
+        }
+
         if ($request->filled('prospek_id')) {
             $prospek = \App\Models\Prospek::find($request->prospek_id);
             if ($prospek) {
@@ -2862,6 +2927,50 @@ class CrmController extends Controller
     public function kunjunganUpdate(Request $request, \App\Models\Kunjungan $kunjungan)
     {
         \Illuminate\Support\Facades\Gate::authorize('update', $kunjungan);
+
+        $user = auth()->user();
+        $isCs = $user && $user->role === 'CS';
+
+        if ($request->has('participant_ids') || $request->has('cs_participants')) {
+            $rawParticipants = $request->input('participant_ids', $request->input('cs_participants', []));
+            if (!is_array($rawParticipants)) {
+                $rawParticipants = !empty($rawParticipants) ? [$rawParticipants] : [];
+            }
+
+            if (!$isCs && !empty($rawParticipants)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'participant_ids' => 'Fitur kolaborasi kunjungan hanya tersedia untuk pengguna dengan role CS.',
+                ]);
+            }
+
+            $validParticipantIds = [];
+            if ($isCs && !empty($rawParticipants)) {
+                $participantIds = array_values(array_unique(array_filter(array_map('intval', $rawParticipants))));
+
+                if (in_array((int)$kunjungan->sales_id, $participantIds, true)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'participant_ids' => 'Pembuat laporan tidak dapat ditambahkan sebagai anggota kolaborasi.',
+                    ]);
+                }
+
+                $validCsUsers = \App\Models\User::whereIn('id', $participantIds)
+                    ->where('role', 'CS')
+                    ->pluck('id')
+                    ->toArray();
+
+                if (count($validCsUsers) !== count($participantIds)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'participant_ids' => 'Setiap anggota kolaborasi yang dipilih harus memiliki role CS.',
+                    ]);
+                }
+
+                $validParticipantIds = $validCsUsers;
+            }
+
+            if ($isCs) {
+                $kunjungan->participants()->sync($validParticipantIds);
+            }
+        }
 
         if ($request->filled('pic_whatsapp')) {
             $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);

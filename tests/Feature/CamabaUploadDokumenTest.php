@@ -75,6 +75,10 @@ class CamabaUploadDokumenTest extends TestCase
         $response->assertSee('Ijazah / Surat Keterangan Lulus (SKL)');
         $response->assertSee('Transkrip Nilai / Rapor');
         $response->assertSee('Surat Keterangan Bebas Narkoba / Sehat');
+
+        // Pastikan ada petunjuk penggunaan PDF jika dokumen lebih dari 2 lembar
+        $response->assertSee('wajib digabung menjadi 1 file PDF', false);
+        $response->assertSee('Gunakan format PDF (satukan jadi 1 file)', false);
     }
 
     /**
@@ -259,5 +263,35 @@ class CamabaUploadDokumenTest extends TestCase
     {
         $response = $this->actingAs($this->camaba)->get('/user/upload-dokumen');
         $response->assertRedirect(route('pmb.akun.upload-dokumen'));
+    }
+
+    /**
+     * Test 12: Dokumen Bukti Prestasi bersifat opsional dan dapat diunggah jika ada.
+     */
+    public function test_prestasi_document_is_optional_and_can_be_uploaded(): void
+    {
+        // 1. Halaman menampilkan opsi Bukti Prestasi (Opsional)
+        $response = $this->actingAs($this->camaba)->get(route('pmb.akun.upload-dokumen'));
+        $response->assertOk();
+        $response->assertSee('Bukti Prestasi (Opsional)');
+        $response->assertSee('Opsional');
+
+        // 2. Berhasil mengunggah dokumen prestasi
+        $file = UploadedFile::fake()->create('sertifikat_juara.pdf', 500, 'application/pdf');
+        $uploadResponse = $this->actingAs($this->camaba)->post(route('pmb.akun.upload-dokumen.store'), [
+            'dokumen_type' => 'prestasi',
+            'dokumen_file' => $file,
+        ]);
+
+        $uploadResponse->assertRedirect(route('pmb.akun.upload-dokumen'));
+        $uploadResponse->assertSessionHas('success');
+
+        $this->prospek->refresh();
+        $this->assertArrayHasKey('prestasi', $this->prospek->berkas_data);
+        $this->assertEquals('Menunggu Verifikasi', $this->prospek->berkas_data['prestasi']['status']);
+
+        // 3. CAMABA dapat melihat dokumen prestasi yang telah diunggah
+        $viewResponse = $this->actingAs($this->camaba)->get(route('pmb.akun.dokumen.view', 'prestasi'));
+        $viewResponse->assertOk();
     }
 }

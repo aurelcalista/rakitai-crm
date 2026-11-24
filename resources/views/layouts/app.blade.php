@@ -331,13 +331,25 @@ x-init="
                         <a 
                             href="{{ route('pmb.pembayaran.index') }}" 
                             title="Data Pembayaran"
-                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ (request()->routeIs('pmb.pembayaran.*') || request()->routeIs('pmb.vouchers.*')) ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                             :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
                         >
-                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-5 h-5 shrink-0 {{ (request()->routeIs('pmb.pembayaran.*') || request()->routeIs('pmb.vouchers.*')) ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                             </svg>
                             <span x-show="!sidebarCollapsed">Data Pembayaran</span>
+                        </a>
+
+                        <a 
+                            href="{{ route('pmb.agent.index') }}" 
+                            title="Rekapitulasi Agent"
+                            class="flex items-center rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.agent.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            :class="sidebarCollapsed ? 'justify-center w-11 h-11 mx-auto p-0' : 'px-3 py-2.5 gap-3'"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.agent.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed">Rekapitulasi Agent</span>
                         </a>
 
                         @if(in_array(strtolower(auth()->user()->role ?? ''), ['hm']))
@@ -1474,12 +1486,23 @@ x-init="
                         <a 
                             href="{{ route('pmb.pembayaran.index') }}" 
                             @click="mobileMenuOpen = false"
-                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.pembayaran.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ (request()->routeIs('pmb.pembayaran.*') || request()->routeIs('pmb.vouchers.*')) ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
                         >
-                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.pembayaran.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-5 h-5 shrink-0 {{ (request()->routeIs('pmb.pembayaran.*') || request()->routeIs('pmb.vouchers.*')) ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                             </svg>
                             <span class="flex-1">Data Pembayaran</span>
+                        </a>
+
+                        <a 
+                            href="{{ route('pmb.agent.index') }}" 
+                            @click="mobileMenuOpen = false"
+                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition {{ request()->routeIs('pmb.agent.*') ? 'bg-blue-50 text-blue-700 font-bold border border-blue-100 shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}"
+                        >
+                            <svg class="w-5 h-5 shrink-0 {{ request()->routeIs('pmb.agent.*') ? 'text-blue-600' : 'text-slate-400' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span class="flex-1">Rekapitulasi Agent</span>
                         </a>
 
                         @if(in_array(strtolower(auth()->user()->role ?? ''), ['hm']))
@@ -3571,6 +3594,152 @@ x-init="
                             <input type="text" name="dosen_pemateri" placeholder="Contoh: Dr. Ir. H. Ahmad, M.T." class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition">
                         </div>
                     </div>
+
+                    @if(($currentUser['role'] ?? auth()->user()->role ?? '') === 'CS')
+                    @php
+                        $layoutCsUsers = \App\Models\User::where('role', 'CS')->where('status', 'Aktif')->where('id', '!=', auth()->id())->get(['id', 'name', 'email']);
+                    @endphp
+                    <!-- Section: PARTICIPATING CS MEMBERS (CS Collaborative Visit) -->
+                    <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-3"
+                         x-data="{
+                             openCs: false,
+                             searchCs: '',
+                             selectedCs: [],
+                             membersCs: {{ json_encode($layoutCsUsers) }},
+                             get filteredCs() {
+                                 if (!this.searchCs.trim()) return this.membersCs;
+                                 const q = this.searchCs.toLowerCase();
+                                 return this.membersCs.filter(m => m.name.toLowerCase().includes(q) || (m.email && m.email.toLowerCase().includes(q)));
+                             },
+                             get selectedMembers() {
+                                 return this.membersCs.filter(m => this.selectedCs.includes(m.id));
+                             },
+                             toggleCs(id) {
+                                 const numId = Number(id);
+                                 if (this.selectedCs.includes(numId)) {
+                                     this.selectedCs = this.selectedCs.filter(x => x !== numId);
+                                 } else {
+                                     this.selectedCs.push(numId);
+                                 }
+                             },
+                             clearAll() {
+                                 this.selectedCs = [];
+                             },
+                             getInitials(name) {
+                                 if (!name) return 'CS';
+                                 const parts = name.trim().split(/\s+/);
+                                 if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+                                 return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                             }
+                         }">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                <span>Participating CS Members</span>
+                            </h4>
+                            <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">Opsional</span>
+                        </div>
+                        <template x-for="id in selectedCs" :key="id">
+                            <input type="hidden" name="participant_ids[]" :value="id">
+                        </template>
+                        <div class="relative w-full text-left" @click.outside="openCs = false" @keydown.escape="openCs = false">
+                            <button 
+                                type="button"
+                                @click="openCs = !openCs; if(openCs) { $nextTick(() => $refs.modalSearchCsInput && $refs.modalSearchCsInput.focus()); }"
+                                class="w-full min-h-[42px] text-xs px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 cursor-pointer flex items-center justify-between transition text-left"
+                                :class="openCs ? 'ring-2 ring-blue-500/20 border-blue-600 shadow-xs' : ''"
+                            >
+                                <div class="flex-1 min-w-0 pr-2">
+                                    <template x-if="selectedCs.length === 0">
+                                        <div class="flex items-center gap-1.5 text-slate-400">
+                                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                                            <span class="truncate">Pilih rekan CS yang ikut serta...</span>
+                                        </div>
+                                    </template>
+                                    <template x-if="selectedCs.length > 0">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            <template x-for="m in selectedMembers" :key="m.id">
+                                                <span class="inline-flex items-center gap-1 pl-1.5 pr-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200/80 text-[11px] font-semibold">
+                                                    <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0" x-text="getInitials(m.name)"></span>
+                                                    <span class="max-w-[120px] truncate" x-text="m.name"></span>
+                                                    <span @click.stop="toggleCs(m.id)" class="p-0.5 rounded-full hover:bg-blue-200 text-blue-500 hover:text-blue-900 cursor-pointer">
+                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                    </span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <template x-if="selectedCs.length > 0">
+                                        <span @click.stop="clearAll()" class="p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-rose-600 transition cursor-pointer" title="Hapus pilihan">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </span>
+                                    </template>
+                                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200" :class="openCs ? 'rotate-180 text-blue-600' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </button>
+
+                            <div 
+                                x-show="openCs" 
+                                x-cloak 
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="transform opacity-0 scale-95"
+                                x-transition:enter-end="transform opacity-100 scale-100"
+                                x-transition:leave="transition ease-in duration-75"
+                                x-transition:leave-start="transform opacity-100 scale-100"
+                                x-transition:leave-end="transform opacity-0 scale-95"
+                                class="absolute z-50 mt-1.5 w-full rounded-xl bg-white border border-slate-200/90 shadow-xl overflow-hidden text-xs"
+                            >
+                                <div class="p-2 border-b border-slate-100 bg-slate-50/80">
+                                    <div class="relative flex items-center">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                        </div>
+                                        <input 
+                                            x-ref="modalSearchCsInput" 
+                                            type="text" 
+                                            x-model="searchCs" 
+                                            placeholder="Cari nama CS..." 
+                                            style="padding-left: 2.25rem !important;"
+                                            class="w-full pr-3 py-1.5 rounded-lg text-xs bg-white border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+                                        >
+                                    </div>
+                                </div>
+                                <div class="max-h-48 overflow-y-auto divide-y divide-slate-50 p-1">
+                                    <template x-for="m in filteredCs" :key="m.id">
+                                        <div 
+                                            @click="toggleCs(m.id)" 
+                                            class="flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition"
+                                            :class="selectedCs.includes(m.id) ? 'bg-blue-50 text-blue-900 font-bold' : 'text-slate-700 hover:bg-slate-50'"
+                                        >
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <div class="w-6 h-6 rounded-md flex items-center justify-center font-bold text-[9px] shrink-0"
+                                                     :class="selectedCs.includes(m.id) ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'"
+                                                     x-text="getInitials(m.name)"></div>
+                                                <span class="truncate text-xs" x-text="m.name"></span>
+                                            </div>
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">CS</span>
+                                                <div class="w-4 h-4 rounded border flex items-center justify-center transition"
+                                                     :class="selectedCs.includes(m.id) ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'">
+                                                    <template x-if="selectedCs.includes(m.id)">
+                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="filteredCs.length === 0">
+                                        <p class="text-[11px] text-slate-400 py-3 text-center">Tidak ada anggota CS cocok.</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
 
                     <!-- Section: CATATAN -->
                     <div>

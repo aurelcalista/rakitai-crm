@@ -84,9 +84,34 @@
                             <span class="font-bold text-slate-800">{{ $visit['date'] }}, {{ $visit['time'] }}</span>
                         </div>
                         <div>
-                            <span class="block text-xs font-medium text-slate-400 mb-1">Sales / PIC Internal</span>
-                            <span class="font-bold text-slate-800">{{ $visit['sales'] }}</span>
+                            <span class="block text-xs font-medium text-slate-400 mb-1">Pembuat Laporan (Primary Creator)</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-slate-800">{{ $visit['creator_name'] ?? $visit['sales'] }}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold {{ ($visit['creator_role'] ?? '') === 'CS' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600' }}">
+                                    {{ $visit['creator_role'] ?? 'Staff' }}
+                                </span>
+                            </div>
                         </div>
+
+                        {{-- Anggota CS Kolaborasi jika ada --}}
+                        @if(!empty($visit['participants']) && count($visit['participants']) > 0)
+                        <div class="md:col-span-2 p-3.5 rounded-xl bg-blue-50/70 border border-blue-200">
+                            <span class="block text-xs font-bold text-blue-900 mb-1.5 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                <span>Anggota CS yang Ikut (Participating CS Members):</span>
+                            </span>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach($visit['participants'] as $p)
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-blue-200 text-blue-800 text-xs font-bold shadow-2xs">
+                                        <svg class="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                        <span>{{ $p['name'] }}</span>
+                                        <span class="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">CS</span>
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+
                         <div>
                             <span class="block text-xs font-medium text-slate-400 mb-1">Nama PIC Institusi</span>
                             <span class="font-bold text-slate-800">{{ $visit['pic'] }}</span>

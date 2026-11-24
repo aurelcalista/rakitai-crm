@@ -19,20 +19,24 @@ class VoucherUsage extends Model
         'transaksi_id',
         'voucher_code',
         'voucher_name',
-        'discount_percentage',
-        'dpp_before_discount',
         'discount_amount',
+        'total_before_discount',
+        'total_after_discount',
+        'dpp_before_discount',
         'dpp_after_discount',
+        'discount_percentage',
         'status',
         'used_at',
     ];
 
     protected $casts = [
-        'discount_percentage' => 'float',
-        'dpp_before_discount' => 'integer',
-        'discount_amount'     => 'integer',
-        'dpp_after_discount'  => 'integer',
-        'used_at'             => 'datetime',
+        'discount_amount'       => 'integer',
+        'total_before_discount' => 'integer',
+        'total_after_discount'  => 'integer',
+        'dpp_before_discount'   => 'integer',
+        'dpp_after_discount'    => 'integer',
+        'discount_percentage'   => 'float',
+        'used_at'               => 'datetime',
     ];
 
     public function getStatusLabelAttribute(): string
@@ -45,9 +49,14 @@ class VoucherUsage extends Model
         };
     }
 
+    public function getFormattedDiscountAttribute(): string
+    {
+        return 'Rp ' . number_format((int) $this->discount_amount, 0, ',', '.');
+    }
+
     public function getFormattedPercentageAttribute(): string
     {
-        return Voucher::formatPercentage((float) $this->discount_percentage);
+        return Voucher::formatPercentage((float) ($this->discount_percentage ?? 0));
     }
 
     public function voucher()
@@ -65,4 +74,3 @@ class VoucherUsage extends Model
         return $this->belongsTo(Transaksi::class);
     }
 }
-

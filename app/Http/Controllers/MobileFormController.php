@@ -190,7 +190,16 @@ class MobileFormController extends Controller
         $perusahaans = Perusahaan::where('status', 'Aktif')->orderBy('nama')->get();
         $prodis = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
 
-        return view('mobile.kunjungan-create', compact('availableProspekSekolah', 'sekolahs', 'perusahaans', 'prodis', 'user'));
+        $csUsers = collect([]);
+        if ($user && $user->role === 'CS') {
+            $csUsers = User::where('role', 'CS')
+                ->where('status', 'Aktif')
+                ->where('id', '!=', $user->id)
+                ->orderBy('name')
+                ->get();
+        }
+
+        return view('mobile.kunjungan-create', compact('availableProspekSekolah', 'sekolahs', 'perusahaans', 'prodis', 'user', 'csUsers'));
     }
 
     /**
@@ -208,6 +217,43 @@ class MobileFormController extends Controller
 
         if ($request->filled('pic_whatsapp')) {
             $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
+        }
+
+        $rawParticipants = $request->input('participant_ids', $request->input('cs_participants', []));
+        if (!is_array($rawParticipants)) {
+            $rawParticipants = !empty($rawParticipants) ? [$rawParticipants] : [];
+        }
+
+        $isCs = $user && $user->role === 'CS';
+
+        if (!$isCs && !empty($rawParticipants)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'participant_ids' => 'Fitur kolaborasi kunjungan hanya tersedia untuk pengguna dengan role CS.',
+            ]);
+        }
+
+        $validParticipantIds = [];
+        if ($isCs && !empty($rawParticipants)) {
+            $participantIds = array_values(array_unique(array_filter(array_map('intval', $rawParticipants))));
+
+            if (in_array($user->id, $participantIds, true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'participant_ids' => 'Anda tidak dapat menambahkan diri sendiri sebagai anggota kolaborasi.',
+                ]);
+            }
+
+            $validCsUsers = User::whereIn('id', $participantIds)
+                ->where('role', 'CS')
+                ->pluck('id')
+                ->toArray();
+
+            if (count($validCsUsers) !== count($participantIds)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'participant_ids' => 'Setiap anggota kolaborasi yang dipilih harus memiliki role CS.',
+                ]);
+            }
+
+            $validParticipantIds = $validCsUsers;
         }
 
         $request->validate([
@@ -336,6 +382,10 @@ class MobileFormController extends Controller
             'detail_potensi_mahasiswa' => $request->detail_potensi_mahasiswa,
             'kesediaan_training_ai' => $request->boolean('kesediaan_training_ai'),
         ]);
+
+        if ($isCs && !empty($validParticipantIds)) {
+            $kunjungan->participants()->sync($validParticipantIds);
+        }
 
         if ($request->filled('prospek_id')) {
             $prospek = Prospek::find($request->prospek_id);

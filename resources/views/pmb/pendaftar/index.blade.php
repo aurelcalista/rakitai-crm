@@ -35,7 +35,7 @@
                 <input type="hidden" name="search" value="{{ request('search') }}">
                 <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
                     <!-- 1. Semua Status Formulir -->
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status Formulir</label>
@@ -46,7 +46,18 @@
                         </select>
                     </div>
 
-                    <!-- 2. Semua Status Ujian -->
+                    <!-- 2. Status Berkas -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status Berkas</label>
+                        <select name="status_berkas" onchange="document.getElementById('filterForm').submit()" class="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-slate-700 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition cursor-pointer">
+                            <option value="all" {{ request('status_berkas', 'all') === 'all' ? 'selected' : '' }}>Semua Status Berkas</option>
+                            <option value="Sudah Upload" {{ request('status_berkas') === 'Sudah Upload' ? 'selected' : '' }}>Sudah Upload</option>
+                            <option value="Pending" {{ request('status_berkas') === 'Pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="Belum Upload" {{ request('status_berkas') === 'Belum Upload' ? 'selected' : '' }}>Belum Upload</option>
+                        </select>
+                    </div>
+
+                    <!-- 3. Semua Status Ujian -->
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status Ujian</label>
                         <select name="status_ujian" onchange="document.getElementById('filterForm').submit()" class="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-slate-700 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition cursor-pointer">
@@ -56,7 +67,7 @@
                         </select>
                     </div>
 
-                    <!-- 3. Semua Gelombang -->
+                    <!-- 4. Semua Gelombang -->
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Gelombang Pendaftaran</label>
                         <select name="gelombang" onchange="document.getElementById('filterForm').submit()" class="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-slate-700 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition cursor-pointer">
@@ -67,13 +78,25 @@
                         </select>
                     </div>
 
-                    <!-- 4. Semua Program Studi -->
+                    <!-- 5. Semua Program Studi -->
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Program Studi</label>
                         <select name="prodi_id" onchange="document.getElementById('filterForm').submit()" class="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-slate-700 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition cursor-pointer">
                             <option value="all" {{ request('prodi_id', 'all') === 'all' ? 'selected' : '' }}>Semua Program Studi</option>
                             @foreach($prodis as $pr)
                                 <option value="{{ $pr->id }}" {{ (string)request('prodi_id') === (string)$pr->id ? 'selected' : '' }}>{{ $pr->nama }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- 6. Filter Agent / Referral -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Agent / Referral</label>
+                        <select name="agent" onchange="document.getElementById('filterForm').submit()" class="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-slate-700 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition cursor-pointer">
+                            <option value="" {{ !request('agent') ? 'selected' : '' }}>Semua Pendaftar</option>
+                            <option value="none" {{ (request('agent') === 'none' || request('agent') === 'Tanpa Agent') ? 'selected' : '' }}>Tanpa Agent (Mandiri)</option>
+                            @foreach($agentsList as $ag)
+                                <option value="{{ $ag }}" {{ request('agent') === $ag ? 'selected' : '' }}>Agent: {{ $ag }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -139,7 +162,7 @@
             </div>
 
             <!-- 3. Belum Upload -->
-            <div class="group bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-1 hover:border-amber-300 transition-all duration-300 flex items-center justify-between">
+            <a href="{{ route('pmb.pendaftar.index', array_merge(request()->query(), ['status_berkas' => 'Belum Upload'])) }}" class="group bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-1 hover:border-amber-300 transition-all duration-300 flex items-center justify-between cursor-pointer" title="Klik untuk filter pendaftar yang belum upload berkas">
                 <div>
                     <div class="text-3xl font-black text-amber-600 tracking-tight font-display">{{ number_format($belumUploadBerkas) }}</div>
                     <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-1 flex items-center gap-1.5">
@@ -152,10 +175,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                 </div>
-            </div>
+            </a>
 
             <!-- 4. Sudah Upload -->
-            <div class="group bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-1 hover:border-emerald-300 transition-all duration-300 flex items-center justify-between">
+            <a href="{{ route('pmb.pendaftar.index', array_merge(request()->query(), ['status_berkas' => 'Sudah Upload'])) }}" class="group bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:-translate-y-1 hover:border-emerald-300 transition-all duration-300 flex items-center justify-between cursor-pointer" title="Klik untuk filter pendaftar yang sudah upload berkas">
                 <div>
                     <div class="text-3xl font-black text-emerald-600 tracking-tight font-display">{{ number_format($sudahUploadBerkas) }}</div>
                     <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-1 flex items-center gap-1.5">
@@ -168,8 +191,35 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 </div>
-            </div>
+            </a>
         </div>
+
+        <!-- Active Agent Filter Notification Banner -->
+        @if(request('agent'))
+            <div class="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <span>Sedang memfilter pendaftar dari Agent:</span>
+                    <span class="px-2.5 py-0.5 rounded-full font-bold text-xs text-white {{ (request('agent') === 'none' || request('agent') === 'Tanpa Agent') ? 'bg-slate-600' : 'bg-blue-600' }}">
+                        {{ request('agent') === 'none' ? 'Tanpa Agent (Mandiri)' : request('agent') }}
+                    </span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="{{ route('pmb.agent.index') }}" class="font-bold text-blue-700 hover:text-blue-900 underline inline-flex items-center gap-1">
+                        <span>Kembali ke Rekapitulasi Agent</span>
+                    </a>
+                    <span class="text-blue-300">|</span>
+                    <a href="{{ route('pmb.pendaftar.index', request()->except('agent')) }}" class="font-bold text-rose-600 hover:text-rose-800 inline-flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span>Hapus Filter Agent</span>
+                    </a>
+                </div>
+            </div>
+        @endif
 
         <!-- Table Card: Data Pendaftar PMB -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden transition-all duration-300">
@@ -186,9 +236,11 @@
                 <form action="{{ route('pmb.pendaftar.index') }}" method="GET" class="flex items-center gap-2 w-full md:w-auto">
                     <!-- Preserve existing filters -->
                     <input type="hidden" name="status_formulir" value="{{ request('status_formulir') }}">
+                    <input type="hidden" name="status_berkas" value="{{ request('status_berkas') }}">
                     <input type="hidden" name="status_ujian" value="{{ request('status_ujian') }}">
                     <input type="hidden" name="gelombang" value="{{ request('gelombang') }}">
                     <input type="hidden" name="prodi_id" value="{{ request('prodi_id') }}">
+                    <input type="hidden" name="agent" value="{{ request('agent') }}">
                     <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
 
                     <div class="relative w-full md:w-80">
@@ -268,14 +320,24 @@
                                             <div class="text-[11px] text-slate-400 mt-0.5 truncate">
                                                 {{ $p->email ?: '-' }}
                                             </div>
-                                            @if($p->cs)
-                                                <div class="mt-1">
+                                            <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                @if(!empty($p->agent))
+                                                    <a href="{{ route('pmb.pendaftar.index', ['agent' => $p->agent]) }}" class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition" title="Filter hanya pendaftar dari agent ini">
+                                                        <svg class="w-2.5 h-2.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                                        <span>Agent: {{ $p->agent }}</span>
+                                                    </a>
+                                                @else
+                                                    <span class="inline-flex items-center text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title="Pendaftaran Mandiri Tanpa Rujukan">
+                                                        Tanpa Agent
+                                                    </span>
+                                                @endif
+                                                @if($p->cs)
                                                     <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200" title="Petugas CS yang menangani">
                                                         <svg class="w-2.5 h-2.5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                                         <span>CS: {{ $p->cs->name }}</span>
                                                     </span>
-                                                </div>
-                                            @endif
+                                                @endif
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
@@ -339,18 +401,32 @@
 
                                 <!-- Status Berkas -->
                                 <td class="py-4 px-3 text-center whitespace-nowrap">
+                                    @php
+                                        $berkasArr = is_array($p->berkas_data) ? $p->berkas_data : [];
+                                        $uploadedCount = count(array_filter($berkasArr, fn($b) => !empty($b['file_path'])));
+                                    @endphp
                                     @if($p->status_berkas === 'Sudah Upload')
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                            Sudah Upload
-                                        </span>
+                                        <a href="{{ route('pmb.pendaftar.show', $p->id) }}#berkas" class="inline-flex flex-col items-center group" title="Lihat Berkas Calon Mahasiswa">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 group-hover:bg-emerald-100 group-hover:border-emerald-300 transition">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                Sudah Upload
+                                            </span>
+                                            <span class="text-[10px] text-emerald-600 font-semibold mt-0.5 group-hover:underline">
+                                                {{ $uploadedCount > 0 ? $uploadedCount : 7 }}/7 Berkas &rarr;
+                                            </span>
+                                        </a>
                                     @elseif($p->status_berkas === 'Pending')
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                            Pending
-                                        </span>
+                                        <a href="{{ route('pmb.pendaftar.show', $p->id) }}#berkas" class="inline-flex flex-col items-center group" title="Lihat Berkas Calon Mahasiswa">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 group-hover:bg-amber-100 group-hover:border-amber-300 transition">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                Pending
+                                            </span>
+                                            <span class="text-[10px] text-amber-600 font-semibold mt-0.5 group-hover:underline">
+                                                {{ $uploadedCount }}/7 Berkas &rarr;
+                                            </span>
+                                        </a>
                                     @else
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
                                             Belum Upload
                                         </span>
                                     @endif

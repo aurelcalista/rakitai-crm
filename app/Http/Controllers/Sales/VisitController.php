@@ -28,8 +28,13 @@ class VisitController extends Controller
     {
         $user = auth()->user();
 
-        $query = Kunjungan::with(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event'])
-            ->where('sales_id', $user->id)
+        $query = Kunjungan::with(['sales', 'participants', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event'])
+            ->where(function ($q) use ($user) {
+                $q->where('sales_id', $user->id)
+                  ->orWhereHas('participants', function ($pq) use ($user) {
+                      $pq->where('users.id', $user->id);
+                  });
+            })
             ->orderBy('tanggal', 'desc');
 
         // Optional filter by type
@@ -95,7 +100,16 @@ class VisitController extends Controller
         }
         $prospekSekolah = $prospekQuery->orderBy('name')->get();
 
-        return view('kunjungan.create', compact('sekolahs', 'perusahaans', 'prodis', 'dosens', 'event', 'prospekSekolah'));
+        $csUsers = collect([]);
+        if ($user && $user->role === 'CS') {
+            $csUsers = User::where('role', 'CS')
+                ->where('status', 'Aktif')
+                ->where('id', '!=', $user->id)
+                ->orderBy('name')
+                ->get();
+        }
+
+        return view('kunjungan.create', compact('sekolahs', 'perusahaans', 'prodis', 'dosens', 'event', 'prospekSekolah', 'csUsers'));
     }
 
     /**
@@ -107,6 +121,44 @@ class VisitController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $rawParticipants = $request->input('participant_ids', $request->input('cs_participants', []));
+        if (!is_array($rawParticipants)) {
+            $rawParticipants = !empty($rawParticipants) ? [$rawParticipants] : [];
+        }
+
+        $user = auth()->user();
+        $isCs = $user && $user->role === 'CS';
+
+        if (!$isCs && !empty($rawParticipants)) {
+            throw ValidationException::withMessages([
+                'participant_ids' => 'Fitur kolaborasi kunjungan hanya tersedia untuk pengguna dengan role CS.',
+            ]);
+        }
+
+        $validParticipantIds = [];
+        if ($isCs && !empty($rawParticipants)) {
+            $participantIds = array_values(array_unique(array_filter(array_map('intval', $rawParticipants))));
+
+            if (in_array($user->id, $participantIds, true)) {
+                throw ValidationException::withMessages([
+                    'participant_ids' => 'Anda tidak dapat menambahkan diri sendiri sebagai anggota kolaborasi.',
+                ]);
+            }
+
+            $validCsUsers = User::whereIn('id', $participantIds)
+                ->where('role', 'CS')
+                ->pluck('id')
+                ->toArray();
+
+            if (count($validCsUsers) !== count($participantIds)) {
+                throw ValidationException::withMessages([
+                    'participant_ids' => 'Setiap anggota kolaborasi yang dipilih harus memiliki role CS.',
+                ]);
+            }
+
+            $validParticipantIds = $validCsUsers;
+        }
+
         $rules = [
             'jenis'          => 'required|in:Sekolah,Perusahaan',
             'prodi_id'       => 'nullable|exists:prodis,id',
@@ -353,6 +405,10 @@ class VisitController extends Controller
             'potensi_csr'              => $request->input('potensi_csr'),
         ]);
 
+        if ($isCs && !empty($validParticipantIds)) {
+            $kunjungan->participants()->sync($validParticipantIds);
+        }
+
         // Clear needs_visit_report for matching prospect owned by this sales user
         if ($request->filled('prospek_id')) {
             $matchedProspek = Prospek::find($request->prospek_id);
@@ -460,7 +516,7 @@ class VisitController extends Controller
     {
         $this->authorize('view', $kunjungan);
 
-        $kunjungan->load(['sales', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event']);
+        $kunjungan->load(['sales', 'participants', 'sekolah', 'perusahaan', 'prodi', 'dosen', 'event']);
         $visit = $this->formatKunjungan($kunjungan);
         return view('kunjungan.show', compact('visit'));
     }
@@ -471,6 +527,50 @@ class VisitController extends Controller
     public function update(Request $request, Kunjungan $kunjungan): RedirectResponse
     {
         $this->authorize('update', $kunjungan);
+
+        $user = auth()->user();
+        $isCs = $user && $user->role === 'CS';
+
+        if ($request->has('participant_ids') || $request->has('cs_participants')) {
+            $rawParticipants = $request->input('participant_ids', $request->input('cs_participants', []));
+            if (!is_array($rawParticipants)) {
+                $rawParticipants = !empty($rawParticipants) ? [$rawParticipants] : [];
+            }
+
+            if (!$isCs && !empty($rawParticipants)) {
+                throw ValidationException::withMessages([
+                    'participant_ids' => 'Fitur kolaborasi kunjungan hanya tersedia untuk pengguna dengan role CS.',
+                ]);
+            }
+
+            $validParticipantIds = [];
+            if ($isCs && !empty($rawParticipants)) {
+                $participantIds = array_values(array_unique(array_filter(array_map('intval', $rawParticipants))));
+
+                if (in_array((int)$kunjungan->sales_id, $participantIds, true)) {
+                    throw ValidationException::withMessages([
+                        'participant_ids' => 'Pembuat laporan tidak dapat ditambahkan sebagai anggota kolaborasi.',
+                    ]);
+                }
+
+                $validCsUsers = User::whereIn('id', $participantIds)
+                    ->where('role', 'CS')
+                    ->pluck('id')
+                    ->toArray();
+
+                if (count($validCsUsers) !== count($participantIds)) {
+                    throw ValidationException::withMessages([
+                        'participant_ids' => 'Setiap anggota kolaborasi yang dipilih harus memiliki role CS.',
+                    ]);
+                }
+
+                $validParticipantIds = $validCsUsers;
+            }
+
+            if ($isCs) {
+                $kunjungan->participants()->sync($validParticipantIds);
+            }
+        }
 
         if ($request->filled('pic_whatsapp')) {
             $request->merge(['pic_whatsapp' => \App\Support\WhatsAppHelper::prepareForValidation($request->pic_whatsapp)]);
@@ -571,6 +671,15 @@ class VisitController extends Controller
 
         $photoUrl = $k->foto_path ? Storage::url($k->foto_path) : null;
 
+        $user = auth()->user();
+        $isCreator = $user ? ((int) $k->sales_id === (int) $user->id) : false;
+        $isParticipant = $user ? $k->participants->contains('id', $user->id) : false;
+        $participantsList = $k->participants->map(fn ($p) => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'role' => $p->role,
+        ])->values()->toArray();
+
         return [
             'id'                       => $k->id,
             'name'                     => $k->nama_institusi ?? $k->tujuan_kunjungan ?? '-',
@@ -578,6 +687,14 @@ class VisitController extends Controller
             'pic'                      => $k->pic_name ?? '-',
             'whatsapp'                 => $k->pic_whatsapp ?? '-',
             'sales'                    => $k->sales ? $k->sales->name : '-',
+            'creator_id'               => $k->sales_id,
+            'creator_name'             => $k->sales ? $k->sales->name : '-',
+            'creator_role'             => $k->sales ? $k->sales->role : '-',
+            'is_creator'               => $isCreator,
+            'is_shared'                => !$isCreator && $isParticipant,
+            'participants'             => $participantsList,
+            'participants_count'       => count($participantsList),
+            'participants_str'         => $k->participants->pluck('name')->implode(', '),
             'prodi'                    => $k->prodi_names ?: ($k->prodi ? $k->prodi->nama : '-'),
             'prodi_id'                 => $k->prodi_id,
             'prodi_ids'                => $k->prodi_ids ?? ($k->prodi_id ? [$k->prodi_id] : []),

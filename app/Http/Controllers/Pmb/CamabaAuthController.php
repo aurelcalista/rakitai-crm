@@ -229,7 +229,7 @@ class CamabaAuthController extends Controller
     /**
      * Tampilkan formulir pendaftaran akun CAMABA.
      */
-    public function showRegisterForm()
+    public function showRegisterForm(Request $request, ?string $agent = null)
     {
         if (Auth::check()) {
             if (strtolower(Auth::user()->role) === 'camaba') {
@@ -238,7 +238,10 @@ class CamabaAuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return view('pmb.auth.register');
+        $agent = $agent ?: $request->query('agent');
+        $agent = is_string($agent) ? strip_tags(trim($agent)) : null;
+
+        return view('pmb.auth.register', compact('agent'));
     }
 
     /**
@@ -261,6 +264,7 @@ class CamabaAuthController extends Controller
             'password'              => ['required', 'confirmed', Password::min(8)],
             'minat_kuliah'          => 'nullable|string|in:ya,tidak',
             'minat_miniclass'       => 'nullable|string|in:ya,tidak',
+            'agent'                 => 'nullable|string|max:100|regex:/^[a-zA-Z0-9_\-]+$/',
         ], [
             'name.required'         => 'Nama lengkap wajib diisi.',
             'name.min'              => 'Nama lengkap minimal 2 karakter.',
@@ -273,9 +277,11 @@ class CamabaAuthController extends Controller
             'password.required'     => 'Password wajib diisi.',
             'password.min'          => 'Password minimal 8 karakter.',
             'password.confirmed'    => 'Konfirmasi password tidak cocok.',
+            'agent.regex'           => 'Format kode/nama agen tidak valid. Hanya diperbolehkan huruf, angka, underscore, dan strip.',
         ]);
 
         $emailClean = strtolower(trim($validated['email']));
+        $agentClean = !empty($validated['agent']) ? strip_tags(trim($validated['agent'])) : null;
 
         // Cek apakah sudah ada akun User aktif dengan email ini
         $existingUser = User::where('email', $emailClean)->first();
@@ -317,7 +323,7 @@ class CamabaAuthController extends Controller
         }
 
         // Jalankan transaksi database untuk integritas data User & Prospek
-        $user = DB::transaction(function () use ($validated, $emailClean, $formattedPhone, $possiblePhones) {
+        $user = DB::transaction(function () use ($validated, $emailClean, $formattedPhone, $possiblePhones, $agentClean) {
             // 1. Buat User Camaba
             $user = User::create([
                 'name'     => trim($validated['name']),
@@ -325,6 +331,7 @@ class CamabaAuthController extends Controller
                 'phone'    => $formattedPhone,
                 'role'     => 'Camaba',
                 'status'   => 'Aktif',
+                'agent'    => $agentClean,
                 'password' => Hash::make($validated['password']),
             ]);
 
@@ -385,6 +392,9 @@ class CamabaAuthController extends Controller
                 }
                 $prospek->minat_kuliah = $minatKuliah;
                 $prospek->minat_miniclass = $minatMiniclass;
+                if (empty($prospek->agent) && $agentClean) {
+                    $prospek->agent = $agentClean;
+                }
                 // Status prospek CRM TIDAK diubah otomatis saat registrasi (misal HOT PROSPEK tetap HOT PROSPEK)
                 $prospek->save();
 
@@ -393,7 +403,7 @@ class CamabaAuthController extends Controller
                     'prospek_id' => $prospek->id,
                     'user_id'    => $user->id,
                     'title'      => 'Akun Portal PMB Terhubung',
-                    'notes'      => 'Calon mahasiswa berhasil mendaftarkan akun Portal PMB dan ditautkan secara otomatis ke data prospek CRM.',
+                    'notes'      => 'Calon mahasiswa berhasil mendaftarkan akun Portal PMB dan ditautkan secara otomatis ke data prospek CRM.' . ($agentClean ? " (Referral Agent: {$agentClean})" : ''),
                     'time'       => now(),
                 ]);
             } else {
@@ -418,7 +428,8 @@ class CamabaAuthController extends Controller
                     'pic'              => trim($validated['name']),
                     'type'             => 'Individu',
                     'category'         => 'PMB Mandiri',
-                    'source'           => 'Website PMB',
+                    'source'           => $agentClean ? 'Referral Agent (' . $agentClean . ')' : 'Website PMB',
+                    'agent'            => $agentClean,
                     'status'           => 'BARU',
                     'status_formulir'  => 'Belum Isi',
                     'status_berkas'    => 'Belum Upload',
@@ -432,7 +443,7 @@ class CamabaAuthController extends Controller
                     'sales_id'         => null,  // JANGAN tetapkan Sales/CS secara otomatis
                     'minat_kuliah'     => $minatKuliah,
                     'minat_miniclass'  => $minatMiniclass,
-                    'notes'            => 'Pendaftaran mandiri via Portal PMB Online. Asal sekolah: ' . trim($validated['asal_sekolah']),
+                    'notes'            => ($agentClean ? 'Pendaftaran via Referral Agent ' . $agentClean . '. ' : 'Pendaftaran mandiri via Portal PMB Online. ') . 'Asal sekolah: ' . trim($validated['asal_sekolah']),
                 ]);
             }
 

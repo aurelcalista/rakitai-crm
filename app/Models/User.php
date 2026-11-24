@@ -21,6 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
     'role',
     'jabatan',
     'status',
+    'agent',
     'last_login_at',
     'password',
     'wilayah_id',
@@ -282,6 +283,14 @@ class User extends Authenticatable
     public function kunjungans()
     {
         return $this->hasMany(Kunjungan::class, 'sales_id');
+    }
+
+    /**
+     * Shared field visits where this user is tagged as a collaborative participant.
+     */
+    public function sharedKunjungans()
+    {
+        return $this->belongsToMany(Kunjungan::class, 'kunjungan_users', 'user_id', 'kunjungan_id')->withTimestamps();
     }
 
     /**

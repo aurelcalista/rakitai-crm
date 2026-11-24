@@ -310,22 +310,20 @@ class PmbPembayaranTrashTest extends TestCase
         Storage::disk('public')->assertExists($noFinance['proof_path']);
     }
 
-    public function test_9_non_admin_roles_cannot_delete_access_trash_restore_or_force_delete(): void
+    public function test_9_unauthorized_roles_cannot_delete_access_trash_restore_or_force_delete(): void
     {
         Storage::fake('public');
         $data = $this->createCamabaWithPayments('Rina Protected', true, false);
         $prospek = $data['prospek'];
 
-        // CS dan HM bisa mengakses Data Pembayaran index, tetapi TIDAK boleh melihat tab Trash atau tombol Hapus
-        foreach ([$this->cs, $this->hm] as $roleUser) {
-            $res = $this->actingAs($roleUser)->get(route('pmb.pembayaran.index'));
-            $res->assertOk();
-            $res->assertDontSee(route('pmb.pembayaran.trash'));
-            $res->assertDontSee('Hapus Data Pembayaran ke Trash');
-        }
+        // HM bisa mengakses Data Pembayaran index, tetapi TIDAK boleh melihat tab Trash atau tombol Hapus
+        $res = $this->actingAs($this->hm)->get(route('pmb.pembayaran.index'));
+        $res->assertOk();
+        $res->assertDontSee(route('pmb.pembayaran.trash'));
+        $res->assertDontSee('Hapus Data Pembayaran ke Trash');
 
-        // Semua role selain Admin (HM, CS, Sales, Camaba) ditolak pada aksi Trash / Delete / Restore / Force Delete
-        foreach ([$this->hm, $this->cs, $this->sales, $data['user']] as $unauthorizedUser) {
+        // Role selain Admin & CS (HM, Sales, Camaba) ditolak pada aksi Trash / Delete / Restore / Force Delete
+        foreach ([$this->hm, $this->sales, $data['user']] as $unauthorizedUser) {
             $this->actingAs($unauthorizedUser)
                 ->delete(route('pmb.pembayaran.destroy', $prospek->id))
                 ->assertForbidden();
@@ -344,15 +342,113 @@ class PmbPembayaranTrashTest extends TestCase
                 ->assertForbidden();
         }
 
-        // Pastikan Admin pun tidak bisa memanipulasi restore / force-delete pada data aktif yang BELUM masuk Trash
-        $this->actingAs($this->admin)
-            ->post(route('pmb.pembayaran.restore', $prospek->id))
-            ->assertNotFound();
+        // Pastikan Admin & CS pun tidak bisa memanipulasi restore / force-delete pada data aktif yang BELUM masuk Trash
+        foreach ([$this->admin, $this->cs] as $authRole) {
+            $this->actingAs($authRole)
+                ->post(route('pmb.pembayaran.restore', $prospek->id))
+                ->assertNotFound();
 
-        $this->actingAs($this->admin)
-            ->delete(route('pmb.pembayaran.force-delete', $prospek->id))
-            ->assertNotFound();
+            $this->actingAs($authRole)
+                ->delete(route('pmb.pembayaran.force-delete', $prospek->id))
+                ->assertNotFound();
+        }
 
         $this->assertDatabaseHas('prospeks', ['id' => $prospek->id, 'deleted_at' => null]);
+    }
+
+    public function test_10_cs_has_full_feature_parity_with_admin_in_data_pembayaran(): void
+    {
+        Storage::fake('public');
+        $data = $this->createCamabaWithPayments('Zayn CS Test', true, false);
+        $prospek = $data['prospek'];
+        $trx = $data['transactions'][0];
+
+        // 1. CS dapat melihat halaman Data Pembayaran dengan Tab Trash, Tombol Hapus, & Tombol Kelola Voucher
+        $indexRes = $this->actingAs($this->cs)->get(route('pmb.pembayaran.index'));
+        $indexRes->assertOk();
+        $indexRes->assertSee('Zayn CS Test');
+        $indexRes->assertSee('Trash (Tempat Sampah)');
+        $indexRes->assertSee('Kelola &amp; Buat Voucher', false);
+        $indexRes->assertSee('Hapus Data Pembayaran ke Trash');
+
+        // 2. CS dapat membuat dan toggle voucher diskon
+        $storeVoucherRes = $this->actingAs($this->cs)->post(route('pmb.pembayaran.vouchers.store'), [
+            'code'            => 'CSDISC500',
+            'name'            => 'Diskon Khusus CS',
+            'discount_amount' => '500.000',
+            'quota'           => 10,
+            'is_active'       => 1,
+        ]);
+        $storeVoucherRes->assertRedirect();
+        $storeVoucherRes->assertSessionHas('success');
+
+        $voucher = Voucher::where('code', 'CSDISC500')->first();
+        $this->assertNotNull($voucher);
+        $this->assertEquals(500000, $voucher->discount_amount);
+        $this->assertEquals(10, $voucher->quota);
+        $this->assertTrue($voucher->is_active);
+
+        // Toggle voucher oleh CS
+        $toggleRes = $this->actingAs($this->cs)->patch(route('pmb.pembayaran.vouchers.toggle', $voucher->id));
+        $toggleRes->assertRedirect();
+        $toggleRes->assertSessionHas('success');
+        $this->assertFalse($voucher->fresh()->is_active);
+
+        // 3. CS dapat melakukan soft delete data pembayaran ke Trash
+        $deleteRes = $this->actingAs($this->cs)->delete(route('pmb.pembayaran.destroy', $prospek->id));
+        $deleteRes->assertRedirect();
+        $deleteRes->assertSessionHas('success');
+        $this->assertSoftDeleted('prospeks', ['id' => $prospek->id]);
+
+        // 4. CS dapat mengakses halaman Trash dan melihat data yang terhapus
+        $trashRes = $this->actingAs($this->cs)->get(route('pmb.pembayaran.trash'));
+        $trashRes->assertOk();
+        $trashRes->assertSee('Zayn CS Test');
+
+        // 5. CS dapat memulihkan (restore) data dari Trash
+        $restoreRes = $this->actingAs($this->cs)->post(route('pmb.pembayaran.restore', $prospek->id));
+        $restoreRes->assertRedirect(route('pmb.pembayaran.trash'));
+        $restoreRes->assertSessionHas('success');
+        $this->assertNotSoftDeleted('prospeks', ['id' => $prospek->id]);
+
+        // 6. CS dapat memverifikasi transaksi manual
+        $pendingTrx = Transaksi::create([
+            'prospek_id'        => $prospek->id,
+            'user_id'           => $this->cs->id,
+            'order_id'          => 'PMB-CS-MANUAL-1',
+            'jenis'             => 'Pendaftaran PMB',
+            'kategori'          => Transaksi::KATEGORI_PENDAFTARAN,
+            'nominal'           => 300000,
+            'metode_pembayaran' => 'TRANSFER_MANUAL',
+            'payment_status'    => Transaksi::STATUS_PENDING,
+            'tanggal'           => now(),
+        ]);
+
+        $verifyRes = $this->actingAs($this->cs)->post(route('pmb.pembayaran.verify', $pendingTrx->id));
+        $verifyRes->assertRedirect();
+        $verifyRes->assertSessionHas('success');
+        $this->assertEquals(Transaksi::STATUS_VERIFIED, $pendingTrx->fresh()->payment_status);
+        $this->assertEquals($this->cs->id, $pendingTrx->fresh()->verified_by);
+
+        // 7. CS dapat menolak transaksi manual
+        $pendingTrx2 = Transaksi::create([
+            'prospek_id'        => $prospek->id,
+            'user_id'           => $this->cs->id,
+            'order_id'          => 'PMB-CS-MANUAL-2',
+            'jenis'             => 'Pendaftaran PMB',
+            'kategori'          => Transaksi::KATEGORI_PENDAFTARAN,
+            'nominal'           => 300000,
+            'metode_pembayaran' => 'TRANSFER_MANUAL',
+            'payment_status'    => Transaksi::STATUS_PENDING,
+            'tanggal'           => now(),
+        ]);
+
+        $rejectRes = $this->actingAs($this->cs)->post(route('pmb.pembayaran.reject', $pendingTrx2->id), [
+            'rejection_reason' => 'Bukti transfer tidak valid/buram',
+        ]);
+        $rejectRes->assertRedirect();
+        $rejectRes->assertSessionHas('error');
+        $this->assertEquals(Transaksi::STATUS_REJECTED, $pendingTrx2->fresh()->payment_status);
+        $this->assertEquals('Bukti transfer tidak valid/buram', $pendingTrx2->fresh()->rejection_reason);
     }
 }

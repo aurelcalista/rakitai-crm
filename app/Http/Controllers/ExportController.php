@@ -352,6 +352,11 @@ class ExportController extends Controller
         // Role scoping
         if ($role === 'SALES') {
             $query->where('sales_id', $user->id);
+        } elseif ($role === 'CS') {
+            $query->where(function ($q) use ($user) {
+                $q->where('sales_id', $user->id)
+                  ->orWhereHas('participants', fn($pq) => $pq->where('users.id', $user->id));
+            });
         } elseif ($role === 'SPV') {
             $teamSalesIds = array_unique(array_merge([$user->id], $user->teamMemberIds()));
             $query->whereIn('sales_id', $teamSalesIds);

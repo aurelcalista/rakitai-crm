@@ -22,24 +22,55 @@ class VoucherDiscountService
     ];
 
     /**
-     * Hitung nominal potongan & total DPP setelah diskon secara otoritatif di backend.
+     * Cek apakah seluruh 5 komponen pembayaran (Pendaftaran, Perlengkapan, DPP, Uang Gedung, UKT)
+     * telah terpilih / terpenuhi (termasuk jika komponen bernilai Rp 0 / Gratis atau sudah lunas).
+     *
+     * @param array<string>|null $selectedItems
+     */
+    public static function hasAllComponentsSelected(?Prospek $prospek, ?array $selectedItems = null, ?string $uktPeriod = null): bool
+    {
+        if (!$prospek) {
+            return false;
+        }
+
+        $catalog = MidtransService::getBiayaCatalog($prospek, $uktPeriod);
+        $paidItems = MidtransService::resolvePaidItems($prospek);
+        $selected = is_array($selectedItems) ? $selectedItems : [];
+
+        $allComponents = ['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'];
+
+        foreach ($allComponents as $comp) {
+            $isExplicitlySelected = in_array($comp, $selected, true);
+            $isPaid = !empty($paidItems[$comp]);
+            $isFree = ($comp === 'dpp')
+                ? ((int) ($catalog['dpp']['base_price'] ?? 0) <= 0)
+                : ((int) ($catalog[$comp]['price'] ?? 0) <= 0);
+
+            if (!$isExplicitlySelected && !$isPaid && !$isFree) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Hitung nominal potongan tetap (Fixed Amount Nominal) & total setelah diskon.
      * Formula:
-     * - Potongan DPP = Nominal DPP * Persentase Diskon / 100
-     * - Total DPP = Nominal DPP - Potongan DPP
+     * - Potongan = min(Eligible Total, max(0, Discount Amount))
+     * - Total Setelah Diskon = max(0, Eligible Total - Potongan)
      *
      * @return array{discount_amount: int, total_after_discount: int}
      */
-    public static function calculateDiscount(int $nominalDpp, float $percentage): array
+    public static function calculateDiscount(int $eligibleTotal, int $discountAmount): array
     {
-        $nominalDpp = max(0, $nominalDpp);
-        $percentage = max(0.0, min(100.0, $percentage));
-
-        $discountAmount = (int) round(($nominalDpp * $percentage) / 100);
-        $discountAmount = max(0, min($nominalDpp, $discountAmount));
-        $finalAmount = max(0, $nominalDpp - $discountAmount);
+        $eligibleTotal  = max(0, $eligibleTotal);
+        $discountAmount = max(0, $discountAmount);
+        $appliedDiscount = min($eligibleTotal, $discountAmount);
+        $finalAmount    = max(0, $eligibleTotal - $appliedDiscount);
 
         return [
-            'discount_amount'      => $discountAmount,
+            'discount_amount'      => $appliedDiscount,
             'total_after_discount' => $finalAmount,
         ];
     }
@@ -49,12 +80,14 @@ class VoucherDiscountService
      */
     public static function getBaseDppPrice(?Prospek $prospek): int
     {
-        $prodi = $prospek?->prodi;
-        return ($prodi && isset($prodi->biaya_dpp)) ? (int) $prodi->biaya_dpp : 500000;
+        $prodi = $prospek?->prodi ?: ($prospek?->prodi_id ? \App\Models\Prodi::find($prospek->prodi_id) : null);
+        return ($prodi && array_key_exists('biaya_dpp', $prodi->getAttributes()) && $prodi->biaya_dpp !== null)
+            ? (int) $prodi->biaya_dpp
+            : 500000;
     }
 
     /**
-     * Hitung total nominal DPP yang sudah dibayar & terverifikasi (termasuk pembayaran sebagian).
+     * Hitung total nominal DPP yang sudah dibayar & terverifikasi.
      */
     public static function getVerifiedDppPaidAmount(?Prospek $prospek): int
     {
@@ -72,7 +105,6 @@ class VoucherDiscountService
         foreach ($verifiedTransaksis as $vt) {
             $detail = (string) $vt->detail_pembayaran;
             $jenis = (string) $vt->jenis;
-            $cat = (string) $vt->kategori;
             $nom = (int) round((float) $vt->nominal);
 
             $hasPerlengkapan = str_contains($detail, 'Perlengkapan') || $jenis === 'Perlengkapan';
@@ -80,22 +112,6 @@ class VoucherDiscountService
                 || (empty($detail) && in_array($jenis, ['Beli Formulir', 'Pendaftaran', 'Biaya Pendaftaran'], true));
             $hasDpp          = str_contains($detail, 'DPP') || str_contains($detail, 'Pengembangan Pendidikan') || $jenis === 'DPP';
             $hasGedung       = str_contains($detail, 'Gedung') || str_contains($detail, 'Uang Gedung') || $jenis === 'Gedung';
-            $hasUkt          = str_contains($detail, 'UKT') || str_contains($detail, 'Kuliah Tunggal') || $jenis === 'UKT';
-            $hasOneTime      = $hasPerlengkapan || $hasPendaftaran || $hasDpp || $hasGedung;
-
-            $isDp = (in_array($cat, Transaksi::getCategoryAliases(Transaksi::KATEGORI_DP), true)
-                || str_contains($detail, 'Down Payment')
-                || (str_contains($detail, 'DP') && !str_contains($detail, 'DPP') && !str_contains($detail, 'DP Daftar'))
-                || $jenis === 'DP/Konversi') && !$hasOneTime && !$hasUkt && $jenis !== 'Beli Formulir';
-
-            $isPelunasan = (in_array($cat, Transaksi::getCategoryAliases(Transaksi::KATEGORI_PELUNASAN), true)
-                || str_contains($detail, 'Pelunasan')
-                || $jenis === 'Pelunasan'
-                || $hasUkt) && !$hasOneTime && $jenis !== 'Beli Formulir';
-
-            if ($isDp || $isPelunasan) {
-                continue;
-            }
 
             if ($hasDpp) {
                 $otherCount = ($hasPerlengkapan ? 1 : 0) + ($hasPendaftaran ? 1 : 0) + ($hasGedung ? 1 : 0);
@@ -123,7 +139,6 @@ class VoucherDiscountService
 
     /**
      * Ambil riwayat penggunaan voucher aktif (used atau applied) untuk prospek ini.
-     * Menjaga konsistensi bila voucher yang belum checkout dinonaktifkan/kedaluwarsa atau transaksi ditolak.
      */
     public static function getEffectiveDppUsage(?Prospek $prospek): ?VoucherUsage
     {
@@ -155,6 +170,7 @@ class VoucherDiscountService
                         'status'  => VoucherUsage::STATUS_USED,
                         'used_at' => $applied->used_at ?? now(),
                     ]);
+                    $applied->voucher?->refreshUsedQuota();
                     return $applied->fresh(['voucher', 'transaksi']);
                 }
 
@@ -179,7 +195,34 @@ class VoucherDiscountService
     }
 
     /**
-     * Ringkasan lengkap tagihan DPP (harga dasar, pembayaran sebagian, diskon voucher, sisa wajib bayar).
+     * Hitung total nilai nominal seluruh 5 komponen tagihan pendaftaran.
+     */
+    public static function getEligiblePaymentTotal(?Prospek $prospek, ?string $uktPeriod = null): int
+    {
+        if (!$prospek) {
+            return 0;
+        }
+
+        $prodi = $prospek->prodi ?: ($prospek->prodi_id ? \App\Models\Prodi::find($prospek->prodi_id) : null);
+        $total = 0;
+        $total += ($prodi && array_key_exists('biaya_pendaftaran', $prodi->getAttributes()) && $prodi->biaya_pendaftaran !== null) ? (int) $prodi->biaya_pendaftaran : (int) config('services.midtrans.biaya_pendaftaran', 300000);
+        $total += ($prodi && array_key_exists('biaya_perlengkapan', $prodi->getAttributes()) && $prodi->biaya_perlengkapan !== null) ? (int) $prodi->biaya_perlengkapan : 600000;
+        $total += ($prodi && array_key_exists('biaya_dpp', $prodi->getAttributes()) && $prodi->biaya_dpp !== null) ? (int) $prodi->biaya_dpp : 500000;
+        $total += ($prodi && array_key_exists('biaya_uang_gedung', $prodi->getAttributes()) && $prodi->biaya_uang_gedung !== null) ? (int) $prodi->biaya_uang_gedung : 0;
+
+        $activeUkt = MidtransService::getActiveUktCatalogOptions($prospek);
+        if (!empty($activeUkt)) {
+            $periodKey = $uktPeriod && isset($activeUkt[$uktPeriod]) ? $uktPeriod : (array_key_first($activeUkt) ?: null);
+            if ($periodKey && isset($activeUkt[$periodKey])) {
+                $total += (int) ($activeUkt[$periodKey]['nominal'] ?? 0);
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * Ringkasan lengkap tagihan dan voucher untuk CAMABA dan Admin.
      *
      * @return array{
      *     base_price: int,
@@ -191,15 +234,16 @@ class VoucherDiscountService
      *     is_paid: bool
      * }
      */
-    public static function getDppSummary(?Prospek $prospek): array
+    public static function getDppSummary(?Prospek $prospek, ?string $uktPeriod = null): array
     {
+        $eligibleTotal = self::getEligiblePaymentTotal($prospek, $uktPeriod);
         $basePrice = self::getBaseDppPrice($prospek);
         $paidPartial = self::getVerifiedDppPaidAmount($prospek);
         $remainingBeforeDiscount = max(0, $basePrice - $paidPartial);
 
         $usage = self::getEffectiveDppUsage($prospek);
         $discountAmount = $usage ? (int) $usage->discount_amount : 0;
-        $discountAmount = max(0, min($basePrice, $discountAmount));
+        $discountAmount = max(0, min($eligibleTotal > 0 ? $eligibleTotal : $basePrice, $discountAmount));
 
         $remainingPayable = max(0, $basePrice - $discountAmount - $paidPartial);
         $isPaid = ($basePrice <= 0)
@@ -208,6 +252,7 @@ class VoucherDiscountService
 
         return [
             'base_price'                => $basePrice,
+            'eligible_total'            => $eligibleTotal,
             'paid_partial'              => $paidPartial,
             'remaining_before_discount' => $remainingBeforeDiscount,
             'active_usage'              => $usage,
@@ -218,7 +263,7 @@ class VoucherDiscountService
     }
 
     /**
-     * Ambil nominal potongan DPP aktif/terpakai untuk pengurangan kewajiban total (anti-pengurangan ganda).
+     * Ambil nominal potongan aktif/terpakai untuk pengurangan kewajiban total.
      */
     public static function getActiveOrUsedDiscountAmount(?Prospek $prospek): int
     {
@@ -227,36 +272,41 @@ class VoucherDiscountService
     }
 
     /**
-     * Validasi dan terapkan kode voucher ke tagihan DPP CAMABA (otoritatif di backend).
+     * Validasi dan terapkan kode voucher diskon tetap (Fixed IDR) ke tagihan CAMABA.
+     * Persyaratan:
+     * - CAMABA harus memilih seluruh 5 komponen pembayaran (Pendaftaran, Perlengkapan, DPP, Uang Gedung, UKT).
+     * - 1 Akun CAMABA hanya dapat meredeem 1 voucher.
+     * - 1 Voucher hanya dapat digunakan 1 kali per akun.
+     * - Voucher harus valid, aktif, dan memiliki sisa kuota (quota > used_quota).
+     * - Diskon nominal tetap langsung memotong total pembayaran.
      *
      * @throws InvalidArgumentException
      */
-    public static function applyVoucher(Prospek $prospek, string $rawCode): VoucherUsage
-    {
+    public static function applyVoucher(
+        Prospek $prospek,
+        string $rawCode,
+        ?array $selectedItems = null,
+        ?string $uktPeriod = null
+    ): VoucherUsage {
         $normalizedCode = strtoupper(trim($rawCode));
         if ($normalizedCode === '') {
             throw new InvalidArgumentException('Silakan masukkan kode voucher terlebih dahulu.');
         }
 
-        return DB::transaction(function () use ($prospek, $normalizedCode) {
+        return DB::transaction(function () use ($prospek, $normalizedCode, $selectedItems, $uktPeriod) {
             $lockedProspek = Prospek::with(['prodi', 'transaksis'])
                 ->where('id', $prospek->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // 1. Pastikan CAMABA sudah mencapai tahap pembayaran DPP (Pendaftaran & Perlengkapan lunas)
-            $gate = MidtransService::getSequentialGateState($lockedProspek);
-            if (empty($gate['unlocked']['dpp'])) {
-                throw new InvalidArgumentException('Voucher diskon hanya dapat digunakan setelah Anda mencapai tahap pembayaran DPP (Biaya Pendaftaran dan Biaya Perlengkapan lunas).');
+            // 1. Validasi: jika parameter selectedItems disertakan, pastikan SELURUH 5 komponen terpilih / terpenuhi (termasuk komponen Rp 0 / Gratis)
+            if ($selectedItems !== null) {
+                if (!self::hasAllComponentsSelected($lockedProspek, $selectedItems, $uktPeriod)) {
+                    throw new InvalidArgumentException('Voucher hanya dapat digunakan jika seluruh 5 komponen pembayaran (Biaya Pendaftaran, Biaya Perlengkapan, DPP, Uang Gedung, dan UKT) telah dipilih.');
+                }
             }
 
-            // 2. Pastikan DPP belum lunas & masih memiliki sisa tagihan
-            $summary = self::getDppSummary($lockedProspek);
-            if (!empty($summary['is_paid']) || $summary['remaining_before_discount'] <= 0) {
-                throw new InvalidArgumentException('Biaya DPP Anda sudah lunas atau gratis (Rp 0), sehingga voucher tidak dapat digunakan.');
-            }
-
-            // 3. Validasi kode voucher dari database
+            // 2. Validasi kode voucher dari database dengan row-level locking
             $voucher = Voucher::whereRaw('UPPER(code) = ?', [$normalizedCode])
                 ->lockForUpdate()
                 ->first();
@@ -273,7 +323,20 @@ class VoucherDiscountService
                 throw new InvalidArgumentException("Kode voucher '{$voucher->code}' sudah kedaluwarsa.");
             }
 
-            // 4. Cegah penggunaan voucher ganda / berulang oleh CAMABA yang sama
+            // 3. Validasi kuota voucher
+            $confirmedUsageCount = VoucherUsage::where('voucher_id', $voucher->id)
+                ->where('status', VoucherUsage::STATUS_USED)
+                ->lockForUpdate()
+                ->count();
+
+            $effectiveUsed = max((int) $voucher->used_quota, $confirmedUsageCount);
+            $remainingQuota = max(0, (int) $voucher->quota - $effectiveUsed);
+            if ($remainingQuota <= 0) {
+                throw new InvalidArgumentException("Kuota penggunaan voucher '{$voucher->code}' sudah habis.");
+            }
+
+            // 4. Cegah penggunaan voucher ganda / berulang oleh CAMABA yang sama:
+            // "Each CAMABA account can only redeem one voucher. A single account cannot use multiple vouchers. A redeemed voucher cannot be reused by the same account."
             $alreadyUsedAny = VoucherUsage::where('prospek_id', $lockedProspek->id)
                 ->where('status', VoucherUsage::STATUS_USED)
                 ->lockForUpdate()
@@ -283,9 +346,10 @@ class VoucherDiscountService
                 if ((int) $alreadyUsedAny->voucher_id === (int) $voucher->id) {
                     throw new InvalidArgumentException("Kode voucher '{$voucher->code}' sudah pernah Anda gunakan sebelumnya.");
                 }
-                throw new InvalidArgumentException('Anda sudah menggunakan voucher diskon pada pembayaran DPP sebelumnya dan tidak dapat menggunakan voucher lagi.');
+                throw new InvalidArgumentException('Akun Anda sudah pernah menggunakan voucher pada transaksi sebelumnya. Setiap akun hanya dapat menggunakan 1 voucher.');
             }
 
+            // Cek apakah voucher yang sama sudah berstatus applied pada akun ini
             $alreadyAppliedSame = VoucherUsage::where('prospek_id', $lockedProspek->id)
                 ->where('voucher_id', $voucher->id)
                 ->where('status', VoucherUsage::STATUS_APPLIED)
@@ -293,7 +357,7 @@ class VoucherDiscountService
                 ->first();
 
             if ($alreadyAppliedSame) {
-                throw new InvalidArgumentException("Voucher '{$voucher->code}' sudah diterapkan pada tagihan DPP Anda.");
+                return $alreadyAppliedSame;
             }
 
             // Batalkan voucher lain yang hanya berstatus 'applied' (belum terbayar) agar tidak menumpuk
@@ -301,26 +365,36 @@ class VoucherDiscountService
                 ->where('status', VoucherUsage::STATUS_APPLIED)
                 ->update(['status' => VoucherUsage::STATUS_CANCELLED]);
 
-            // 5. Hitung potongan dari sisa tagihan DPP sebelum diskon
-            $baseBeforeDiscount = (int) $summary['remaining_before_discount'];
-            $calc = self::calculateDiscount($baseBeforeDiscount, (float) $voucher->discount_percentage);
+            // 5. Hitung nominal potongan tetap IDR dari total eligible
+            $eligibleTotal = self::getEligiblePaymentTotal($lockedProspek, $uktPeriod);
+
+            // Nominal potongan diambil dari discount_amount tetap
+            $nominalDiscount = (int) $voucher->discount_amount;
+            if ($nominalDiscount <= 0 && (float) ($voucher->discount_percentage ?? 0) > 0) {
+                // Fallback untuk voucher lama yang dibuat dengan persentase
+                $calc = self::calculateDiscount($eligibleTotal, (int) round(($eligibleTotal * (float) $voucher->discount_percentage) / 100));
+            } else {
+                $calc = self::calculateDiscount($eligibleTotal, $nominalDiscount);
+            }
 
             return VoucherUsage::create([
-                'voucher_id'          => $voucher->id,
-                'prospek_id'          => $lockedProspek->id,
-                'voucher_code'        => $voucher->code,
-                'voucher_name'        => $voucher->name,
-                'discount_percentage' => (float) $voucher->discount_percentage,
-                'dpp_before_discount' => $baseBeforeDiscount,
-                'discount_amount'     => $calc['discount_amount'],
-                'dpp_after_discount'  => $calc['total_after_discount'],
-                'status'              => VoucherUsage::STATUS_APPLIED,
+                'voucher_id'            => $voucher->id,
+                'prospek_id'            => $lockedProspek->id,
+                'voucher_code'          => $voucher->code,
+                'voucher_name'          => $voucher->name,
+                'discount_amount'       => $calc['discount_amount'],
+                'total_before_discount' => $eligibleTotal,
+                'total_after_discount'  => $calc['total_after_discount'],
+                'dpp_before_discount'   => $eligibleTotal,
+                'dpp_after_discount'    => $calc['total_after_discount'],
+                'discount_percentage'   => 0,
+                'status'                => VoucherUsage::STATUS_APPLIED,
             ]);
         });
     }
 
     /**
-     * Lepas voucher yang baru berstatus 'applied' (belum terbayar) dari tagihan DPP CAMABA.
+     * Lepas voucher yang baru berstatus 'applied' (belum terbayar) dari tagihan CAMABA.
      *
      * @throws InvalidArgumentException
      */
@@ -344,7 +418,7 @@ class VoucherDiscountService
     }
 
     /**
-     * Validasi ulang voucher berstatus 'applied' saat CAMABA melakukan checkout pembayaran DPP.
+     * Validasi ulang voucher berstatus 'applied' saat CAMABA melakukan checkout.
      *
      * @throws InvalidArgumentException
      */
@@ -356,10 +430,10 @@ class VoucherDiscountService
         }
 
         if ($usage->transaksi_id === null) {
-            $voucher = $usage->voucher()->first();
+            $voucher = $usage->voucher()->lockForUpdate()->first();
             if (!$voucher || !$voucher->isUsable()) {
                 $usage->update(['status' => VoucherUsage::STATUS_CANCELLED]);
-                throw new InvalidArgumentException("Voucher '{$usage->voucher_code}' sudah tidak aktif atau kedaluwarsa.");
+                throw new InvalidArgumentException("Voucher '{$usage->voucher_code}' sudah tidak dapat digunakan (tidak aktif, kedaluwarsa, atau kuota habis).");
             }
         }
 
@@ -367,7 +441,7 @@ class VoucherDiscountService
     }
 
     /**
-     * Hubungkan transaksi checkout yang mencakup item DPP ke snapshot penggunaan voucher.
+     * Hubungkan transaksi checkout ke snapshot penggunaan voucher.
      */
     public static function attachTransaksiToActiveUsage(Prospek $prospek, Transaksi $transaksi): ?VoucherUsage
     {
@@ -385,33 +459,61 @@ class VoucherDiscountService
     }
 
     /**
-     * Sinkronisasi status VoucherUsage ketika payment_status pada Transaksi berubah.
+     * Sinkronisasi status VoucherUsage dan kuota voucher ketika status Transaksi berubah.
+     * - Hanya kurangi kuota jika transaksi terverifikasi lunas (VERIFIED / SUCCESS).
+     * - Transaksi gagal/batal/ditolak TIDAK mengurangi kuota.
+     * - Menggunakan database transaction dan row locking untuk mencegah race condition.
      */
     public static function syncUsageForTransaksi(Transaksi $transaksi): void
     {
-        $usages = VoucherUsage::where('transaksi_id', $transaksi->id)->get();
-        if ($usages->isEmpty()) {
-            return;
-        }
+        DB::transaction(function () use ($transaksi) {
+            $usages = VoucherUsage::where('transaksi_id', $transaksi->id)
+                ->lockForUpdate()
+                ->get();
 
-        $statusLower = strtolower((string) $transaksi->payment_status);
-        $isVerified = in_array($statusLower, array_map('strtolower', self::VERIFIED_STATUSES), true);
-        $isRejected = in_array($statusLower, [
-            Transaksi::STATUS_REJECTED, 'failed', 'rejected', 'deny', 'expire', 'cancel', 'batal',
-        ], true);
-
-        foreach ($usages as $usage) {
-            if ($isVerified) {
-                $usage->update([
-                    'status'  => VoucherUsage::STATUS_USED,
-                    'used_at' => $usage->used_at ?? now(),
-                ]);
-            } elseif ($isRejected && $usage->status === VoucherUsage::STATUS_APPLIED) {
-                $usage->update([
-                    'status' => VoucherUsage::STATUS_CANCELLED,
-                ]);
+            if ($usages->isEmpty()) {
+                return;
             }
-        }
+
+            $statusLower = strtolower((string) $transaksi->payment_status);
+            $isVerified = in_array($statusLower, array_map('strtolower', self::VERIFIED_STATUSES), true);
+            $isRejected = in_array($statusLower, [
+                Transaksi::STATUS_REJECTED, 'failed', 'rejected', 'deny', 'expire', 'cancel', 'batal',
+            ], true);
+
+            foreach ($usages as $usage) {
+                $voucher = Voucher::where('id', $usage->voucher_id)->lockForUpdate()->first();
+
+                if ($isVerified) {
+                    if ($usage->status !== VoucherUsage::STATUS_USED) {
+                        // Pastikan kuota tidak terlewati pada saat verifikasi
+                        if ($voucher) {
+                            $confirmedUses = VoucherUsage::where('voucher_id', $voucher->id)
+                                ->where('status', VoucherUsage::STATUS_USED)
+                                ->where('id', '!=', $usage->id)
+                                ->count();
+
+                            if ($confirmedUses >= $voucher->quota) {
+                                $usage->update(['status' => VoucherUsage::STATUS_CANCELLED]);
+                                continue;
+                            }
+                        }
+
+                        $usage->update([
+                            'status'  => VoucherUsage::STATUS_USED,
+                            'used_at' => $usage->used_at ?? now(),
+                        ]);
+
+                        $voucher?->refreshUsedQuota();
+                    }
+                } elseif ($isRejected) {
+                    $usage->update([
+                        'status' => VoucherUsage::STATUS_CANCELLED,
+                    ]);
+                    $voucher?->refreshUsedQuota();
+                }
+            }
+        });
     }
 
     /**
@@ -425,20 +527,24 @@ class VoucherDiscountService
             return null;
         }
 
+        $formattedDiscount = 'Rp ' . number_format((int) $usage->discount_amount, 0, ',', '.');
+
         return [
             'id'                    => $usage->id,
             'voucher_id'            => $usage->voucher_id,
             'voucher_code'          => $usage->voucher_code,
             'voucher_name'          => $usage->voucher_name ?? $usage->voucher?->name,
-            'discount_percentage'   => (float) $usage->discount_percentage,
-            'percentage_formatted'  => $usage->formatted_percentage,
-            'dpp_before_discount'   => (int) $usage->dpp_before_discount,
             'discount_amount'       => (int) $usage->discount_amount,
-            'dpp_after_discount'    => (int) $usage->dpp_after_discount,
+            'discount_formatted'    => $formattedDiscount,
+            'total_before_discount' => (int) ($usage->total_before_discount ?? $usage->dpp_before_discount),
+            'total_after_discount'  => (int) ($usage->total_after_discount ?? $usage->dpp_after_discount),
+            'dpp_before_discount'   => (int) ($usage->total_before_discount ?? $usage->dpp_before_discount),
+            'dpp_after_discount'    => (int) ($usage->total_after_discount ?? $usage->dpp_after_discount),
+            'discount_percentage'   => (float) ($usage->discount_percentage ?? 0),
+            'percentage_formatted'  => $usage->formatted_percentage,
             'status'                => $usage->status,
             'status_label'          => $usage->status_label,
             'used_at'               => $usage->used_at?->format('d M Y, H:i'),
         ];
     }
 }
-

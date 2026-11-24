@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Pmb;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Pmb\CamabaPortalController;
 use App\Models\Prodi;
 use App\Models\Prospek;
+use App\Models\ProspekTimeline;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -16,7 +19,7 @@ class PmbPendaftarController extends Controller
     {
         $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs']);
 
-        // Search Filter (Nama lengkap, email, WhatsApp/HP, No Registrasi)
+        // Search Filter (Nama lengkap, email, WhatsApp/HP, No Registrasi, Agent)
         if ($request->filled('search')) {
             $search = trim($request->input('search'));
             $query->where(function ($q) use ($search) {
@@ -24,13 +27,39 @@ class PmbPendaftarController extends Controller
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('whatsapp', 'like', "%{$search}%")
                   ->orWhere('pic_phone', 'like', "%{$search}%")
-                  ->orWhere('no_registrasi', 'like', "%{$search}%");
+                  ->orWhere('no_registrasi', 'like', "%{$search}%")
+                  ->orWhere('agent', 'like', "%{$search}%");
             });
+        }
+
+        // Filter: Agent
+        if ($request->filled('agent')) {
+            $agentVal = trim($request->input('agent'));
+            if ($agentVal === 'none' || $agentVal === 'Tanpa Agent') {
+                $query->where(function ($q) {
+                    $q->whereNull('agent')
+                      ->orWhere(DB::raw("TRIM(agent)"), '=', '');
+                });
+            } else {
+                $query->where('agent', $agentVal);
+            }
         }
 
         // Filter: Status Formulir
         if ($request->filled('status_formulir') && $request->status_formulir !== 'all') {
             $query->where('status_formulir', $request->status_formulir);
+        }
+
+        // Filter: Status Berkas
+        if ($request->filled('status_berkas') && $request->status_berkas !== 'all') {
+            if ($request->status_berkas === 'Belum Upload') {
+                $query->where(function ($q) {
+                    $q->where('status_berkas', 'Belum Upload')
+                      ->orWhereNull('status_berkas');
+                });
+            } else {
+                $query->where('status_berkas', $request->status_berkas);
+            }
         }
 
         // Filter: Status Ujian
@@ -80,6 +109,14 @@ class PmbPendaftarController extends Controller
             $gelombangList = collect(['Gelombang 1', 'Gelombang 2']);
         }
 
+        // List Agent untuk Dropdown Filter
+        $agentsList = Prospek::whereNotNull('agent')
+            ->where(DB::raw("TRIM(agent)"), '!=', '')
+            ->distinct()
+            ->pluck('agent')
+            ->filter()
+            ->values();
+
         // Sorting & Pagination
         $sortBy = $request->input('sort_by', 'created_at');
         $sortOrder = $request->input('sort_order', 'desc');
@@ -105,14 +142,90 @@ class PmbPendaftarController extends Controller
             'belumUploadBerkas',
             'sudahUploadBerkas',
             'prodis',
-            'gelombangList'
+            'gelombangList',
+            'agentsList'
         ));
     }
 
     public function show($id): View
     {
         $pendaftar = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs', 'transaksis'])->findOrFail($id);
-        return view('pmb.pendaftar.show', compact('pendaftar'));
+        $dokumenList = CamabaPortalController::DOKUMEN_PERSYARATAN;
+        return view('pmb.pendaftar.show', compact('pendaftar', 'dokumenList'));
+    }
+
+    /**
+     * Tampilkan atau unduh dokumen persyaratan pendaftar secara aman (Khusus Admin/HM/CS).
+     */
+    public function viewDokumen(Request $request, $id, string $type)
+    {
+        $allowedKeys = array_keys(CamabaPortalController::DOKUMEN_PERSYARATAN);
+        if (!in_array($type, $allowedKeys)) {
+            abort(404, 'Jenis dokumen tidak valid.');
+        }
+
+        $pendaftar = Prospek::findOrFail($id);
+        $berkasData = is_array($pendaftar->berkas_data) ? $pendaftar->berkas_data : [];
+
+        if (empty($berkasData[$type]['file_path'])) {
+            abort(404, 'Dokumen belum diunggah oleh calon mahasiswa.');
+        }
+
+        $filePath = $berkasData[$type]['file_path'];
+        if (!Storage::disk('local')->exists($filePath)) {
+            abort(404, 'File dokumen tidak ditemukan pada penyimpanan server.');
+        }
+
+        if ($request->boolean('download')) {
+            $downloadName = $berkasData[$type]['original_name'] ?? $berkasData[$type]['file_name'];
+            return Storage::disk('local')->download($filePath, $downloadName);
+        }
+
+        return Storage::disk('local')->response($filePath);
+    }
+
+    /**
+     * Verifikasi status dokumen persyaratan pendaftar (Disetujui / Ditolak / Menunggu Verifikasi).
+     */
+    public function verifyDokumen(Request $request, $id, string $type)
+    {
+        $allowedKeys = array_keys(CamabaPortalController::DOKUMEN_PERSYARATAN);
+        if (!in_array($type, $allowedKeys)) {
+            abort(404, 'Jenis dokumen tidak valid.');
+        }
+
+        $pendaftar = Prospek::findOrFail($id);
+        $berkasData = is_array($pendaftar->berkas_data) ? $pendaftar->berkas_data : [];
+
+        if (empty($berkasData[$type]['file_path'])) {
+            return redirect()->back()->with('error', 'Dokumen belum diunggah oleh calon mahasiswa.');
+        }
+
+        $validated = $request->validate([
+            'status'  => 'required|in:Disetujui,Ditolak,Menunggu Verifikasi',
+            'catatan' => 'nullable|string|max:500',
+        ]);
+
+        $berkasData[$type]['status'] = $validated['status'];
+        $berkasData[$type]['catatan'] = $validated['catatan'] ?? null;
+        $berkasData[$type]['verified_at'] = now()->format('Y-m-d H:i:s');
+        $berkasData[$type]['verified_by'] = auth()->user()->name ?? 'Staff';
+
+        $pendaftar->berkas_data = $berkasData;
+        $pendaftar->save();
+
+        $docTitle = CamabaPortalController::DOKUMEN_PERSYARATAN[$type]['title'] ?? $type;
+        $user = auth()->user();
+
+        ProspekTimeline::create([
+            'prospek_id' => $pendaftar->id,
+            'user_id'    => $user->id,
+            'title'      => "Verifikasi Dokumen: {$docTitle}",
+            'notes'      => "Status dokumen diubah menjadi '{$validated['status']}' oleh {$user->name} ({$user->role})." . (!empty($validated['catatan']) ? " Catatan: {$validated['catatan']}" : ''),
+            'action'     => 'verifikasi_berkas',
+        ]);
+
+        return redirect()->back()->with('success', "Status dokumen {$docTitle} berhasil diperbarui menjadi {$validated['status']}.");
     }
 
     public function update(Request $request, $id)
@@ -199,12 +312,38 @@ class PmbPendaftarController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('whatsapp', 'like', "%{$search}%")
-                  ->orWhere('no_registrasi', 'like', "%{$search}%");
+                  ->orWhere('pic_phone', 'like', "%{$search}%")
+                  ->orWhere('no_registrasi', 'like', "%{$search}%")
+                  ->orWhere('agent', 'like', "%{$search}%");
             });
+        }
+
+        // Filter: Agent
+        if ($request->filled('agent')) {
+            $agentVal = trim($request->input('agent'));
+            if ($agentVal === 'none' || $agentVal === 'Tanpa Agent') {
+                $query->where(function ($q) {
+                    $q->whereNull('agent')
+                      ->orWhere(DB::raw("TRIM(agent)"), '=', '');
+                });
+            } else {
+                $query->where('agent', $agentVal);
+            }
         }
 
         if ($request->filled('status_formulir') && $request->status_formulir !== 'all') {
             $query->where('status_formulir', $request->status_formulir);
+        }
+
+        if ($request->filled('status_berkas') && $request->status_berkas !== 'all') {
+            if ($request->status_berkas === 'Belum Upload') {
+                $query->where(function ($q) {
+                    $q->where('status_berkas', 'Belum Upload')
+                      ->orWhereNull('status_berkas');
+                });
+            } else {
+                $query->where('status_berkas', $request->status_berkas);
+            }
         }
 
         if ($request->filled('status_ujian') && $request->status_ujian !== 'all') {
@@ -240,6 +379,7 @@ class PmbPendaftarController extends Controller
                 'Program Studi Pilihan 1',
                 'Program Studi Pilihan 2',
                 'Gelombang',
+                'Agent / Referral',
                 'Status Formulir',
                 'Status Berkas',
                 'Status Ujian',
@@ -261,6 +401,7 @@ class PmbPendaftarController extends Controller
                     $p->prodi?->nama ?? '- Belum Pilih',
                     $p->prodiPilihan2?->nama ?? '-',
                     $p->gelombang ?? '- Data Lama',
+                    !empty($p->agent) ? $p->agent : 'Tanpa Agent',
                     $p->status_formulir ?? 'Belum Isi',
                     $p->status_berkas ?? 'Belum Upload',
                     $p->status_ujian ?? 'Belum Mengerjakan',

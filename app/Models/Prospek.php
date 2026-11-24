@@ -16,7 +16,7 @@ class Prospek extends Model
         'user_id', 'name', 'email', 'no_registrasi', 'gelombang', 'type', 'category', 'pic', 'pic_phone', 'whatsapp', 'wa_ortu',
         'status', 'status_formulir', 'status_berkas', 'status_ujian', 'nilai_ujian', 'tanggal_ujian', 'minat_kuliah', 'minat_miniclass',
         'stage_number', 'notes',
-        'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source',
+        'wilayah_id', 'sales_id', 'cs_id', 'owner_id', 'source', 'agent',
         'sekolah_id', 'asal_kelas', 'perusahaan_id', 'prodi_id', 'prodi_lainnya', 'prodi_pilihan_2_id',
         'berkas_data', 'form_data',
         'lost_reason', 'lost_note',

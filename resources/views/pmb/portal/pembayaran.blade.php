@@ -29,32 +29,31 @@
 @endpush
 
 @php
-    $prodi = $prospek?->prodi;
+    $prodi = $prospek?->prodi ?: ($prospek?->prodi_id ? \App\Models\Prodi::find($prospek->prodi_id) : null);
     $catalog = $catalog ?? \App\Services\MidtransService::getBiayaCatalog($prospek ?? null);
     $activeUktOptions = $activeUktOptions ?? \App\Services\MidtransService::getActiveUktCatalogOptions($prospek ?? null);
     $initialUktPeriod = $initialUktPeriod ?? ($catalog['ukt']['period'] ?? (array_key_first($activeUktOptions) ?: ''));
 
-    $pricePendaftaran  = (int) ($catalog['pendaftaran']['price'] ?? 300000);
-    $pricePerlengkapan = (int) ($catalog['perlengkapan']['price'] ?? 600000);
-    $priceDpp          = (int) ($catalog['dpp']['price'] ?? 500000);
-    $dppBasePrice      = (int) ($catalog['dpp']['base_price'] ?? $priceDpp);
+    $pricePendaftaran  = (int) ($catalog['pendaftaran']['price'] ?? ($prodi && isset($prodi->biaya_pendaftaran) ? (int) $prodi->biaya_pendaftaran : 300000));
+    $pricePerlengkapan = (int) ($catalog['perlengkapan']['price'] ?? ($prodi && isset($prodi->biaya_perlengkapan) ? (int) $prodi->biaya_perlengkapan : 600000));
+    $priceDpp          = (int) ($catalog['dpp']['price'] ?? ($prodi && isset($prodi->biaya_dpp) ? (int) $prodi->biaya_dpp : 500000));
+    $dppBasePrice      = (int) ($catalog['dpp']['base_price'] ?? ($prodi && isset($prodi->biaya_dpp) ? (int) $prodi->biaya_dpp : $priceDpp));
     $dppPaidPartial    = (int) ($catalog['dpp']['paid_partial'] ?? 0);
     $dppBeforeDiscount = (int) ($catalog['dpp']['remaining_before_discount'] ?? $priceDpp);
     $dppDiscountAmount = (int) ($catalog['dpp']['discount_amount'] ?? 0);
-    $dppSummary        = $dppSummary ?? \App\Services\VoucherDiscountService::getDppSummary($prospek ?? null);
+    $dppSummary        = $dppSummary ?? \App\Services\VoucherDiscountService::getDppSummary($prospek ?? null, $initialUktPeriod);
     $appliedVoucher    = $appliedVoucher ?? \App\Services\VoucherDiscountService::formatUsageForDisplay($dppSummary['active_usage'] ?? null);
     $priceUangGedung   = (int) ($catalog['uang_gedung']['price'] ?? ($prodi && isset($prodi->biaya_uang_gedung) ? (int) $prodi->biaya_uang_gedung : 0));
     $priceUkt          = (int) ($catalog['ukt']['price'] ?? ($initialUktPeriod && isset($activeUktOptions[$initialUktPeriod]) ? $activeUktOptions[$initialUktPeriod]['nominal'] : 0));
 
     $paidItems = $paidItems ?? (\App\Services\MidtransService::resolvePaidItems($prospek ?? null));
     $paymentGate = $paymentGate ?? \App\Services\MidtransService::getSequentialGateState($prospek ?? null, $initialUktPeriod);
-    $unlocked = $paymentGate['unlocked'] ?? ['pendaftaran' => true, 'perlengkapan' => true, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false];
+    $unlocked = $paymentGate['unlocked'] ?? ['pendaftaran' => true, 'perlengkapan' => true, 'dpp' => true, 'uang_gedung' => true, 'ukt' => true];
     $lockReasons = $paymentGate['lock_reasons'] ?? [];
-    $canUseDppVoucher = !empty($unlocked['dpp']) && empty($paidItems['dpp']) && $dppBeforeDiscount > 0;
 
-    $initialItems = $initialItems ?? ($transaksi ? \App\Services\MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => true, 'perlengkapan' => false, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false]);
+    $initialItems = $initialItems ?? ($transaksi ? \App\Services\MidtransService::resolveInitialItems($transaksi) : ['pendaftaran' => false, 'perlengkapan' => false, 'dpp' => false, 'uang_gedung' => false, 'ukt' => false]);
     foreach (['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'] as $_k) {
-        if (!empty($paidItems[$_k]) || empty($unlocked[$_k])) {
+        if (!empty($paidItems[$_k])) {
             $initialItems[$_k] = false;
         }
     }
@@ -64,10 +63,7 @@
     if ($priceUangGedung <= 0)   $initialItems['uang_gedung'] = false;
     if ($priceUkt <= 0)          $initialItems['ukt'] = false;
 
-    $initialTotal = $initialTotal ?? ($transaksi ? ((int) $transaksi->nominal ?: $pricePendaftaran) : $pricePendaftaran);
-    if (empty($unlocked['pendaftaran']) && $initialTotal === $pricePendaftaran && empty($initialItems['pendaftaran'])) {
-        $initialTotal = 0;
-    }
+    $initialTotal = $initialTotal ?? 0;
     $activeCategory = \App\Models\Transaksi::KATEGORI_PENDAFTARAN;
 @endphp
 
@@ -101,6 +97,7 @@
          selectedBankId: {{ $bankAccounts->first()?->id ?? 0 }},
          uktOptions: {{ json_encode($activeUktOptions) }},
          selectedUktPeriod: '{{ $initialUktPeriod }}',
+         uktDropdownOpen: false,
          paidItems: {
              pendaftaran: {{ !empty($paidItems['pendaftaran']) ? 'true' : 'false' }},
              perlengkapan: {{ !empty($paidItems['perlengkapan']) ? 'true' : 'false' }},
@@ -129,6 +126,7 @@
              uang_gedung: {{ $priceUangGedung }},
              ukt: {{ $priceUkt }}
          },
+         dppBasePrice: {{ $dppBasePrice }},
          dppBeforeDiscount: {{ $dppBeforeDiscount }},
          dppPaidPartial: {{ $dppPaidPartial }},
          appliedVoucher: {{ json_encode($appliedVoucher) }},
@@ -136,8 +134,35 @@
          voucherLoading: false,
          voucherMessage: '',
          voucherMessageType: 'success',
+         get allComponentsSelected() {
+             const keys = ['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'];
+             return keys.every(k => {
+                 const isChecked = Boolean(this.items[k]);
+                 const isPaid = Boolean(this.paidItems[k]);
+                 const isFree = (k === 'dpp') ? (Number(this.dppBasePrice) <= 0) : (Number(this.prices[k]) <= 0);
+                 return isChecked || isPaid || isFree;
+             });
+         },
+         get subtotal() {
+             let sum = 0;
+             if (this.items.pendaftaran && !this.paidItems.pendaftaran && this.prices.pendaftaran > 0) sum += this.prices.pendaftaran;
+             if (this.items.perlengkapan && !this.paidItems.perlengkapan && this.prices.perlengkapan > 0) sum += this.prices.perlengkapan;
+             if (this.items.dpp && !this.paidItems.dpp && this.prices.dpp > 0) sum += this.prices.dpp;
+             if (this.items.uang_gedung && !this.paidItems.uang_gedung && this.prices.uang_gedung > 0) sum += this.prices.uang_gedung;
+             if (this.items.ukt && !this.paidItems.ukt && this.prices.ukt > 0) sum += this.prices.ukt;
+             return sum;
+         },
+         get voucherDiscount() {
+             if (this.allComponentsSelected && this.appliedVoucher && Number(this.appliedVoucher.discount_amount) > 0) {
+                 return Math.min(this.subtotal, Number(this.appliedVoucher.discount_amount));
+             }
+             return 0;
+         },
+         get total() {
+             return Math.max(0, this.subtotal - this.voucherDiscount);
+         },
          get canZeroVoucherCheckout() {
-             return Boolean(this.items.dpp && !this.paidItems.dpp && this.unlocked.dpp && this.prices.dpp === 0 && this.appliedVoucher && this.appliedVoucher.discount_amount > 0);
+             return Boolean(this.allComponentsSelected && this.subtotal > 0 && this.total === 0 && this.voucherDiscount > 0);
          },
          get hasPayableSelection() {
              return this.total > 0 || this.canZeroVoucherCheckout;
@@ -150,15 +175,6 @@
                  }
                  return this.paidItems[k] || (this.prices[k] || 0) <= 0;
              });
-         },
-         get total() {
-             let sum = 0;
-             if (this.items.pendaftaran && !this.paidItems.pendaftaran && this.unlocked.pendaftaran && this.prices.pendaftaran > 0) sum += this.prices.pendaftaran;
-             if (this.items.perlengkapan && !this.paidItems.perlengkapan && this.unlocked.perlengkapan && this.prices.perlengkapan > 0) sum += this.prices.perlengkapan;
-             if (this.items.dpp && !this.paidItems.dpp && this.unlocked.dpp && this.prices.dpp > 0) sum += this.prices.dpp;
-             if (this.items.uang_gedung && !this.paidItems.uang_gedung && this.unlocked.uang_gedung && this.prices.uang_gedung > 0) sum += this.prices.uang_gedung;
-             if (this.items.ukt && !this.paidItems.ukt && this.unlocked.ukt && this.prices.ukt > 0) sum += this.prices.ukt;
-             return sum;
          },
          formatRupiah(num) {
              num = Number(num) || 0;
@@ -186,6 +202,17 @@
                  if (this.copiedId === id) this.copiedId = null;
              }, 2000);
          },
+         selectUktPeriod(key) {
+             if (this.paidItems.ukt) return;
+             this.selectedUktPeriod = key;
+             this.onUktPeriodChange();
+             this.uktDropdownOpen = false;
+             const el = document.getElementById('select-ukt-period');
+             if (el) {
+                 el.value = key;
+                 el.dispatchEvent(new Event('change'));
+             }
+         },
          onUktPeriodChange() {
              const opt = this.uktOptions[this.selectedUktPeriod];
              this.prices.ukt = opt ? Number(opt.nominal || 0) : 0;
@@ -193,22 +220,22 @@
                  this.items.ukt = false;
              }
              this.snapToken = null;
-             this.$nextTick(() => {
-                 if (typeof window.syncFeeFallback === 'function') {
-                     window.syncFeeFallback();
-                 }
-             });
-         },
+             },
          onItemChange() {
              if (this.paidItems.pendaftaran || !this.unlocked.pendaftaran || this.prices.pendaftaran <= 0) this.items.pendaftaran = false;
              if (this.paidItems.perlengkapan || !this.unlocked.perlengkapan || this.prices.perlengkapan <= 0) this.items.perlengkapan = false;
-             if (this.paidItems.dpp || !this.unlocked.dpp || this.dppBeforeDiscount <= 0) this.items.dpp = false;
+             if (this.paidItems.dpp || !this.unlocked.dpp || this.prices.dpp <= 0) this.items.dpp = false;
              if (this.paidItems.uang_gedung || !this.unlocked.uang_gedung || this.prices.uang_gedung <= 0) this.items.uang_gedung = false;
              if (this.paidItems.ukt || !this.unlocked.ukt || this.prices.ukt <= 0) this.items.ukt = false;
              this.snapToken = null;
          },
 
          async applyVoucher() {
+             if (!this.allComponentsSelected) {
+                 this.voucherMessageType = 'error';
+                 this.voucherMessage = 'Voucher hanya dapat digunakan jika seluruh 5 komponen biaya dipilih.';
+                 return;
+             }
              const code = (this.voucherCodeInput || '').trim().toUpperCase();
              if (!code) {
                  this.voucherMessageType = 'error';
@@ -218,6 +245,13 @@
              this.voucherLoading = true;
              this.voucherMessage = '';
              try {
+                 const orderedKeys = ['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'];
+                 const selectedKeys = orderedKeys.filter(k => {
+                     const isChecked = Boolean(this.items[k]);
+                     const isPaid = Boolean(this.paidItems[k]);
+                     const isFree = (k === 'dpp') ? (Number(this.dppBasePrice) <= 0) : (Number(this.prices[k]) <= 0);
+                     return isChecked || isPaid || isFree;
+                 });
                  const res = await fetch('{{ route('pmb.akun.voucher.apply') }}', {
                      method: 'POST',
                      headers: {
@@ -225,7 +259,11 @@
                          'X-CSRF-TOKEN': '{{ csrf_token() }}',
                          'Accept': 'application/json'
                      },
-                     body: JSON.stringify({ code })
+                     body: JSON.stringify({
+                         code,
+                         items: selectedKeys,
+                         ukt_period: this.selectedUktPeriod
+                     })
                  });
                  const data = await res.json();
                  if (!res.ok || !data.success) {
@@ -233,19 +271,10 @@
                  }
                  this.appliedVoucher = data.voucher;
                  this.voucherCodeInput = data.voucher?.voucher_code || code;
-                 if (data.dpp_summary) {
-                     this.prices.dpp = Number(data.dpp_summary.remaining_payable ?? 0);
-                     this.dppBeforeDiscount = Number(data.dpp_summary.remaining_before_discount ?? this.dppBeforeDiscount);
-                 }
-                 if (!this.paidItems.dpp && this.unlocked.dpp) {
-                     this.items.dpp = true;
-                 }
                  this.snapToken = null;
                  this.voucherMessageType = 'success';
                  this.voucherMessage = data.message || 'Voucher berhasil diterapkan!';
-                 this.$nextTick(() => {
-                     if (typeof window.syncFeeFallback === 'function') window.syncFeeFallback();
-                 });
+                 
              } catch (e) {
                  this.voucherMessageType = 'error';
                  this.voucherMessage = e.message || 'Gagal memvalidasi kode voucher.';
@@ -273,15 +302,10 @@
                  }
                  this.appliedVoucher = null;
                  this.voucherCodeInput = '';
-                 if (data.dpp_summary) {
-                     this.prices.dpp = Number(data.dpp_summary.remaining_payable ?? this.dppBeforeDiscount);
-                 }
                  this.snapToken = null;
                  this.voucherMessageType = 'success';
                  this.voucherMessage = data.message || 'Voucher dibatalkan.';
-                 this.$nextTick(() => {
-                     if (typeof window.syncFeeFallback === 'function') window.syncFeeFallback();
-                 });
+                 
              } catch (e) {
                  this.voucherMessageType = 'error';
                  this.voucherMessage = e.message || 'Gagal membatalkan voucher.';
@@ -426,7 +450,6 @@
                  const orderedKeys = ['pendaftaran', 'perlengkapan', 'dpp', 'uang_gedung', 'ukt'];
                  const selectedKeys = orderedKeys.filter(k => {
                      if (!this.items[k] || this.paidItems[k] || !this.unlocked[k]) return false;
-                     if (k === 'dpp' && this.appliedVoucher && this.appliedVoucher.discount_amount > 0) return true;
                      return (this.prices[k] || 0) > 0;
                  });
                  if (selectedKeys.length > 0) {
@@ -435,7 +458,7 @@
                  if (selectedKeys.includes('ukt') && this.selectedUktPeriod) {
                      payload.ukt_period = this.selectedUktPeriod;
                  }
-                 if (selectedKeys.includes('dpp') && this.appliedVoucher && this.appliedVoucher.voucher_code) {
+                 if (this.allComponentsSelected && this.appliedVoucher && this.appliedVoucher.voucher_code) {
                      payload.voucher_code = this.appliedVoucher.voucher_code;
                  }
              }
@@ -531,21 +554,41 @@
             <div class="w-28 h-1 bg-[#0b3d82] mx-auto rounded-full mt-3"></div>
         </div>
 
-        <!-- Deadline PMB Box (Icon SVG profesional, tanpa emoji) -->
-        <div class="bg-sky-50 rounded-2xl p-4 sm:p-5 border border-sky-200 mt-4">
-            <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-xl bg-sky-100 text-[#0b3d82] flex items-center justify-center shrink-0 mt-0.5">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+        <!-- Deadline & Info Pendaftar PMB Box -->
+        <div class="bg-gradient-to-r from-sky-50 via-blue-50/50 to-sky-50 rounded-2xl p-4 sm:p-5 border border-sky-200 mt-4 shadow-2xs">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <!-- Info Pendaftar & Periode -->
+                <div class="flex items-start gap-3.5">
+                    <div class="w-10 h-10 rounded-2xl bg-white text-[#0b3d82] flex items-center justify-center shrink-0 shadow-2xs border border-sky-200/80 mt-0.5">
+                        <svg class="w-5 h-5 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="font-bold text-slate-900 font-display text-sm sm:text-base">
+                            Periode Pendaftaran & Pembayaran PMB
+                        </h3>
+                        <p class="text-xs text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span>Pendaftar: <strong class="text-slate-900 font-semibold">{{ $prospek->name }}</strong></span>
+                            <span class="text-slate-300">•</span>
+                            <span>Program Studi: <strong class="text-slate-900 font-semibold">{{ $prodi ? (($prodi->jenjang ? $prodi->jenjang . ' ' : '') . $prodi->nama) : '-' }}</strong></span>
+                        </p>
+                    </div>
                 </div>
-                <div class="space-y-1 text-xs">
-                    <h3 class="font-bold text-slate-900 font-display text-sm">
-                        Periode Pendaftaran & Pembayaran PMB
-                    </h3>
-                    <p class="text-slate-500">
-                        Pendaftar: <strong class="text-slate-800">{{ $prospek->name }}</strong> | No. Registrasi: <strong class="text-[#0b3d82] font-mono">{{ $prospek->no_registrasi ?? '-' }}</strong> | Program Studi: <strong class="text-slate-800">{{ $prodi ? (($prodi->jenjang ? $prodi->jenjang . ' ' : '') . $prodi->nama) : '-' }}</strong>
-                    </p>
+
+                <!-- Kartu Nomor Registrasi Besar, Jelas & Sangat Menonjol -->
+                <div class="shrink-0 self-stretch sm:self-auto flex items-center">
+                    <div class="w-full sm:w-auto bg-white px-4 py-2.5 rounded-2xl border-2 border-[#0b3d82]/25 shadow-xs flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-[#0b3d82] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 leading-tight">No. Registrasi CAMABA</span>
+                            <span class="block font-mono font-black text-base sm:text-lg text-[#0b3d82] tracking-wider leading-none mt-0.5">{{ $prospek->no_registrasi ?? '-' }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -673,167 +716,51 @@
             </label>
 
             <!-- 3. DPP -->
-            <div class="space-y-2">
-                <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
-                       :class="(paidItems.dpp || dppBeforeDiscount <= 0 || !unlocked.dpp) ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-75' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
-                       @click="if (paidItems.dpp || dppBeforeDiscount <= 0 || !unlocked.dpp) { $event.preventDefault(); return false; }">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox"
-                               id="check-dpp"
-                               data-key="dpp"
-                               :data-price="prices.dpp"
-                               data-price="{{ $priceDpp }}"
-                               :data-voucher-applied="(appliedVoucher && appliedVoucher.discount_amount > 0) ? '1' : '0'"
-                               x-model="items.dpp"
-                               @change="onItemChange()"
-                               :disabled="paidItems.dpp || dppBeforeDiscount <= 0 || !unlocked.dpp"
-                               {{ (!empty($paidItems['dpp']) || $dppBeforeDiscount <= 0 || empty($unlocked['dpp'])) ? 'disabled' : '' }}
-                               {{ (!empty($initialItems['dpp']) && empty($paidItems['dpp']) && !empty($unlocked['dpp']) && $dppBeforeDiscount > 0) ? 'checked' : '' }}
-                               class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400">
-                        <div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-sm font-semibold text-slate-800 block">DPP</span>
-                                @if($dppBasePrice <= 0)
-                                    <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        Gratis (Rp 0)
-                                    </span>
-                                @elseif(!empty($paidItems['dpp']))
-                                    <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                        Sudah Dibayar (Lunas)
-                                    </span>
-                                    @if(!empty($appliedVoucher))
-                                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                                            Voucher {{ $appliedVoucher['voucher_code'] }} (-{{ $appliedVoucher['percentage_formatted'] }}% • Hemat Rp {{ number_format($appliedVoucher['discount_amount'], 0, ',', '.') }})
-                                        </span>
-                                    @endif
-                                @elseif(empty($unlocked['dpp']))
-                                    <span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                        Terkunci
-                                    </span>
-                                @else
-                                    <template x-if="appliedVoucher">
-                                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                            <span x-text="'Voucher ' + appliedVoucher.voucher_code + ' (-' + appliedVoucher.percentage_formatted + '%)'"></span>
-                                        </span>
-                                    </template>
-                                @endif
-                            </div>
-                            <span class="text-[11px] {{ empty($unlocked['dpp']) && $dppBeforeDiscount > 0 && empty($paidItems['dpp']) ? 'text-amber-700 font-medium' : 'text-slate-400' }}">
-                                @if(empty($unlocked['dpp']) && $dppBeforeDiscount > 0 && empty($paidItems['dpp']))
-                                    {{ $lockReasons['dpp'] ?? 'Selesaikan Biaya Pendaftaran dan Perlengkapan terlebih dahulu' }}
-                                @elseif($dppPaidPartial > 0 && empty($paidItems['dpp']))
-                                    Dana Pengembangan Pendidikan • Sudah dibayar sebagian Rp {{ number_format($dppPaidPartial, 0, ',', '.') }} (Sisa sebelum diskon: Rp {{ number_format($dppBeforeDiscount, 0, ',', '.') }})
-                                @else
-                                    Dana Pengembangan Pendidikan (1x bayar)
-                                @endif
-                            </span>
+            <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
+                   :class="(paidItems.dpp || prices.dpp <= 0) ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-85' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
+                   @click="if (paidItems.dpp || prices.dpp <= 0) { $event.preventDefault(); return false; }">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox"
+                           id="check-dpp"
+                           data-key="dpp"
+                           :data-price="prices.dpp"
+                           data-price="{{ $priceDpp }}"
+                           x-model="items.dpp"
+                           @change="onItemChange()"
+                           :disabled="paidItems.dpp || prices.dpp <= 0"
+                           {{ (!empty($paidItems['dpp']) || $priceDpp <= 0) ? 'disabled' : '' }}
+                           {{ (!empty($initialItems['dpp']) && empty($paidItems['dpp']) && $priceDpp > 0) ? 'checked' : '' }}
+                           class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-semibold text-slate-800 block">DPP</span>
+                            @if($dppBasePrice <= 0)
+                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    Gratis (Rp 0)
+                                </span>
+                            @elseif(!empty($paidItems['dpp']))
+                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    Sudah Dibayar (Lunas)
+                                </span>
+                            @endif
                         </div>
+                        <span class="text-[11px] text-slate-400">
+                            Dana Pengembangan Pendidikan (1x bayar)
+                        </span>
                     </div>
-                    <div class="text-right shrink-0 ml-3">
-                        <template x-if="appliedVoucher && !paidItems.dpp">
-                            <div>
-                                <span class="text-[11px] text-slate-400 line-through block" x-text="formatRupiah(dppBeforeDiscount)"></span>
-                                <span class="text-sm font-bold text-emerald-700" x-text="prices.dpp <= 0 ? 'Rp 0 (Diskon 100%)' : formatRupiah(prices.dpp)"></span>
-                            </div>
-                        </template>
-                        <template x-if="!appliedVoucher || paidItems.dpp">
-                            <span class="text-sm font-semibold text-slate-700" :class="paidItems.dpp ? 'line-through text-slate-400' : ''" x-text="dppBasePrice <= 0 ? 'Rp 0 (Gratis)' : formatRupiah(paidItems.dpp ? dppBasePrice : prices.dpp)">
-                                {{ $dppBasePrice <= 0 ? 'Rp 0 (Gratis)' : 'Rp ' . number_format(!empty($paidItems['dpp']) ? $dppBasePrice : $priceDpp, 0, ',', '.') }}
-                            </span>
-                        </template>
-                    </div>
-                </label>
-
-                {{-- Form Voucher Diskon DPP: HANYA muncul ketika CAMABA sudah mencapai tahap pembayaran DPP --}}
-                @if($canUseDppVoucher)
-                    <div id="dpp-voucher-box" class="ml-0 sm:ml-7 p-3.5 sm:p-4 rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-50/60 via-white to-emerald-50/30 space-y-3">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div class="flex items-center gap-2">
-                                <div class="w-7 h-7 rounded-xl bg-blue-100 text-[#0b3d82] flex items-center justify-center shrink-0">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h4 class="text-xs font-extrabold text-slate-900 font-display">Voucher Diskon DPP</h4>
-                                    <p class="text-[11px] text-slate-500">Masukkan kode voucher resmi dari Admin PMB UCIC untuk potongan biaya DPP.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                            <input type="text"
-                                   id="voucher-code-input"
-                                   x-model="voucherCodeInput"
-                                   @keydown.enter.prevent="applyVoucher()"
-                                   placeholder="Masukkan kode voucher (contoh: UCIC20)"
-                                   class="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold uppercase tracking-wider text-slate-800 placeholder-slate-400 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 outline-none transition">
-                            <button type="button"
-                                    id="btn-gunakan-voucher"
-                                    @click="applyVoucher()"
-                                    :disabled="voucherLoading"
-                                    class="px-4 py-2 rounded-xl text-xs font-bold bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-2xs transition cursor-pointer disabled:opacity-60 shrink-0">
-                                <span x-text="voucherLoading ? 'Memeriksa...' : 'Gunakan Voucher'">Gunakan Voucher</span>
-                            </button>
-                        </div>
-
-                        {{-- Notifikasi Validasi Voucher --}}
-                        <template x-if="voucherMessage">
-                            <div class="px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2"
-                                 :class="voucherMessageType === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-700'">
-                                <span x-text="voucherMessage"></span>
-                            </div>
-                        </template>
-
-                        {{-- Rincian Potongan Voucher Aktif --}}
-                        <template x-if="appliedVoucher">
-                            <div id="dpp-voucher-applied-summary" class="p-3 rounded-xl bg-white border border-emerald-200 shadow-2xs space-y-2 text-xs">
-                                <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="px-2 py-0.5 rounded-md font-mono font-extrabold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-200" x-text="appliedVoucher.voucher_code"></span>
-                                        <template x-if="appliedVoucher.voucher_name">
-                                            <span class="text-[11px] font-bold text-slate-700" x-text="appliedVoucher.voucher_name"></span>
-                                        </template>
-                                        <span class="text-[11px] font-bold text-emerald-700" x-text="'Diskon ' + appliedVoucher.percentage_formatted + '%'"></span>
-                                    </div>
-                                    <template x-if="appliedVoucher.status === 'applied'">
-                                        <button type="button"
-                                                @click="removeAppliedVoucher()"
-                                                :disabled="voucherLoading"
-                                                class="text-[11px] font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer">
-                                            Batalkan Voucher
-                                        </button>
-                                    </template>
-                                </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5 text-[11px]">
-                                    <div>
-                                        <span class="text-slate-400 block">Kode Voucher</span>
-                                        <strong class="text-slate-800 font-mono" x-text="appliedVoucher.voucher_code"></strong>
-                                    </div>
-                                    <div>
-                                        <span class="text-slate-400 block">Persentase Diskon</span>
-                                        <strong class="text-emerald-700" x-text="appliedVoucher.percentage_formatted + '%'"></strong>
-                                    </div>
-                                    <div>
-                                        <span class="text-slate-400 block">Nominal Potongan</span>
-                                        <strong class="text-emerald-700" x-text="'- ' + formatRupiah(appliedVoucher.discount_amount)"></strong>
-                                    </div>
-                                    <div>
-                                        <span class="text-slate-400 block">DPP Setelah Diskon</span>
-                                        <strong class="text-[#0b3d82]" x-text="formatRupiah(appliedVoucher.dpp_after_discount)"></strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                @endif
-            </div>
+                </div>
+                <div class="text-right shrink-0 ml-3">
+                    <span class="text-sm font-semibold text-slate-700" :class="paidItems.dpp ? 'line-through text-slate-400' : ''" x-text="dppBasePrice <= 0 ? 'Rp 0 (Gratis)' : formatRupiah(paidItems.dpp ? dppBasePrice : prices.dpp)">
+                        {{ $dppBasePrice <= 0 ? 'Rp 0 (Gratis)' : 'Rp ' . number_format(!empty($paidItems['dpp']) ? $dppBasePrice : $priceDpp, 0, ',', '.') }}
+                    </span>
+                </div>
+            </label>
 
             <!-- 4. Uang Gedung -->
             <label class="flex items-center justify-between p-3 rounded-2xl border transition select-none"
-                   :class="(paidItems.uang_gedung || prices.uang_gedung <= 0 || !unlocked.uang_gedung) ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-75' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
-                   @click="if (paidItems.uang_gedung || prices.uang_gedung <= 0 || !unlocked.uang_gedung) { $event.preventDefault(); return false; }">
+                   :class="(paidItems.uang_gedung || prices.uang_gedung <= 0) ? 'bg-slate-50/80 border-slate-200 cursor-not-allowed opacity-85' : 'border-slate-100 hover:bg-slate-50 cursor-pointer'"
+                   @click="if (paidItems.uang_gedung || prices.uang_gedung <= 0) { $event.preventDefault(); return false; }">
                 <div class="flex items-center gap-3">
                     <input type="checkbox"
                            id="check-uang-gedung"
@@ -841,9 +768,9 @@
                            data-price="{{ $priceUangGedung }}"
                            x-model="items.uang_gedung"
                            @change="onItemChange()"
-                           :disabled="paidItems.uang_gedung || prices.uang_gedung <= 0 || !unlocked.uang_gedung"
-                           {{ (!empty($paidItems['uang_gedung']) || $priceUangGedung <= 0 || empty($unlocked['uang_gedung'])) ? 'disabled' : '' }}
-                           {{ (!empty($initialItems['uang_gedung']) && empty($paidItems['uang_gedung']) && !empty($unlocked['uang_gedung']) && $priceUangGedung > 0) ? 'checked' : '' }}
+                           :disabled="paidItems.uang_gedung || prices.uang_gedung <= 0"
+                           {{ (!empty($paidItems['uang_gedung']) || $priceUangGedung <= 0) ? 'disabled' : '' }}
+                           {{ (!empty($initialItems['uang_gedung']) && empty($paidItems['uang_gedung']) && $priceUangGedung > 0) ? 'checked' : '' }}
                            class="fee-checkbox w-4 h-4 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400">
                     <div>
                         <div class="flex items-center gap-2 flex-wrap">
@@ -857,14 +784,10 @@
                                     <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                     Sudah Dibayar (Lunas)
                                 </span>
-                            @elseif(empty($unlocked['uang_gedung']))
-                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                    Terkunci
-                                </span>
                             @endif
                         </div>
-                        <span class="text-[11px] {{ empty($unlocked['uang_gedung']) && $priceUangGedung > 0 && empty($paidItems['uang_gedung']) ? 'text-amber-700 font-medium' : 'text-slate-400' }}">
-                            {{ (empty($unlocked['uang_gedung']) && $priceUangGedung > 0 && empty($paidItems['uang_gedung'])) ? ($lockReasons['uang_gedung'] ?? 'Bayar DPP terlebih dahulu') : 'Kontribusi pengembangan gedung & fasilitas kampus (1x bayar)' }}
+                        <span class="text-[11px] text-slate-400">
+                            Kontribusi pengembangan gedung & fasilitas kampus (1x bayar)
                         </span>
                     </div>
                 </div>
@@ -877,7 +800,7 @@
 
             <!-- 5. UKT -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border transition select-none"
-                 :class="(paidItems.ukt || prices.ukt <= 0 || !unlocked.ukt) ? 'bg-slate-50/80 border-slate-200 opacity-75' : 'border-slate-100 hover:bg-slate-50'">
+                 :class="(paidItems.ukt || prices.ukt <= 0) ? 'bg-slate-50/80 border-slate-200 opacity-75' : 'border-slate-100 hover:bg-slate-50'">
                 <div class="flex items-start sm:items-center gap-3 flex-1 min-w-0">
                     <input type="checkbox"
                            id="check-ukt"
@@ -886,15 +809,15 @@
                            data-price="{{ $priceUkt }}"
                            x-model="items.ukt"
                            @change="onItemChange()"
-                           :disabled="paidItems.ukt || prices.ukt <= 0 || !unlocked.ukt"
-                           {{ (!empty($paidItems['ukt']) || $priceUkt <= 0 || empty($unlocked['ukt'])) ? 'disabled' : '' }}
-                           {{ (!empty($initialItems['ukt']) && empty($paidItems['ukt']) && !empty($unlocked['ukt']) && $priceUkt > 0) ? 'checked' : '' }}
+                           :disabled="paidItems.ukt || prices.ukt <= 0"
+                           {{ (!empty($paidItems['ukt']) || $priceUkt <= 0) ? 'disabled' : '' }}
+                           {{ (!empty($initialItems['ukt']) && empty($paidItems['ukt']) && $priceUkt > 0) ? 'checked' : '' }}
                            class="fee-checkbox w-4 h-4 mt-0.5 sm:mt-0 rounded border-slate-300 text-[#0b3d82] focus:ring-[#0b3d82] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 shrink-0 cursor-pointer">
                     <div class="flex-1 min-w-0 space-y-1.5">
                         <label for="check-ukt"
-                               :class="(paidItems.ukt || prices.ukt <= 0 || !unlocked.ukt) ? 'cursor-not-allowed' : 'cursor-pointer'"
+                               :class="(paidItems.ukt || prices.ukt <= 0) ? 'cursor-not-allowed' : 'cursor-pointer'"
                                class="block"
-                               @click="if (paidItems.ukt || prices.ukt <= 0 || !unlocked.ukt) { $event.preventDefault(); return false; }">
+                               @click="if (paidItems.ukt || prices.ukt <= 0) { $event.preventDefault(); return false; }">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-sm font-semibold text-slate-800 block">UKT</span>
                                 @if($priceUkt <= 0)
@@ -906,31 +829,116 @@
                                         <svg class="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                         Sudah Dibayar (Lunas)
                                     </span>
-                                @elseif(empty($unlocked['ukt']))
-                                    <span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                        Terkunci
-                                    </span>
                                 @endif
                             </div>
-                            <span class="text-[11px] block {{ empty($unlocked['ukt']) && $priceUkt > 0 && empty($paidItems['ukt']) ? 'text-amber-700 font-medium' : 'text-slate-400' }}">
-                                {{ (empty($unlocked['ukt']) && $priceUkt > 0 && empty($paidItems['ukt'])) ? ($lockReasons['ukt'] ?? 'Selesaikan pembayaran tahap sebelumnya terlebih dahulu') : 'Uang Kuliah Tunggal sesuai periode yang dipilih' }}
+                            <span class="text-[11px] block text-slate-400">
+                                Uang Kuliah Tunggal sesuai periode yang dipilih
                             </span>
                         </label>
 
                         @if(!empty($activeUktOptions))
-                            <div class="max-w-xs">
+                            <div class="relative max-w-xs sm:max-w-sm pt-1" @click.outside="uktDropdownOpen = false">
+                                <!-- Hidden Native Select for Accessibility, Form Serialization, and Test Compatibility -->
                                 <select id="select-ukt-period"
                                         x-model="selectedUktPeriod"
                                         @change="onUktPeriodChange()"
-                                        :disabled="paidItems.ukt || !unlocked.ukt"
-                                        {{ (!empty($paidItems['ukt']) || empty($unlocked['ukt'])) ? 'disabled' : '' }}
-                                        class="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition disabled:bg-slate-100 disabled:cursor-not-allowed">
+                                        :disabled="paidItems.ukt"
+                                        {{ (!empty($paidItems['ukt'])) ? 'disabled' : '' }}
+                                        class="sr-only"
+                                        tabindex="-1"
+                                        aria-hidden="true">
                                     @foreach($activeUktOptions as $uktKey => $uktOpt)
                                         <option value="{{ $uktKey }}" {{ $initialUktPeriod === $uktKey ? 'selected' : '' }}>
                                             {{ $uktOpt['label'] }} — Rp {{ number_format($uktOpt['nominal'], 0, ',', '.') }}
                                         </option>
                                     @endforeach
                                 </select>
+
+                                <!-- Custom Modern Dropdown Button -->
+                                <button type="button"
+                                        @click="if (!paidItems.ukt) uktDropdownOpen = !uktDropdownOpen"
+                                        :disabled="paidItems.ukt"
+                                        :class="{
+                                            'border-[#0b3d82] ring-2 ring-blue-100 shadow-xs': uktDropdownOpen,
+                                            'border-slate-200 hover:border-[#0b3d82]/60 hover:shadow-xs': !uktDropdownOpen && !paidItems.ukt,
+                                            'opacity-60 cursor-not-allowed bg-slate-100/80 border-slate-200': paidItems.ukt
+                                        }"
+                                        class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-white text-left transition-all duration-200 select-none cursor-pointer group focus:outline-none">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <div class="w-7 h-7 rounded-lg bg-blue-50 text-[#0b3d82] flex items-center justify-center shrink-0 border border-blue-100/80 transition-colors group-hover:bg-[#0b3d82] group-hover:text-white">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block leading-tight">Periode UKT</span>
+                                            <span class="text-xs font-bold text-slate-800 truncate block"
+                                                  x-text="uktOptions[selectedUktPeriod] ? uktOptions[selectedUktPeriod].label : 'Pilih Periode UKT'">
+                                                {{ $activeUktOptions[$initialUktPeriod]['label'] ?? 'Pilih Periode UKT' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="text-[11px] font-bold text-[#0b3d82] bg-blue-50/90 px-2 py-0.5 rounded-lg border border-blue-100"
+                                              x-text="uktOptions[selectedUktPeriod] ? formatRupiah(uktOptions[selectedUktPeriod].nominal) : '-'">
+                                            Rp {{ number_format($activeUktOptions[$initialUktPeriod]['nominal'] ?? 0, 0, ',', '.') }}
+                                        </span>
+                                        <svg class="w-4 h-4 text-slate-400 group-hover:text-[#0b3d82] transition-transform duration-200"
+                                             :class="uktDropdownOpen ? 'rotate-180 text-[#0b3d82]' : ''"
+                                             fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </div>
+                                </button>
+
+                                <!-- Dropdown Menu Popover with Slide & Fade Animation -->
+                                <div x-show="uktDropdownOpen"
+                                     x-cloak
+                                     @keydown.escape.window="uktDropdownOpen = false"
+                                     x-transition:enter="transition ease-out duration-200"
+                                     x-transition:enter-start="opacity-0 translate-y-1.5 scale-95"
+                                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                                     x-transition:leave="transition ease-in duration-150"
+                                     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                                     x-transition:leave-end="opacity-0 translate-y-1.5 scale-95"
+                                     class="absolute left-0 mt-1.5 w-full sm:w-[350px] bg-white rounded-2xl shadow-xl border border-slate-200/90 py-1.5 z-40 overflow-hidden">
+                                    <div class="px-3.5 py-1.5 flex items-center justify-between border-b border-slate-100 text-[11px] text-slate-400 font-medium bg-slate-50/50">
+                                        <span>Pilih Periode Pembayaran UKT</span>
+                                        <span class="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{{ count($activeUktOptions) }} Pilihan</span>
+                                    </div>
+                                    <div class="py-1 max-h-60 overflow-y-auto divide-y divide-slate-50">
+                                        @foreach($activeUktOptions as $uktKey => $uktOpt)
+                                            <button type="button"
+                                                    @click="selectUktPeriod('{{ $uktKey }}')"
+                                                    :class="selectedUktPeriod === '{{ $uktKey }}' ? 'bg-blue-50/70 text-[#0b3d82]' : 'text-slate-700 hover:bg-slate-50'"
+                                                    class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs text-left transition-all duration-150 group cursor-pointer">
+                                                <div class="flex items-center gap-2.5">
+                                                    <!-- Animated Radio indicator -->
+                                                    <div class="w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 shrink-0"
+                                                         :class="selectedUktPeriod === '{{ $uktKey }}' ? 'border-[#0b3d82] bg-[#0b3d82]' : 'border-slate-300 group-hover:border-[#0b3d82]'">
+                                                        <div class="w-1.5 h-1.5 rounded-full bg-white transition-transform duration-200"
+                                                             :class="selectedUktPeriod === '{{ $uktKey }}' ? 'scale-100 opacity-100' : 'scale-0 opacity-0'"></div>
+                                                    </div>
+                                                    <span class="font-semibold transition-colors duration-150"
+                                                          :class="selectedUktPeriod === '{{ $uktKey }}' ? 'text-[#0b3d82]' : 'text-slate-800 group-hover:text-slate-900'">
+                                                        {{ $uktOpt['label'] }}
+                                                    </span>
+                                                </div>
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    <span class="font-bold text-xs px-2 py-0.5 rounded-md transition-colors"
+                                                          :class="selectedUktPeriod === '{{ $uktKey }}' ? 'text-[#0b3d82] bg-white border border-blue-200 shadow-2xs' : 'text-slate-600 bg-slate-50 border border-slate-100 group-hover:bg-white'">
+                                                        Rp {{ number_format($uktOpt['nominal'], 0, ',', '.') }}
+                                                    </span>
+                                                    <template x-if="selectedUktPeriod === '{{ $uktKey }}'">
+                                                        <svg class="w-4 h-4 text-[#0b3d82]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                                        </svg>
+                                                    </template>
+                                                </div>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
                         @endif
                     </div>
@@ -942,6 +950,95 @@
                         {{ $priceUkt <= 0 ? 'Rp 0 (Gratis)' : 'Rp ' . number_format($priceUkt, 0, ',', '.') }}
                     </span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Section: Input Voucher Diskon (HANYA MUNCUL KETIKA SELURUH 5 KOMPONEN TERPILIH - POSISI DI BAWAH UKT) -->
+        <div id="voucher-input-section"
+             x-show="allComponentsSelected"
+             x-cloak
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 transform -translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 transform translate-y-0"
+             x-transition:leave-end="opacity-0 transform -translate-y-2"
+             class="pt-4 border-t border-slate-100 space-y-3">
+            <div class="p-4 sm:p-5 rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-50/60 via-white to-emerald-50/30 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-blue-100 text-[#0b3d82] flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Voucher Potongan Biaya</h4>
+                            <p class="text-[11px] text-slate-500">Masukkan kode voucher resmi PMB UCIC untuk potongan biaya pendaftaran langsung.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input type="text"
+                           id="voucher-code-input"
+                           x-model="voucherCodeInput"
+                           @keydown.enter.prevent="applyVoucher()"
+                           placeholder="Masukkan kode voucher "
+                           class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold uppercase tracking-wider text-slate-800 placeholder-slate-400 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 outline-none transition">
+                    <button type="button"
+                            id="btn-gunakan-voucher"
+                            @click="applyVoucher()"
+                            :disabled="voucherLoading"
+                            class="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0b3d82] hover:bg-[#082a5c] text-white shadow-2xs transition cursor-pointer disabled:opacity-60 shrink-0">
+                        <span x-text="voucherLoading ? 'Memeriksa...' : 'Gunakan Voucher'">Gunakan Voucher</span>
+                    </button>
+                </div>
+
+                {{-- Notifikasi Validasi Voucher --}}
+                <template x-if="voucherMessage">
+                    <div class="px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2"
+                         :class="voucherMessageType === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-700'">
+                        <span x-text="voucherMessage"></span>
+                    </div>
+                </template>
+
+                {{-- Rincian Potongan Voucher Aktif --}}
+                <template x-if="appliedVoucher">
+                    <div id="voucher-applied-summary" class="p-3.5 rounded-xl bg-white border border-emerald-200 shadow-2xs space-y-2 text-xs">
+                        <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="px-2 py-0.5 rounded-md font-mono font-extrabold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-200" x-text="appliedVoucher.voucher_code"></span>
+                                <template x-if="appliedVoucher.voucher_name">
+                                    <span class="text-[11px] font-bold text-slate-700" x-text="appliedVoucher.voucher_name"></span>
+                                </template>
+                                <span class="text-[11px] font-bold text-emerald-700" x-text="'Potongan ' + formatRupiah(appliedVoucher.discount_amount)"></span>
+                            </div>
+                            <template x-if="appliedVoucher.status === 'applied'">
+                                <button type="button"
+                                        @click="removeAppliedVoucher()"
+                                        :disabled="voucherLoading"
+                                        class="text-[11px] font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer">
+                                    Batalkan Voucher
+                                </button>
+                            </template>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-0.5 text-[11px]">
+                            <div>
+                                <span class="text-slate-400 block">Kode Voucher</span>
+                                <strong class="text-slate-800 font-mono" x-text="appliedVoucher.voucher_code"></strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block">Nominal Potongan</span>
+                                <strong class="text-emerald-700" x-text="'- ' + formatRupiah(appliedVoucher.discount_amount)"></strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block">Status Voucher</span>
+                                <strong class="text-[#0b3d82] uppercase" x-text="appliedVoucher.status === 'applied' ? 'Aktif Digunakan' : appliedVoucher.status"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -1089,6 +1186,26 @@
             </div>
         </div>
 
+        <!-- Ringkasan Rincian Pembayaran (Subtotal, Diskon Voucher, Total Akhir) -->
+        <div class="pt-4 border-t border-slate-100 space-y-2 text-xs">
+            <div class="flex justify-between items-center text-slate-600">
+                <span>Subtotal Komponen Biaya:</span>
+                <span class="font-semibold text-slate-800" x-text="formatRupiah(subtotal)"></span>
+            </div>
+            <template x-if="allComponentsSelected && appliedVoucher && voucherDiscount > 0">
+                <div class="flex justify-between items-center text-emerald-700 font-medium">
+                    <span class="flex items-center gap-1">
+                        <span>Potongan Voucher (<strong class="font-mono" x-text="appliedVoucher.voucher_code"></strong>):</span>
+                    </span>
+                    <span class="font-bold" x-text="'- ' + formatRupiah(voucherDiscount)"></span>
+                </div>
+            </template>
+            <div class="flex justify-between items-center pt-2 border-t border-slate-200 text-sm">
+                <span class="font-bold text-slate-800">Total Pembayaran Akhir:</span>
+                <span class="text-lg font-bold font-display text-[#0b3d82]" x-text="formatRupiah(total)"></span>
+            </div>
+        </div>
+
         <!-- Tombol Aksi Pembayaran -->
         <div class="pt-4 border-t border-slate-100">
             <template x-if="allItemsPaid">
@@ -1112,7 +1229,7 @@
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
-                    <span id="btn-lanjut-bayar-text" x-text="loading ? 'Menghubungkan Midtrans...' : (!hasPayableSelection ? 'Pilih minimal 1 komponen biaya' : (canZeroVoucherCheckout && total === 0 ? 'Konfirmasi Pembayaran DPP (Voucher 100%)' : ('Lanjutkan Pembayaran - ' + formatRupiah(total))))">
+                    <span id="btn-lanjut-bayar-text" x-text="loading ? 'Menghubungkan Midtrans...' : (!hasPayableSelection ? 'Pilih minimal 1 komponen biaya' : (canZeroVoucherCheckout && total === 0 ? 'Konfirmasi Pembayaran (Voucher 100%)' : ('Lanjutkan Pembayaran - ' + formatRupiah(total))))">
                         Lanjutkan Pembayaran - Rp {{ number_format($initialTotal, 0, ',', '.') }}
                     </span>
                 </button>
@@ -1496,23 +1613,24 @@
 
 @push('scripts')
 <script>
-    // Fallback kalkulasi total pendaftaran instan saat checkbox diklik
+    // Fallback kalkulasi total pendaftaran instan (hanya aktif jika Alpine tidak aktif)
     (function() {
         function calculateAndSync() {
+            // Jika Alpine aktif, biarkan sistem reaktif Alpine yang mengelola display & button text
+            if (window.Alpine || (document.getElementById('pmb-pembayaran-container') && document.getElementById('pmb-pembayaran-container')._x_dataStack)) {
+                return;
+            }
+
             var checkboxes = document.querySelectorAll('.fee-checkbox');
             var totalDisplay = document.getElementById('total-pembayaran-display');
             var btnText = document.getElementById('btn-lanjut-bayar-text');
             var btnBayar = document.getElementById('btn-lanjut-bayar');
 
             var sum = 0;
-            var hasZeroVoucherDpp = false;
             checkboxes.forEach(function(cb) {
                 if (cb.checked && !cb.disabled) {
                     var price = parseInt(cb.getAttribute('data-price') || '0', 10);
                     sum += price;
-                    if (cb.getAttribute('data-key') === 'dpp' && cb.getAttribute('data-voucher-applied') === '1' && price === 0) {
-                        hasZeroVoucherDpp = true;
-                    }
                 }
             });
 
@@ -1521,14 +1639,10 @@
                 totalDisplay.textContent = formatted;
             }
             if (btnText && !btnText.textContent.includes('Menghubungkan')) {
-                if (sum === 0 && hasZeroVoucherDpp) {
-                    btnText.textContent = 'Konfirmasi Pembayaran DPP (Voucher 100%)';
-                } else {
-                    btnText.textContent = sum === 0 ? 'Pilih minimal 1 komponen biaya' : ('Lanjutkan Pembayaran - ' + formatted);
-                }
+                btnText.textContent = sum === 0 ? 'Pilih minimal 1 komponen biaya' : ('Lanjutkan Pembayaran - ' + formatted);
             }
             if (btnBayar) {
-                if (sum === 0 && !hasZeroVoucherDpp) {
+                if (sum === 0) {
                     btnBayar.disabled = true;
                     btnBayar.classList.add('bg-slate-300', 'text-slate-500', 'cursor-not-allowed');
                     btnBayar.classList.remove('bg-[#0b3d82]', 'hover:bg-[#082a5c]', 'text-white');
@@ -1543,6 +1657,9 @@
         window.syncFeeFallback = calculateAndSync;
 
         document.addEventListener('DOMContentLoaded', function() {
+            if (window.Alpine || (document.getElementById('pmb-pembayaran-container') && document.getElementById('pmb-pembayaran-container')._x_dataStack)) {
+                return;
+            }
             var checkboxes = document.querySelectorAll('.fee-checkbox');
             checkboxes.forEach(function(cb) {
                 cb.addEventListener('change', calculateAndSync);

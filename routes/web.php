@@ -19,6 +19,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [CrmController::class, 'login'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
+    Route::get('/register/{agent}', [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showRegisterForm'])->where('agent', '[a-zA-Z0-9_\-]+');
     Route::post('/register', [AuthController::class, 'register']);
 });
 
@@ -51,6 +52,7 @@ Route::prefix('pmb')->name('pmb.')->group(function () {
         Route::post('/login/otp/send',  [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'sendOtp'])->middleware('throttle:30,1')->name('login.otp.send');
         Route::post('/login/otp/verify',[\App\Http\Controllers\Pmb\CamabaAuthController::class, 'verifyOtp'])->middleware('throttle:30,1')->name('login.otp.verify');
         Route::get('/register',         [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showRegisterForm'])->name('register');
+        Route::get('/register/{agent}', [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'showRegisterForm'])->where('agent', '[a-zA-Z0-9_\-]+')->name('register.agent');
         Route::post('/register',        [\App\Http\Controllers\Pmb\CamabaAuthController::class, 'register'])->name('register.post');
     });
 
@@ -459,12 +461,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Pmb\PmbDashboardController::class, 'index'])->name('dashboard');
 
         // Data Pendaftar PMB
-        Route::get('/pendaftar',                      [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'index'])->name('pendaftar.index');
-        Route::get('/pendaftar/export',               [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'export'])->name('pendaftar.export');
-        Route::get('/pendaftar/{id}',                 [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'show'])->name('pendaftar.show');
-        Route::put('/pendaftar/{id}',                 [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'update'])->name('pendaftar.update');
-        Route::delete('/pendaftar/{id}',              [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'destroy'])->name('pendaftar.destroy');
-        Route::post('/pendaftar/{id}/reset-password', [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'resetPassword'])->name('pendaftar.reset-password');
+        Route::get('/pendaftar',                            [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'index'])->name('pendaftar.index');
+        Route::get('/pendaftar/export',                     [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'export'])->name('pendaftar.export');
+        Route::get('/pendaftar/{id}',                       [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'show'])->name('pendaftar.show');
+        Route::put('/pendaftar/{id}',                       [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'update'])->name('pendaftar.update');
+        Route::delete('/pendaftar/{id}',                    [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'destroy'])->name('pendaftar.destroy');
+        Route::post('/pendaftar/{id}/reset-password',       [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'resetPassword'])->name('pendaftar.reset-password');
+        Route::get('/pendaftar/{id}/dokumen/{type}',        [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'viewDokumen'])->name('pendaftar.dokumen.view');
+        Route::post('/pendaftar/{id}/dokumen/{type}/verify', [\App\Http\Controllers\Pmb\PmbPendaftarController::class, 'verifyDokumen'])->name('pendaftar.dokumen.verify');
 
         // Data Pembayaran PMB
         Route::get('/pembayaran',                     [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'index'])->name('pembayaran.index');
@@ -473,26 +477,37 @@ Route::middleware('auth')->group(function () {
         Route::post('/pembayaran/{id}/reject',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'reject'])->name('pembayaran.reject');
         Route::post('/pembayaran/{id}/sync',          [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'sync'])->name('pembayaran.sync');
 
-        // Hapus Data & Trash Data Pembayaran PMB (HANYA untuk role Admin)
-        Route::middleware(['role:Admin'])->group(function () {
+        // Hapus Data & Trash Data Pembayaran PMB (Admin & CS)
+        Route::middleware(['role:Admin,CS'])->group(function () {
             Route::get('/pembayaran/trash',                         [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'trash'])->name('pembayaran.trash');
             Route::delete('/pembayaran/{id}',                       [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'destroy'])->whereNumber('id')->name('pembayaran.destroy');
             Route::post('/pembayaran/trash/{id}/restore',           [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'restore'])->whereNumber('id')->name('pembayaran.restore');
             Route::delete('/pembayaran/trash/{id}/force-delete',    [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'forceDelete'])->whereNumber('id')->name('pembayaran.force-delete');
         });
 
-        // Data Admin PMB & Pengaturan Voucher Diskon DPP (HANYA untuk Admin & HM, CS DILARANG AKSES)
-        Route::middleware(['role:Admin,HM'])->group(function () {
+        // Pengaturan & Halaman Voucher Diskon DPP (Admin, HM, & CS)
+        Route::middleware(['role:Admin,HM,CS'])->group(function () {
+            Route::get('/vouchers',                             [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'vouchersIndex'])->name('vouchers.index');
             Route::post('/pembayaran/vouchers',                 [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'storeVoucher'])->name('pembayaran.vouchers.store');
             Route::put('/pembayaran/vouchers/{voucher}',        [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'updateVoucher'])->name('pembayaran.vouchers.update');
             Route::patch('/pembayaran/vouchers/{voucher}/toggle', [\App\Http\Controllers\Pmb\PmbPembayaranController::class, 'toggleVoucher'])->name('pembayaran.vouchers.toggle');
+        });
 
+        // Rekapitulasi Data Agent PMB (Admin, HM, & CS)
+        Route::get('/agent',        [\App\Http\Controllers\Pmb\PmbAgentController::class, 'index'])->name('agent.index');
+        Route::get('/agent/export', [\App\Http\Controllers\Pmb\PmbAgentController::class, 'export'])->name('agent.export');
+
+        // Data Admin PMB (HANYA untuk Admin & HM, CS DILARANG AKSES)
+        Route::middleware(['role:Admin,HM'])->group(function () {
             Route::get('/admin',              [\App\Http\Controllers\Pmb\PmbAdminController::class, 'index'])->name('admin.index');
             Route::post('/admin',             [\App\Http\Controllers\Pmb\PmbAdminController::class, 'store'])->name('admin.store');
             Route::put('/admin/{id}',         [\App\Http\Controllers\Pmb\PmbAdminController::class, 'update'])->name('admin.update');
             Route::delete('/admin/{id}',      [\App\Http\Controllers\Pmb\PmbAdminController::class, 'destroy'])->name('admin.destroy');
         });
     });    // Account & Profile (all roles)
+    Route::get('/admin/agent', function () {
+        return redirect()->route('pmb.agent.index');
+    })->middleware(['auth', 'role:Admin,HM,CS']);
     Route::get('/profil',           [CrmController::class, 'profilIndex'])->name('profil.index');
     Route::post('/profil',          [CrmController::class, 'profilUpdate'])->name('profil.update');
     Route::post('/profil/password', [CrmController::class, 'profilPasswordUpdate'])->name('profil.password.update');
