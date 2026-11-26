@@ -215,6 +215,24 @@
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                 <!-- Kiri (7 cols di Laptop): Field Input Pilihan Prodi -->
                 <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <!-- Tahun Akademik Pendaftaran -->
+                    <div class="sm:col-span-2 lg:col-span-3 min-w-0">
+                        <label for="academic_year_id" class="block text-[11px] font-bold text-slate-700 mb-1">
+                            Tahun Akademik Pendaftaran <span class="text-rose-500">*</span>
+                        </label>
+                        <select id="academic_year_id"
+                                name="academic_year_id"
+                                required
+                                class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm font-semibold text-slate-800 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition shadow-2xs">
+                            @foreach($tahunAkademiks ?? \App\Services\AkademikService::getAktifList() as $taOption)
+                                <option value="{{ $taOption->id }}" {{ (string) old('academic_year_id', $prospek->academic_year_id ?? '') === (string) $taOption->id ? 'selected' : '' }}>
+                                    Tahun Akademik {{ $taOption->nama }} {{ $taOption->status === 'Aktif' ? '(Periode Aktif)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <span class="text-[10px] text-slate-500 mt-0.5 block">Anda dapat memindahkan pilihan periode akademik ke tahun aktif lainnya jika diperlukan.</span>
+                    </div>
+
                     <!-- Program Studi Pilihan 1 (Utama - Wajib) -->
                     <div class="sm:col-span-2 lg:col-span-2 min-w-0">
                         <label for="prodi_id" class="block text-[11px] font-bold text-slate-700 mb-1">

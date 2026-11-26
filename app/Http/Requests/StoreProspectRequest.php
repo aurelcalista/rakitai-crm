@@ -28,6 +28,8 @@ class StoreProspectRequest extends FormRequest
             'name'     => 'nullable|string|max:255',
             'no_registrasi' => 'nullable|string|max:100',
             'gelombang'     => 'nullable|string|max:100',
+            'academic_year_id' => 'nullable|exists:tahun_akademiks,id',
+            'tahun_akademik' => 'nullable|string|max:20',
             'type'     => 'required|in:Sekolah,Corporate,Individu',
             'sekolah_id' => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',

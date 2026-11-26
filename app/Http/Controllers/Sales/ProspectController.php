@@ -203,8 +203,10 @@ class ProspectController extends Controller
         $sekolahs    = Sekolah::getDynamicSchools();
         $perusahaans = Perusahaan::getDynamicPerusahaans();
         $prodis      = Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $tahunAkademiksList = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+        $defaultTahunAkademik = \App\Services\AkademikService::getAktifNama();
 
-        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons', 'salesMetrics', 'sekolahs', 'perusahaans', 'prodis'));
+        return view('prospek.index', compact('prospects', 'statuses', 'lostReasons', 'salesMetrics', 'sekolahs', 'perusahaans', 'prodis', 'tahunAkademiksList', 'defaultTahunAkademik'));
     }
 
     /**
@@ -226,6 +228,20 @@ class ProspectController extends Controller
     public function store(StoreProspectRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+
+        if ($request->filled('academic_year_id')) {
+            $taModel = \App\Models\TahunAkademik::find($request->academic_year_id);
+            if ($taModel) {
+                $validated['academic_year_id'] = $taModel->id;
+                $validated['tahun_akademik'] = $taModel->nama;
+            }
+        } elseif (empty($validated['academic_year_id'])) {
+            $activeTa = \App\Services\AkademikService::getAktif();
+            if ($activeTa) {
+                $validated['academic_year_id'] = $activeTa->id;
+                $validated['tahun_akademik'] = $activeTa->nama;
+            }
+        }
 
         $user = auth()->user();
 
@@ -312,6 +328,8 @@ class ProspectController extends Controller
                 'name'         => $name,
                 'no_registrasi'=> $validated['no_registrasi'] ?? null,
                 'gelombang'    => $validated['gelombang'] ?? null,
+                'academic_year_id' => $validated['academic_year_id'] ?? null,
+                'tahun_akademik' => $validated['tahun_akademik'] ?? null,
                 'type'         => $validated['type'],
                 'category'     => $category,
                 'sekolah_id'   => $validated['type'] === 'Sekolah' ? ($validated['sekolah_id'] ?? null) : null,
@@ -389,6 +407,7 @@ class ProspectController extends Controller
         $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
         $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
         $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
+        $tahunAkademiksList  = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
 
         // Sales tidak bisa re-alokasi, kirim collection kosong agar view tidak error
         $salesTeam = \Illuminate\Support\Collection::make();
@@ -410,6 +429,7 @@ class ProspectController extends Controller
             'prodisList',
             'sumberProspekList',
             'kategoriProspekList',
+            'tahunAkademiksList',
             'hasPendingTrx',
             'pendingList',
             'hasVerifiedTermin1',
@@ -428,6 +448,22 @@ class ProspectController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('update', $prospek);
 
         $validated = $request->validated();
+        $oldAcademicYearId = $prospek->academic_year_id;
+        $oldAcademicYearName = $prospek->tahun_akademik;
+
+        if ($request->has('academic_year_id')) {
+            $newTaId = $request->input('academic_year_id');
+            if ($newTaId) {
+                $taModel = \App\Models\TahunAkademik::find($newTaId);
+                if ($taModel) {
+                    $validated['academic_year_id'] = $taModel->id;
+                    $validated['tahun_akademik'] = $taModel->nama;
+                }
+            } else {
+                $validated['academic_year_id'] = null;
+                $validated['tahun_akademik'] = null;
+            }
+        }
 
         if ($validated['type'] === 'Sekolah') {
             $validated['perusahaan_id'] = null;
@@ -498,6 +534,19 @@ class ProspectController extends Controller
         }
 
         $prospek->update($validated);
+
+        if ($request->has('academic_year_id') && ($oldAcademicYearId != ($validated['academic_year_id'] ?? null))) {
+            $newTaName = $validated['tahun_akademik'] ?? 'Kosong';
+            $oldTaName = $oldAcademicYearName ?: ($oldAcademicYearId ? 'ID ' . $oldAcademicYearId : 'Belum Diisi');
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Tahun Akademik Diperbarui',
+                'notes' => "Tahun Akademik diubah dari {$oldTaName} menjadi {$newTaName} oleh " . (auth()->user()->name ?? 'User'),
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
 
         // Log the update
         ProspekTimeline::create([
@@ -747,6 +796,8 @@ class ProspectController extends Controller
             'whatsapp'       => $p->whatsapp ?? '-',
             'wa_ortu'        => $p->wa_ortu ?? '',
             'asal_kelas'     => $p->asal_kelas ?? '',
+            'academic_year_id' => $p->academic_year_id,
+            'tahun_akademik' => $p->tahun_akademik,
             'prodi_lainnya'  => $p->prodi_lainnya ?? '',
             'status'         => $p->status,
             'stage_number'   => $p->stage_number,

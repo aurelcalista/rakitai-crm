@@ -145,6 +145,35 @@
                 />
             </div>
 
+            <!-- Pilihan Tahun Akademik -->
+            <div class="text-left mb-3.5">
+                <label for="tahun_akademik_id" class="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Tahun Akademik Pendaftaran <span class="text-rose-500">*</span>
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <select id="tahun_akademik_id"
+                            name="tahun_akademik_id"
+                            required
+                            class="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-[#004b99] focus:ring-1 focus:ring-[#004b99] transition text-slate-800 bg-white cursor-pointer appearance-none">
+                        @foreach($tahunAkademiks ?? \App\Services\AkademikService::getAktifList() as $taOption)
+                            <option value="{{ $taOption->id }}" {{ old('tahun_akademik_id', $defaultTahunAkademik?->id ?? '') == $taOption->id ? 'selected' : '' }}>
+                                Tahun Akademik {{ $taOption->nama }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
             <!-- Asal Sekolah -->
             <div class="text-left mb-3.5">
                 <label for="asal_sekolah" class="block text-xs font-semibold text-slate-700 mb-1.5">

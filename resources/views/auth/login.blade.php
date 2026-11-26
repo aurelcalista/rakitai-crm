@@ -302,7 +302,7 @@
                 </p>
                 <div class="mt-1.5 flex justify-center">
                     <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/90 text-blue-700 text-[9px] min-[360px]:text-[10px] font-mono font-bold border border-blue-200/90 shadow-2xs backdrop-blur-xs">
-                        v.1.1.0
+                        v.2.0.0
                     </span>
                 </div>
             </div>
@@ -460,8 +460,10 @@
             </div>
 
             <!-- Footer Copyright (Desktop Left) -->
-            <div class="pt-3 text-center text-xs text-slate-400 font-normal">
-                &copy; {{ date('Y') }} Universitas Catur Insan Cendekia. All rights reserved.
+            <div class="pt-3 text-center text-xs text-slate-400 font-normal flex items-center justify-center gap-1.5">
+                <span>&copy; {{ date('Y') }} Universitas Catur Insan Cendekia. All rights reserved.</span>
+                <span>•</span>
+                <span class="font-mono text-[11px] font-semibold text-slate-500">v.2.0.0</span>
             </div>
 
         </div>

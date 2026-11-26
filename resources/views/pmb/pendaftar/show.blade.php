@@ -308,6 +308,10 @@
                                     <span class="font-semibold text-slate-800 mt-0.5 block">{{ $pendaftar->gelombang ?? '- Data Lama' }}</span>
                                 </div>
                                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <span class="text-slate-500 block text-[11px] font-bold uppercase">Tahun Akademik</span>
+                                    <span class="font-bold text-blue-700 mt-0.5 block">{{ $pendaftar->tahun_akademik ?? ($pendaftar->academicYear?->nama ?? '- Belum Ditentukan') }}</span>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                     <span class="text-slate-500 block text-[11px] font-bold uppercase">Status Berkas</span>
                                     <div class="mt-1 flex items-center justify-between">
                                         @php
@@ -1070,6 +1074,19 @@
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Gelombang</label>
                                 <input type="text" name="gelombang" value="{{ $pendaftar->gelombang ?? '- Data Lama' }}" class="w-full text-xs rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                            </div>
+
+                            <!-- Tahun Akademik -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Tahun Akademik</label>
+                                <select name="academic_year_id" class="w-full text-xs rounded-xl border border-slate-200 px-3.5 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white">
+                                    <option value="">-- Pilih Tahun Akademik --</option>
+                                    @foreach($tahunAkademiks ?? \App\Models\TahunAkademik::orderBy('nama', 'desc')->get() as $ta)
+                                        <option value="{{ $ta->id }}" {{ ($pendaftar->academic_year_id ?? '') == $ta->id ? 'selected' : '' }}>
+                                            {{ $ta->nama }} {{ $ta->status === 'Aktif' ? '(Aktif)' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
 
                             <!-- Minat Kuliah & Miniclass -->

@@ -8,6 +8,7 @@
     <div class="space-y-6" x-data="{
         searchQuery: '',
         selectedScope: '{{ request('scope', 'all') }}',
+        selectedTahunAkademik: '{{ request('tahun_akademik') ?? ($defaultTahunAkademik ?? 'all') }}',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedSales: 'all',
@@ -58,6 +59,7 @@
                 const matchStatus = this.selectedStatus === 'all' || p.status === this.selectedStatus;
                 const matchType   = this.selectedType   === 'all' || p.type   === this.selectedType;
                 const matchSales  = this.selectedSales  === 'all' || String(p.sales_id) === String(this.selectedSales);
+                const matchTahunAkademik = this.selectedTahunAkademik === 'all' || (p.tahun_akademik && p.tahun_akademik.includes(this.selectedTahunAkademik));
 
                 let matchScope = true;
                 if (this.selectedScope === 'own') {
@@ -68,7 +70,7 @@
                     matchScope = this.isPresensiSiswa(p);
                 }
 
-                return matchSearch && matchStatus && matchType && matchSales && matchScope;
+                return matchSearch && matchStatus && matchType && matchSales && matchScope && matchTahunAkademik;
             });
         },
         get paginatedProspects() {
@@ -78,7 +80,7 @@
         get totalPages() {
             return Math.ceil(this.filteredProspects.length / this.perPage) || 1;
         }
-    }" x-effect="searchQuery; selectedStatus; selectedType; selectedSales; selectedScope; currentPage = 1" @keydown.escape.window="modalReassign = false">
+    }" x-effect="searchQuery; selectedStatus; selectedType; selectedSales; selectedScope; selectedTahunAkademik; currentPage = 1" @keydown.escape.window="modalReassign = false">
 
         <!-- Page Header -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -93,6 +95,7 @@
                 <a 
                     :href="'{{ route('export.prospek') }}?' + new URLSearchParams(Object.fromEntries(Object.entries({
                         scope: selectedScope,
+                        tahun_akademik: selectedTahunAkademik !== 'all' ? selectedTahunAkademik : '{{ request('tahun_akademik', '') }}',
                         status: selectedStatus !== 'all' ? selectedStatus : '',
                         type: selectedType !== 'all' ? selectedType : '',
                         sales_id: selectedSales !== 'all' ? selectedSales : '',
@@ -246,12 +249,28 @@
                 </div>
             </div>
 
-            <!-- Row 3: Status & Tipe & Actions -->
+            <!-- Row 3: Tahun Akademik, Status & Tipe & Actions -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-end justify-between gap-3 pt-1 border-t border-slate-100">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-                    <!-- Filter Status (8 Status Pipeline PMB TA 2027/2028) -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                    <!-- Filter Tahun Akademik (Dual TA Aktif) -->
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Status Pipeline (TA 2027/2028)</label>
+                        <label class="block text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Tahun Akademik
+                        </label>
+                        <select name="tahun_akademik" x-model="selectedTahunAkademik" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-blue-50/60 border border-blue-200 text-blue-900 font-semibold focus:ring-2 focus:ring-blue-500/20">
+                            <option value="all">Semua Tahun Akademik</option>
+                            @foreach($tahunAkademiksList ?? [] as $taItem)
+                                <option value="{{ $taItem->nama }}">
+                                    TA {{ $taItem->nama }} {{ $taItem->status === 'Aktif' ? '(Aktif)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Filter Status (8 Status Pipeline PMB TA) -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Status Pipeline</label>
                         <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
                             <option value="">Semua Status (8 Tahapan)</option>
                             @foreach($statuses as $st)
@@ -275,7 +294,7 @@
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
-                    @if(request()->hasAny(['q', 'sekolah_id', 'prodi_id', 'wilayah_id', 'sales_id', 'status', 'source']))
+                    @if(request()->hasAny(['q', 'sekolah_id', 'prodi_id', 'wilayah_id', 'sales_id', 'status', 'source', 'tahun_akademik']))
                         <a 
                             href="{{ route('spv.prospek.index') }}" 
                             class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition"
@@ -331,6 +350,11 @@
                                         <template x-if="p.gelombang">
                                             <span class="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 shadow-2xs" title="Gelombang Pendaftaran">
                                                 <span x-text="p.gelombang"></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="p.tahun_akademik && p.tahun_akademik !== '-'">
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shadow-2xs" title="Tahun Akademik">
+                                                <span x-text="'TA ' + p.tahun_akademik"></span>
                                             </span>
                                         </template>
                                         <div class="text-[10px] text-slate-400 font-medium" x-show="p.is_presensi">

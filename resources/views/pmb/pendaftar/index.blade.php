@@ -35,7 +35,23 @@
                 <input type="hidden" name="search" value="{{ request('search') }}">
                 <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3.5">
+                    <!-- 0. Tahun Akademik -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <span>Tahun Akademik</span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        </label>
+                        <select name="tahun_akademik" onchange="document.getElementById('filterForm').submit()" class="w-full text-xs font-bold rounded-xl border border-blue-200 bg-blue-50/50 px-3.5 py-2.5 text-blue-900 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition cursor-pointer">
+                            <option value="all" {{ ($selectedTa ?? '') === 'all' ? 'selected' : '' }}>Semua Tahun Akademik</option>
+                            @foreach($tahunAkademiks as $ta)
+                                <option value="{{ $ta->nama }}" {{ ($selectedTa ?? '') === $ta->nama ? 'selected' : '' }}>
+                                    {{ $ta->nama }} {{ $ta->status === 'Aktif' ? '(Aktif)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- 1. Semua Status Formulir -->
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status Formulir</label>
@@ -235,6 +251,7 @@
                 <!-- Search Form -->
                 <form action="{{ route('pmb.pendaftar.index') }}" method="GET" class="flex items-center gap-2 w-full md:w-auto">
                     <!-- Preserve existing filters -->
+                    <input type="hidden" name="tahun_akademik" value="{{ request('tahun_akademik', $selectedTa ?? '') }}">
                     <input type="hidden" name="status_formulir" value="{{ request('status_formulir') }}">
                     <input type="hidden" name="status_berkas" value="{{ request('status_berkas') }}">
                     <input type="hidden" name="status_ujian" value="{{ request('status_ujian') }}">
@@ -378,11 +395,18 @@
                                     </div>
                                 </td>
 
-                                <!-- Gelombang -->
+                                <!-- Gelombang & Tahun Akademik -->
                                 <td class="py-4 px-3 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                                        {{ $p->gelombang ?: 'Gelombang 1' }}
-                                    </span>
+                                    <div class="flex flex-col gap-1 items-start">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                            {{ $p->gelombang ?: 'Gelombang 1' }}
+                                        </span>
+                                        @if($p->tahun_akademik)
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                TA {{ $p->tahun_akademik }}
+                                            </span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <!-- Status Formulir -->

@@ -1350,7 +1350,7 @@
                                                 nominal: {{ (int) $tx->nominal }},
                                                 nominalFormatted: 'Rp {{ number_format($tx->nominal, 0, ',', '.') }}',
                                                 tanggal: '{{ $tx->created_at->format('d M Y, H:i') }} WIB',
-                                                metode: '{{ $txMetodeLabel }}',
+                                                metode: '{{ $tx->metode_detail ?: ($tx->metode_pembayaran ?: 'Online / Transfer Bank') }}',
                                                 snapToken: '{{ $tx->snap_token ?? '' }}'
                                             })"
                                             class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer flex items-center gap-1">

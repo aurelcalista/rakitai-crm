@@ -354,9 +354,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('events',      \App\Http\Controllers\Admin\AdminEventController::class)->except(['create', 'edit']);
         Route::resource('event-types', \App\Http\Controllers\Admin\AdminEventTypeController::class)->except(['create', 'show', 'edit']);
 
-        Route::post('tahun-akademik',                          [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'storeTahunAkademik'])->name('tahun-akademik.store');
-        Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'activateTahunAkademik'])->name('tahun-akademik.activate');
-        Route::delete('tahun-akademik/{tahunAkademik}',        [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'destroyTahunAkademik'])->name('tahun-akademik.destroy');
+        Route::post('tahun-akademik',                            [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'storeTahunAkademik'])->name('tahun-akademik.store');
+        Route::post('tahun-akademik/{tahunAkademik}/activate',   [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'activateTahunAkademik'])->name('tahun-akademik.activate');
+        Route::post('tahun-akademik/{tahunAkademik}/deactivate', [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'deactivateTahunAkademik'])->name('tahun-akademik.deactivate');
+        Route::delete('tahun-akademik/{tahunAkademik}',          [\App\Http\Controllers\Admin\AdminMasterDataController::class, 'destroyTahunAkademik'])->name('tahun-akademik.destroy');
 
         // Master Rekening Bank (Pembayaran CRM)
         Route::post('bank-accounts/{bankAccount}/toggle-status', [\App\Http\Controllers\Admin\AdminBankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
@@ -385,9 +386,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit-logs', [CrmController::class, 'adminAuditLogs'])->name('audit-logs.index');
 
         // Tahun Akademik Management (PRD 5.2)
-        Route::get('tahun-akademik',                           [\App\Http\Controllers\Admin\TahunAkademikController::class, 'index'])->name('tahun-akademik.index');
-        Route::post('tahun-akademik',                          [\App\Http\Controllers\Admin\TahunAkademikController::class, 'store'])->name('tahun-akademik.store');
-        Route::post('tahun-akademik/{tahunAkademik}/activate', [\App\Http\Controllers\Admin\TahunAkademikController::class, 'activate'])->name('tahun-akademik.activate');
+        Route::get('tahun-akademik',                             [\App\Http\Controllers\Admin\TahunAkademikController::class, 'index'])->name('tahun-akademik.index');
+        Route::post('tahun-akademik',                            [\App\Http\Controllers\Admin\TahunAkademikController::class, 'store'])->name('tahun-akademik.store');
+        Route::post('tahun-akademik/{tahunAkademik}/activate',   [\App\Http\Controllers\Admin\TahunAkademikController::class, 'activate'])->name('tahun-akademik.activate');
+        Route::post('tahun-akademik/{tahunAkademik}/deactivate', [\App\Http\Controllers\Admin\TahunAkademikController::class, 'deactivate'])->name('tahun-akademik.deactivate');
     });
 
     // ──────────────────────────────────────────────────────────────

@@ -17,7 +17,19 @@ class PmbPendaftarController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs']);
+        $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs', 'academicYear']);
+
+        $tahunAkademiks = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+        $defaultTa = \App\Services\AkademikService::getAktifNama();
+        $selectedTa = $request->input('tahun_akademik', $defaultTa ?? 'all');
+
+        // Filter: Tahun Akademik (Default ke TA aktif terbaru jika tidak dispesifikasikan)
+        if ($selectedTa && $selectedTa !== 'all') {
+            $query->where(function ($q) use ($selectedTa) {
+                $q->where('tahun_akademik', $selectedTa)
+                  ->orWhereHas('academicYear', fn($aq) => $aq->where('nama', $selectedTa));
+            });
+        }
 
         // Search Filter (Nama lengkap, email, WhatsApp/HP, No Registrasi, Agent)
         if ($request->filled('search')) {
@@ -81,17 +93,24 @@ class PmbPendaftarController extends Controller
             });
         }
 
-        // 4 Summary Statistics (Actual DB Data)
-        $totalUser = Prospek::count();
-        $belumIsiFormulir = Prospek::where(function ($q) {
+        // 4 Summary Statistics (Actual DB Data scoped to selected TA)
+        $statQuery = Prospek::query();
+        if ($selectedTa && $selectedTa !== 'all') {
+            $statQuery->where(function ($q) use ($selectedTa) {
+                $q->where('tahun_akademik', $selectedTa)
+                  ->orWhereHas('academicYear', fn($aq) => $aq->where('nama', $selectedTa));
+            });
+        }
+        $totalUser = (clone $statQuery)->count();
+        $belumIsiFormulir = (clone $statQuery)->where(function ($q) {
             $q->where('status_formulir', 'Belum Isi')
               ->orWhereNull('status_formulir');
         })->count();
-        $belumUploadBerkas = Prospek::where(function ($q) {
+        $belumUploadBerkas = (clone $statQuery)->where(function ($q) {
             $q->where('status_berkas', 'Belum Upload')
               ->orWhereNull('status_berkas');
         })->count();
-        $sudahUploadBerkas = Prospek::where('status_berkas', 'Sudah Upload')->count();
+        $sudahUploadBerkas = (clone $statQuery)->where('status_berkas', 'Sudah Upload')->count();
 
         // Dropdown filter options (Dinamis dari Database & Master Data)
         $prodis = Prodi::orderBy('nama', 'asc')->get();
@@ -143,15 +162,18 @@ class PmbPendaftarController extends Controller
             'sudahUploadBerkas',
             'prodis',
             'gelombangList',
-            'agentsList'
+            'agentsList',
+            'tahunAkademiks',
+            'selectedTa'
         ));
     }
 
     public function show($id): View
     {
-        $pendaftar = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs', 'transaksis'])->findOrFail($id);
+        $pendaftar = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'cs', 'transaksis', 'academicYear'])->findOrFail($id);
         $dokumenList = CamabaPortalController::DOKUMEN_PERSYARATAN;
-        return view('pmb.pendaftar.show', compact('pendaftar', 'dokumenList'));
+        $tahunAkademiks = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+        return view('pmb.pendaftar.show', compact('pendaftar', 'dokumenList', 'tahunAkademiks'));
     }
 
     /**
@@ -237,6 +259,7 @@ class PmbPendaftarController extends Controller
             'email' => 'nullable|email|max:255',
             'whatsapp' => 'required|string|max:20',
             'gelombang' => 'nullable|string|max:100',
+            'academic_year_id' => 'nullable|exists:tahun_akademiks,id',
             'prodi_id' => 'nullable|exists:prodis,id',
             'prodi_pilihan_2_id' => 'nullable|exists:prodis,id',
             'status_formulir' => 'nullable|in:Belum Isi,Sudah Isi',
@@ -247,6 +270,19 @@ class PmbPendaftarController extends Controller
             'minat_miniclass' => 'nullable|in:ya,tidak',
             'notes' => 'nullable|string',
         ]);
+
+        if ($request->has('academic_year_id')) {
+            if ($request->filled('academic_year_id')) {
+                $ta = \App\Models\TahunAkademik::find($request->academic_year_id);
+                if ($ta) {
+                    $validated['academic_year_id'] = $ta->id;
+                    $validated['tahun_akademik'] = $ta->nama;
+                }
+            } else {
+                $validated['academic_year_id'] = null;
+                $validated['tahun_akademik'] = null;
+            }
+        }
 
         if (!empty($validated['status_ujian']) && $validated['status_ujian'] === 'Sudah Mengerjakan' && empty($pendaftar->tanggal_ujian)) {
             $validated['tanggal_ujian'] = now();
@@ -304,7 +340,15 @@ class PmbPendaftarController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah']);
+        $query = Prospek::with(['prodi', 'prodiPilihan2', 'sekolah', 'academicYear']);
+
+        if ($request->filled('tahun_akademik') && $request->tahun_akademik !== 'all') {
+            $selectedTa = $request->tahun_akademik;
+            $query->where(function ($q) use ($selectedTa) {
+                $q->where('tahun_akademik', $selectedTa)
+                  ->orWhereHas('academicYear', fn($aq) => $aq->where('nama', $selectedTa));
+            });
+        }
 
         if ($request->filled('search')) {
             $search = trim($request->input('search'));
@@ -378,6 +422,7 @@ class PmbPendaftarController extends Controller
                 'No HP / WhatsApp',
                 'Program Studi Pilihan 1',
                 'Program Studi Pilihan 2',
+                'Tahun Akademik',
                 'Gelombang',
                 'Agent / Referral',
                 'Status Formulir',
@@ -400,6 +445,7 @@ class PmbPendaftarController extends Controller
                     $p->whatsapp,
                     $p->prodi?->nama ?? '- Belum Pilih',
                     $p->prodiPilihan2?->nama ?? '-',
+                    $p->tahun_akademik ?? ($p->academicYear?->nama ?? '-'),
                     $p->gelombang ?? '- Data Lama',
                     !empty($p->agent) ? $p->agent : 'Tanpa Agent',
                     $p->status_formulir ?? 'Belum Isi',

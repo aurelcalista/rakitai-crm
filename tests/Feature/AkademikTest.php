@@ -50,35 +50,36 @@ class AkademikTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────
-    // A. Hanya satu TA dapat aktif
+    // A. Hingga dua TA dapat aktif secara bersamaan
     // ──────────────────────────────────────────────────────────────
-    public function test_a_only_one_tahun_akademik_can_be_active(): void
+    public function test_a_up_to_two_tahun_akademik_can_be_active_simultaneously(): void
     {
         $ta1 = TahunAkademik::create(['nama' => '2025/2026-a', 'status' => 'Aktif']);
-        $ta2 = TahunAkademik::create(['nama' => '2026/2027-a', 'status' => 'Aktif']); // triggers booted()
+        $ta2 = TahunAkademik::create(['nama' => '2026/2027-a', 'status' => 'Aktif']);
 
         AkademikService::flushCache();
 
-        $this->assertEquals('Non-Aktif', $ta1->fresh()->status,
-            'ta1 harus menjadi Non-Aktif ketika ta2 diaktifkan');
+        $this->assertEquals('Aktif', $ta1->fresh()->status);
         $this->assertEquals('Aktif', $ta2->fresh()->status);
-        $this->assertEquals(1, TahunAkademik::where('status', 'Aktif')->count());
+        $this->assertEquals(2, TahunAkademik::where('status', 'Aktif')->count());
+
+        // Mengaktifkan TA ke-3 harus ditolak guardrail
+        $this->expectException(\DomainException::class);
+        TahunAkademik::create(['nama' => '2027/2028-a', 'status' => 'Aktif']);
     }
 
     // ──────────────────────────────────────────────────────────────
-    // B. Aktivasi TA baru otomatis menonaktifkan yang lama
+    // B. Aktivasi TA ke-3 melalui service ditolak
     // ──────────────────────────────────────────────────────────────
-    public function test_b_activating_new_ta_deactivates_previous(): void
+    public function test_b_activating_third_ta_via_service_is_rejected(): void
     {
         $taA = TahunAkademik::create(['nama' => '2025/2026-b', 'status' => 'Aktif']);
+        $taB = TahunAkademik::create(['nama' => '2026/2027-b', 'status' => 'Aktif']);
+        $taC = TahunAkademik::create(['nama' => '2027/2028-b', 'status' => 'Non-Aktif']);
         AkademikService::flushCache();
 
-        $taB = TahunAkademik::create(['nama' => '2026/2027-b', 'status' => 'Non-Aktif']);
-        AkademikService::activate($taB);
-
-        $this->assertEquals('Non-Aktif', $taA->fresh()->status);
-        $this->assertEquals('Aktif', $taB->fresh()->status);
-        $this->assertEquals(1, TahunAkademik::where('status', 'Aktif')->count());
+        $this->expectException(\RuntimeException::class);
+        AkademikService::activate($taC);
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -413,9 +414,9 @@ class AkademikTest extends TestCase
     }
 
     // ──────────────────────────────────────────────────────────────
-    // P. Dua aktivasi berurutan → tidak menghasilkan >1 active TA
+    // P. Dua aktivasi berurutan → menghasilkan tepat 2 active TA, aktivasi ke-3 ditolak
     // ──────────────────────────────────────────────────────────────
-    public function test_p_sequential_activations_never_produce_two_active_ta(): void
+    public function test_p_sequential_activations_allow_at_most_two_active_ta(): void
     {
         $taA = TahunAkademik::create(['nama' => '2025/2026-p', 'status' => 'Non-Aktif']);
         $taB = TahunAkademik::create(['nama' => '2026/2027-p', 'status' => 'Non-Aktif']);
@@ -423,16 +424,18 @@ class AkademikTest extends TestCase
 
         AkademikService::activate($taA);
         AkademikService::activate($taB);
-        AkademikService::activate($taC);
 
         $activeCount = TahunAkademik::where('status', 'Aktif')
             ->whereIn('id', [$taA->id, $taB->id, $taC->id])
             ->count();
 
-        $this->assertEquals(1, $activeCount, 'Setelah 3 aktivasi berurutan, hanya 1 TA yang aktif');
-        $this->assertEquals('Aktif', $taC->fresh()->status);
-        $this->assertEquals('Non-Aktif', $taA->fresh()->status);
-        $this->assertEquals('Non-Aktif', $taB->fresh()->status);
+        $this->assertEquals(2, $activeCount, 'Setelah 2 aktivasi, tepat 2 TA yang aktif');
+        $this->assertEquals('Aktif', $taA->fresh()->status);
+        $this->assertEquals('Aktif', $taB->fresh()->status);
+
+        // Aktivasi ke-3 harus melempar RuntimeException
+        $this->expectException(\RuntimeException::class);
+        AkademikService::activate($taC);
     }
 
     // ──────────────────────────────────────────────────────────────

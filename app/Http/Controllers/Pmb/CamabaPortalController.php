@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CamabaPortalController extends Controller
@@ -449,6 +450,7 @@ class CamabaPortalController extends Controller
         $user = Auth::user();
         $prospek = $this->getCamabaProspek();
         $prodis = Prodi::where('status', 'Aktif')->orWhereNull('status')->orderBy('nama')->get();
+        $tahunAkademiks = \App\Services\AkademikService::getAktifList();
 
         $requestedProdiId = $request->query('prodi_id');
         $preselectedProdiId = null;
@@ -456,7 +458,7 @@ class CamabaPortalController extends Controller
             $preselectedProdiId = (int) $requestedProdiId;
         }
 
-        return view('pmb.portal.form-pendaftaran', compact('user', 'prospek', 'prodis', 'preselectedProdiId'));
+        return view('pmb.portal.form-pendaftaran', compact('user', 'prospek', 'prodis', 'preselectedProdiId', 'tahunAkademiks'));
     }
 
     /**
@@ -482,6 +484,7 @@ class CamabaPortalController extends Controller
         $validated = $request->validate([
             'name'                  => 'required|string|min:2|max:255',
             'whatsapp'              => ['required', 'string', 'regex:/^\+628[0-9]{8,12}$/'],
+            'academic_year_id'      => ['nullable', 'integer', Rule::exists('tahun_akademiks', 'id')->where('status', 'Aktif')],
             'asal_sekolah'          => 'nullable|string|max:255',
             'nama_sekolah'          => 'nullable|string|max:255',
             'prodi_id'              => 'required|exists:prodis,id',
@@ -612,6 +615,26 @@ class CamabaPortalController extends Controller
                     $notes = $prospek->notes ?? '';
                     if (!str_contains($notes, $schoolName)) {
                         $prospek->notes = trim($notes . ' | Asal sekolah: ' . $schoolName);
+                    }
+                }
+
+                if (!empty($validated['academic_year_id'])) {
+                    $newTa = TahunAkademik::find($validated['academic_year_id']);
+                    if ($newTa && $prospek->academic_year_id != $newTa->id) {
+                        $oldTaNama = $prospek->tahun_akademik ?: ($prospek->academicYear?->nama ?? '-');
+                        $prospek->academic_year_id = $newTa->id;
+                        $prospek->tahun_akademik   = $newTa->nama;
+                        $prospek->gelombang        = 'Gelombang 1 - ' . $newTa->nama;
+
+                        ProspekTimeline::create([
+                            'prospek_id'    => $prospek->id,
+                            'user_id'       => $user->id,
+                            'title'         => 'Perubahan Tahun Akademik',
+                            'notes'         => "Calon mahasiswa mengubah periode akademik dari {$oldTaNama} ke {$newTa->nama}.",
+                            'status_before' => $prospek->status,
+                            'status_after'  => $prospek->status,
+                            'time'          => now(),
+                        ]);
                     }
                 }
 

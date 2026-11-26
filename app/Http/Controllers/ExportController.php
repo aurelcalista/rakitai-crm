@@ -148,7 +148,7 @@ class ExportController extends Controller
         $user = auth()->user();
         $role = strtoupper($user->role ?? '');
 
-        $query = Prospek::with(['sales', 'cs', 'owner', 'prodi', 'wilayah', 'sekolah', 'perusahaan']);
+        $query = Prospek::with(['sales', 'cs', 'owner', 'prodi', 'wilayah', 'sekolah', 'perusahaan', 'academicYear']);
 
         // Scope filter: all, own, others, presensi
         $scope = $request->query('scope', 'all');
@@ -223,6 +223,12 @@ class ExportController extends Controller
         }
 
         // Filters
+        if ($request->filled('tahun_akademik') && $request->tahun_akademik !== 'all') {
+            $query->where('tahun_akademik', $request->tahun_akademik);
+        }
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
@@ -283,6 +289,7 @@ class ExportController extends Controller
             'No',
             'ID Prospek',
             'No. Registrasi',
+            'Tahun Akademik',
             'Nama Calon Mahasiswa',
             'No. WhatsApp',
             'Tipe',
@@ -303,7 +310,7 @@ class ExportController extends Controller
 
         $row = 2;
         $no = 1;
-        $stringCols = [2, 3, 5]; // ID, No Registrasi, WhatsApp
+        $stringCols = [2, 3, 6]; // ID, No Registrasi, WhatsApp
 
         $query->chunk(250, function ($prospeks) use ($sheet, &$row, &$no, $stringCols) {
             foreach ($prospeks as $p) {
@@ -313,6 +320,7 @@ class ExportController extends Controller
                     $no++,
                     $p->id,
                     $p->no_registrasi ?: '-',
+                    $p->tahun_akademik ?: ($p->academicYear?->nama ?? '-'),
                     $camabaName,
                     $p->whatsapp ?: '-',
                     $p->type,
@@ -645,6 +653,12 @@ class ExportController extends Controller
         }
 
         // Filters
+        if ($request->filled('tahun_akademik') && $request->tahun_akademik !== 'all') {
+            $query->where('tahun_akademik', $request->tahun_akademik);
+        }
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('payment_status', $request->status);
         }

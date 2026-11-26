@@ -727,6 +727,11 @@ class Prospek extends Model
         return $stageNumber >= 5 && $stageNumber <= 8;
     }
 
+    public function academicYear()
+    {
+        return $this->belongsTo(TahunAkademik::class, 'academic_year_id');
+    }
+
     public function wilayah()
     {
         return $this->belongsTo(Wilayah::class);

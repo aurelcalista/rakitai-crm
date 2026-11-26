@@ -421,6 +421,20 @@
                         </div>
 
                         <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Tahun Akademik</span>
+                            @if(!empty($prospect['tahun_akademik']) || !empty($prospekModel->tahun_akademik))
+                                <div class="mt-0.5">
+                                    <span class="font-bold text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200 text-xs inline-flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        {{ $prospect['tahun_akademik'] ?? $prospekModel->tahun_akademik }}
+                                    </span>
+                                </div>
+                            @else
+                                <p class="text-slate-400 italic mt-0.5 text-xs">Belum Diisi</p>
+                            @endif
+                        </div>
+
+                        <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Sumber Prospek</span>
                             <div class="mt-0.5">
                                 @if($prospekModel->isPresensiSiswa())
@@ -1362,6 +1376,20 @@
                                     <option value="">-- Pilih Gelombang --</option>
                                     @foreach($gelombangList ?? [] as $gel)
                                         <option value="{{ $gel->nama }}" {{ ($prospect['gelombang'] ?? '') == $gel->nama ? 'selected' : '' }}>{{ $gel->nama }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                    Tahun Akademik <span class="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
+                                <select name="academic_year_id" class="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition bg-white">
+                                    <option value="">-- Pilih Tahun Akademik --</option>
+                                    @foreach($tahunAkademiksList ?? \App\Models\TahunAkademik::orderBy('nama', 'desc')->get() as $ta)
+                                        <option value="{{ $ta->id }}" {{ ($prospect['academic_year_id'] ?? $prospekModel->academic_year_id ?? '') == $ta->id ? 'selected' : '' }}>
+                                            {{ $ta->nama }} {{ $ta->status === 'Aktif' ? '(Aktif)' : '' }}
+                                        </option>
                                     @endforeach
                                 </select>
                             </div>

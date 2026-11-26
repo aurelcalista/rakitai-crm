@@ -15,7 +15,7 @@
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">PRD 5.2</span>
                 </div>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">
-                    Aturan Bisnis: TEPAT SATU Tahun Akademik berstatus <strong>AKTIF</strong> dalam satu waktu. Seluruh data prospek & transaksi baru otomatis terikat ke periode yang sedang Aktif.
+                    Aturan Bisnis: Sistem mendukung hingga <strong>MAKSIMAL 2 Tahun Akademik</strong> berstatus <strong>AKTIF</strong> secara bersamaan. Camaba dapat memilih salah satu tahun akademik aktif saat melakukan pendaftaran.
                 </p>
             </div>
             <button 
@@ -35,22 +35,32 @@
                 <span>{{ session('success') }}</span>
             </div>
         @endif
+        @if(session('error'))
+            <div class="p-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-2xl flex items-center gap-2">
+                <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <span>{{ session('error') }}</span>
+            </div>
+        @endif
 
         <!-- Active Period Highlight Card -->
-        @if($active)
+        @if(isset($activeList) && $activeList->count() > 0)
             <div class="p-5 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="space-y-1">
                     <div class="text-[11px] font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Tahun Akademik Aktif Saat Ini
+                        Tahun Akademik Aktif (Maksimal 2 Periode Berjalan)
                     </div>
-                    <h3 class="text-2xl font-black text-white tracking-tight">TA {{ $active->nama }}</h3>
-                    <p class="text-xs text-slate-300">Seluruh target, pencapaian, dan prospek baru terikat ke periode berjalan ini (SOP PMB TA {{ $active->nama }}).</p>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        @foreach($activeList as $act)
+                            <span class="text-xl sm:text-2xl font-black text-white tracking-tight bg-white/10 px-3 py-1 rounded-xl border border-white/20">TA {{ $act->nama }}</span>
+                        @endforeach
+                    </div>
+                    <p class="text-xs text-slate-300 pt-1">Pendaftar baru dan calon mahasiswa dapat memilih salah satu dari periode aktif di atas.</p>
                 </div>
                 <div class="shrink-0 self-start sm:self-center">
                     <span class="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-500 text-white shadow-xs inline-flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                        STATUS: AKTIF
+                        {{ $activeList->count() }} TAHUN AKTIF
                     </span>
                 </div>
             </div>
@@ -103,16 +113,28 @@
                                 </td>
                                 <td class="py-4 px-5 text-right">
                                     @if($ta->status === 'Aktif')
-                                        <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
-                                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                            <span>Sedang Aktif</span>
-                                        </span>
+                                        <div class="inline-flex items-center gap-2">
+                                            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                <span>Aktif</span>
+                                            </span>
+                                            <form action="{{ route('admin.tahun-akademik.deactivate', $ta) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button 
+                                                    type="submit" 
+                                                    onclick="return confirm('Nonaktifkan Tahun Akademik {{ $ta->nama }}? Periode ini tidak akan tampil sebagai pilihan pendaftaran camaba.')"
+                                                    class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 hover:border-rose-200 border border-slate-200 font-semibold text-xs shadow-2xs transition cursor-pointer"
+                                                >
+                                                    Nonaktifkan
+                                                </button>
+                                            </form>
+                                        </div>
                                     @else
                                         <form action="{{ route('admin.tahun-akademik.activate', $ta) }}" method="POST" class="inline">
                                             @csrf
                                             <button 
                                                 type="submit" 
-                                                onclick="return confirm('Aktifkan Tahun Akademik {{ $ta->nama }}? Status periode lain akan otomatis berubah menjadi Non-Aktif (Arsip).')"
+                                                onclick="return confirm('Aktifkan Tahun Akademik {{ $ta->nama }}? Maksimal 2 Tahun Akademik dapat aktif bersamaan.')"
                                                 class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
                                             >
                                                 Aktifkan Periode Ini

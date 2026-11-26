@@ -26,6 +26,7 @@
     <div x-show="$store.crm.activeState === 'normal'" class="space-y-6" x-data="{
         searchQuery: '',
         selectedScope: '{{ request('scope', 'all') }}',
+        selectedTahunAkademik: '{{ request('tahun_akademik', $defaultTahunAkademik ?? \App\Services\AkademikService::getAktifNama() ?? 'all') }}',
         selectedStatus: 'all',
         selectedType: 'all',
         selectedTakeover: 'all',
@@ -125,6 +126,7 @@
                 const matchStatus = this.selectedStatus === 'all' || p.status === this.selectedStatus;
                 const matchType = this.selectedType === 'all' || p.type === this.selectedType;
                 const matchGelombang = this.selectedGelombang === 'all' || p.gelombang === this.selectedGelombang;
+                const matchTahunAkademik = this.selectedTahunAkademik === 'all' || !this.selectedTahunAkademik || p.tahun_akademik === this.selectedTahunAkademik;
                 const matchTakeover = this.selectedTakeover === 'all' || 
                     (this.selectedTakeover === 'sales' && p.active_takeover && p.active_takeover.includes('Sales')) ||
                     (this.selectedTakeover === 'cs' && p.active_takeover && p.active_takeover.includes('CS')) ||
@@ -142,7 +144,7 @@
                     matchScope = this.isImportedProspect(p);
                 }
                 
-                return matchSearch && matchStatus && matchType && matchTakeover && matchGelombang && matchScope;
+                return matchSearch && matchStatus && matchType && matchTakeover && matchGelombang && matchTahunAkademik && matchScope;
             });
         },
         get paginatedProspects() {
@@ -179,7 +181,7 @@
             }
             return '/prospek/' + prospect.id;
         }
-    }" x-effect="searchQuery; selectedScope; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
+    }" x-effect="searchQuery; selectedScope; selectedTahunAkademik; selectedStatus; selectedType; selectedTakeover; selectedGelombang; currentPage = 1">
 
         @if(session('success'))
             <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs font-semibold shadow-xs">
@@ -214,6 +216,7 @@
                         status: selectedStatus !== 'all' ? selectedStatus : '',
                         type: selectedType !== 'all' ? selectedType : '',
                         gelombang: selectedGelombang !== 'all' ? selectedGelombang : '',
+                        tahun_akademik: selectedTahunAkademik !== 'all' ? selectedTahunAkademik : '',
                         takeover: selectedTakeover !== 'all' ? selectedTakeover : '',
                         search: searchQuery || '',
                         start_date: '{{ request('start_date', '') }}',
@@ -561,6 +564,14 @@
                 </select>
                 @endif
 
+                <!-- Tahun Akademik Filter -->
+                <select x-model="selectedTahunAkademik" class="px-3 py-2 rounded-xl bg-blue-50/70 border border-blue-200 text-blue-900 font-bold focus:ring-2 focus:ring-blue-500/20">
+                    <option value="all">Semua TA</option>
+                    @foreach($tahunAkademiksList ?? \App\Models\TahunAkademik::orderBy('nama', 'desc')->get() as $ta)
+                        <option value="{{ $ta->nama }}">{{ $ta->nama }} {{ $ta->status === 'Aktif' ? '(Aktif)' : '' }}</option>
+                    @endforeach
+                </select>
+
                 <!-- Status Filter -->
                 <select x-model="selectedStatus" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500/20">
                     <option value="all">Semua Status</option>
@@ -588,7 +599,7 @@
                 <!-- Reset Filter Button -->
                 <button 
                     type="button" 
-                    @click="selectedScope = 'all'; selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; selectedGelombang = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
+                    @click="selectedScope = 'all'; selectedTahunAkademik = '{{ $defaultTahunAkademik ?? \App\Services\AkademikService::getAktifNama() ?? 'all' }}'; selectedStatus = 'all'; selectedType = 'all'; selectedTakeover = 'all'; selectedGelombang = 'all'; searchQuery = ''; @if(isset($isHm) && $isHm && (request('spv_id') || request('sales_id'))) window.location.href = '{{ route('prospek.index') }}'; @endif"
                     class="ml-auto text-slate-400 hover:text-slate-600 font-medium px-2 py-1"
                 >
                     Reset Filter
@@ -641,6 +652,12 @@
                                             <span class="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 shadow-2xs" title="Gelombang Pendaftaran">
                                                 <svg class="w-3 h-3 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                                                 <span x-text="prospect.gelombang"></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="prospect.tahun_akademik">
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shadow-2xs" title="Tahun Akademik">
+                                                <svg class="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                                <span x-text="'TA ' + prospect.tahun_akademik"></span>
                                             </span>
                                         </template>
                                         <div class="text-[10px] text-slate-400 font-medium" x-show="prospect.is_presensi">

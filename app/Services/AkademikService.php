@@ -9,13 +9,13 @@ use RuntimeException;
 /**
  * Central mechanism for Tahun Akademik (Academic Year) management.
  *
- * PRD requirement: Exactly ONE active academic year at any given time.
- * - Use getAktif()       → returns ?TahunAkademik (null if none active)
- * - Use getAktifOrFail() → throws if no active TA (configuration problem)
- * - Use activate()       → atomic activation with DB lock (prevents race conditions)
- *
- * IMPORTANT: Never fall back to a hardcoded year string in business logic.
- * "No active TA" is a configuration/data-integrity problem that must be visible.
+ * Aturan Bisnis:
+ * - Mendukung hingga MAKSIMAL 2 Tahun Akademik yang berstatus Aktif secara bersamaan (misal 2026/2027 dan 2027/2028).
+ * - getAktif()       → returns ?TahunAkademik default terbaru (orderBy nama desc)
+ * - getAktifList()   → returns Collection seluruh Tahun Akademik aktif
+ * - getAktifOrFail() → throws if no active TA (configuration problem)
+ * - activate()       → atomic activation with DB lock (validasi max 2 aktif)
+ * - deactivate()     → atomic deactivation with DB lock (validasi min 1 aktif)
  */
 class AkademikService
 {
@@ -23,20 +23,50 @@ class AkademikService
     private static ?TahunAkademik $cached = null;
 
     /**
-     * Get the currently active Tahun Akademik, or null if none is configured.
+     * Get the default/latest active Tahun Akademik, or null if none is configured.
      * Result is cached for the duration of the current request.
      */
     public static function getAktif(): ?TahunAkademik
     {
         if (self::$cached === null) {
-            self::$cached = TahunAkademik::where('status', 'Aktif')->first();
+            self::$cached = TahunAkademik::where('status', 'Aktif')->orderBy('nama', 'desc')->first();
         }
 
         return self::$cached;
     }
 
     /**
-     * Get the ID of the active Tahun Akademik, or null.
+     * Get all active academic years (maksimal 2).
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, TahunAkademik>
+     */
+    public static function getAktifList()
+    {
+        return TahunAkademik::where('status', 'Aktif')->orderBy('nama', 'desc')->get();
+    }
+
+    /**
+     * Get array of IDs for all active academic years.
+     *
+     * @return array<int>
+     */
+    public static function getAktifIds(): array
+    {
+        return self::getAktifList()->pluck('id')->toArray();
+    }
+
+    /**
+     * Get array of nama for all active academic years (contoh: ['2027/2028', '2026/2027']).
+     *
+     * @return array<string>
+     */
+    public static function getAktifNamas(): array
+    {
+        return self::getAktifList()->pluck('nama')->toArray();
+    }
+
+    /**
+     * Get the ID of the default active Tahun Akademik, or null.
      */
     public static function getAktifId(): ?int
     {
@@ -44,7 +74,7 @@ class AkademikService
     }
 
     /**
-     * Get the nama (e.g. "2027/2028") of the active Tahun Akademik, or null.
+     * Get the nama (e.g. "2027/2028") of the default active Tahun Akademik, or null.
      */
     public static function getAktifNama(): ?string
     {
@@ -53,9 +83,6 @@ class AkademikService
 
     /**
      * Get the active Tahun Akademik, throwing a RuntimeException if none is configured.
-     *
-     * Use this in business logic that REQUIRES an active academic year.
-     * A missing active TA is a data-integrity problem, not a graceful edge case.
      *
      * @throws RuntimeException
      */
@@ -73,15 +100,7 @@ class AkademikService
     }
 
     /**
-     * Atomically activate a Tahun Akademik.
-     *
-     * Uses a DB transaction with a SELECT FOR UPDATE lock on the tahun_akademiks table
-     * to prevent two simultaneous requests from creating two active academic years.
-     *
-     * After this call:
-     * - The target TA is Aktif.
-     * - All other TAs are Non-Aktif.
-     * - The in-memory cache is refreshed.
+     * Atomically activate a Tahun Akademik (max 2 active concurrently).
      *
      * @throws \Throwable
      */
@@ -91,10 +110,15 @@ class AkademikService
             // Lock all rows to prevent concurrent activation
             DB::table('tahun_akademiks')->lockForUpdate()->get();
 
-            // Deactivate all others first
-            TahunAkademik::where('id', '!=', $ta->id)
+            $activeCount = TahunAkademik::where('id', '!=', $ta->id)
                 ->where('status', 'Aktif')
-                ->update(['status' => 'Non-Aktif']);
+                ->count();
+
+            if ($activeCount >= 2) {
+                throw new RuntimeException(
+                    'Maksimal 2 Tahun Akademik yang dapat aktif secara bersamaan. Silakan nonaktifkan salah satu periode terlebih dahulu agar data tidak rancu.'
+                );
+            }
 
             // Activate the target TA directly in DB and sync model instance
             TahunAkademik::where('id', $ta->id)->update(['status' => 'Aktif']);
@@ -103,6 +127,31 @@ class AkademikService
         });
 
         // Bust the per-request cache after activation
+        self::$cached = null;
+    }
+
+    /**
+     * Atomically deactivate a Tahun Akademik (min 1 active must remain).
+     *
+     * @throws \Throwable
+     */
+    public static function deactivate(TahunAkademik $ta): void
+    {
+        DB::transaction(function () use ($ta) {
+            DB::table('tahun_akademiks')->lockForUpdate()->get();
+
+            $activeCount = TahunAkademik::where('status', 'Aktif')->count();
+            if ($activeCount <= 1 && $ta->status === 'Aktif') {
+                throw new RuntimeException(
+                    'Minimal harus ada 1 Tahun Akademik yang berstatus Aktif sebagai basis data sistem.'
+                );
+            }
+
+            TahunAkademik::where('id', $ta->id)->update(['status' => 'Non-Aktif']);
+            $ta->status = 'Non-Aktif';
+            $ta->syncOriginal();
+        });
+
         self::$cached = null;
     }
 

@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Mail\CamabaLoginOtpMail;
 use App\Models\Prospek;
 use App\Models\Sekolah;
+use App\Models\TahunAkademik;
 use App\Models\User;
+use App\Services\AkademikService;
 use App\Services\CamabaOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class CamabaAuthController extends Controller
@@ -241,7 +244,10 @@ class CamabaAuthController extends Controller
         $agent = $agent ?: $request->query('agent');
         $agent = is_string($agent) ? strip_tags(trim($agent)) : null;
 
-        return view('pmb.auth.register', compact('agent'));
+        $tahunAkademiks = AkademikService::getAktifList();
+        $defaultTahunAkademik = AkademikService::getAktif();
+
+        return view('pmb.auth.register', compact('agent', 'tahunAkademiks', 'defaultTahunAkademik'));
     }
 
     /**
@@ -262,22 +268,24 @@ class CamabaAuthController extends Controller
             'whatsapp'              => ['required', 'string', 'regex:/^\+628[0-9]{8,12}$/'],
             'asal_sekolah'          => 'required|string|min:2|max:255',
             'password'              => ['required', 'confirmed', Password::min(8)],
+            'tahun_akademik_id'     => ['nullable', 'integer', Rule::exists('tahun_akademiks', 'id')->where('status', 'Aktif')],
             'minat_kuliah'          => 'nullable|string|in:ya,tidak',
             'minat_miniclass'       => 'nullable|string|in:ya,tidak',
             'agent'                 => 'nullable|string|max:100|regex:/^[a-zA-Z0-9_\-]+$/',
         ], [
-            'name.required'         => 'Nama lengkap wajib diisi.',
-            'name.min'              => 'Nama lengkap minimal 2 karakter.',
-            'email.required'        => 'Email aktif wajib diisi.',
-            'email.email'           => 'Format email tidak valid.',
-            'whatsapp.required'     => 'Nomor WhatsApp / HP wajib diisi.',
-            'whatsapp.regex'        => 'Nomor WhatsApp wajib menggunakan format Indonesia (+62) yang valid (contoh: +6281234567890).',
-            'asal_sekolah.required' => 'Asal sekolah wajib diisi.',
-            'asal_sekolah.min'      => 'Asal sekolah minimal 2 karakter.',
-            'password.required'     => 'Password wajib diisi.',
-            'password.min'          => 'Password minimal 8 karakter.',
-            'password.confirmed'    => 'Konfirmasi password tidak cocok.',
-            'agent.regex'           => 'Format kode/nama agen tidak valid. Hanya diperbolehkan huruf, angka, underscore, dan strip.',
+            'name.required'              => 'Nama lengkap wajib diisi.',
+            'name.min'                   => 'Nama lengkap minimal 2 karakter.',
+            'email.required'             => 'Email aktif wajib diisi.',
+            'email.email'                => 'Format email tidak valid.',
+            'whatsapp.required'          => 'Nomor WhatsApp / HP wajib diisi.',
+            'whatsapp.regex'             => 'Nomor WhatsApp wajib menggunakan format Indonesia (+62) yang valid (contoh: +6281234567890).',
+            'asal_sekolah.required'      => 'Asal sekolah wajib diisi.',
+            'asal_sekolah.min'           => 'Asal sekolah minimal 2 karakter.',
+            'password.required'          => 'Password wajib diisi.',
+            'password.min'               => 'Password minimal 8 karakter.',
+            'password.confirmed'         => 'Konfirmasi password tidak cocok.',
+            'tahun_akademik_id.exists'   => 'Tahun Akademik yang dipilih tidak valid atau sudah tidak aktif.',
+            'agent.regex'                => 'Format kode/nama agen tidak valid. Hanya diperbolehkan huruf, angka, underscore, dan strip.',
         ]);
 
         $emailClean = strtolower(trim($validated['email']));
@@ -373,9 +381,23 @@ class CamabaAuthController extends Controller
             $minatKuliah = $validated['minat_kuliah'] ?? 'ya';
             $minatMiniclass = $validated['minat_miniclass'] ?? 'tidak';
 
+            // Dapatkan Tahun Akademik yang dipilih Camaba atau default aktif
+            $requestedTaId = !empty($validated['tahun_akademik_id']) ? (int) $validated['tahun_akademik_id'] : null;
+            $chosenTa = $requestedTaId ? TahunAkademik::find($requestedTaId) : AkademikService::getAktif();
+            $taId = $chosenTa?->id ?? AkademikService::getAktifId();
+            $taNama = $chosenTa?->nama ?? AkademikService::getAktifNama() ?? '2027/2028';
+            $gelombangName = $taNama ? 'Gelombang 1 - ' . $taNama : 'Gelombang 1';
+
             if ($prospek) {
                 // Hubungkan akun PMB dengan ID prospek yang sudah ada (pertahankan ID prospek lama)
                 $prospek->user_id = $user->id;
+                if ($taId) {
+                    $prospek->academic_year_id = $taId;
+                    $prospek->tahun_akademik   = $taNama;
+                    if (empty($prospek->gelombang)) {
+                        $prospek->gelombang = $gelombangName;
+                    }
+                }
                 if (empty($prospek->email)) {
                     $prospek->email = $emailClean;
                 }
@@ -403,7 +425,7 @@ class CamabaAuthController extends Controller
                     'prospek_id' => $prospek->id,
                     'user_id'    => $user->id,
                     'title'      => 'Akun Portal PMB Terhubung',
-                    'notes'      => 'Calon mahasiswa berhasil mendaftarkan akun Portal PMB dan ditautkan secara otomatis ke data prospek CRM.' . ($agentClean ? " (Referral Agent: {$agentClean})" : ''),
+                    'notes'      => 'Calon mahasiswa berhasil mendaftarkan akun Portal PMB dan ditautkan secara otomatis ke data prospek CRM (TA ' . ($taNama ?: '-') . ').' . ($agentClean ? " (Referral Agent: {$agentClean})" : ''),
                     'time'       => now(),
                 ]);
             } else {
@@ -413,14 +435,11 @@ class CamabaAuthController extends Controller
                 $nextNum = Prospek::whereYear('created_at', $year)->count() + 1;
                 $noRegistrasi = 'PMB-' . $year . '-' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
-                // Dapatkan Tahun Akademik aktif secara dinamis
-                $activeTa = \App\Models\TahunAkademik::getAktif();
-                $gelombangName = $activeTa ? 'Gelombang 1 - ' . $activeTa->nama : 'Gelombang 1';
-
                 // Buat record PMB pendaftar tanpa menetapkan penanggung jawab Sales/CS secara otomatis
                 $prospek = Prospek::create([
                     'user_id'          => $user->id,
-                    'academic_year_id' => $activeTa?->id,
+                    'academic_year_id' => $taId,
+                    'tahun_akademik'   => $taNama,
                     'name'             => trim($validated['name']),
                     'email'            => $emailClean,
                     'whatsapp'         => $formattedPhone,

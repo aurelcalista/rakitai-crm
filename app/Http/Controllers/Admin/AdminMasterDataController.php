@@ -79,11 +79,21 @@ class AdminMasterDataController extends Controller
         ]);
 
         if ($request->status === 'Aktif') {
+            $activeCount = \App\Models\TahunAkademik::where('status', 'Aktif')->count();
+            if ($activeCount >= 2) {
+                return redirect()->back()->with('error', 'Maksimal 2 Tahun Akademik yang dapat aktif secara bersamaan. Silakan pilih status Non-Aktif atau nonaktifkan salah satu periode terlebih dahulu.');
+            }
+
             $ta = \App\Models\TahunAkademik::create([
                 'nama'   => $request->nama,
                 'status' => 'Non-Aktif',
             ]);
-            \App\Services\AkademikService::activate($ta);
+
+            try {
+                \App\Services\AkademikService::activate($ta);
+            } catch (\Throwable $e) {
+                return redirect()->back()->with('error', $e->getMessage());
+            }
         } else {
             \App\Models\TahunAkademik::create([
                 'nama'   => $request->nama,
@@ -96,8 +106,24 @@ class AdminMasterDataController extends Controller
 
     public function activateTahunAkademik(\App\Models\TahunAkademik $tahunAkademik)
     {
-        \App\Services\AkademikService::activate($tahunAkademik);
-        return redirect()->back()->with('success', "Tahun Akademik {$tahunAkademik->nama} sekarang menjadi SATU-SATUNYA yang aktif sebagai dasar data sistem!");
+        try {
+            \App\Services\AkademikService::activate($tahunAkademik);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', "Tahun Akademik {$tahunAkademik->nama} berhasil diaktifkan!");
+    }
+
+    public function deactivateTahunAkademik(\App\Models\TahunAkademik $tahunAkademik)
+    {
+        try {
+            \App\Services\AkademikService::deactivate($tahunAkademik);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', "Tahun Akademik {$tahunAkademik->nama} berhasil dinonaktifkan!");
     }
 
     public function destroyTahunAkademik(\App\Models\TahunAkademik $tahunAkademik)

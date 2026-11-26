@@ -981,7 +981,7 @@
                         <span class="text-slate-300 select-none">•</span>
                         <span>All rights reserved.</span>
                         <span class="text-slate-300 select-none hidden sm:inline">•</span>
-                        <span class="font-mono text-[11px] text-slate-400 font-medium">v.1.1.0</span>
+                        <span class="font-mono text-[11px] text-slate-400 font-medium">v.2.0.0</span>
                     </p>
                 </div>
 

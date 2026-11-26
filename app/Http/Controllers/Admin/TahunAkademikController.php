@@ -13,10 +13,11 @@ class TahunAkademikController extends Controller
 {
     public function index(): View
     {
-        $list   = TahunAkademik::orderByDesc('nama')->get();
-        $active = AkademikService::getAktif();
+        $list       = TahunAkademik::orderByDesc('nama')->get();
+        $active     = AkademikService::getAktif();
+        $activeList = AkademikService::getAktifList();
 
-        return view('admin.tahun-akademik.index', compact('list', 'active'));
+        return view('admin.tahun-akademik.index', compact('list', 'active', 'activeList'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -34,13 +35,30 @@ class TahunAkademikController extends Controller
     }
 
     /**
-     * Atomically activate a Tahun Akademik.
-     * Uses AkademikService::activate() which holds a DB-level lock.
+     * Atomically activate a Tahun Akademik (max 2 active).
      */
     public function activate(TahunAkademik $tahunAkademik): RedirectResponse
     {
-        AkademikService::activate($tahunAkademik);
+        try {
+            AkademikService::activate($tahunAkademik);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', "Tahun Akademik {$tahunAkademik->nama} sekarang Aktif.");
+    }
+
+    /**
+     * Atomically deactivate a Tahun Akademik (min 1 active).
+     */
+    public function deactivate(TahunAkademik $tahunAkademik): RedirectResponse
+    {
+        try {
+            AkademikService::deactivate($tahunAkademik);
+        } catch (\Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Tahun Akademik {$tahunAkademik->nama} sekarang Non-Aktif.");
     }
 }

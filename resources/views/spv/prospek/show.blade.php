@@ -30,6 +30,11 @@
                         <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">{{ $prospect['name'] }}</h2>
                         <x-status-badge :status="$prospect['status']" />
                         <span class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">{{ $prospect['type'] }}</span>
+                        @if(!empty($prospect['tahun_akademik']) && $prospect['tahun_akademik'] !== '-')
+                            <span class="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+                                TA {{ $prospect['tahun_akademik'] }}
+                            </span>
+                        @endif
                         @if(!empty($prospect['sekolah_nama']))
                             <span class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">{{ $prospect['sekolah_nama'] }}</span>
                         @endif
@@ -154,6 +159,16 @@
                     <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider pb-3 border-b border-slate-100">Informasi Prospek</h3>
                     
                     <div class="space-y-3 text-xs">
+                        <div>
+                            <span class="text-slate-400 block font-semibold text-[10px] uppercase">Tahun Akademik</span>
+                            <div class="mt-0.5">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    {{ $prospect['tahun_akademik'] ?? ($prospekModel->tahun_akademik ?: ($prospekModel->academicYear?->nama ?? '-')) }}
+                                </span>
+                            </div>
+                        </div>
+
                         <div>
                             <span class="text-slate-400 block font-semibold text-[10px] uppercase">Program Studi Diminati</span>
                             <p class="font-bold text-blue-900 mt-0.5 text-sm">{{ $prospect['prodi_nama'] ?? '-' }}</p>

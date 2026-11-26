@@ -28,7 +28,7 @@ class ProspectController extends Controller
         $user = auth()->user();
         $teamMemberIds = $user->teamMemberIds();
 
-        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'latestFollowUp'])->where(function ($q) use ($teamMemberIds, $user) {
+        $query = Prospek::with(['sales', 'cs', 'owner', 'sekolah', 'perusahaan', 'wilayah', 'prodi', 'academicYear', 'latestFollowUp'])->where(function ($q) use ($teamMemberIds, $user) {
             $q->whereIn('sales_id', $teamMemberIds)
               ->orWhereIn('owner_id', $teamMemberIds)
               ->orWhereIn('cs_id', $teamMemberIds)
@@ -116,6 +116,14 @@ class ProspectController extends Controller
             $query->where('source', $request->source);
         }
 
+        // Filter by Tahun Akademik (Dual TA Aktif)
+        if ($request->filled('tahun_akademik') && $request->tahun_akademik !== 'all') {
+            $query->where('tahun_akademik', $request->tahun_akademik);
+        }
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
+
         // Search by keyword (nama, pic, whatsapp)
         if ($request->filled('q')) {
             $query->where(function ($q) use ($request) {
@@ -138,6 +146,8 @@ class ProspectController extends Controller
         $statuses    = Prospek::getActiveStages();
         $lostReasons = Prospek::LOST_REASONS;
         $sources     = Prospek::SOURCES;
+        $tahunAkademiksList = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+        $defaultTahunAkademik = \App\Services\AkademikService::getAktifNama();
 
         return view('spv.prospek.index', compact(
             'prospects',
@@ -149,7 +159,9 @@ class ProspectController extends Controller
             'prodis',
             'statuses',
             'lostReasons',
-            'sources'
+            'sources',
+            'tahunAkademiksList',
+            'defaultTahunAkademik'
         ));
     }
 
@@ -194,6 +206,7 @@ class ProspectController extends Controller
         $sources = Prospek::SOURCES;
 
         $gelombangList = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('id')->get();
+        $tahunAkademiksList = \App\Services\AkademikService::getAktifList();
 
         return view('spv.prospek.create', compact(
             'sekolahs',
@@ -206,7 +219,8 @@ class ProspectController extends Controller
             'lostReasons',
             'teamSales',
             'teamCs',
-            'sources'
+            'sources',
+            'tahunAkademiksList'
         ));
     }
 
@@ -249,6 +263,7 @@ class ProspectController extends Controller
 
         $validated = $request->validate([
             'tanggal_masuk' => 'nullable|date',
+            'academic_year_id' => 'nullable|exists:tahun_akademiks,id',
             'name'          => 'nullable|string|max:255',
             'no_registrasi' => 'nullable|string|max:100',
             'gelombang'     => 'nullable|string|max:100',
@@ -396,6 +411,10 @@ class ProspectController extends Controller
         $prodiLainnya = $validated['prodi_id'] === 'lainnya' ? ($validated['prodi_lainnya'] ?? null) : null;
         $wilayahId = !empty($validated['wilayah_id']) ? $validated['wilayah_id'] : (!empty($validated['kota_id']) ? $validated['kota_id'] : $user->wilayah_id);
 
+        $chosenTa = !empty($validated['academic_year_id']) ? \App\Models\TahunAkademik::find($validated['academic_year_id']) : \App\Services\AkademikService::getAktif();
+        $taId = $chosenTa?->id;
+        $taNama = $chosenTa?->nama ?? '2027/2028';
+
         // Auto-route active Sales & CS from active user_wilayah if not manually assigned
         if ($wilayahId) {
             $wilayahObj = Wilayah::find($wilayahId);
@@ -416,7 +435,7 @@ class ProspectController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $prodiLainnya, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas) {
+        DB::transaction(function () use ($validated, $user, $name, $prodi, $prodiNama, $prodiLainnya, $source, $salesId, $csId, $ownerId, $handlerLabel, $wilayahId, $kelas, $taId, $taNama) {
             $stageNumber = Prospek::STAGES[$validated['status']] ?? 1;
 
             $createdAt = !empty($validated['tanggal_masuk'])
@@ -430,6 +449,8 @@ class ProspectController extends Controller
                 'name'               => $name,
                 'no_registrasi'      => $validated['no_registrasi'] ?? null,
                 'gelombang'          => $validated['gelombang'] ?? null,
+                'academic_year_id'   => $taId,
+                'tahun_akademik'     => $taNama,
                 'type'               => $validated['type'],
                 'category'           => $prodiNama,
                 'prodi_id'           => $prodi?->id,
@@ -478,7 +499,7 @@ class ProspectController extends Controller
     {
         Gate::authorize('view', $prospek);
 
-        $prospek->load(['sales', 'cs', 'owner', 'takeoverBy', 'prodi', 'sekolah.wilayah', 'wilayah', 'followUps' => function ($q) {
+        $prospek->load(['sales', 'cs', 'owner', 'takeoverBy', 'prodi', 'academicYear', 'sekolah.wilayah', 'wilayah', 'followUps' => function ($q) {
             $q->orderBy('tanggal', 'desc')->with('user');
         }, 'timelines' => function ($q) {
             $q->orderBy('time', 'desc')->with('user');
@@ -500,6 +521,7 @@ class ProspectController extends Controller
         $metodeOptions = \App\Models\FollowUp::METODE_OPTIONS;
         $prospekModel = $prospek;
         $followUps = $prospek->followUps;
+        $tahunAkademiksList = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
 
         return view('spv.prospek.show', compact(
             'prospect',
@@ -510,7 +532,8 @@ class ProspectController extends Controller
             'lostReasons',
             'metodeOptions',
             'teamSales',
-            'teamCs'
+            'teamCs',
+            'tahunAkademiksList'
         ));
     }
 
@@ -532,6 +555,7 @@ class ProspectController extends Controller
         }
 
         $validated = $request->validate([
+            'academic_year_id' => 'nullable|exists:tahun_akademiks,id',
             'type'        => 'nullable|in:Sekolah,Corporate,Individu',
             'sekolah_id'  => 'nullable|exists:sekolahs,id',
             'sekolah_manual' => 'nullable|string|max:255',
@@ -610,12 +634,28 @@ class ProspectController extends Controller
                 $validated['category'] = $prodi->nama;
                 $validated['prodi_lainnya'] = null;
             }
-        } elseif ($validated['prodi_id'] === 'lainnya') {
+        } elseif (($validated['prodi_id'] ?? null) === 'lainnya') {
             $validated['prodi_id'] = null;
             $validated['category'] = $validated['prodi_lainnya'] ?? null;
-        } else {
+        } elseif (array_key_exists('prodi_id', $validated)) {
             $validated['prodi_id'] = null;
             $validated['prodi_lainnya'] = null;
+        }
+
+        $oldAcademicYearId = $prospek->academic_year_id;
+        $oldAcademicYearName = $prospek->tahun_akademik;
+
+        if ($request->has('academic_year_id')) {
+            $newTaId = $request->input('academic_year_id');
+            if ($newTaId) {
+                $taModel = \App\Models\TahunAkademik::find($newTaId);
+                if ($taModel) {
+                    $validated['academic_year_id'] = $taModel->id;
+                    $validated['tahun_akademik'] = $taModel->nama;
+                }
+            } else {
+                $validated['academic_year_id'] = null;
+            }
         }
 
         if (array_key_exists('whatsapp', $validated)) {
@@ -627,6 +667,19 @@ class ProspectController extends Controller
         }
 
         $prospek->update($validated);
+
+        if (array_key_exists('academic_year_id', $validated) && $validated['academic_year_id'] != $oldAcademicYearId) {
+            $newTaNama = $validated['tahun_akademik'] ?? '-';
+            $oldTaNama = $oldAcademicYearName ?? '-';
+            ProspekTimeline::create([
+                'prospek_id'   => $prospek->id,
+                'user_id'      => auth()->id(),
+                'title'        => 'Tahun Akademik Diperbarui',
+                'notes'        => "Tahun akademik diubah dari {$oldTaNama} ke {$newTaNama} oleh SPV " . auth()->user()->name,
+                'status_after' => $prospek->status,
+                'time'         => now(),
+            ]);
+        }
 
         ProspekTimeline::create([
             'prospek_id'   => $prospek->id,
@@ -865,6 +918,8 @@ class ProspectController extends Controller
             'sla_status'     => $p->sla_status,
             'no_registrasi'  => $p->no_registrasi ?? null,
             'gelombang'      => $p->gelombang ?? null,
+            'academic_year_id' => $p->academic_year_id,
+            'tahun_akademik' => $p->tahun_akademik ?: ($p->academicYear?->nama ?? '-'),
             'owner_id'       => $p->owner_id,
         ];
     }

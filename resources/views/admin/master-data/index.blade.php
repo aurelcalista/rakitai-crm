@@ -90,8 +90,8 @@
                     </svg>
                 </div>
                 <div class="text-xs text-blue-900 leading-relaxed">
-                    <h4 class="font-bold text-sm text-blue-950 mb-0.5">Aturan Sistem: Tepat 1 Tahun Akademik Aktif</h4>
-                    <p>Hanya boleh ada <strong>1 Tahun Akademik yang aktif</strong> dalam satu waktu. Tahun Akademik yang aktif secara otomatis menjadi basis data utama untuk <strong>Target & Performa Mingguan, Kunjungan Lapangan, Event PMB, serta Alur Pipeline Prospek</strong>.</p>
+                    <h4 class="font-bold text-sm text-blue-950 mb-0.5">Aturan Sistem: Maksimal 2 Tahun Akademik Aktif</h4>
+                    <p>Sistem mendukung hingga <strong>2 Tahun Akademik yang aktif secara bersamaan</strong> (contoh: 2026/2027 dan 2027/2028). Calon mahasiswa baru dapat memilih tahun akademik yang dituju saat registrasi atau mengisi formulir.</p>
                 </div>
             </div>
 
@@ -127,7 +127,7 @@
                                 </td>
                                 <td class="py-3.5 px-4 text-slate-500 font-medium">
                                     @if($ta->status === 'Aktif')
-                                        <span class="text-emerald-700 font-semibold">Digunakan untuk Target Mingguan, Kunjungan & Prospek</span>
+                                        <span class="text-emerald-700 font-semibold">Tersedia untuk Pendaftaran Camaba & Basis Target</span>
                                     @else
                                         <span class="text-slate-400">Arsip data periode</span>
                                     @endif
@@ -135,7 +135,7 @@
                                 <td class="py-3.5 px-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         @if($ta->status !== 'Aktif')
-                                            <form action="{{ route('admin.tahun-akademik.activate', $ta->id) }}" method="POST" data-confirm="Apakah Anda yakin ingin mengaktifkan Tahun Akademik {{ $ta->nama }}? Tahun akademik yang aktif sebelumnya akan dinonaktifkan.">
+                                            <form action="{{ route('admin.tahun-akademik.activate', $ta->id) }}" method="POST" data-confirm="Aktifkan Tahun Akademik {{ $ta->nama }}? Maksimal 2 Tahun Akademik dapat aktif bersamaan.">
                                                 @csrf
                                                 <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs transition cursor-pointer">
                                                     Set Aktif
@@ -151,8 +151,15 @@
                                             </form>
                                         @else
                                             <span class="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                                                Sedang Aktif (Kunci)
+                                                Sedang Aktif
                                             </span>
+
+                                            <form action="{{ route('admin.tahun-akademik.deactivate', $ta->id) }}" method="POST" data-confirm="Nonaktifkan Tahun Akademik {{ $ta->nama }}? Periode ini tidak akan tampil sebagai pilihan pendaftaran camaba.">
+                                                @csrf
+                                                <button type="submit" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 hover:border-rose-200 border border-slate-200 font-semibold text-xs transition cursor-pointer">
+                                                    Nonaktifkan
+                                                </button>
+                                            </form>
                                         @endif
                                     </div>
                                 </td>

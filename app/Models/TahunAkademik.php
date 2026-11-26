@@ -14,19 +14,22 @@ class TahunAkademik extends Model
     // ──────────────────────────────────────────────────────────────
 
     /**
-     * Guardrail: if this model is saved as 'Aktif' through the normal
-     * Eloquent lifecycle (e.g. direct ->save()), deactivate all others.
-     *
-     * For atomic production activation, prefer AkademikService::activate()
-     * which uses a DB-level lock.
+     * Guardrail: Maksimal 2 Tahun Akademik yang dapat aktif secara bersamaan.
+     * Mencegah admin asal-asalan mengaktifkan tahun agar integritas data tetap terjaga.
      */
     protected static function booted(): void
     {
         static::saving(function (TahunAkademik $model) {
             if ($model->status === 'Aktif') {
-                self::where('id', '!=', $model->id)
+                $otherActiveCount = self::where('id', '!=', $model->id)
                     ->where('status', 'Aktif')
-                    ->update(['status' => 'Non-Aktif']);
+                    ->count();
+
+                if ($otherActiveCount >= 2) {
+                    throw new \DomainException(
+                        'Maksimal hanya 2 Tahun Akademik yang dapat aktif secara bersamaan. Nonaktifkan salah satu terlebih dahulu.'
+                    );
+                }
             }
         });
     }
@@ -36,12 +39,20 @@ class TahunAkademik extends Model
     // ──────────────────────────────────────────────────────────────
 
     /**
-     * Return the currently active TahunAkademik, or null if none is configured.
+     * Return the latest active TahunAkademik (default primary), or null if none is configured.
      * Prefer AkademikService::getAktif() for cached access.
      */
     public static function getAktif(): ?self
     {
-        return self::where('status', 'Aktif')->first();
+        return self::where('status', 'Aktif')->orderBy('nama', 'desc')->first();
+    }
+
+    /**
+     * Return all active TahunAkademik collection (maksimal 2).
+     */
+    public static function getAktifList()
+    {
+        return self::where('status', 'Aktif')->orderBy('nama', 'desc')->get();
     }
 
     /**

@@ -38,7 +38,7 @@
                 {{ $prospek->gelombang ?? ($tahunAkademik ? 'Gelombang 1 - ' . $tahunAkademik->nama : 'Gelombang 1 PMB') }}
             </h2>
             <div class="text-xs text-slate-500 mt-1 space-y-0.5">
-                <p>{{ $tahunAkademik ? 'Tahun Akademik ' . $tahunAkademik->nama : 'Tahun Akademik ' . date('Y') . '/' . (date('Y') + 1) }}</p>
+                <p>{{ !empty($prospek?->tahun_akademik) ? 'Tahun Akademik ' . $prospek->tahun_akademik : ($tahunAkademik ? 'Tahun Akademik ' . $tahunAkademik->nama : 'Tahun Akademik ' . date('Y') . '/' . (date('Y') + 1)) }}</p>
                 <p>Periode: {{ $periodeText ?? 'Sep 2026 - Okt 2026' }}</p>
             </div>
         </div>

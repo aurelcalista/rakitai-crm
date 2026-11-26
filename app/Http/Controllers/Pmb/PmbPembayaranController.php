@@ -407,10 +407,21 @@ class PmbPembayaranController extends Controller
     {
         $query = Prospek::with([
             'prodi',
+            'academicYear',
             'transaksis' => fn($q) => $q->orderByDesc('tanggal')->orderByDesc('id'),
             'voucherUsages.voucher',
             'user',
         ]);
+
+        // Filter: Tahun Akademik (Default ke TA aktif terbaru jika tidak dispesifikasikan)
+        $defaultTa = \App\Services\AkademikService::getAktifNama();
+        $selectedTa = $request->input('tahun_akademik', $defaultTa ?? 'all');
+        if ($selectedTa && $selectedTa !== 'all') {
+            $query->where(function ($q) use ($selectedTa) {
+                $q->where('tahun_akademik', $selectedTa)
+                  ->orWhereHas('academicYear', fn($aq) => $aq->where('nama', $selectedTa));
+            });
+        }
 
         // Search: nama, email, no wa, no registrasi, atau order id transaksi
         if ($request->filled('search')) {
@@ -641,6 +652,10 @@ class PmbPembayaranController extends Controller
             ? Prospek::onlyTrashed()->count()
             : 0;
 
+        $tahunAkademiks = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+        $defaultTa = \App\Services\AkademikService::getAktifNama();
+        $selectedTa = $request->input('tahun_akademik', $defaultTa ?? 'all');
+
         return view('pmb.pembayaran.index', compact(
             'rekapList',
             'transaksis',
@@ -655,7 +670,9 @@ class PmbPembayaranController extends Controller
             'quickFilter',
             'vouchers',
             'voucherSummaryUsages',
-            'trashCount'
+            'trashCount',
+            'tahunAkademiks',
+            'selectedTa'
         ));
     }
 
@@ -690,7 +707,7 @@ class PmbPembayaranController extends Controller
         });
 
         return redirect()
-            ->route('pmb.pembayaran.index', $request->only(['search', 'periode', 'metode', 'status', 'tahap', 'per_page']))
+            ->route('pmb.pembayaran.index', $request->only(['search', 'periode', 'metode', 'status', 'tahap', 'per_page', 'tahun_akademik']))
             ->with('success', "Data pembayaran {$nama} ({$regNo}) berhasil dipindahkan ke Trash.");
     }
 
@@ -1074,6 +1091,7 @@ class PmbPembayaranController extends Controller
                 'No',
                 'Order ID Terakhir',
                 'No. Registrasi',
+                'Tahun Akademik',
                 'Nama Calon Mahasiswa',
                 'Email',
                 'WhatsApp',
@@ -1103,6 +1121,7 @@ class PmbPembayaranController extends Controller
                     $no++,
                     $latestTrx?->order_id ?: ('TRX-' . str_pad($p->id, 5, '0', STR_PAD_LEFT)),
                     $p->no_registrasi ?? '-',
+                    $p->tahun_akademik ?: ($p->academicYear?->nama ?? '-'),
                     $p->name ?? '-',
                     $p->email ?? '-',
                     $p->whatsapp ?? '-',

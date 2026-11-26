@@ -195,9 +195,13 @@
             <div class="flex items-center gap-3">
                 <!-- Tahun Akademik Selector -->
                 <div class="relative">
-                    <select class="text-xs font-bold rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-700 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 shadow-2xs cursor-pointer">
-                        <option value="2025/2026" selected>2025/2026</option>
-                        <option value="2026/2027">2026/2027</option>
+                    <select onchange="location.href='{{ route('pmb.pembayaran.index') }}?tahun_akademik=' + encodeURIComponent(this.value)" class="text-xs font-bold rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-700 focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 shadow-2xs cursor-pointer">
+                        <option value="all" {{ ($selectedTa ?? '') === 'all' ? 'selected' : '' }}>Semua TA</option>
+                        @foreach($tahunAkademiks ?? [] as $ta)
+                            <option value="{{ $ta->nama }}" {{ ($selectedTa ?? '') === $ta->nama ? 'selected' : '' }}>
+                                {{ $ta->nama }} {{ $ta->status === 'Aktif' ? '(Aktif)' : '' }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -261,8 +265,35 @@
                 <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
                 <input type="hidden" name="tahap" value="{{ $activeTahap ?? request('tahap', 'all') }}">
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
-                    <!-- 1. Periode Pembayaran -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+                    <!-- 1. Tahun Akademik -->
+                    <div>
+                        <label class="block text-xs font-bold text-blue-700 mb-1.5 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>Tahun Akademik</span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                </svg>
+                            </div>
+                            <select name="tahun_akademik" onchange="document.getElementById('mainFilterForm').submit()" class="w-full text-xs font-bold rounded-xl border border-blue-200 pl-10 pr-4 py-2.5 bg-blue-50/50 text-blue-900 focus:bg-white focus:border-[#0b3d82] focus:ring-2 focus:ring-blue-100 transition shadow-2xs cursor-pointer">
+                                <option value="all" {{ ($selectedTa ?? '') === 'all' ? 'selected' : '' }}>Semua Tahun Akademik</option>
+                                @foreach($tahunAkademiks ?? [] as $ta)
+                                    <option value="{{ $ta->nama }}" {{ ($selectedTa ?? '') === $ta->nama ? 'selected' : '' }}>
+                                        TA {{ $ta->nama }} {{ $ta->status === 'Aktif' ? '(Aktif)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 2. Periode Pembayaran -->
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1.5">Periode Pembayaran</label>
                         <div class="relative">
@@ -851,8 +882,13 @@
                                             <a href="{{ route('pmb.pendaftar.show', $p->id) }}" class="font-extrabold text-slate-900 hover:text-blue-600 transition block truncate text-xs sm:text-sm">
                                                 {{ $regNo }}
                                             </a>
-                                            <div class="flex items-center gap-1.5 text-slate-500 text-[11px] mt-0.5">
+                                            <div class="flex items-center gap-1.5 text-slate-500 text-[11px] mt-0.5 flex-wrap">
                                                 <span class="font-bold text-slate-700">{{ $p->name }}</span>
+                                                @if($p->tahun_akademik || $p->academicYear?->nama)
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                        TA {{ $p->tahun_akademik ?: $p->academicYear?->nama }}
+                                                    </span>
+                                                @endif
                                                 <span class="text-slate-300">•</span>
                                                 <span class="text-slate-400">{{ $formattedDate }}</span>
                                             </div>

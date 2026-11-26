@@ -1393,6 +1393,12 @@ class CrmController extends Controller
         if ($request && $request->filled('end_date')) {
             $query->whereDate('created_at', '<=', $request->end_date);
         }
+        if ($request && $request->filled('tahun_akademik') && $request->tahun_akademik !== 'all') {
+            $query->where('tahun_akademik', $request->tahun_akademik);
+        }
+        if ($request && $request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
 
         $prospectsRaw = $query->orderBy('updated_at', 'desc')->get();
 
@@ -1482,6 +1488,8 @@ class CrmController extends Controller
                 'prodi_nama' => $p->prodi ? $p->prodi->nama : (!empty($p->category) ? $p->category : '-'),
                 'prodi_lainnya' => $p->prodi_lainnya ?? '',
                 'sekolah_id' => $p->sekolah_id,
+                'academic_year_id' => $p->academic_year_id,
+                'tahun_akademik' => $p->tahun_akademik,
                 'status' => $p->status,
                 'stage_number' => $p->stage_number,
                 'takeover_sales' => $p->sales ? $p->sales->name : null,
@@ -1733,7 +1741,10 @@ class CrmController extends Controller
             ];
         }
 
-        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics', 'salesMetrics', 'prodis', 'gelombangList'));
+        $tahunAkademiksList = \App\Models\TahunAkademik::orderBy('nama', 'desc')->get();
+        $defaultTahunAkademik = \App\Services\AkademikService::getAktifNama();
+
+        return view('prospek.index', compact('prospects', 'sekolahs', 'perusahaans', 'statuses', 'isHm', 'spvs', 'salesList', 'csMetrics', 'salesMetrics', 'prodis', 'gelombangList', 'tahunAkademiksList', 'defaultTahunAkademik'));
     }
 
     public function prospekStore(Request $request)
@@ -2135,6 +2146,8 @@ class CrmController extends Controller
         $prospect = [
             'id' => $prospectRaw->id,
             'name' => $prospectRaw->name,
+            'academic_year_id' => $prospectRaw->academic_year_id,
+            'tahun_akademik' => $prospectRaw->tahun_akademik ?: ($prospectRaw->academicYear?->nama ?? '-'),
             'no_registrasi' => $prospectRaw->no_registrasi ?? '',
             'gelombang' => $prospectRaw->gelombang ?? '',
             'type' => $prospectRaw->type,
@@ -2229,6 +2242,7 @@ class CrmController extends Controller
         $sekolahsList        = \App\Models\Sekolah::getDynamicSchools();
         $perusahaansList     = \App\Models\Perusahaan::getDynamicPerusahaans();
         $prodisList          = \App\Models\Prodi::where('status', 'Aktif')->orderBy('nama')->get();
+        $tahunAkademiksList  = \App\Models\TahunAkademik::orderByDesc('nama')->get();
         $gelombangList       = \App\Models\MasterData::where('type', 'gelombang')->where('status', 'Aktif')->orderBy('id')->get();
         $sumberProspekList   = \App\Models\MasterData::where('type', 'sumber_prospek')->where('status', 'Aktif')->get();
         $kategoriProspekList = \App\Models\MasterData::where('type', 'kategori_prospek')->where('status', 'Aktif')->get();
@@ -2246,7 +2260,7 @@ class CrmController extends Controller
         return view('prospek.show', compact(
             'prospect', 'allStages', 'salesTeam', 'csTeam', 'prospectRaw', 'prospekModel', 'transaksis', 'followUps',
             'sekolahsList', 'perusahaansList', 'prodisList', 'gelombangList', 'sumberProspekList', 'kategoriProspekList',
-            'kategoriSekolahList', 'wilayahKabupatenList',
+            'kategoriSekolahList', 'wilayahKabupatenList', 'tahunAkademiksList',
             'lostReasons', 'metodeOptions', 'isHandler',
             'hasPendingTrx', 'pendingList', 'hasVerifiedTermin1', 'hasVerifiedFormulir', 'totalPaid', 'totalPending'
         ));
@@ -2268,6 +2282,8 @@ class CrmController extends Controller
             'status' => 'required|string',
             'no_registrasi' => 'nullable|string|max:100',
             'gelombang' => 'nullable|string|max:100',
+            'academic_year_id' => 'nullable|exists:tahun_akademiks,id',
+            'tahun_akademik' => 'nullable|string|max:20',
             'type' => 'nullable|string',
             'name' => 'nullable|string',
             'pic' => 'nullable|string',
@@ -2293,6 +2309,22 @@ class CrmController extends Controller
         $user = auth()->user();
         $oldStatus = $prospek->status;
         $newStatus = strtoupper($request->status);
+        $oldAcademicYearId = $prospek->academic_year_id;
+        $oldAcademicYearName = $prospek->tahun_akademik;
+
+        if ($request->has('academic_year_id')) {
+            $newTaId = $request->input('academic_year_id');
+            if ($newTaId) {
+                $taModel = \App\Models\TahunAkademik::find($newTaId);
+                if ($taModel) {
+                    $validated['academic_year_id'] = $taModel->id;
+                    $validated['tahun_akademik'] = $taModel->nama;
+                }
+            } else {
+                $validated['academic_year_id'] = null;
+                $validated['tahun_akademik'] = null;
+            }
+        }
 
         // Status LUNAS cannot be changed to anything else
         if ($oldStatus === 'LUNAS' && $newStatus !== 'LUNAS') {
@@ -2390,6 +2422,19 @@ class CrmController extends Controller
         }
 
         $prospek->update($validated);
+
+        if ($request->has('academic_year_id') && ($oldAcademicYearId != ($validated['academic_year_id'] ?? null))) {
+            $newTaName = $validated['tahun_akademik'] ?? 'Kosong';
+            $oldTaName = $oldAcademicYearName ?: ($oldAcademicYearId ? 'ID ' . $oldAcademicYearId : 'Belum Diisi');
+            ProspekTimeline::create([
+                'prospek_id' => $prospek->id,
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Tahun Akademik Diperbarui',
+                'notes' => "Tahun Akademik diubah dari {$oldTaName} menjadi {$newTaName} oleh " . (auth()->user()->name ?? 'User'),
+                'status_after' => $prospek->status,
+                'time' => now(),
+            ]);
+        }
 
         if ($oldStatus !== $prospek->status) {
             ProspekTimeline::create([
